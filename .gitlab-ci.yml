@@ -20,8 +20,14 @@
 #  jangan salah satunya.
 # =============================================================================
 
-# Mengandaikan runner memakai executor Docker. Kalau job gagal dengan
-# "node: command not found", runner-nya executor shell — tanyakan ke IT.
+# Semua job butuh executor Docker (image node, docker:dind, cloud-sdk).
+# Instance runner tanpa tag (#11 self-shell-runner) memakai executor SHELL dan
+# mengabaikan `image:` — job di sana gagal "npm: command not found". Karena itu
+# semua job dipaksa ke runner ber-tag `self-runner` (#9).
+default:
+  tags:
+    - self-runner
+
 image: node:20
 
 # Pipeline berjalan untuk tiap push ke branch mana pun, dan untuk merge request.
