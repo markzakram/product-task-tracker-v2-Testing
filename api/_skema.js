@@ -34,7 +34,7 @@ const TAB = {
   dashboards: ['id', 'title', 'deskripsi', 'icon', 'url'],
   links: ['id', 'user', 'folder', 'title', 'url'],
   notes: ['id', 'user', 'folder', 'title', 'body', 'updatedAt'],
-  setoran: ['id', 'paket', 'item', 'task', 'jumlah', 'catatan'],
+  setoran: ['id', 'paket', 'item', 'task', 'jumlah', 'tahap', 'batch', 'catatan'],
   log: ['id', 'type', 'task', 'detail', 'by', 'at'],
 };
 /* Tab yang baru ada sejak versi tertentu. Spreadsheet yang diimpor sebelum itu tetap

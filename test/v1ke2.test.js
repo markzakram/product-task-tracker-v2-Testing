@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ubah, platformV2, tahap, kategori, idOrang, waktu, leadDari, LCI_SUB } = require('../scripts/_v1ke2');
+const { ubah, platformV2, subDariV1, kategori, idOrang, waktu } = require('../scripts/_v1ke2');
+const I = require('../public/inti');
 
 /* Tarikan v1 buatan, berbentuk persis db/dump/*.json — isinya karangan. */
 function dumpV1() {
@@ -89,13 +90,16 @@ function dumpV1() {
 
 const cari = (data, id) => data.tasks.find(t => t.id === id);
 
-test('task lepas v1 → Jalur Rutin: nomor tetap, stage v1 jadi kategori, tanpa tahap ADDIE', () => {
-  const { data } = ubah(dumpV1());
+test('task v1 tanpa kolaborasi → di luar proyek: rutin (R1–R4) atau lepas berkode ADDIE, nomor tetap', () => {
+  const { data, ringkasan } = ubah(dumpV1());
   const t = cari(data, 'PRD-099');
-  assert.deepEqual([t.lane, t.kategori, t.stage, t.project], ['rutin', 'RnD', '', '']);
+  assert.deepEqual([t.lane, I.jenisJalur(t), t.sub, t.stage, t.kategori, t.project], ['rutin', 'lepas', 'A2', 'A', 'RnD', '']);
+  const fee = cari(data, 'PRD-105');
+  assert.deepEqual([I.jenisJalur(fee), fee.sub, fee.stage, fee.kategori], ['rutin', 'R1', '', 'Umum']);
+  assert.equal(I.peninjau({ ...t, status: 'Dikerjakan' }), null, 'di luar proyek: tanpa tinjauan');
   assert.equal(kategori('Develop Konten (materi/soal)'), 'Develop Konten');
   assert.equal(kategori(''), 'Umum');
-  assert.equal(cari(data, 'PRD-105').kategori, 'Umum');
+  assert.deepEqual([ringkasan.belumDipetakan, ringkasan.rutin, ringkasan.lepas], [0, 2, 5]);
 });
 
 test('orang: "Nynda (PM)" → nynda, nama di luar organogram dibiarkan, PIC tak ikut jadi support', () => {
@@ -154,27 +158,35 @@ test('isi task: output, evidence, catatan PM, prioritas', () => {
   assert.equal(t.notes, 'Catatan PM: Fokus ke TIU');
 });
 
-test('tahap ADDIE untuk task proyek: tabel stage v1, plus pengecualian dari judul', () => {
-  assert.deepEqual(tahap('QC', 'Melakukan 40 QC Ops Tryout'), ['V', LCI_SUB]);
-  assert.deepEqual(tahap('Operasional', 'Memonitor 5 liveclass jadiasn'), ['I', 'Liveclass']);
-  assert.deepEqual(tahap('Develop Konten (materi/soal)', 'Membuat 12 Soal Liveclass TIU'), ['V', '3.1 Academic Content Development'],
-    'soal untuk liveclass adalah pengembangan konten, bukan pelaksanaan liveclass');
-  assert.deepEqual(tahap('Develop Konten (materi/soal)', 'Membuat 1 PPT Data Report Center'), ['E', 'Report Center']);
-  assert.deepEqual(tahap('RnD', 'Menyusun 1 Kurikulum SIPSS'), ['D', 'Academic blueprint']);
-  assert.deepEqual(tahap('', 'To Do List'), ['V', '']);
+test('sub-stage dari judul lalu stage v1 (PRD langkah migrasi 2); QC masuk Evaluation', () => {
+  assert.equal(subDariV1('QC', 'Melakukan 40 QC Ops Tryout', false), 'E4');
+  assert.equal(subDariV1('QC', 'Melakukan 65 QC soal Verbal Analitis', false), 'E1');
+  assert.equal(subDariV1('Operasional', 'Memonitor 5 liveclass jadiasn', false), 'I7');
+  assert.equal(subDariV1('Develop Konten (materi/soal)', 'Membuat 12 Soal Liveclass TIU', false), 'DV1',
+    'soal untuk liveclass adalah produksi soal, bukan pelaksanaan liveclass');
+  assert.equal(subDariV1('Develop Konten (materi/soal)', 'Membuat 1 PPT Data Report Center', false), 'R2', 'report berkala di luar proyek');
+  assert.equal(subDariV1('Develop Konten (materi/soal)', 'Membuat 1 PPT Data Report Center', true), 'E10', 'di dalam proyek: analisis report');
+  assert.equal(subDariV1('RnD', 'Menyusun 1 Kurikulum SIPSS', true), 'A4');
+  assert.equal(subDariV1('Manajemen Sistem', 'Follow up ke marsel untuk di show', true), 'I4');
+  assert.equal(subDariV1('Data & Intelligence', 'Membuat sistem generate icon apk', false), 'DV6', 'membangun alat generate, bukan menjalankan generate');
+  assert.equal(subDariV1('Manajemen Sistem', 'menyusun Category, Lesson, dan Chapter di SIADU sesuai mapping terbaru', false), 'I2', 'setup course, walau menyebut mapping');
+  assert.equal(subDariV1('Kreatif', 'Memperbarui 32 Chapter thumbnail materi', false), 'DV5');
+  assert.equal(subDariV1('Operasional', 'Langkah tanpa kata kunci', true), 'DV8', 'cadangan: stage v1');
+  assert.equal(subDariV1('', 'To Do List', false), '', 'tak cocok apa pun: dipetakan manual oleh Lead');
 });
 
-test('kolaborasi → proyek ADDIE: proses berantai, Lead dari tim terbanyak, tahap = proses berjalan', () => {
+test('kolaborasi → proyek tanpa Lead tetap: proses berantai bersub-stage, tahap dihitung dari task terbuka', () => {
   const { data, ringkasan } = ubah(dumpV1());
   const p = data.projects.find(x => x.id === 'PRJ-21');
-  assert.deepEqual([p.platform, p.stage, p.lead, p.arsip, p.goal], ['BUMN', 'V', 'andika', false, 'Paket KAI']);
+  assert.deepEqual([p.platform, p.lead, p.arsip, p.goal], ['BUMN', '', false, 'Paket KAI']);
   const langkah = data.tasks.filter(t => t.project === 'PRJ-21');
   assert.deepEqual(langkah.map(t => t.id), ['PRD-106', 'PRD-107', 'PRD-108', 'PRD-109'], 'nomor sesudah task v1 terbesar, urut menurut urutan');
-  assert.deepEqual(langkah.map(t => t.lane), ['proyek', 'proyek', 'proyek', 'proyek']);
+  assert.deepEqual(langkah.map(t => t.sub), ['A2', 'DV1', 'DV8', 'A2']);
+  assert.deepEqual(langkah.map(t => t.stage), ['A', 'V', 'V', 'A'], 'tahap tiap task ikut kodenya');
   assert.deepEqual(langkah.map(t => t.deps), [[], ['PRD-106'], ['PRD-107'], ['PRD-108']]);
   assert.deepEqual(langkah.map(t => t.status), ['Selesai', 'Dikerjakan', 'Antre', 'Antre']);
-  assert.deepEqual(langkah.map(t => t.stage), ['A', 'V', 'V', 'V'],
-    'proses yang belum selesai tak boleh tertinggal di tahap sebelum tahap proyek');
+  assert.equal(p.stage, 'A', 'riset ulang kompetitor (Analysis) masih terbuka');
+  assert.deepEqual(I.timProyek(data, p), ['AK', 'LA']);
   assert.equal(langkah[0].evidence[0].label, 'Google Sheets');
   assert.equal(langkah[0].tinjauan[0].by, 'andika');
   assert.equal(langkah[1].notes, 'tunggu kisi-kisi');
@@ -183,8 +195,7 @@ test('kolaborasi → proyek ADDIE: proses berantai, Lead dari tim terbanyak, tah
 
 test('kolaborasi yang semua prosesnya tuntas → proyek arsip', () => {
   const p = ubah(dumpV1()).data.projects.find(x => x.id === 'PRJ-30');
-  assert.deepEqual([p.arsip, p.lead, p.platform], [true, 'alya', 'ASN']);
-  assert.equal(leadDari([]), 'nynda');
+  assert.deepEqual([p.arsip, p.lead, p.platform, p.stage], [true, '', 'ASN', 'I']);
 });
 
 test('ceklis dan komentar ikut ke induknya; yang yatim dihitung, bukan dikarang', () => {

@@ -276,7 +276,7 @@ const contoh = () => ({
   dashboards: [{ id: 'd2', title: 'Proyek Freelance', deskripsi: 'Rekap', icon: 'timeline', url: 'https://contoh.id/a' }],
   links: [{ id: 'u2', user: 'ali', folder: 'Kerja', title: 'Bank soal', url: 'https://contoh.id/bank' }],
   notes: [{ id: 'n1', user: 'ali', folder: '', title: 'Ide', body: 'Baris satu\nBaris dua', updatedAt: Date.parse('2026-10-07T03:00:00Z') }],
-  setoran: [{ id: 'st-PRD-646-ITM-1', paket: 'PKG-002', item: 'ITM-1', task: 'PRD-646', jumlah: 2, catatan: '' }, { id: 'st2', paket: 'PKG-002', item: 'ITM-2', task: 'PRD-001', jumlah: 1.5, catatan: 'setengah sesi' }],
+  setoran: [{ id: 'st-PRD-646-ITM-1', paket: 'PKG-002', item: 'ITM-1', task: 'PRD-646', jumlah: 2, tahap: 'konten', batch: 'B-PRD-646', catatan: '' }, { id: 'st2', paket: 'PKG-002', item: 'ITM-2', task: 'PRD-001', jumlah: 1.5, tahap: '', batch: '', catatan: 'setengah sesi' }],
   log: [{ id: 'l1', type: 'create', task: 'PRD-001 · Task lepas', detail: 'Dibuat', by: 'andika', at: Date.parse('2026-07-01T01:00:00Z') }],
 });
 

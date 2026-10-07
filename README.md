@@ -37,17 +37,36 @@ orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan Lead
 Di ponsel sidebar menjadi laci (tombol ☰), ditambah bilah bawah: Hari Ini, Kanban, Proyek,
 Komunikasi, Menu.
 
-- **Empat status:** Antre → Dikerjakan → Ditinjau → Selesai. **Tertahan** adalah tanda yang
-  disertai alasan, bukan status.
-- **Dua jalur:**
-  - **Proyek** punya tahap ADDIE. Task-nya ditinjau sebelum selesai: task staff oleh Lead-nya,
-    task Lead oleh Manager.
-  - **Rutin** adalah pekerjaan di luar proyek. Tanpa tahap, tanpa tinjauan; PIC langsung
-    menandai selesai.
-- **Gate hanya di level proyek.** Begitu semua task di tahap aktif selesai, proyek masuk antrean
-  keputusan Manager: lanjut ke tahap berikutnya, atau tahan. Dari Evaluation, proyek kembali ke
-  Analysis dengan siklus baru.
-- **Staff** menerima task dari Lead dan boleh memegang task rutin langsung. Staff tidak membuat task.
+Sejak 0.6.0 alurnya mengikuti PRD v3 dari Manager (*ProductTrack v3 Product Operations System*),
+dengan satu penyederhanaan: tetap empat status.
+
+- **Empat status:** Antre → Dikerjakan → Ditinjau → Selesai. Keadaan lain di PRD tidak jadi
+  status sendiri; ia dihitung dan tampil sebagai label: **Siap** (task yang ditunggu sudah
+  selesai), **Menunggu** (masih menunggu task lain), **Revisi** (dikembalikan peninjau), dan
+  **Tertahan** (tanda yang disertai alasan).
+- **Sub-stage.** Setiap task berkode: A1–A6, D1–D7, DV1–DV9, I1–I8, E1–E12 di dalam proyek;
+  R1–R4 untuk pekerjaan rutin. Kode menentukan tahap task dan **tim pemiliknya** (MG Manager,
+  AK Akademik, LA Learning Architecture, CO Content Ops, SI Sistem). A1, A6, D1, I8, dan E12
+  selalu direview Manager.
+- **Delegasi lewat Lead tim pemilik.** Lead memberi task ke timnya sendiri, atau ke Lead tim
+  pemilik sub-stage-nya (mis. Andika menyerahkan DV8 Input ke Alya). Langkah yang sudah siap
+  masuk **Antrean tim** di Hari Ini Lead itu, lalu ia **serahkan ke staff** dari detail task.
+- **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, ada minimal satu
+  tautan bukti, semua sub-task selesai, task yang ditunggu selesai, dan tidak tertahan. Staff
+  mengisi output dan bukti sendiri dari detail task; daftar periksanya tampil di sana.
+- **Tinjauan:** task staff oleh Lead-nya, task Lead oleh Manager, sub-stage bertanda Manager oleh
+  Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
+- **Proyek tanpa Lead tetap.** Yang tampil adalah tim pemegang task terbukanya.
+- **Tahap proyek dihitung, bukan diputuskan:** tahap task terbuka paling awal di siklus aktif.
+  Tahap pindah sendiri dan tercatat di riwayat tahap. **Siklus ditutup** oleh task E12 · Final
+  approval yang disetujui; sesudah itu Manager memutuskan: mulai siklus berikutnya (kembali ke
+  Analysis), arsipkan, atau tahan. Keputusan proyek: Build, Improve, Maintain, Hold.
+- **Rumpun platform** (Kedinasan & TNI/Polri, ASN & Pendidikan, BUMN & Keuangan, Bahasa &
+  Beasiswa, Lainnya) untuk saringan dan Dashboard. Rumpun tak punya pemilik.
+- **Dashboard:** task aktif per status, tahap, tim pemilik, rumpun, dan platform; per orang
+  ditambah sub-task terbuka dan **skor bottleneck** (task orang lain yang menunggu dia × 2 +
+  tinjauan yang menunggu dia × 2 + task telatnya).
+- **Staff** menerima task dari Lead. Staff tidak membuat task.
 
 Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tampilan
 (`public/app.js`) hanya meneruskan klik ke aturan itu.
@@ -55,29 +74,37 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
 ### Rancangan paket → proyek → progres yang bergerak sendiri
 
 1. Di **Rancangan Paket**, Lead/Manager menekan **Elaborasi jadi proyek**. Setiap target yang
-   masih terbuka menjadi **satu task** di proyek baru (bawaannya tahap Development, karena
-   rancangan paket adalah hasil tahap Design). Contoh: Latsol Fisika target 5, sudah ada 2 →
-   task "Latsol · Fisika — 3 Paket". Jumlahnya bisa dikecilkan bila proyek ini hanya
-   mengerjakan sebagian (target 10, proyek ini 5); sisanya tetap terbuka untuk proyek lain.
-2. Setiap task itu membawa **setoran**: "task ini mengisi target X sebanyak N".
-3. Progres paket **dihitung, bukan dipicu**: terpenuhi = sudah ada + setoran dari task yang
-   Selesai. Task proyek baru Selesai setelah disetujui peninjau, jadi yang terhitung hanya
-   pekerjaan yang lolos tinjauan. Task yang masih berjalan tampil sebagai **digarap**; task
-   yang dibuka kembali otomatis menurunkan angkanya lagi.
-4. Gate ikut selaras: proyek baru bisa maju dari Development setelah semua task-nya selesai,
-   artinya semua target paketnya terpenuhi.
+   dipilih menjadi satu **batch**: rangkaian task sesuai alur jenisnya. Contoh Latsol: DV1
+   Produksi soal → E1 QC soal → DV8 Input → I1 Generate → E4 QC SIADU → E5 QC Web → E6 QC
+   Android → I4 Show/hide. Setiap langkah menunggu langkah sebelumnya dan diserahkan ke Lead tim
+   pemilik sub-stage-nya. Langkah yang tak perlu bisa dicoret. Mode **Satu task per target**
+   (cara 0.5.0) tetap ada.
+2. Jumlah per target bisa dikecilkan bila proyek ini hanya mengerjakan sebagian (target 10,
+   proyek ini 5); sisanya tetap terbuka untuk elaborasi berikutnya. Tujuannya boleh proyek baru
+   atau proyek yang sudah ada.
+3. Langkah bercapaian membawa **setoran**. Progres paket **berbobot**: konten siap 40% (E1/E2),
+   ter-input 60% (DV8), lolos QC output 85% (QC aplikasi terakhir), tayang 100% (I4). Setiap
+   batch dinilai dari langkah bercapaian tertinggi yang sudah disetujui; target baru dihitung
+   **terpenuhi** saat batch-nya tayang. Bobot ini usulan PRD yang masih menunggu keputusan
+   Manager; cukup ubah tabel `CAPAIAN` di `public/inti.js`.
+4. Progres **dihitung, bukan dipicu**: tak ada yang ditulis saat task selesai. Task yang dibuka
+   kembali otomatis menurunkan progresnya lagi.
+
+Alur Dibimbing (D5 → I3 → E5 → I4) dan Live Class (I6 → I7) tidak tercantum di PRD; yang
+dipakai sekarang usulan (`ALUR_PAKET` di `public/inti.js`).
 
 Task yang dibuat di luar elaborasi bisa menyetor lewat bagian **Setoran ke rancangan paket** di
-detail task (Lead/Manager task itu). Manager bisa menautkan proyek lama ke paket dari halaman
-proyek. Satu paket boleh diisi beberapa proyek. Aturannya di `public/inti.js`
-(`elaborasiPaket`, `setoranPaket`, `hitungTarget`), diuji di `test/setoran.test.js`.
+detail task (Lead/Manager task itu), lengkap dengan capaiannya. Manager bisa menautkan proyek
+lama ke paket dari halaman proyek. Satu paket boleh diisi beberapa proyek, dan satu proyek boleh
+mengisi beberapa paket. Aturannya di `public/inti.js` (`elaborasiPaket`, `setoranPaket`,
+`batchSetoran`, `hitungTarget`), diuji di `test/setoran.test.js`.
 
 Halaman pendukung, setara v1:
 
 - **Rancangan Paket**: identitas paket, teks per kategori (Dibimbing, Latsol, Materi, Tryout,
-  Drilling, Live Class), target per kategori (terpenuhi / digarap / target / satuan, status
-  dihitung: terpenuhi, digarap, kurang, lebih, beserta task penyetornya), tautan, proyek
-  pengisi, dan **Salin ke sheet Marsel** (susunan kolom sheet Master).
+  Drilling, Live Class), target per kategori (tayang / progres berbobot / digarap / target /
+  satuan, status dihitung: terpenuhi, digarap, kurang, lebih, beserta chip per batch), tautan,
+  proyek pengisi, dan **Salin ke sheet Marsel** (susunan kolom sheet Master).
   Lead & Manager membuat paket; PIC Produk boleh menyunting paketnya; membagikan ke Lintas
   Divisi hanya Lead/Manager; menghapus hanya Manager.
 - **Link Saya** dan **Catatan Saya**: per profil, berfolder (folder kosong = Umum), cari,
@@ -87,8 +114,10 @@ Halaman pendukung, setara v1:
 - **Komunikasi**: utas diskusi per task, yang belum dibaca di atas; lencana di sidebar.
 - **Laporan**: ringkasan berkala (minggu ini, minggu lalu, bulan ini, 30 hari) per orang, bisa
   disalin sebagai teks untuk chat atau email.
-- **Task List** (saring, urutkan, ekspor CSV), **Timeline** (5 minggu), **Kalender** (tenggat
-  per hari), **Riwayat Aktivitas** (saring jenis, orang, kata).
+- **Kanban** dan **Task List** disaring per jalur, tahap, sub-stage, tim, rumpun, dan platform.
+  Task List bisa diurutkan dan diekspor ke CSV (ikut sub-stage, tim, rumpun, dan keadaannya).
+- **Timeline** (5 minggu), **Kalender** (tenggat per hari), **Riwayat Aktivitas** (saring
+  jenis, orang, kata).
 
 ## Isi
 
@@ -216,10 +245,11 @@ selama versinya sama, suntingan di browser itu dibiarkan.
 
 | v1 | v2 |
 |---|---|
-| Task `TSK-099` | task `PRD-099` di **Jalur Rutin** (nomornya tetap). Stage v1 (QC, Operasional, …) jadi kategori |
-| Kolaborasi `COL-021` | **proyek** `PRJ-21`. Lead-nya = Lead yang timnya paling banyak memegang prosesnya |
+| Task `TSK-099` | task `PRD-099` di luar proyek (nomornya tetap). Stage v1 (QC, Operasional, …) jadi kategori |
+| Sub-stage | dari judul (aturan berurutan `SUB_KATA`), cadangannya dari stage v1 (`SUB_STAGE_V1`). Di luar proyek: kode R1–R4 = **rutin**, kode ADDIE = **lepas** (pekerjaan produk tanpa proyek). QC v1 masuk Evaluation (E1–E7). Yang tak cocok dibiarkan tanpa kode untuk dipetakan Lead lewat **Ubah** |
+| Kolaborasi `COL-021` | **proyek** `PRJ-21` tanpa Lead tetap; tahapnya dihitung dari proses yang masih terbuka |
 | Kolaborasi yang semua prosesnya tuntas | proyek **arsip** (20 dari 26), supaya tak membanjiri antrean keputusan |
-| Proses kolaborasi | task proyek; tiap proses menunggu proses sebelumnya. Tahap ADDIE dari tabel `TAHAP` dan aturan judul `TAHAP_KATA` |
+| Proses kolaborasi | task proyek bersub-stage; tiap proses menunggu proses sebelumnya |
 | Ceklis | sub-task (ceklis proses `COL-021#3` ikut ke task prosesnya) |
 | Komentar kolaborasi | komentar di task proses pertama |
 | Done / In progress / Todo | Selesai / Dikerjakan / Antre |
@@ -254,17 +284,21 @@ npm run impor:v1 -- --demo
 Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di aplikasi
 (`scripts/_demo.js`):
 
-- **TKA_CEREBRUM** (target asli v1) dielaborasi 10 hari lalu: sebagian task sudah disetujui,
-  ada yang ditinjau (satu pernah dikembalikan), dikerjakan, terlambat, tertahan, dan antre.
-- **OJK** diberi target contoh; semua task-nya sudah disetujui, jadi paketnya 100% dan
-  proyeknya menunggu keputusan Manager untuk maju ke Implementation.
-- **UTBK** diberi target contoh tanpa dielaborasi — untuk mencoba tombol **Elaborasi jadi
+- **TKA_CEREBRUM** (target asli v1) dielaborasi dua minggu lalu dengan alur lengkap: 11 batch
+  di capaian yang berbeda (tayang, lolos QC, ter-input, konten siap, baru mulai). Ada langkah
+  yang ditinjau, dikembalikan (Revisi), terlambat, tertahan, dan yang menunggu di antrean Lead.
+  Setiap langkah yang lolos punya output dan bukti, dan sebagian besar dikerjakan staff hasil
+  delegasi.
+- **OJK** diberi target contoh dan menjalani satu siklus penuh: A1/A6 oleh Manager, keputusan
+  Build, semua batch sampai tayang, lalu E12 disetujui. Siklusnya tertutup dan menunggu
+  keputusan Manager.
+- **UTBK** diberi target contoh tanpa dielaborasi, untuk mencoba tombol **Elaborasi jadi
   proyek** sendiri.
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Dashboard Lain).
 
-Bentuk tab hanya bertambah (kolom `paket` di `projects`, tab `setoran`), jadi versi yang
-sedang live tetap bisa membaca hasil impor ini; versi baru pun bisa membaca spreadsheet yang
-belum punya tab `setoran`.
+Bentuk tab hanya bertambah (kolom `paket` di `projects`; tab `setoran`, sejak 0.6.0 dengan kolom
+`tahap` dan `batch`), jadi versi yang sedang live tetap bisa membaca hasil impor ini. Versi baru
+pun bisa membaca spreadsheet yang belum punya tab atau kolom itu.
 
 ---
 
@@ -291,6 +325,11 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 - Task belum bisa dihapus. Dropdown Master v1 belum ada: pilihan platform & kategori masih tetap
   di kode.
 - Satu task hanya menyetor saat task-nya Selesai; setoran per sub-task belum ada.
+- Bobot capaian (40/60/85/100) serta alur Dibimbing dan Live Class masih usulan.
+- Dari PRD v3 yang ditunda: fase bertenggat bertingkat, template task rutin berulang, heatmap,
+  dan modul Issue & Evaluasi.
+- Pemetaan sub-stage task v1 berbasis kata kunci di judul, jadi sebagian kecil bisa meleset.
+  Lead memperbaikinya lewat **Ubah**.
 - Seret-lepas kartu di Kanban hanya di desktop; di ponsel status diubah lewat detail task.
 - **Tebakan PIN hanya diperlambat** (jeda ±0,7 detik per PIN salah), belum dibatasi lajunya.
   Pakai PIN yang panjang.

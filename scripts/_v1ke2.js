@@ -5,12 +5,15 @@
    Fungsi murni: tidak menyentuh jaringan maupun berkas. Yang memanggilnya
    scripts/impor-v1.js.
 
-   Bentuk alur v2 yang dituju:
-   - Task lepas v1 (602 task) → JALUR RUTIN: tanpa tahap ADDIE, tanpa tinjauan.
-     Stage v1 (QC, Operasional, …) dibawa sebagai `kategori`.
-   - Kolaborasi v1 → PROYEK dengan tahap ADDIE. Proses-prosesnya → task proyek
-     yang saling menunggu sesuai urutan. Lead proyek = Lead yang timnya paling
-     banyak memegang proses itu.
+   Bentuk alur v2 yang dituju (selaras PRD v3):
+   - Setiap task diberi SUB-STAGE berkode (DV1, E4, R2, …) dari kata kunci judul, lalu
+     stage v1 sebagai cadangan — langkah migrasi 2 di PRD. QC masuk Evaluation (E1–E7).
+   - Task v1 tanpa kolaborasi (602 task) tetap di luar proyek, tanpa tinjauan: yang
+     berupa pekerjaan berulang jadi JALUR RUTIN (R1–R4), sisanya "lepas" — pekerjaan
+     produk di luar proyek, menunggu ditautkan Lead (PRD langkah 3 & 5).
+   - Kolaborasi v1 → PROYEK. Proses-prosesnya → task proyek yang saling menunggu sesuai
+     urutan; tahap tiap task ikut kodenya. Proyek tanpa Lead tetap; tahapnya dihitung
+     dari task terbuka paling awal.
    - Status v1 → empat status v2. Hold bukan status lagi, melainkan tanda tertahan.
 
    Semua keputusan pemetaan ada di tabel-tabel di bawah. Ubah tabelnya, cek dengan
@@ -60,29 +63,65 @@ const KATEGORI = {
   'manajemen guru': 'Manajemen Guru',
 };
 
-/* Untuk task PROYEK, fungsi kerja itu dipetakan ke tahap ADDIE + sub-tahap. */
-const LCI_SUB = '3.2 Learning Content Implementation';
-const TAHAP = {
-  'rnd': ['A', 'Market analysis'],
-  'data & intelligence': ['V', '3.4 System & Data Development'],
-  'develop konten (materi/soal)': ['V', '3.1 Academic Content Development'],
-  'manajemen sistem': ['V', LCI_SUB],
-  'qc': ['V', LCI_SUB],
-  'operasional': ['V', LCI_SUB],
-  'kreatif': ['V', '3.3 Content Production'],
-  'manajemen guru': ['V', '3.3 Content Production'],
-};
-const TAHAP_LAIN = ['V', ''];
-/* Pengecualian berdasarkan judul — mengisi tahap yang tak punya padanan langsung di
-   v1. `di` membatasi aturan ke stage v1 tertentu: "membuat soal liveclass" adalah
-   pengembangan konten, bukan pelaksanaan liveclass. */
-const TAHAP_KATA = [
-  { pola: /report center/i, jadi: ['E', 'Report Center'] },
-  { pola: /\bevaluasi\b/i, jadi: ['E', 'Evaluasi efektivitas produk'] },
-  { pola: /\briset\b|\bresearch\b/i, jadi: ['A', 'Market analysis'] },
-  { pola: /\bkurikulum\b|\bblueprint\b/i, jadi: ['D', 'Academic blueprint'] },
-  { pola: /live ?class/i, jadi: ['I', 'Liveclass'], di: ['operasional', 'manajemen guru'] },
+/* Sub-stage dari judul (PRD v3). Aturan pertama yang cocok dipakai, jadi yang lebih khusus
+   ditaruh lebih dulu: "Membuat 12 soal liveclass" adalah produksi soal (DV1), bukan
+   pelaksanaan liveclass (I7); "Mengedit video live class" adalah editing (DV5). Nilai
+   fungsi = pilihan bergantung isi judul. Ubah tabel ini lalu cek dengan --kering. */
+const SUB_KATA = [
+  [/rekap.*fee|fee guru|honor/i, 'R1'],
+  [/ppt.*report|report center|laporan report/i, 'E10'],
+  [/menyelesaikan \d* ?report|\d+ report/i, 'R4'],
+  [/show ?\/? ?hide|untuk di ?show|tampilkan/i, 'I4'],
+  [/qc .*(android|andro)|qc (android|andro)/i, 'E6'],
+  [/qc .*ios|qc ios/i, 'E7'],
+  [/qc .*web|qc web/i, 'E5'],
+  [/qc .*video/i, 'E3'],
+  [/qc .*(materi|modul|booklet)/i, 'E2'],
+  [/qc (\d+ )?soal/i, 'E1'],
+  [/qc ops|qc otomatis|qc .*(siadu|tryout|latsol|paket|apk|jadi)/i, 'E4'],
+  [/qc|evaluasi soal|cek soal/i, 'E1'],
+  [/sistem penilaian|konversi/i, 'E8'],
+  [/scrap/i, 'A3'],
+  [/riset|research|kompetitor/i, 'A2'],
+  // Menyusun struktur course di SIADU (category/lesson/chapter) adalah setup, walau menyebut "mapping".
+  [/^(?!.*(migrat|thumbnail|icon)).*\b(menyusun|mengatur|setup)\b.*\b(category|kategori|lesson|chapter|course)\b/i, 'I2'],
+  [/kurikulum|mapping|kisi|prediksi materi/i, 'A4'],
+  [/komparasi|analisis/i, 'A3'],
+  [/blueprint|prompt produksi/i, 'D2'],
+  [/journey|dibimbing/i, j => (/rancang|susun/i.test(j) ? 'D5' : 'I3')],
+  [/rancang/i, 'D1'],
+  [/\bsop\b|panduan|briefing|template(?! ppt)/i, 'D6'],
+  [/(susun|rancang|menyusun).*(paket|tryout|\bto\b)|perencanaan paket/i, 'D7'],
+  // "Membuat sistem generate …" adalah membangun alatnya (DV6), bukan menjalankan generate (I1).
+  [/\b(membuat|membangun|bangun) sistem\b/i, 'DV6'],
+  [/generat.*(pdf|paket|latsol|tryout|\bto\b)/i, 'I1'],
+  [/generate.*soal|generat.*\d+ soal|ai produksi soal/i, 'DV2'],
+  [/generat/i, 'I1'],
+  [/prototype|prototipe/i, 'DV7'],
+  [/deploy/i, 'I5'],
+  [/dashboard|sistem|plugin|pluggin|fitur|automasi|\bcode\b|bangun/i, 'DV6'],
+  [/syuting|shooting|take video|rekam/i, 'DV4'],
+  [/edit|thumbnail|icon|bumper|desain|canva|template ppt/i, 'DV5'],
+  [/option legacy|migrat|perbaik|memperbarui|merapikan|calibrate/i, 'DV9'],
+  [/input|menginput|upload|copas/i, 'DV8'],
+  [/setup|kategori baru|buat kategori|chapter|course/i, 'I2'],
+  [/distribusi|mendistribusikan|broadcast|brodcast|\bbc\b|cari guru|matching|mentor/i, 'I6'],
+  [/script|naskah/i, 'D3'],
+  [/soal|develop|pembahasan|\d+ paket/i, 'DV1'],
+  [/live ?class|liveclass|jadwal/i, 'I7'],
+  [/monitor/i, 'E9'],
+  [/evaluasi|laporan/i, 'E10'],
+  [/materi|modul|rangkuman|pdf|booklet|product knowledge|bacaan/i, 'DV3'],
 ];
+/* Cadangan per stage v1 bila judul tak cocok dengan aturan mana pun. */
+const SUB_STAGE_V1 = {
+  'qc': 'E4', 'operasional': 'DV8', 'develop konten (materi/soal)': 'DV1', 'manajemen sistem': 'I1',
+  'kreatif': 'DV5', 'manajemen guru': 'I6', 'data & intelligence': 'DV6', 'rnd': 'A2',
+};
+/* Kode yang di luar proyek berarti pekerjaan berulang (PRD R1–R4), dan kebalikannya untuk
+   task proyek yang tak boleh berkode rutin. */
+const KE_RUTIN = { I4: 'R3', DV9: 'R4', E10: 'R2', E11: 'R4' };
+const KE_PROYEK = { R1: 'I6', R2: 'E10', R3: 'I4', R4: 'DV9' };
 
 /* Status v1 → v2. Hold menjadi Antre + tanda tertahan; Revisi menjadi Dikerjakan
    (dengan catatan "Dikembalikan" di riwayat tinjauan bila tercatat siapa). */
@@ -153,13 +192,18 @@ function platformV2(mentah, judul) {
   return { nilai: tebak ? tebak[1] : 'All Platform', catatan: '' };
 }
 
-function tahap(stageV1, judul) {
-  const s = kecil(stageV1);
-  for (const a of TAHAP_KATA) {
-    if ((!a.di || a.di.includes(s)) && a.pola.test(judulBersih(judul))) return a.jadi;
+/* Kode sub-stage untuk satu task v1. '' = belum dipetakan (PRD: dipetakan manual oleh Lead). */
+function subDariV1(stageV1, judul, proyek) {
+  const j = judulBersih(judul);
+  let kode = '';
+  for (const [pola, jadi] of SUB_KATA) {
+    if (pola.test(j)) { kode = typeof jadi === 'function' ? jadi(j) : jadi; break; }
   }
-  return TAHAP[s] || TAHAP_LAIN;
+  if (!kode) kode = SUB_STAGE_V1[kecil(stageV1)] || '';
+  return (proyek ? KE_PROYEK : KE_RUTIN)[kode] || kode;
 }
+/* Tahap ADDIE dari kode; '' untuk kode rutin atau yang belum dipetakan. */
+const tahapKode = kode => { const t = Inti.tahapDariKode(kode); return t === 'R' ? '' : t; };
 
 const kategori = stageV1 => KATEGORI[kecil(stageV1)] || 'Umum';
 
@@ -173,21 +217,9 @@ function kelompok(daftar, kunci) {
   return m;
 }
 
-/* Lead proyek = Lead yang timnya paling banyak memegang proses kolaborasi itu. */
-function leadDari(langkah) {
-  const hitung = {};
-  for (const s of langkah) {
-    const o = Inti.orang(idOrang(s.pic));
-    const l = o.peran === 'lead' ? o.id : o.peran === 'staff' && o.lead ? o.lead : null;
-    if (l) hitung[l] = (hitung[l] || 0) + 1;
-  }
-  const urut = Object.entries(hitung).sort((a, b) => b[1] - a[1]);
-  return urut.length ? urut[0][0] : MANAGER;
-}
-
 /* ---------- Pengubah per jenis ------------------------------------------ */
 
-/* Task lepas v1 → task Jalur Rutin. */
+/* Task v1 tanpa kolaborasi → task di luar proyek: rutin (R1–R4) atau lepas (kode ADDIE). */
 function taskDariV1(t, id, selesaiLog) {
   const st = kecil(t.status);
   const pl = platformV2(t.platform, t.task_name);
@@ -197,6 +229,7 @@ function taskDariV1(t, id, selesaiLog) {
   const kapan = waktu(kapanMentah);
   const dibuat = waktu(t.created_date);
   const status = STATUS[st] || 'Antre';
+  const sub = subDariV1(t.stage, t.task_name, false);
 
   const tinjauan = [];
   if (TINJAUAN[st] && olehMentah && kapan) {
@@ -208,7 +241,7 @@ function taskDariV1(t, id, selesaiLog) {
 
   return {
     id, project: '', lane: 'rutin', kategori: kategori(t.stage),
-    title: teks(t.task_name), platform: pl.nilai, stage: '', sub: '',
+    title: teks(t.task_name), platform: pl.nilai, stage: tahapKode(sub), sub,
     detail: [teks(t.detail), pl.catatan, dokumen && !tautanSah(dokumen) ? `Dokumen: ${dokumen}` : ''].filter(Boolean).join('\n\n'),
     pic, support: daftarOrang(t.support).filter(x => x !== pic),
     priority: PRIORITAS[kecil(t.kesulitan)] || 'Normal',
@@ -237,7 +270,8 @@ function proyekDariV1(c, langkah, idBaru, idTask) {
   for (const s of urut) {
     const id = idBaru();
     idTask.set(`${c.collab_id}#${s.urutan}`, id);
-    const [stage, sub] = tahap(s.stage, s.step);
+    const sub = subDariV1(s.stage, s.step, true);
+    const stage = tahapKode(sub) || 'V';
     const beres = Number(s.done) === 1;
     let status;
     if (beres) status = 'Selesai';
@@ -260,20 +294,12 @@ function proyekDariV1(c, langkah, idBaru, idTask) {
     });
     sebelumnya = id;
   }
-  /* Tahap proyek = tahap proses yang sedang berjalan. Kalau semuanya selesai,
-     tahap proses terakhir — proyeknya lalu menunggu keputusan Manager untuk maju. */
-  const berjalan = tasks.find(t => t.status !== 'Selesai') || tasks[tasks.length - 1];
-  const stageProyek = berjalan ? berjalan.stage : 'A';
-  /* Task proyek di tahap SEBELUM tahap aktif yang belum selesai tak boleh menahan
-     proyek di belakang: ia tetap dikerjakan, tapi tahapnya ikut tahap aktif. */
-  const urutanTahap = ['A', 'D', 'V', 'I', 'E'];
-  for (const t of tasks) {
-    if (t.status !== 'Selesai' && urutanTahap.indexOf(t.stage) < urutanTahap.indexOf(stageProyek)) t.stage = stageProyek;
-  }
+  /* Tahap proyek dihitung inti.js dari task terbuka paling awal (lihat ubah()); proyek
+     tanpa Lead tetap — tanggung jawabnya mengikuti tim pemilik sub-stage tiap prosesnya. */
   const project = {
-    id: prj, name: teks(c.title), platform: pl.nilai, stage: stageProyek,
+    id: prj, name: teks(c.title), platform: pl.nilai, stage: 'A',
     cycle: 1, decision: 'Build', goal: [teks(c.description), pl.catatan].filter(Boolean).join('\n\n'),
-    lead: leadDari(urut),
+    lead: '',
     paket: '',   // diisi sesudah paket dipetakan (kolom paket_id kolaborasi)
     // Kolaborasi v1 yang tuntas = proyek selesai: masuk arsip, bukan antrean keputusan.
     arsip: tasks.length > 0 && tasks.every(t => t.status === 'Selesai'),
@@ -343,6 +369,7 @@ function ubah(d) {
     tasks.push(...milik);
     jumlahLangkah += milik.length;
   }
+  Inti.segarkanTahap({ projects, tasks, log: [] });
   const perId = new Map(tasks.map(t => [t.id, t]));
 
   // 3) Ceklis → sub-task. Ceklis milik proses kolaborasi ("COL-021#3") ikut ke task prosesnya.
@@ -448,6 +475,9 @@ function ubah(d) {
       paket: packages.length,
       targetPaket: packages.reduce((n, p) => n + p.items.length, 0),
       proyekPaket: projects.filter(p => p.paket).length,
+      belumDipetakan: tasks.filter(t => !t.sub).length,
+      rutin: tasks.filter(t => Inti.jenisJalur(t) === 'rutin').length,
+      lepas: tasks.filter(t => Inti.jenisJalur(t) === 'lepas').length,
       setoran: setoran.length,
       dashboard: dashboards.length,
       link: links.length,
@@ -457,4 +487,4 @@ function ubah(d) {
   };
 }
 
-module.exports = { ubah, platformV2, tahap, kategori, idOrang, waktu, leadDari, LCI_SUB };
+module.exports = { ubah, platformV2, subDariV1, kategori, idOrang, waktu };

@@ -1,10 +1,52 @@
 # Changelog — ProductTrack v2
 
-## Belum dirilis
+## 0.6.0 — Selaras PRD v3: sub-stage, syarat ajukan, alur per jenis, tahap dihitung (2026-10-07)
 
-- Elaborasi bisa mengerjakan sebagian target: jumlah per target diisi sendiri (mis. target 10,
-  proyek ini 5). Sisanya tetap terbuka dan bisa dielaborasi lagi oleh proyek berikutnya.
-  Jumlah yang melebihi sisa ditolak; jumlah 0 berarti target itu tidak ikut.
+Mengikuti PRD v3 dari Manager, dengan satu penyederhanaan: tetap empat status.
+
+- **Sub-stage** di setiap task: A1–A6, D1–D7, DV1–DV9, I1–I8, E1–E12 untuk task proyek, R1–R4
+  untuk rutin. Kode menentukan tahap task dan **tim pemiliknya** (MG, AK, LA, CO, SI). Task
+  proyek wajib berkode ADDIE; task baru di luar proyek berkode R. A1, A6, D1, I8, dan E12
+  direview Manager.
+- **Delegasi lewat tim pemilik.** Lead boleh memberi task ke Lead tim pemilik sub-stage-nya.
+  Langkah yang siap masuk grup baru **Antrean tim · siap didelegasikan** di Hari Ini Lead itu,
+  dan detail task punya tombol **Serahkan ke staff**.
+- **Syarat ajukan** untuk task proyek: output terisi, minimal satu tautan bukti, sub-task
+  beres, task yang ditunggu selesai, tidak tertahan. Daftar periksanya ada di detail task, dan
+  output serta tautan bukti kini diisi langsung di sana, oleh PIC staff juga.
+- **Label keadaan** dihitung dari status: Siap, Menunggu, Revisi (sesudah dikembalikan), Tertahan.
+- **Tahap proyek dihitung** dari task terbuka paling awal di siklus aktif, dan pindah sendiri.
+  Riwayat tahap mencatat siapa pemicunya. Tombol "Lanjut ke tahap …" dihapus. **Siklus ditutup**
+  oleh task E12 · Final approval yang disetujui. Sesudah itu Manager memilih: mulai siklus
+  berikutnya, arsipkan, atau tahan. Keputusan proyek bisa dipilih: Build, Improve, Maintain, Hold.
+- **Proyek tanpa Lead tetap**: daftar dan halaman proyek menampilkan tim pemegang task terbuka.
+  Isian Lead dihapus dari form proyek dan elaborasi.
+- **Elaborasi per alur jenis**: setiap target menjadi batch langkah sesuai PRD (mis. Latsol: DV1 →
+  E1 → DV8 → I1 → E4 → E5 → E6 → I4), tiap langkah diserahkan ke Lead tim pemiliknya dan
+  menunggu langkah sebelumnya. Langkah bisa dicoret. Proyek tujuan boleh yang sudah ada. Mode
+  satu task per target tetap tersedia.
+- Elaborasi bisa mengerjakan **sebagian target**: jumlah per target diisi sendiri (mis. target
+  10, proyek ini 5). Sisanya tetap terbuka untuk elaborasi berikutnya. Jumlah yang melebihi sisa
+  ditolak; jumlah 0 berarti target itu tidak ikut.
+- **Progres paket berbobot**: konten siap 40%, ter-input 60%, lolos QC 85%, tayang 100% (usulan
+  PRD, menunggu keputusan Manager). Batang progres tiga lapis (tayang, sebagian jalan, digarap),
+  kolom Progres beserta corong capaian, dan satu chip per batch. Langkah tanpa capaian sendiri
+  menunjukkan di langkah mana progres batch-nya naik.
+- **Rumpun platform** sebagai saringan dan angka Dashboard. Kanban dan Task List bisa disaring
+  per tahap, sub-stage, tim, dan rumpun; ekspor CSV ikut sub-stage, tim, rumpun, dan keadaan.
+- **Dashboard**: task aktif per tahap (A, D, V, I, E, rutin), per tim pemilik, dan per rumpun;
+  per orang ditambah sub-task terbuka, menahan, tinjauan, dan **skor bottleneck**.
+- Form task memilih sub-stage (dikelompokkan per tahap). Pilihan PIC menyesuaikan: tim sendiri,
+  ditambah Lead tim pemilik. Form Ubah bisa mengganti sub-stage; perubahannya diperiksa aturan
+  yang sama (`ubahTask`).
+- Pencarian ikut mencocokkan kode sub-stage.
+- **Impor v1**: task dipetakan ke sub-stage dari judulnya (cadangannya stage v1), QC masuk
+  Evaluation (E1–E7). Di luar proyek, kode R1–R4 jadi rutin dan kode ADDIE jadi pekerjaan
+  "lepas". Kolaborasi menjadi proyek tanpa Lead; tahapnya dihitung.
+- `--demo` dibangun ulang dengan alur PRD: TKA dengan 11 batch di capaian berbeda, OJK satu
+  siklus penuh ditutup E12, UTBK siap dielaborasi.
+- Bentuk tab hanya bertambah: kolom `tahap` dan `batch` di tab `setoran`. Spreadsheet tanpa
+  kolom itu tetap terbaca (setoran lama dihitung "tayang").
 
 ## 0.5.0 — Rancangan paket → proyek, progres yang bergerak sendiri (2026-10-07)
 

@@ -66,7 +66,8 @@ async function main() {
   console.log(`\n  Sumber : ${folder}`);
   if (asal.waktu) console.log(`  Ditarik: ${asal.waktu}`);
   console.log('\n  Hasil pemetaan');
-  baris('task v1', r.taskV1, '→ Jalur Rutin');
+  baris('task v1', r.taskV1, `→ di luar proyek: ${r.rutin} rutin (R1–R4), ${r.lepas} lepas berkode ADDIE`);
+  baris('belum dipetakan', r.belumDipetakan, 'tanpa sub-stage; dipetakan manual oleh Lead (PRD langkah 3)');
   baris('proses kolaborasi', r.langkahJadiTask, `→ task proyek di ${r.proyek} proyek (${r.proyekArsip} tuntas → arsip)`);
   baris('task total', r.task, `${r.aktif} masih aktif, ${r.tertahan} tertahan`);
   baris('sub-task (ceklis)', r.subtask);
