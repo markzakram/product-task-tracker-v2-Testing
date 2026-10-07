@@ -28,6 +28,13 @@ default:
   tags:
     - self-runner
 
+# Hanya GCP_PROJECT, GCP_PROJECT_DEV, GCP_REGISTRY_URL, dan SERVICE_ACCOUNT_KEY
+# yang diambil dari variabel group; sisanya ditulis di sini.
+# Image ditaruh di repository Artifact Registry `cerebrum-internal-project`
+# bersama tool internal lain, dengan akhiran -dev / -stg / -prod.
+variables:
+  IMAGE_BASE: "${GCP_REGISTRY_URL}/${GCP_PROJECT}/cerebrum-internal-project/product-task-tracker"
+
 image: node:20
 
 # Pipeline berjalan untuk tiap push ke branch mana pun, dan untuk merge request.
@@ -131,8 +138,13 @@ test:
     - gcloud auth activate-service-account --key-file <(echo "$SERVICE_ACCOUNT_KEY")
   script:
     - gcloud config set project ${GCP_PROJECT_ID}
-    - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --port 8080 --allow-unauthenticated --ingress ${INGRESS} --service-account ${SERVICE_ACCOUNT} --update-env-vars APP_ENV=${APP_ENV}
+    - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --port 8080 --allow-unauthenticated --ingress ${INGRESS} --update-env-vars APP_ENV=${APP_ENV}
   after_script:
+    - |
+      if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+        echo "[SKIP] DISCORD_WEBHOOK_URL belum di-set — notifikasi dilewati."
+        exit 0
+      fi
     - apk add --no-cache curl jq >/dev/null 2>&1
     - |
       case "${CI_JOB_STATUS}" in
@@ -200,7 +212,7 @@ build-app-dev:
     - .build-app-template
     - .dev-rules
   variables:
-    DOCKER_IMAGE_TAG: "${DOCKER_IMAGE_TAG_TASK_TRACKER}-dev"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-dev"
     IMAGE_TAG: "$CI_COMMIT_SHA"
 
 build-app-stg:
@@ -208,7 +220,7 @@ build-app-stg:
     - .build-app-template
     - .stg-rules
   variables:
-    DOCKER_IMAGE_TAG: "${DOCKER_IMAGE_TAG_TASK_TRACKER}-stg"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-stg"
     IMAGE_TAG: "$CI_COMMIT_SHA"
 
 build-app-prod:
@@ -216,7 +228,7 @@ build-app-prod:
     - .build-app-template
     - .prod-rules
   variables:
-    DOCKER_IMAGE_TAG: "${DOCKER_IMAGE_TAG_TASK_TRACKER}-prod"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
     IMAGE_TAG: "$CI_COMMIT_TAG"
 
 ### DEPLOY PHASE
@@ -226,10 +238,9 @@ deploy-dev:
   variables:
     GCP_PROJECT_ID: "${GCP_PROJECT_DEV}"
     CLOUD_RUN_REGION: "asia-southeast2"
-    DOCKER_IMAGE_TAG: "${DOCKER_IMAGE_TAG_TASK_TRACKER}-dev"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-dev"
     IMAGE_TAG: "$CI_COMMIT_SHA"
-    DEPLOYMENT_NAME: "${GCR_NAME_TASK_TRACKER_DEV}"
-    SERVICE_ACCOUNT: "${GCR_SA_DEV}"
+    DEPLOYMENT_NAME: "dev-product-task-tracker"
     INGRESS: "all"
     APP_ENV: "development"
   only:
@@ -244,10 +255,9 @@ deploy-stg:
   variables:
     GCP_PROJECT_ID: "${GCP_PROJECT}"
     CLOUD_RUN_REGION: "asia-southeast2"
-    DOCKER_IMAGE_TAG: "${DOCKER_IMAGE_TAG_TASK_TRACKER}-stg"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-stg"
     IMAGE_TAG: "$CI_COMMIT_SHA"
-    DEPLOYMENT_NAME: "${GCR_NAME_TASK_TRACKER_STG}"
-    SERVICE_ACCOUNT: "${GCR_SA}"
+    DEPLOYMENT_NAME: "stg-product-task-tracker"
     INGRESS: "all"
     APP_ENV: "preview"
   only:
@@ -265,10 +275,9 @@ deploy-prod:
   variables:
     GCP_PROJECT_ID: "${GCP_PROJECT}"
     CLOUD_RUN_REGION: "asia-southeast2"
-    DOCKER_IMAGE_TAG: "${DOCKER_IMAGE_TAG_TASK_TRACKER}-prod"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
     IMAGE_TAG: "$CI_COMMIT_TAG"
-    DEPLOYMENT_NAME: "${GCR_NAME_TASK_TRACKER_PROD}"
-    SERVICE_ACCOUNT: "${GCR_SA}"
+    DEPLOYMENT_NAME: "product-task-tracker"
     INGRESS: "all"
     APP_ENV: "production"
   needs:

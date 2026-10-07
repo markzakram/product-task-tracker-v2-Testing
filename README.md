@@ -205,10 +205,11 @@ Selain Vercel, app bisa jalan di GCP Cloud Run lewat `.gitlab-ci.yml` (pola sama
 | push ke `staging` | manual | otomatis setelah build | `preview` |
 | tag git | manual | manual | `production` |
 
-**Variabel CI** (GitLab → Settings → CI/CD → Variables): `SERVICE_ACCOUNT_KEY`, `GCP_REGISTRY_URL`,
-`DOCKER_IMAGE_TAG_TASK_TRACKER` (path image, tanpa tag), `GCP_PROJECT_DEV`, `GCP_PROJECT`, `GCR_SA_DEV`,
-`GCR_SA`, `GCR_NAME_TASK_TRACKER_DEV`, `GCR_NAME_TASK_TRACKER_STG`, `GCR_NAME_TASK_TRACKER_PROD`,
-`DISCORD_WEBHOOK_URL`. Yang sudah ada di group (dipakai backend-vitri) tak perlu dibuat ulang.
+**Variabel CI** — cukup yang sudah ada di level group: `SERVICE_ACCOUNT_KEY`, `GCP_REGISTRY_URL`,
+`GCP_PROJECT`, `GCP_PROJECT_DEV`. Opsional: `DISCORD_WEBHOOK_URL` (kalau kosong, notifikasi dilewati).
+Image: `<GCP_REGISTRY_URL>/<GCP_PROJECT>/cerebrum-internal-project/product-task-tracker-{dev,stg,prod}`.
+Service Cloud Run: `dev-product-task-tracker`, `stg-product-task-tracker`, `product-task-tracker`
+(region `asia-southeast2`, service account default Cloud Run).
 
 **Env aplikasi** (`SPREADSHEET_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `DATA_SOURCE`, `MYSQL_*`, PIN, dst. —
 lihat `.env.example`) diisi **sekali** di tiap service Cloud Run (Edit & Deploy New Revision → Variables).
