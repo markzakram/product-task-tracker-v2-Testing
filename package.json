@@ -5,7 +5,8 @@
   "description": "ProductTrack v2 (siklus ADDIE) — sandbox terpisah dari v1: UI statis + fungsi Vercel ke Google Spreadsheet khusus v2.",
   "scripts": {
     "dev": "node scripts/dev.js",
-    "test": "node --test"
+    "test": "node --test \"test/*.test.js\"",
+    "impor:v1": "node scripts/impor-v1.js"
   },
   "engines": {
     "node": ">=22"

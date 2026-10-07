@@ -31,29 +31,12 @@ async function masuk() {
   return r.headers['set-cookie'].split(';')[0];
 }
 
-/* Lapisan sheet diganti tiruan kecil: v1 (asing) atau spreadsheet kosong. */
+/* Lapisan sheet diganti tiruan bersama (test/bantu/sheet-palsu.js). */
+const { sheetPalsu } = require('./bantu/sheet-palsu');
 function pasangSheet(tabs) {
-  const tulisan = [];
-  const api = {
-    spreadsheets: {
-      get: async () => ({ data: { properties: { title: 'Uji' }, sheets: tabs.map(t => ({ properties: { sheetId: t.sheetId, title: t.title } })) } }),
-      values: {
-        get: async ({ range }) => {
-          const t = tabs.find(x => range.startsWith(`'${x.title}'!`));
-          return { data: t && t.values.length ? { values: t.values } : {} };
-        },
-      },
-      batchUpdate: async ({ requestBody }) => {
-        tulisan.push(requestBody);
-        const [tambah, isi] = requestBody.requests;
-        tabs.push({ title: tambah.addSheet.properties.title, sheetId: tambah.addSheet.properties.sheetId,
-          values: isi.updateCells.rows.map(b => b.values.map(c => c.userEnteredValue.stringValue)) });
-        return { data: {} };
-      },
-    },
-  };
-  sheet.klien = async () => ({ api, email: EMAIL });
-  return tulisan;
+  const p = sheetPalsu(tabs, { email: EMAIL });
+  sheet.klien = async () => p.k;
+  return p.tulisan;
 }
 
 const klienAsli = sheet.klien;
@@ -173,4 +156,32 @@ test('keluar menghapus cookie; metode lain 405', async () => {
   const m = await panggil({ method: 'PUT' });
   assert.equal(m.status, 405);
   assert.equal(m.headers.allow, 'GET, POST');
+});
+
+test('muatContoh: perlu sesi, lalu mengembalikan data contoh utuh', async () => {
+  const { urai } = require('../api/_skema');
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  await sheet.tulisContoh(p.k, ID, urai({
+    projects: [{ id: 'PRJ-21', name: 'KAI', platform: 'BUMN', stage: 'V', cycle: 1, decision: 'Build', goal: '' }],
+    tasks: [{ id: 'PRD-099', project: 'PRJ-21', title: 'Riset', platform: 'BUMN', stage: 'A', sub: 'Market analysis', pic: 'andika', support: [], status: 'Done', gate: 'Lolos', deps: [], output: '', cycle: 1, createdAt: 1, updatedAt: 1 }],
+    packages: [], bookmarks: [], log: [],
+  }), { sumber: 'uji' });
+
+  assert.equal((await panggil({ body: { action: 'muatContoh' } })).status, 401);
+  const r = await panggil({ body: { action: 'muatContoh' }, cookie: await masuk() });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.sumber, 'uji');
+  assert.equal(r.json.data.tasks[0].id, 'PRD-099');
+  assert.deepEqual(r.json.data.tasks[0].subtasks, []);
+  assert.deepEqual(r.json.seq, { task: 99, prj: 21, bl: 0 });
+});
+
+test('muatContoh sebelum ada impor: data null, bukan galat', async () => {
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  await sheet.siapkan(p.k, ID);
+  const r = await panggil({ body: { action: 'muatContoh' }, cookie: await masuk() });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.data, null);
 });

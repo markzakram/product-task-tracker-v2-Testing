@@ -121,7 +121,7 @@
             <p class="text-xs text-slate-500">Masukkan PIN untuk melanjutkan</p>
           </div>
         </div>
-        <input id="lock-pin" type="password" inputmode="numeric" maxlength="8" placeholder="• • • • • •" class="w-full text-center tracking-[0.5em] text-lg py-3 rounded-xl bg-slate-100 border border-transparent focus:bg-white focus:border-blue-500 outline-none" />
+        <input id="lock-pin" type="password" inputmode="numeric" maxlength="64" placeholder="• • • • • •" class="w-full text-center tracking-[0.5em] text-lg py-3 rounded-xl bg-slate-100 border border-transparent focus:bg-white focus:border-blue-500 outline-none" />
         <p id="lock-err" class="text-xs text-rose-600 hidden">PIN salah. Coba lagi.</p>
         <button class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium">Masuk</button>
       </form>
@@ -1729,7 +1729,11 @@ VIEWS.settings = () => {
           </div>
           <p class="text-xs text-slate-500 mt-3">Tampilan & izin menyesuaikan role: Manager melihat semua, Lead mengelola timnya, Staff mengerjakan task & sub-task miliknya. Pada versi web app, profil berasal dari login.</p>
         </div>`)}
-      ${card(`${cardHead('Keamanan PIN', 'lock', s.pinEnabled ? chip('Aktif', 'bg-emerald-50 text-emerald-700') : chip('Nonaktif'))}
+      ${SERVER.aktif ? card(`${cardHead('Gerbang Server', 'lock', chip('Aktif', 'bg-emerald-50 text-emerald-700'))}
+        <div class="px-5 pb-5 space-y-3">
+          <p class="text-sm text-slate-500">Aplikasi dibuka dengan PIN server (<code class="text-xs bg-slate-100 px-1 rounded">ACCESS_PIN</code> di Vercel). Sesi tersimpan di cookie perangkat ini selama 30 hari.</p>
+          ${btn(icon('logout', '', 18) + 'Keluar', 'lock-now')}
+        </div>`) : card(`${cardHead('Keamanan PIN', 'lock', s.pinEnabled ? chip('Aktif', 'bg-emerald-50 text-emerald-700') : chip('Nonaktif'))}
         <div class="px-5 pb-5">
           <p class="text-sm text-slate-500 mb-4">Mengunci tampilan aplikasi di perangkat ini setiap sesi browser baru. PIN disimpan sebagai hash SHA-256. Ini bukan pengganti autentikasi server.</p>
           ${isM ? `<form data-form="pin" class="grid sm:grid-cols-2 gap-3">
@@ -1752,6 +1756,7 @@ VIEWS.settings = () => {
           <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500"><span>${s.lastSync ? `Sinkron terakhir: ${fmtDT(s.lastSync)}` : 'Belum pernah disinkronkan'}</span><button data-act="export-csv" class="text-blue-600 hover:underline">Unduh CSV (bisa jadi template)</button><label class="text-blue-600 hover:underline cursor-pointer">Impor file CSV<input id="csv-file" type="file" accept=".csv,text/csv" class="hidden" /></label></div>
         </div>`)}
       ${card(`${cardHead('Data & Cadangan', 'database')}
+        ${SERVER.contoh ? `<p class="px-5 pb-3 text-sm text-slate-500">Data contoh dari spreadsheet v2 (${esc(SERVER.contoh.sumber || 'tanpa keterangan sumber')}), diimpor ${fmtDT(Date.parse(SERVER.contoh.versi))}. Suntingan di sini tersimpan di browser ini saja; reset memuat ulang data contoh dari server.</p>` : ''}
         <div class="px-5 pb-5 flex flex-wrap gap-2">
           ${btn(icon('download', '', 18) + 'Ekspor cadangan (JSON)', 'backup-export')}
           ${isM ? `<label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer">${icon('upload', '', 18)}Impor cadangan<input id="import-file" type="file" accept="application/json,.json" class="hidden" /></label>
@@ -2254,7 +2259,7 @@ const ACTS = {
     r.platforms = r.platforms.filter(x => x !== v); save('settings'); logAct('system', 'Pengaturan Master', `Platform dihapus: ${v}`); render();
   },
   'pin-disable': () => { if (!confirm('Nonaktifkan kunci PIN?')) return; Object.assign(state.settings, { pinEnabled: false, pinHash: '' }); save('settings'); logAct('system', 'Keamanan', 'PIN dinonaktifkan'); render(); },
-  'lock-now': () => { SS.del('unlocked'); showLock(); },
+  'lock-now': () => { if (SERVER.aktif) return keluarServer(); SS.del('unlocked'); showLock(); },
   'backup-export': () => {
     download(`producttrack-backup-${iso(new Date())}.json`, JSON.stringify({ version: 3, exportedAt: new Date().toISOString(), settings: { ...state.settings, pinHash: '' }, projects: state.projects, tasks: state.tasks, backlog: state.backlog, packages: state.packages, bookmarks: state.bookmarks, notes: state.notes, log: state.log }, null, 2), 'application/json');
     toast('Cadangan diunduh');
@@ -2366,16 +2371,82 @@ function importCSV(text, source) {
 }
 
 /* =========================================================
+   SERVER v2 — PIN server + data contoh dari spreadsheet v2
+   Kalau /api/rpc menjawab, prototipe berjalan dalam mode server: aplikasi
+   terkunci sampai PIN server benar, lalu data contoh dimuat dari spreadsheet.
+   Tanpa server (berkas dibuka langsung), perilakunya tetap seperti dulu.
+   Suntingan di prototipe masih tersimpan di browser ini saja.
+   ========================================================= */
+const SERVER = { aktif: false, contoh: null };
+async function api(action, args = []) {
+  try {
+    const r = await fetch('/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, args }) });
+    const d = await r.json().catch(() => ({ success: false, message: `Balasan server tak terbaca (HTTP ${r.status}).` }));
+    return { http: r.status, ...d };
+  } catch { return { http: 0, success: false, message: 'Server tak terjangkau. Periksa koneksi lalu muat ulang.' }; }
+}
+async function adaServer() {
+  try { const d = await (await fetch('/api/rpc', { cache: 'no-store' })).json(); return !!d && d.app === 'producttrack-v2'; }
+  catch { return false; }
+}
+/* Data contoh menggantikan isi browser ini hanya kalau versinya berbeda: ada impor
+   baru di server, atau browser ini belum pernah memuatnya. Suntingan lokal pada
+   versi yang sama dibiarkan. */
+async function muatContoh() {
+  const h = await api('muatContoh');
+  if (h.http === 401) return { masuk: true };
+  if (!h.success) return { galat: h.message || 'Gagal memuat data contoh.' };
+  SERVER.contoh = h.data ? { versi: h.versi, sumber: h.sumber } : null;
+  if (!h.data || state.settings.contohVersi === h.versi) return {};
+  ['projects', 'tasks', 'backlog', 'packages', 'bookmarks', 'log'].forEach(k => { state[k] = h.data[k] || []; save(k); });
+  Object.assign(state.settings, { contohVersi: h.versi, seq: h.seq.task, prjSeq: h.seq.prj, blSeq: h.seq.bl });
+  save('settings');
+  return { baru: h.data.tasks.length };
+}
+async function bukaServer() {
+  const r = await muatContoh();
+  if (r.masuk) return showLock();
+  if (r.galat) return showLock(r.galat);
+  $('#lock').classList.add('hidden');
+  render();
+  if (r.baru) toast(`Data contoh dimuat: ${r.baru} task`, { icon: 'cloud_download' });
+  else if (!SERVER.contoh) toast('Data contoh belum diimpor ke spreadsheet v2 — memakai data bawaan prototipe', { icon: 'info' });
+}
+async function keluarServer() { await api('keluar'); showLock(); }
+async function mulai() {
+  SERVER.aktif = await adaServer();
+  if (!SERVER.aktif) {
+    render();
+    if (state.settings.pinEnabled && state.settings.pinHash && SS.get('unlocked') !== '1') showLock();
+    return;
+  }
+  $('#lock').classList.remove('hidden');   // aplikasi tertutup selama sesi diperiksa
+  await bukaServer();
+}
+
+/* =========================================================
    PIN LOCK
    ========================================================= */
-function showLock() {
-  $('#lock').classList.remove('hidden'); $('#lock-err').classList.add('hidden'); $('#lock-pin').value = '';
+function showLock(pesan) {
+  $('#lock').classList.remove('hidden'); $('#lock-pin').value = '';
+  $('#lock-err').textContent = pesan || '';
+  $('#lock-err').classList.toggle('hidden', !pesan);
   setTimeout(() => $('#lock-pin').focus(), 50);
+}
+function lockGagal(pesan) {
+  $('#lock-err').textContent = pesan;
+  $('#lock-err').classList.remove('hidden');
+  const f = $('#lock-form'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); $('#lock-pin').value = '';
 }
 $('#lock-form').addEventListener('submit', async e => {
   e.preventDefault();
+  if (SERVER.aktif) {
+    const h = await api('masuk', [$('#lock-pin').value]);
+    if (!h.success) return lockGagal(h.message || 'PIN salah. Coba lagi.');
+    return bukaServer();
+  }
   if (await hashPin($('#lock-pin').value) === state.settings.pinHash) { SS.set('unlocked', '1'); $('#lock').classList.add('hidden'); }
-  else { $('#lock-err').classList.remove('hidden'); const f = $('#lock-form'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); $('#lock-pin').value = ''; }
+  else lockGagal('PIN salah. Coba lagi.');
 });
 
 /* =========================================================
@@ -2521,8 +2592,7 @@ setInterval(() => {
 /* =========================================================
    INIT
    ========================================================= */
-render();
-if (state.settings.pinEnabled && state.settings.pinHash && SS.get('unlocked') !== '1') showLock();
+mulai();
 </script>
 </body>
 </html>

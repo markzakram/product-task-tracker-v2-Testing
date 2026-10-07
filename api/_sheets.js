@@ -15,6 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { TAB, dariBaris, rakit, nomorTerbesar } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
 const CAKUPAN = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -187,7 +188,13 @@ async function bacaKeadaan({ api }, id) {
   if (dasar.tab.includes(PENANDA.tab)) {
     const r = await panggil(() => api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(PENANDA.tab, 'A1:B20') }));
     const peta = petakan(r.data.values);
-    if (peta.app === PENANDA.app) return { ...dasar, kepemilikan: 'v2', disiapkan: peta.disiapkan || '' };
+    if (peta.app === PENANDA.app) {
+      return {
+        ...dasar, kepemilikan: 'v2', disiapkan: peta.disiapkan || '',
+        contoh: peta.contoh_versi ? { versi: peta.contoh_versi, sumber: peta.contoh_sumber || '' } : null,
+        meta: peta,
+      };
+    }
     return { ...dasar, kepemilikan: 'asing', alasan: `Tab ${PENANDA.tab} ada, tapi isinya bukan penanda v2.` };
   }
   if (tabs.length === 1) {
@@ -200,8 +207,17 @@ async function bacaKeadaan({ api }, id) {
 }
 
 function publik(keadaan) {
-  const { idTab, ...sisa } = keadaan;
+  const { idTab, meta, ...sisa } = keadaan;
   return sisa;
+}
+
+/* sheetId dipilih sendiri supaya permintaan lanjutan bisa merujuknya di batchUpdate
+   yang sama — sheetId buatan Google baru diketahui setelah permintaannya selesai. */
+function idTabBaru(dipakai) {
+  let id;
+  do { id = 1000000 + Math.floor(Math.random() * 2000000000); } while (dipakai.includes(id));
+  dipakai.push(id);
+  return id;
 }
 
 async function periksa(k, id) {
@@ -215,8 +231,7 @@ async function siapkan(k, id) {
     throw new GalatDitolak(`Spreadsheet "${awal.judul}" bukan milik v2. ${awal.alasan} Periksa SPREADSHEET_ID — v2 hanya mau menyiapkan spreadsheet yang benar-benar kosong.`);
   }
 
-  let idBaru;
-  do { idBaru = 1000000 + Math.floor(Math.random() * 2000000000); } while (awal.idTab.includes(idBaru));
+  const idBaru = idTabBaru(awal.idTab);
   const baris = [
     ['app', PENANDA.app],
     ['disiapkan', new Date().toISOString()],
@@ -251,6 +266,100 @@ async function siapkan(k, id) {
   return { ...(await periksa(k, id)), berubah };
 }
 
+/* ---------- Data contoh ------------------------------------------------ */
+
+/* Menulis ulang SEMUA tab data. baris = { namaTab: [[judul...], [nilai...], ...] }.
+
+   Tab lama dihapus lalu dibuat ulang dalam satu batchUpdate atomik, dengan ukuran
+   grid yang pas: values.update menolak menulis melewati batas grid (bawaannya 1000
+   baris), dan tab log saja sudah 1001 baris. */
+async function tulisContoh(k, id, baris, { sumber = '' } = {}) {
+  let keadaan = await bacaKeadaan(k, id);
+  if (keadaan.kepemilikan === 'asing') {
+    throw new GalatDitolak(`Spreadsheet "${keadaan.judul}" bukan milik v2. ${keadaan.alasan} Data contoh tidak ditulis.`);
+  }
+  if (keadaan.kepemilikan === 'kosong') {
+    await siapkan(k, id);
+    keadaan = await bacaKeadaan(k, id);
+  }
+
+  const dipakai = [...keadaan.idTab];
+  const permintaan = [];
+  for (const [nama, isi] of Object.entries(baris)) {
+    const i = keadaan.tab.indexOf(nama);
+    if (i >= 0) permintaan.push({ deleteSheet: { sheetId: keadaan.idTab[i] } });
+    const sheetId = idTabBaru(dipakai);
+    permintaan.push({
+      addSheet: {
+        properties: {
+          sheetId, title: nama,
+          gridProperties: { rowCount: isi.length + 50, columnCount: isi[0].length, frozenRowCount: 1 },
+        },
+      },
+    });
+    permintaan.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+        cell: { userEnteredFormat: { textFormat: { bold: true } } },
+        fields: 'userEnteredFormat.textFormat.bold',
+      },
+    });
+  }
+  await panggil(() => k.api.spreadsheets.batchUpdate({ spreadsheetId: id, requestBody: { requests: permintaan } }), { tulis: true });
+
+  // Satu permintaan per tab: tiap muatan jauh di bawah batas yang disarankan Google (2 MB).
+  for (const [nama, isi] of Object.entries(baris)) {
+    await panggil(() => k.api.spreadsheets.values.update({
+      spreadsheetId: id, range: rentang(nama, 'A1'), valueInputOption: 'RAW', requestBody: { values: isi },
+    }), { tulis: true });
+  }
+
+  const versi = new Date().toISOString();
+  await tulisMeta(k, id, { ...keadaan.meta, contoh_versi: versi, contoh_sumber: sumber });
+  return { versi, jumlah: Object.fromEntries(Object.entries(baris).map(([n, isi]) => [n, isi.length - 1])) };
+}
+
+/* Penanda tetap di tiga baris teratas; kunci lain menyusul di bawahnya. */
+async function tulisMeta(k, id, meta) {
+  const urutan = ['app', 'disiapkan', 'catatan'];
+  const kunci = [...urutan.filter(x => x in meta), ...Object.keys(meta).filter(x => !urutan.includes(x))];
+  const isi = kunci.map(x => [x, String(meta[x])]);
+  await panggil(() => k.api.spreadsheets.values.update({
+    spreadsheetId: id, range: rentang(PENANDA.tab, `A1:B${isi.length}`), valueInputOption: 'RAW', requestBody: { values: isi },
+  }), { tulis: true });
+}
+
+/* Dua pembacaan: metadata + penanda, lalu semua tab data dalam satu batchGet. */
+async function bacaContoh(k, id) {
+  const keadaan = await bacaKeadaan(k, id);
+  if (keadaan.kepemilikan !== 'v2') {
+    throw new GalatDitolak('Spreadsheet ini belum disiapkan untuk v2. Buka /cek lalu tekan "Siapkan untuk v2".');
+  }
+  const nama = Object.keys(TAB);
+  const kurang = nama.filter(n => !keadaan.tab.includes(n));
+  if (kurang.length === nama.length || !keadaan.contoh) return { versi: '', sumber: '', data: null };
+  if (kurang.length) {
+    throw new GalatDitolak(`Tab data contoh tidak lengkap (tak ada: ${kurang.join(', ')}). Jalankan ulang npm run impor:v1.`);
+  }
+  const r = await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges: nama.map(n => rentang(n, 'A:Z')) }));
+  const tabs = {};
+  (r.data.valueRanges || []).forEach((vr, i) => {
+    const [judul = [], ...isi] = vr.values || [];
+    tabs[nama[i]] = isi.filter(b => b.some(sel => String(sel).trim())).map(b => dariBaris(nama[i], judul, b));
+  });
+  const data = rakit(tabs);
+  return {
+    versi: keadaan.contoh.versi,
+    sumber: keadaan.contoh.sumber,
+    data,
+    seq: {
+      task: nomorTerbesar(data.tasks, 'PRD'),
+      prj: nomorTerbesar(data.projects, 'PRJ'),
+      bl: nomorTerbesar(data.backlog, 'BL'),
+    },
+  };
+}
+
 /* ---------- Pesan galat ------------------------------------------------
    Kegagalan pertama hampir selalu salah satu dari lima ini, dan pesan mentah Google
    tak menyebut langkah perbaikannya. */
@@ -279,5 +388,5 @@ module.exports = {
   PENANDA, GalatSetelan, GalatDitolak,
   setelanAda, idSpreadsheet, kredensial, emailAkun, klien,
   panggil, kenaKuota, gangguanSesaat,
-  periksa, siapkan, jelaskanGalat,
+  periksa, siapkan, tulisContoh, bacaContoh, jelaskanGalat,
 };

@@ -16,6 +16,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { muatEnv } = require('./_env');
 
 const AKAR = path.join(__dirname, '..');
 const PUBLIK = path.join(AKAR, 'public');
@@ -32,22 +33,6 @@ const JENIS = {
   '.jpg': 'image/jpeg',
   '.ico': 'image/x-icon',
 };
-
-/* .env dimuat sendiri. Env yang sudah ada di shell tidak ditimpa. */
-function muatEnv(berkas) {
-  let isi;
-  try { isi = fs.readFileSync(berkas, 'utf8'); } catch (e) {
-    console.warn('  .env tidak ada — salin dari .env.example lalu isi.');
-    return;
-  }
-  for (const baris of isi.split(/\r?\n/)) {
-    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(baris);
-    if (!m || process.env[m[1]] !== undefined) continue;
-    let nilai = m[2].trim();
-    if (/^(['"]).*\1$/.test(nilai)) nilai = nilai.slice(1, -1);
-    process.env[m[1]] = nilai;
-  }
-}
 
 function kirimTeks(res, kode, teks) {
   res.statusCode = kode;
@@ -105,7 +90,7 @@ function layaniBerkas(res, url) {
   });
 }
 
-muatEnv(path.join(AKAR, '.env'));
+if (!muatEnv(path.join(AKAR, '.env'))) console.warn('  .env tidak ada — salin dari .env.example lalu isi.');
 const PORT = Number(process.env.PORT) || 3000;
 /* Bawaan hanya komputer ini. HOST=0.0.0.0 di .env membukanya untuk jaringan kantor. */
 const HOST = process.env.HOST || '127.0.0.1';

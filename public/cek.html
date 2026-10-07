@@ -158,6 +158,11 @@ function tampilkanStatus(h) {
   if (s) {
     baris.push(['Spreadsheet', buat('a', { href: s.url, target: '_blank', rel: 'noopener' }, s.judul)]);
     baris.push(['Tab', s.tab.join(', ')]);
+    if (s.kepemilikan === 'v2') {
+      baris.push(['Data contoh', s.contoh
+        ? `${new Date(s.contoh.versi).toLocaleString('id-ID')} · ${s.contoh.sumber}`
+        : 'belum diimpor (npm run impor:v1)']);
+    }
   }
   $('rincian').replaceChildren(...baris.flatMap(([k, v]) => [buat('dt', {}, k), buat('dd', {}, v)]));
 

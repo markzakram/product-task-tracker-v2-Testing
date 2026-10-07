@@ -8,53 +8,7 @@ const sheet = require('../api/_sheets');
 const ID = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcd';
 const EMAIL = 'producttrack-v2@contoh.iam.gserviceaccount.com';
 
-/* Tiruan Google Sheets secukupnya: membaca daftar tab, membaca nilai per rentang,
-   dan menjalankan addSheet + updateCells. Setiap batchUpdate dicatat di `tulisan`,
-   supaya tes bisa memastikan sebuah jalur benar-benar TIDAK menulis apa pun. */
-function sheetPalsu(tabs, judul = 'Sheet Uji') {
-  const tulisan = [];
-  const api = {
-    spreadsheets: {
-      async get() {
-        return { data: { properties: { title: judul }, sheets: tabs.map(t => ({ properties: { sheetId: t.sheetId, title: t.title } })) } };
-      },
-      values: {
-        async get({ range }) {
-          const nama = /^'((?:[^']|'')*)'!/.exec(range)[1].replace(/''/g, "'");
-          const t = tabs.find(x => x.title === nama);
-          if (!t) throw Object.assign(new Error(`Unable to parse range: ${range}`), { status: 400 });
-          return { data: t.values && t.values.length ? { values: t.values } : {} };
-        },
-      },
-      async batchUpdate({ requestBody }) {
-        tulisan.push(requestBody);
-        for (const r of requestBody.requests) {
-          if (r.addSheet) {
-            const p = r.addSheet.properties;
-            if (tabs.some(t => t.title === p.title)) {
-              throw Object.assign(new Error(`Invalid requests[0].addSheet: A sheet with the name "${p.title}" already exists. Please enter another name.`), { status: 400 });
-            }
-            tabs.push({ title: p.title, sheetId: p.sheetId, values: [] });
-          }
-          if (r.updateCells) {
-            const t = tabs.find(x => x.sheetId === r.updateCells.start.sheetId);
-            t.values = r.updateCells.rows.map(b => b.values.map(c => c.userEnteredValue.stringValue));
-          }
-        }
-        return { data: {} };
-      },
-    },
-  };
-  return { k: { api, email: EMAIL }, tabs, tulisan };
-}
-
-const kosong = () => sheetPalsu([{ title: 'Sheet1', sheetId: 0, values: [] }]);
-const sheetV1 = () => sheetPalsu([
-  { title: 'Main', sheetId: 0, values: [['', 'Task ID', 'Created Date'], ['', 'TSK-001', '2026-07-01']] },
-  { title: 'OPTIONS', sheetId: 11, values: [['Type', 'Value']] },
-  { title: 'COMMENTS', sheetId: 12, values: [] },
-  { title: 'ACTIVITY', sheetId: 13, values: [] },
-], 'Task Management');
+const { sheetPalsu, kosong, sheetV1 } = require('./bantu/sheet-palsu');
 
 /* ---------- Kepemilikan ---------- */
 
@@ -282,4 +236,98 @@ test('menyerah setelah jatah ulang habis, dan galat lain tak diulang sama sekali
   const izin = gagalDulu(10, galatGoogle(403, 'The caller does not have permission'));
   await assert.rejects(sheet.panggil(izin, JEDA_NOL));
   assert.equal(izin.jumlah(), 1);
+});
+
+/* ---------- Data contoh ---------- */
+
+const { urai } = require('../api/_skema');
+
+const contoh = () => ({
+  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', history: [] }],
+  tasks: [
+    {
+      id: 'PRD-001', project: '', title: 'Task lepas', platform: 'ASN', stage: 'A', sub: 'Market analysis', detail: '', pic: 'andika',
+      support: ['uma'], priority: 'High', start: '2026-07-01', due: '2026-07-05', status: 'Done', output: '1 laporan', gate: 'Lolos',
+      deps: [], issue: '', notes: '', assignedBy: 'nynda', cycle: 1, decision: '', createdAt: Date.parse('2026-07-01T01:00:00Z'),
+      updatedAt: Date.parse('2026-07-05T01:00:00Z'),
+      subtasks: [{ id: 's1', title: 'Kumpulkan data', pic: 'uma', due: '', status: 'Done' }],
+      comments: [{ id: 'k1', author: 'nynda', text: 'Mantap, lanjut', at: Date.parse('2026-07-04T02:00:00Z') }],
+      gateLog: [{ id: 'g1', by: 'nynda', action: 'Lolos', note: 'Ditandai Done di v1', at: Date.parse('2026-07-05T01:00:00Z') }],
+      evidence: [{ id: 'e1', label: 'Google Docs', url: 'https://docs.google.com/document/d/x' }],
+    },
+    {
+      id: 'PRD-646', project: 'PRJ-3', title: 'Langkah 2', platform: 'PCPM', stage: 'V', sub: '3.2 Learning Content Implementation', detail: '',
+      pic: 'kiki', support: [], priority: 'Medium', start: '2026-07-20', due: '', status: 'Input', output: '', gate: 'Belum',
+      deps: ['PRD-001'], issue: '', notes: '', assignedBy: 'nynda', cycle: 1, decision: '', createdAt: Date.parse('2026-07-20T04:00:00Z'),
+      updatedAt: Date.parse('2026-07-20T04:00:00Z'), subtasks: [], comments: [], gateLog: [], evidence: [],
+    },
+  ],
+  backlog: [],
+  packages: [{ id: 'PKG-002', platform: 'BUMN', name: 'PT.KAI_BUMN', type: 'Premium', status: 'Aktif', components: ['Tryout', 'Latsol'], note: '' }],
+  bookmarks: [{ id: 'f-1', name: 'Dashboard tim (v1)', emoji: '📈', links: [{ id: 'b2', title: 'Proyek Freelance', url: 'https://contoh.id/a' }] }],
+  log: [{ id: 'l1', type: 'create', task: 'PRD-001 · Task lepas', detail: 'Dibuat', by: 'andika', at: Date.parse('2026-07-01T01:00:00Z') }],
+});
+
+test('tulisContoh lalu bacaContoh mengembalikan data yang sama persis', async () => {
+  const { k } = kosong();
+  const asli = contoh();
+  const tulis = await sheet.tulisContoh(k, ID, urai(asli), { sumber: 'Tarikan v1 uji' });
+  assert.equal(tulis.jumlah.tasks, 2);
+  assert.equal(tulis.jumlah.subtasks, 1);
+  const baca = await sheet.bacaContoh(k, ID);
+  assert.equal(baca.versi, tulis.versi);
+  assert.equal(baca.sumber, 'Tarikan v1 uji');
+  assert.deepEqual(baca.data.tasks, asli.tasks);
+  assert.deepEqual(baca.data.projects, asli.projects);
+  assert.deepEqual(baca.data.packages, asli.packages);
+  assert.deepEqual(baca.data.bookmarks, asli.bookmarks);
+  assert.deepEqual(baca.data.log, asli.log);
+  assert.deepEqual(baca.seq, { task: 646, prj: 3, bl: 0 });
+});
+
+test('spreadsheet kosong disiapkan dulu: penanda v2 ikut terpasang', async () => {
+  const { k, tab } = kosong();
+  await sheet.tulisContoh(k, ID, urai(contoh()));
+  assert.deepEqual(tab('_meta').values[0], ['app', 'producttrack-v2']);
+  assert.equal((await sheet.periksa(k, ID)).kepemilikan, 'v2');
+});
+
+test('sheet v1 ditolak sebelum satu pun tab dibuat', async () => {
+  const { k, tulisan } = sheetV1();
+  await assert.rejects(sheet.tulisContoh(k, ID, urai(contoh())), err => err instanceof sheet.GalatDitolak && /bukan milik v2/.test(err.message));
+  assert.equal(tulisan.length, 0);
+});
+
+test('impor ulang mengganti isi lama, bukan menumpuk', async () => {
+  const { k, tab } = kosong();
+  await sheet.tulisContoh(k, ID, urai(contoh()));
+  const kedua = contoh();
+  kedua.tasks = kedua.tasks.slice(0, 1);
+  await sheet.tulisContoh(k, ID, urai(kedua));
+  assert.equal(tab('tasks').values.length, 2, 'judul + 1 task');
+  assert.equal((await sheet.bacaContoh(k, ID)).data.tasks.length, 1);
+  assert.deepEqual(tab('_meta').values.map(b => b[0]), ['app', 'disiapkan', 'catatan', 'contoh_versi', 'contoh_sumber']);
+});
+
+test('tab dibuat seukuran isinya — log 1001 baris tak menabrak batas grid 1000', async () => {
+  const { k } = kosong();
+  const besar = contoh();
+  besar.log = Array.from({ length: 1000 }, (_, i) => ({ id: 'l' + i, type: 'update', task: 'x', detail: '', by: 'ali', at: Date.UTC(2026, 7, 1) + i }));
+  await sheet.tulisContoh(k, ID, urai(besar));
+  assert.equal((await sheet.bacaContoh(k, ID)).data.log.length, 1000);
+});
+
+test('bacaContoh: belum pernah diimpor → data null; belum disiapkan → ditolak', async () => {
+  const siap = kosong();
+  await sheet.siapkan(siap.k, ID);
+  assert.deepEqual(await sheet.bacaContoh(siap.k, ID), { versi: '', sumber: '', data: null });
+  await assert.rejects(sheet.bacaContoh(kosong().k, ID), /belum disiapkan untuk v2/);
+});
+
+test('kolom yang digeser orang di spreadsheet tetap terbaca benar', async () => {
+  const { k, tab } = kosong();
+  await sheet.tulisContoh(k, ID, urai(contoh()));
+  const t = tab('packages');
+  t.values = t.values.map(b => [...b].reverse());   // urutan kolom dibalik total
+  assert.deepEqual((await sheet.bacaContoh(k, ID)).data.packages, contoh().packages);
 });

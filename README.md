@@ -23,13 +23,16 @@ Data tetap di Google Spreadsheet dan deploy tetap di Vercel, tetapi semuanya mil
 ## Isi
 
 ```
-public/index.html   prototipe v3.0 apa adanya (datanya masih di localStorage)
-public/cek.html     halaman cek: setelan, akun, spreadsheet, kepemilikan
-api/rpc.js          satu pintu API: masuk, keluar, status, siapkan
-api/_sesi.js        gerbang PIN + cookie sesi
-api/_sheets.js      Google Sheets + aturan kepemilikan
-scripts/dev.js      server lokal yang meniru Vercel (tanpa Vercel CLI)
-test/               npm test — Google Sheets ditiru, tanpa koneksi
+public/index.html     prototipe v3.0; dengan server: PIN server + data contoh dari spreadsheet
+public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
+api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh
+api/_sesi.js          gerbang PIN + cookie sesi
+api/_sheets.js        Google Sheets + aturan kepemilikan + tulis/baca data contoh
+api/_skema.js         bentuk tab spreadsheet v2, baris ↔ objek prototipe
+scripts/impor-v1.js   npm run impor:v1 — tarikan v1 → data contoh di spreadsheet v2
+scripts/_v1ke2.js     semua aturan pemetaan v1 → v2 (tabel yang bisa diubah)
+scripts/dev.js        server lokal yang meniru Vercel (tanpa Vercel CLI)
+test/                 npm test — Google Sheets ditiru, tanpa koneksi
 ```
 
 ---
@@ -100,9 +103,62 @@ Lalu Deploy. Env hanya berlaku untuk deploy baru, jadi setelah mengubahnya selal
 ### 6. Pastikan
 
 Buka `https://<project-v2>.vercel.app/cek`. Semua setelan harus ✓, service account harus akun
-baru, dan kepemilikan harus "Siap dipakai v2".
+baru, dan kepemilikan harus "Siap dipakai v2". Setelah impor (bagian berikut), baris
+**Data contoh** menunjukkan versi dan sumbernya.
 
 Label **Production** di project ini hanya berarti branch `main` milik v2. Tidak menyentuh v1 sama sekali.
+
+---
+
+## Data contoh dari v1
+
+Prototipe memakai data v1 sungguhan sebagai data contoh. Datanya **hanya** disimpan di
+spreadsheet v2 dan baru dikirim ke browser setelah PIN server benar. Data itu tidak pernah
+ditanam di `public/` (URL Vercel bisa dibuka siapa saja) dan tidak pernah masuk git.
+
+### Mengimpor
+
+Sumbernya tarikan v1 di disk, yaitu `db/dump/*.json` di repo v1. Tarikan itu dibuat dengan
+`node scripts/migrasi/tarik.js` di repo v1, yang memakai kredensial v1 dan hanya membaca. Skrip
+impor v2 tidak memegang kredensial v1, dan service account v2 memang tak punya akses ke sheet v1.
+
+Isi `SPREADSHEET_ID` dan `GOOGLE_APPLICATION_CREDENTIALS` di `.env` (langkah 3), lalu:
+
+```bash
+npm run impor:v1 -- --kering
+```
+
+Perintah itu hanya memetakan dan menampilkan ringkasan, tanpa menulis apa pun. Kalau hasilnya
+masuk akal, jalankan:
+
+```bash
+npm run impor:v1
+```
+
+Semua tab data contoh ditulis ulang setiap kali perintah ini dijalankan. Penanda `_meta`
+mencatat versinya. Browser yang memegang versi lama otomatis memuat versi baru saat dibuka;
+selama versinya sama, suntingan di browser itu dibiarkan.
+
+### Pemetaan (semuanya di `scripts/_v1ke2.js`)
+
+| v1 | v2 |
+|---|---|
+| Task `TSK-099` | task `PRD-099` (nomornya tetap) |
+| Kolaborasi `COL-021` | proyek `PRJ-21` |
+| Proses kolaborasi | task di proyek itu; tiap proses menunggu proses sebelumnya (dependency) |
+| Ceklis | sub-task (ceklis proses `COL-021#3` ikut ke task prosesnya) |
+| Komentar kolaborasi | komentar di task proses pertama |
+| Stage v1 (QC, RnD, …) | tahap ADDIE + sub-stage, lewat tabel `TAHAP` dan aturan judul `TAHAP_KATA` |
+| Status Done | Done + gate Lolos (task LCI: Published) |
+| Review PM / Revisi | Review + gate Diajukan / Revision + gate Ditolak |
+| `status_by` v1 | log gate (siapa dan kapan), hanya kalau tercatat |
+| Kesulitan Normal | priority Medium |
+| Paket & dashboard tim | Rancangan Paket & satu folder Bookmark |
+| Riwayat aktivitas | 1000 terbaru (batas riwayat prototipe) |
+
+**Tidak dibawa:** hash PIN, catatan dan tautan pribadi, notifikasi, serta rincian target paket.
+
+Untuk mengubah pemetaan, sunting tabelnya, cek dengan `--kering`, lalu impor ulang.
 
 ---
 
@@ -117,9 +173,13 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
 ## Batasan yang disadari
 
-- **Prototipe belum tersambung ke API.** `public/index.html` masih menyimpan data di
-  localStorage per browser, dan PIN di layar kuncinya juga hanya dicek di browser. Gerbang
-  server (`ACCESS_PIN`) sejauh ini baru melindungi API.
+- **Suntingan belum tersimpan ke spreadsheet.** Prototipe memuat data contoh dari server,
+  tetapi yang diubah orang tetap tersimpan di browser masing-masing (localStorage).
+- **Belum ada penyaringan per peran.** v1 menyaring data di server untuk magang dan Lintas
+  Divisi; v2 belum. Siapa pun yang tahu PIN v2 melihat seluruh data contoh, jadi jangan
+  bagikan PIN v2 ke magang atau Lintas Divisi. Profil (Manager/Lead/Staff) di prototipe juga
+  masih simulasi yang dipilih sendiri.
+- Dengan ±1000 task, tampilan Tabel dan Kanban butuh ±0,5 detik untuk digambar.
 - **Tebakan PIN hanya diperlambat** (jeda ±0,7 detik per PIN salah), belum dibatasi lajunya.
   Pakai PIN yang panjang.
 - Prototipe memuat Tailwind dari `cdn.tailwindcss.com`, yang memang bukan untuk produksi.
@@ -128,8 +188,7 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
 ## Langkah berikutnya
 
-1. Rancang tab spreadsheet v2 dari model data prototipe: proyek, task, sub-task, dependency,
-   evidence, log gate, backlog, komentar, aktivitas.
-2. Ganti localStorage di prototipe dengan panggilan ke `/api/rpc`.
-3. Layar kunci prototipe memakai login server, bukan PIN di browser.
-4. Setelah matang: pindah ke GitLab (salin isi CI ke `.gitlab-ci.yml`).
+1. Simpan suntingan ke spreadsheet: aksi tulis di `/api/rpc` di atas tab yang sudah ada
+   (`api/_skema.js`), menggantikan localStorage.
+2. Login per orang, supaya profil berasal dari login dan data bisa disaring per peran.
+3. Setelah matang: pindah ke GitLab (salin isi CI ke `.gitlab-ci.yml`).

@@ -7,6 +7,7 @@
      POST /api/rpc  { action: 'keluar' }             menghapusnya
      POST /api/rpc  { action: 'status' }             akun, spreadsheet, kepemilikan
      POST /api/rpc  { action: 'siapkan' }            pasang penanda v2 di spreadsheet kosong
+     POST /api/rpc  { action: 'muatContoh' }         data contoh untuk prototipe
 
    Balasan berbentuk { success, message, ... } seperti v1.
 
@@ -66,6 +67,12 @@ const AKSI = {
       spreadsheet: hasil,
       message: hasil.berubah ? 'Penanda v2 terpasang.' : 'Spreadsheet ini sudah milik v2.',
     };
+  },
+  /* Seluruh data contoh dalam bentuk yang langsung dipakai prototipe.
+     data null = belum pernah diimpor (npm run impor:v1). */
+  async muatContoh() {
+    const k = await sheet.klien();
+    return await sheet.bacaContoh(k, sheet.idSpreadsheet());
   },
 };
 
