@@ -32,8 +32,10 @@ default:
 # yang diambil dari variabel group; sisanya ditulis di sini.
 # Image ditaruh di repository Artifact Registry `cerebrum-internal-project`
 # bersama tool internal lain, dengan akhiran -dev / -stg / -prod.
+# Host ditulis langsung, bukan dari GCP_REGISTRY_URL: isinya berawalan https://
+# (cukup untuk docker login, tapi nama image tak boleh punya skema).
 variables:
-  IMAGE_BASE: "${GCP_REGISTRY_URL}/${GCP_PROJECT}/cerebrum-internal-project/product-task-tracker"
+  IMAGE_BASE: "asia-southeast1-docker.pkg.dev/${GCP_PROJECT}/cerebrum-internal-project/product-task-tracker"
 
 image: node:20
 

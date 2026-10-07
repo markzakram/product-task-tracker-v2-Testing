@@ -207,7 +207,7 @@ Selain Vercel, app bisa jalan di GCP Cloud Run lewat `.gitlab-ci.yml` (pola sama
 
 **Variabel CI** — cukup yang sudah ada di level group: `SERVICE_ACCOUNT_KEY`, `GCP_REGISTRY_URL`,
 `GCP_PROJECT`, `GCP_PROJECT_DEV`. Opsional: `DISCORD_WEBHOOK_URL` (kalau kosong, notifikasi dilewati).
-Image: `<GCP_REGISTRY_URL>/<GCP_PROJECT>/cerebrum-internal-project/product-task-tracker-{dev,stg,prod}`.
+Image: `asia-southeast1-docker.pkg.dev/<GCP_PROJECT>/cerebrum-internal-project/product-task-tracker-{dev,stg,prod}`.
 Service Cloud Run: `dev-product-task-tracker`, `stg-product-task-tracker`, `product-task-tracker`
 (region `asia-southeast2`, service account default Cloud Run).
 
