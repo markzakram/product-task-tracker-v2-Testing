@@ -1,0 +1,7 @@
+# Akhir baris LF di working tree juga, bukan cuma di dalam repo. Mesin ini memakai
+# core.autocrlf=true; tanpa baris ini checkout mengubah semua berkas jadi CRLF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

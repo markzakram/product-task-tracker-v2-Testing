@@ -1,0 +1,25 @@
+# Dependensi
+node_modules/
+
+# Vercel
+.vercel
+
+# Env lokal — JANGAN commit kredensial
+.env
+.env.*
+!.env.example
+
+# Kunci service account. Paling aman disimpan di LUAR folder repo;
+# pola ini jaring pengaman kalau tetap ditaruh di sini.
+kredensial*.json
+credentials*.json
+*service-account*.json
+
+# Lockfile tidak di-commit, mengikuti v1: lockfile yang ter-commit pernah membuat
+# fungsi Vercel gagal memuat pustaka Google saat runtime (v1, commit 73de6f0).
+package-lock.json
+
+# Log / OS
+*.log
+.DS_Store
+Thumbs.db

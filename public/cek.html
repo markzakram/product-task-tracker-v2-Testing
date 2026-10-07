@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Cek Sambungan · ProductTrack v2</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f1f5f9; --kartu: #fff; --teks: #0f172a; --redup: #64748b; --garis: #e2e8f0;
+      --biru: #2563eb; --hijau: #059669; --merah: #e11d48;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220; --kartu: #111827; --teks: #e5e7eb; --redup: #94a3b8; --garis: #1f2937;
+        --biru: #60a5fa; --hijau: #34d399; --merah: #fb7185;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--teks); }
+    main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 20px; margin: 0; }
+    .kepala { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .lencana { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--garis); color: var(--redup); }
+    .kartu { background: var(--kartu); border: 1px solid var(--garis); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+    .kartu h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--redup); margin: 0 0 10px; }
+    ul.cek { list-style: none; margin: 0; padding: 0; }
+    ul.cek li { display: flex; gap: 8px; padding: 3px 0; }
+    .ya { color: var(--hijau); font-weight: 600; }
+    .tidak { color: var(--merah); font-weight: 600; }
+    .kotak { padding: 10px 12px; border-radius: 10px; border: 1px solid; margin-top: 12px; }
+    .kotak.baik { border-color: var(--hijau); }
+    .kotak.buruk { border-color: var(--merah); }
+    .kotak.info { border-color: var(--biru); }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+    dt { color: var(--redup); }
+    dd { margin: 0; overflow-wrap: anywhere; }
+    form.pin { display: flex; gap: 8px; }
+    input { font: inherit; flex: 1; min-width: 0; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--garis); background: transparent; color: var(--teks); letter-spacing: .3em; text-align: center; }
+    button { font: inherit; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--garis); background: var(--kartu); color: var(--teks); cursor: pointer; }
+    button.utama { background: var(--biru); border-color: var(--biru); color: #fff; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .tombol { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 0; }
+    .redup { color: var(--redup); font-size: 13px; }
+    a { color: var(--biru); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="kepala">
+    <h1>ProductTrack v2 · Cek Sambungan</h1>
+    <span id="env" class="lencana" title="Lingkungan tempat server ini berjalan">…</span>
+  </div>
+
+  <section class="kartu">
+    <h2>Setelan server</h2>
+    <ul id="setelan" class="cek"><li class="redup">Memeriksa…</li></ul>
+  </section>
+
+  <section id="kartu-masuk" class="kartu" hidden>
+    <h2>Masuk</h2>
+    <form id="form-pin" class="pin">
+      <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" aria-label="PIN" required>
+      <button class="utama">Masuk</button>
+    </form>
+    <p id="pesan-pin" class="redup" role="alert" hidden></p>
+  </section>
+
+  <section id="kartu-status" class="kartu" hidden>
+    <h2>Spreadsheet</h2>
+    <dl id="rincian"></dl>
+    <div id="putusan"></div>
+    <p class="tombol">
+      <button id="tombol-siapkan" class="utama" hidden>Siapkan untuk v2</button>
+      <button id="tombol-ulang">Periksa ulang</button>
+      <button id="tombol-keluar">Keluar</button>
+    </p>
+  </section>
+
+  <p class="redup"><a href="/">Buka prototipe →</a></p>
+</main>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+const SETELAN = [
+  ['spreadsheet', 'SPREADSHEET_ID', 'ID spreadsheet khusus v2'],
+  ['kredensial', 'Kredensial', 'GOOGLE_SERVICE_ACCOUNT_JSON di Vercel, atau GOOGLE_APPLICATION_CREDENTIALS di lokal'],
+  ['pin', 'ACCESS_PIN', 'PIN gerbang'],
+  ['rahasiaSesi', 'SESSION_SECRET', 'minimal 32 karakter acak'],
+];
+
+/* Semua teks dari server dipasang lewat append (simpul teks), bukan innerHTML:
+   judul dan nama tab spreadsheet bisa diisi siapa saja yang punya akses ke sheet. */
+function buat(tag, sifat = {}, ...anak) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(sifat)) el.setAttribute(k, v);
+  el.append(...anak);
+  return el;
+}
+
+async function rpc(action, args = []) {
+  try {
+    const r = await fetch('/api/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, args }),
+    });
+    const data = await r.json().catch(() => ({ success: false, message: `Balasan server tak terbaca (HTTP ${r.status}).` }));
+    return { http: r.status, ...data };
+  } catch (e) {
+    return { http: 0, success: false, message: 'Server tak terjangkau.' };
+  }
+}
+
+async function mulai() {
+  let sehat;
+  try {
+    sehat = await (await fetch('/api/rpc')).json();
+  } catch (e) {
+    $('setelan').replaceChildren(buat('li', { class: 'tidak' }, 'Fungsi /api/rpc tidak menjawab.'));
+    return;
+  }
+  $('env').textContent = sehat.env;
+  $('setelan').replaceChildren(...SETELAN.map(([k, nama, ket]) => {
+    const ada = !!sehat.setelan[k];
+    return buat('li', {},
+      buat('span', { class: ada ? 'ya' : 'tidak', 'aria-label': ada ? 'ada' : 'belum' }, ada ? '✓' : '✗'),
+      buat('span', {}, buat('b', {}, nama), ' — ', ket));
+  }));
+  // Gerbang tertutup sampai PIN dan rahasia sesi ada; tak ada yang bisa dicek lebih jauh.
+  if (sehat.setelan.pin && sehat.setelan.rahasiaSesi) await muatStatus('status');
+}
+
+async function muatStatus(aksi) {
+  const h = await rpc(aksi);
+  if (h.http === 401) return tampilkanMasuk();
+  $('kartu-masuk').hidden = true;
+  $('kartu-status').hidden = false;
+  tampilkanStatus(h);
+}
+
+function tampilkanMasuk(pesan) {
+  $('kartu-status').hidden = true;
+  $('kartu-masuk').hidden = false;
+  $('pesan-pin').hidden = !pesan;
+  $('pesan-pin').textContent = pesan || '';
+  $('pin').focus();
+}
+
+function tampilkanStatus(h) {
+  const s = h.spreadsheet;
+  const baris = [];
+  if (h.akun) baris.push(['Service account', h.akun]);
+  if (s) {
+    baris.push(['Spreadsheet', buat('a', { href: s.url, target: '_blank', rel: 'noopener' }, s.judul)]);
+    baris.push(['Tab', s.tab.join(', ')]);
+  }
+  $('rincian').replaceChildren(...baris.flatMap(([k, v]) => [buat('dt', {}, k), buat('dd', {}, v)]));
+
+  let jenis, teks;
+  if (!h.success) {
+    jenis = 'buruk'; teks = h.message;
+  } else if (s.kepemilikan === 'v2') {
+    jenis = 'baik';
+    teks = (h.message ? h.message + ' ' : '') + 'Siap dipakai v2'
+      + (s.disiapkan ? ` — penanda dipasang ${new Date(s.disiapkan).toLocaleString('id-ID')}.` : '.');
+  } else if (s.kepemilikan === 'kosong') {
+    jenis = 'info';
+    teks = 'Spreadsheet ini kosong. Tekan "Siapkan untuk v2" untuk memasang penanda kepemilikan (tab _meta).';
+  } else {
+    jenis = 'buruk';
+    teks = `Bukan milik v2, jadi tidak akan ditulisi. ${s.alasan}`;
+  }
+  $('putusan').replaceChildren(buat('div', { class: 'kotak ' + jenis, role: jenis === 'buruk' ? 'alert' : 'status' }, teks));
+  $('tombol-siapkan').hidden = !(h.success && s && s.kepemilikan === 'kosong');
+}
+
+async function sibuk(tombol, kerja) {
+  tombol.disabled = true;
+  try { await kerja(); } finally { tombol.disabled = false; }
+}
+
+$('form-pin').addEventListener('submit', e => {
+  e.preventDefault();
+  sibuk(e.target.querySelector('button'), async () => {
+    const h = await rpc('masuk', [$('pin').value]);
+    $('pin').value = '';
+    if (!h.success) return tampilkanMasuk(h.message || 'Gagal masuk.');
+    await muatStatus('status');
+  });
+});
+$('tombol-siapkan').addEventListener('click', e => sibuk(e.currentTarget, () => muatStatus('siapkan')));
+$('tombol-ulang').addEventListener('click', e => sibuk(e.currentTarget, () => muatStatus('status')));
+$('tombol-keluar').addEventListener('click', async () => { await rpc('keluar'); tampilkanMasuk(); });
+
+mulai();
+</script>
+</body>
+</html>
