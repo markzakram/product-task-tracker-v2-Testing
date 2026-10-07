@@ -144,7 +144,7 @@ test:
     - gcloud auth activate-service-account --key-file <(echo "$SERVICE_ACCOUNT_KEY")
   script:
     - gcloud config set project ${GCP_PROJECT_ID}
-    - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --port 8080 --allow-unauthenticated --ingress ${INGRESS} --update-env-vars APP_ENV=${APP_ENV}
+    - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --max-instances 2 --port 8080 --allow-unauthenticated --ingress ${INGRESS} --update-env-vars APP_ENV=${APP_ENV}
   after_script:
     - |
       if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
