@@ -193,6 +193,28 @@ Sebelum menyimpulkan gagal, cek **Checklist cepat** ini dulu:
 | Halaman terbuka tapi task kosong / dropdown default | Backend belum konek atau sheet `Main` kosong | Cek health `/api/rpc` (`{"ok":true}`), jalankan Setup, pastikan data ada di `Main` mulai **baris 4**. |
 | Sudah ubah env tapi tidak berubah | Env hanya berlaku untuk deploy baru | Selalu **Redeploy** dari tab **Deployments** setelah mengubah env. |
 
+## Deploy ke Cloud Run (GitLab CI)
+
+Selain Vercel, app bisa jalan di GCP Cloud Run lewat `.gitlab-ci.yml` (pola sama dengan backend-vitri).
+`server.js` membungkus `api/*.js` + `public/`; `Dockerfile` membangunnya. Coba lokal:
+`npm start` → http://localhost:8080.
+
+| Pemicu | Build | Deploy | `APP_ENV` |
+|---|---|---|---|
+| push ke `main` | manual | manual | `production` |
+
+Job dev & staging ada di config tapi sementara dinonaktifkan (berawalan titik).
+
+**Variabel CI** — cukup yang sudah ada di level group: `SERVICE_ACCOUNT_KEY`, `GCP_REGISTRY_URL`,
+`GCP_PROJECT`, `GCP_PROJECT_DEV`. Opsional: `DISCORD_WEBHOOK_URL` (kalau kosong, notifikasi dilewati).
+Image: `asia-southeast1-docker.pkg.dev/<GCP_PROJECT>/cerebrum-internal-project/product-task-tracker-{dev,stg,prod}`.
+Service Cloud Run: `dev-product-task-tracker`, `stg-product-task-tracker`, `product-task-tracker`
+(region `asia-southeast2`, service account default Cloud Run).
+
+**Env aplikasi** (`SPREADSHEET_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `DATA_SOURCE`, `MYSQL_*`, PIN, dst. —
+lihat `.env.example`) diisi **sekali** di tiap service Cloud Run (Edit & Deploy New Revision → Variables).
+Deploy dari CI hanya mengubah `APP_ENV`; env lain dipertahankan.
+
 ## Catatan & batasan
 
 - **Tidak ada LockService seperti di Apps Script.** Untuk tim kecil, tabrakan tulis sangat jarang.

@@ -1,0 +1,14 @@
+node_modules
+.git
+.github
+.vercel
+.env
+.env.*
+*credentials*.json
+*service-account*.json
+db
+docs
+gas
+okr
+scripts
+test
