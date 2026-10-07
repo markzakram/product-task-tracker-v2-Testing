@@ -1,7 +1,7 @@
 # =============================================================================
 #  GitLab CI — gerbang tes, lalu build + deploy ke GCP Cloud Run
 #
-#  Tes jalan otomatis tiap push. Build/deploy meniru pola backend-vitri:
+#  Pipeline hanya terpicu oleh tag git. Build/deploy meniru pola backend-vitri:
 #    branch dev     → build manual → deploy dev     (APP_ENV=development)
 #    branch staging → build manual → deploy staging (APP_ENV=preview)
 #    tag git        → build manual → deploy prod manual (APP_ENV=production)
@@ -40,17 +40,12 @@ variables:
 
 image: node:20
 
-# Pipeline berjalan untuk tiap push ke branch mana pun, dan untuk merge request.
-# Kalau sebuah branch sedang punya merge request terbuka, yang jalan pipeline
-# merge request-nya saja — tanpa aturan ini, satu push memicu DUA pipeline yang
-# identik, menghabiskan runner bersama yang dipakai project lain juga.
+# Pipeline HANYA berjalan untuk tag git (rilis produksi). Push ke branch mana
+# pun dan merge request tidak memicu pipeline sama sekali — tes ikut jalan di
+# pipeline tag, sebelum build.
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    - if: $CI_COMMIT_BRANCH
-    - if: $CI_COMMIT_TAG   # tag = rilis produksi; tanpa baris ini pipeline tag tak pernah jalan
+    - if: $CI_COMMIT_TAG
 
 stages:
   - test
