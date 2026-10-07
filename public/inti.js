@@ -721,7 +721,9 @@
   const fmtJumlah = n => (Number.isInteger(n) ? String(n) : String(n).replace('.', ','));
 
   /* Setiap target terpilih yang masih terbuka menjadi satu task proyek, yang menyetor
-     sisanya ke target itu. Progres paket lalu bergerak sendiri setiap kali task itu
+     ke target itu. Bawaannya seluruh sisa yang belum ditangani; f.jumlah ({ idTarget: n })
+     mengecilkannya — mis. target 10 tapi proyek ini cukup 5 — dan sisanya tetap terbuka
+     untuk dielaborasi lagi nanti. Progres paket lalu bergerak sendiri setiap kali task itu
      disetujui. Bawaannya tahap Development: rancangan paketnya sendiri adalah hasil Design. */
   function elaborasiPaket(data, p, f, me, waktu, hariIni) {
     const peran = orang(me).peran;
@@ -733,8 +735,16 @@
     const stage = TAHAP.some(x => x.id === f.stage) ? f.stage : 'V';
     const pilih = new Set(f.items || []);
     const kontrib = setoranPaket(data, p);
-    const terbuka = (p.items || []).filter(it => pilih.has(it.id))
-      .map(it => ({ it, jumlah: sisaTerbuka(it, kontrib.get(it.id) || []) })).filter(x => x.jumlah > 0);
+    const minta = f.jumlah || {};
+    const terbuka = (p.items || []).filter(it => pilih.has(it.id)).map(it => {
+      const sisa = sisaTerbuka(it, kontrib.get(it.id) || []);
+      const isian = minta[it.id];
+      const jumlah = isian === undefined || isian === null || String(isian).trim() === '' ? sisa : angkaPositif(isian);
+      if (jumlah > sisa) {
+        throw new Error(`${it.kategori} · ${it.nama}: ${fmtJumlah(jumlah)} melebihi sisa yang belum ditangani (${fmtJumlah(sisa)} ${it.satuan || 'Paket'}).`);
+      }
+      return { it, jumlah };
+    }).filter(x => x.jumlah > 0);
     if (!terbuka.length) throw new Error('Tidak ada target terbuka yang dipilih. Target terpilih sudah terpenuhi atau sedang digarap.');
     const judul = p.namaPaket || p.program || p.id;
     const proj = {

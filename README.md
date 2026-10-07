@@ -57,7 +57,8 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
 1. Di **Rancangan Paket**, Lead/Manager menekan **Elaborasi jadi proyek**. Setiap target yang
    masih terbuka menjadi **satu task** di proyek baru (bawaannya tahap Development, karena
    rancangan paket adalah hasil tahap Design). Contoh: Latsol Fisika target 5, sudah ada 2 →
-   task "Latsol · Fisika — 3 Paket".
+   task "Latsol · Fisika — 3 Paket". Jumlahnya bisa dikecilkan bila proyek ini hanya
+   mengerjakan sebagian (target 10, proyek ini 5); sisanya tetap terbuka untuk proyek lain.
 2. Setiap task itu membawa **setoran**: "task ini mengisi target X sebanyak N".
 3. Progres paket **dihitung, bukan dipicu**: terpenuhi = sudah ada + setoran dari task yang
    Selesai. Task proyek baru Selesai setelah disetujui peninjau, jadi yang terhitung hanya

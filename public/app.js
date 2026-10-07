@@ -1760,14 +1760,21 @@
         const k = kontrib.get(it.id) || [];
         const n = I.sisaTerbuka(it, k);
         const h = I.hitungTarget(it, k);
-        return `<label class="${n ? '' : 'mati'}"><input type="checkbox" name="item" value="${esc(it.id)}" ${n ? 'checked' : 'disabled'}>
-          <span>${esc(it.nama || '—')}${it.grup ? ` <small>${esc(it.grup)}</small>` : ''}</span>
-          <small>${n ? `task untuk ${fmtAngka(n)} ${esc(it.satuan)}` : h.status === 'digarap' ? 'sedang digarap' : 'sudah terpenuhi'}</small></label>`;
+        /* Jumlahnya bisa dikecilkan: target 10 tapi proyek ini cukup 5 — sisanya tetap
+           terbuka untuk elaborasi berikutnya. */
+        return `<div class="pilih-baris ${n ? '' : 'mati'}">
+          <label><input type="checkbox" name="item" value="${esc(it.id)}" ${n ? 'checked' : 'disabled'}>
+            <span>${esc(it.nama || '—')}${it.grup ? ` <small>${esc(it.grup)}</small>` : ''}</span></label>
+          ${n ? `<span class="jumlah-elaborasi"><label class="sr" for="jml-${esc(it.id)}">Jumlah untuk ${esc(it.nama)}</label>
+            <input class="input angka" id="jml-${esc(it.id)}" name="jumlah-${esc(it.id)}" inputmode="decimal" value="${esc(fmtAngka(n))}" maxlength="8">
+            <small>dari ${esc(fmtAngka(n))} ${esc(it.satuan)}</small></span>`
+            : `<small>${h.status === 'digarap' ? 'sedang digarap' : 'sudah terpenuhi'}</small>`}
+        </div>`;
       }).join('')}</fieldset>`;
     }).join('');
     return `<form data-form="modal" novalidate>
       <h2>Elaborasi jadi proyek</h2>
-      <p class="hint">Setiap target terpilih menjadi satu task di proyek baru. Saat task itu disetujui, jumlahnya otomatis masuk ke progres ${esc(judulPaket(p))}.</p>
+      <p class="hint">Setiap target terpilih menjadi satu task di proyek baru. Jumlahnya bisa dikecilkan bila proyek ini hanya mengerjakan sebagian; sisanya tetap terbuka untuk elaborasi berikutnya. Saat task disetujui, jumlahnya otomatis masuk ke progres ${esc(judulPaket(p))}.</p>
       <label class="isian">Nama proyek <input name="name" maxlength="200" value="Produksi ${esc(judulPaket(p))}"></label>
       <div class="dua-isian">
         ${o.peran === 'manager'
@@ -1904,7 +1911,9 @@
         case 'elaborasi': {
           const p = paketDari(m.id);
           if (I.orang(S.me).peran === 'manager' && !f.lead) throw new Error('Pilih Lead proyeknya.');
-          const { project, tasks } = I.elaborasiPaket(S.data, p, { ...f, items: new FormData(form).getAll('item') }, S.me, waktu, hariIni());
+          const items = new FormData(form).getAll('item');
+          const jumlah = Object.fromEntries(items.map(id => [id, f['jumlah-' + id]]));
+          const { project, tasks } = I.elaborasiPaket(S.data, p, { ...f, items, jumlah }, S.me, waktu, hariIni());
           tutupModal();
           Object.assign(S.pkt, { pilih: null, sunting: false });
           Object.assign(S, { view: 'proyek', proyek: project.id, pilih: null });
@@ -2263,6 +2272,11 @@
       selesaiUbah();
     } else if (el.dataset.aksi === 'saring') {
       aturNilai(el.dataset.ruang, el.dataset.kunci, el.value);
+    } else if (el.name === 'item' && el.closest('.pilih-baris')) {
+      const baris = el.closest('.pilih-baris');
+      baris.classList.toggle('tak-dipilih', !el.checked);
+      const jumlah = $('.jumlah-elaborasi .input', baris);
+      if (jumlah) jumlah.disabled = !el.checked;
     } else if (el.dataset.aksi === 'tautkan-paket') {
       const proj = proyekDari(el.dataset.id);
       try { I.tautkanPaket(S.data, proj, el.value, S.me, Date.now()); selesaiUbah(el.value ? 'Proyek ditautkan ke rancangan paket.' : 'Tautan paket dilepas.'); } catch (err) { toast(err.message, true); render(); }

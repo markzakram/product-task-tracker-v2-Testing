@@ -47,6 +47,27 @@ test('elaborasi: satu task per target yang masih terbuka, tahap Development, set
   assert.throws(() => elaborasi(d), /Tidak ada target terbuka/, 'yang sedang digarap tak dibuatkan task kedua');
 });
 
+test('elaborasi dengan jumlah sendiri: target 10 cukup dikerjakan 5 dulu, sisanya dielaborasi lagi nanti', () => {
+  const d = data();
+  paket(d).items.push({ id: 'ITM-E', urutan: 5, kategori: 'Tryout', grup: '', nama: 'TO UTBK', target: 10, satuan: 'Paket', awal: 0, catatan: '' });
+  const pertama = elaborasi(d, { items: ['ITM-E'], jumlah: { 'ITM-E': '5' } });
+  assert.deepEqual(pertama.tasks.map(t => t.title), ['Tryout · TO UTBK — 5 Paket']);
+  assert.deepEqual(d.setoran.map(s => [s.item, s.jumlah]), [['ITM-E', 5]]);
+  const sisa = () => I.sisaTerbuka(paket(d).items.find(i => i.id === 'ITM-E'), I.setoranPaket(d, paket(d)).get('ITM-E'));
+  assert.equal(sisa(), 5, 'lima sisanya masih terbuka');
+  const t = pertama.tasks[0];
+  I.terapkanAksi(d, t, 'mulai', 'uma', WAKTU);
+  I.terapkanAksi(d, t, 'ajukan', 'uma', WAKTU);
+  I.terapkanAksi(d, t, 'setujui', 'andika', WAKTU);
+  assert.deepEqual([target(d, 'ITM-E').terpenuhi, target(d, 'ITM-E').status], [5, 'sebagian'], 'setengah target terpenuhi, bukan penuh');
+  assert.throws(() => elaborasi(d, { items: ['ITM-E'], jumlah: { 'ITM-E': 6 } }), /6 melebihi sisa yang belum ditangani \(5 Paket\)/);
+  const kedua = elaborasi(d, { items: ['ITM-E'], jumlah: { 'ITM-E': 5 } });
+  assert.equal(kedua.tasks[0].title, 'Tryout · TO UTBK — 5 Paket');
+  assert.equal(sisa(), 0);
+  assert.throws(() => elaborasi(data(), { items: ['ITM-A'], jumlah: { 'ITM-A': '0' } }), /Tidak ada target terbuka/, 'jumlah 0 = tidak dikerjakan');
+  assert.deepEqual(elaborasi(data(), { items: ['ITM-A'], jumlah: { 'ITM-A': '' } }).tasks.map(x => x.title), ['Latsol · Fisika — 3 Paket'], 'kosong = seluruh sisa');
+});
+
 test('progres paket bergerak sendiri: disetujui → terpenuhi, dibuka kembali → turun lagi', () => {
   const d = data();
   const { tasks: [fisika] } = elaborasi(d);

@@ -550,14 +550,18 @@ button.chip-setoran:hover { text-decoration: underline; }
 .pilih-target { border: 1px solid var(--garis); border-radius: 12px; margin: 0; padding: 6px 12px 10px; }
 .pilih-target + .pilih-target { margin-top: 8px; }
 .pilih-target legend { padding: 0 6px; font-size: 13px; font-weight: 700; color: var(--navy); }
-.pilih-target label { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px; font-weight: 500; color: var(--tinta); border-bottom: 1px solid #F0F1F4; }
-.pilih-target label:last-child { border-bottom: 0; }
-.pilih-target label > span { flex: 1; min-width: 0; }
-.pilih-target label > span small { color: var(--redup); font-size: 12px; }
-.pilih-target label > small { font-size: 12px; color: #5B3BA8; white-space: nowrap; }
-.pilih-target label.mati { color: var(--samar); }
-.pilih-target label.mati > small { color: var(--samar); }
-.pilih-target input { width: 18px; height: 18px; accent-color: var(--biru); margin: 0; }
+.pilih-baris { display: flex; align-items: center; gap: 10px; min-height: 48px; border-bottom: 1px solid #F0F1F4; }
+.pilih-baris:last-child { border-bottom: 0; }
+.pilih-baris > label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 44px; font-size: 14px; font-weight: 500; color: var(--tinta); }
+.pilih-baris > label > span { flex: 1; min-width: 0; }
+.pilih-baris > label > span small { color: var(--redup); font-size: 12px; }
+.pilih-baris > small { font-size: 12px; color: var(--samar); white-space: nowrap; }
+.pilih-baris.mati > label { color: var(--samar); }
+.pilih-baris input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--biru); margin: 0; }
+.jumlah-elaborasi { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.jumlah-elaborasi .input { width: 72px; min-height: 36px; padding: 4px 8px; }
+.jumlah-elaborasi small { font-size: 12px; color: #5B3BA8; white-space: nowrap; }
+.pilih-baris.tak-dipilih .jumlah-elaborasi { opacity: 0.45; }
 .baris-proyek.ringkas { padding: 10px 12px; gap: 10px; }
 .baris-proyek.ringkas .baris-proyek-nama { flex-basis: 160px; }
 .tautkan { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--redup); }

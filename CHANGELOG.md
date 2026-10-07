@@ -1,5 +1,11 @@
 # Changelog — ProductTrack v2
 
+## Belum dirilis
+
+- Elaborasi bisa mengerjakan sebagian target: jumlah per target diisi sendiri (mis. target 10,
+  proyek ini 5). Sisanya tetap terbuka dan bisa dielaborasi lagi oleh proyek berikutnya.
+  Jumlah yang melebihi sisa ditolak; jumlah 0 berarti target itu tidak ikut.
+
 ## 0.5.0 — Rancangan paket → proyek, progres yang bergerak sendiri (2026-10-07)
 
 - **Elaborasi jadi proyek** di Rancangan Paket (Lead/Manager): setiap target yang masih terbuka
