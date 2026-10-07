@@ -1,5 +1,23 @@
 # Changelog — ProductTrack v2
 
+## 0.3.0 — Tampilan & alur baru (2026-10-07)
+
+- Prototipe lama diganti aplikasi baru dengan menu **Hari Ini · Papan · Proyek · Laporan**, sesuai
+  mockup yang dipilih. Halaman pertama mengikuti peran profil: Staff dan Lead mulai di Hari Ini
+  (Lead ditambah ringkasan tim), Manager di Proyek.
+- PIN tetap satu dan dipakai bersama; setelah masuk, orang memilih profilnya sendiri.
+- Alur v2 di `public/inti.js`:
+  - empat status (Antre, Dikerjakan, Ditinjau, Selesai), dengan tertahan sebagai tanda beralasan;
+  - Jalur Proyek (tahap ADDIE, ditinjau Lead/Manager) dan Jalur Rutin (tanpa tahap dan tinjauan);
+  - gate hanya di level proyek, diputuskan Manager.
+- Data v1 dipetakan ulang ke alur itu: task lepas v1 masuk Jalur Rutin, kolaborasi menjadi proyek
+  ber-Lead, kolaborasi tuntas diarsipkan, dan Hold menjadi tanda tertahan.
+- Bentuk tab spreadsheet berubah: `tinjauan` menggantikan `gate_log`, dan `backlog` dihapus.
+  Impor ulang membersihkan tab lama.
+- Papan: per status atau per orang (dengan beban kerja), saringan perhatian, dan seret-lepas kartu
+  yang memakai aturan yang sama dengan tombol.
+- Laporan: angka utama, selesai per minggu, per orang, per platform, pencarian arsip, ekspor CSV.
+
 ## 0.2.0 — Data contoh dari v1 (2026-10-07)
 
 - `npm run impor:v1` memetakan tarikan v1 (`db/dump/*.json` di repo v1) ke model ADDIE, lalu

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ubah, platformV2, tahap, statusV2, idOrang, waktu, LCI_SUB } = require('../scripts/_v1ke2');
+const { ubah, platformV2, tahap, kategori, idOrang, waktu, leadDari, LCI_SUB } = require('../scripts/_v1ke2');
 
 /* Tarikan v1 buatan, berbentuk persis db/dump/*.json — isinya karangan. */
 function dumpV1() {
@@ -10,6 +10,7 @@ function dumpV1() {
     pm_notes: '', divisi_tujuan: '', kontak_divisi: '', kata_kerja: '', jumlah: '', objek: '', detail: '',
     dibuat_oleh: 'Nynda (PM)', lintas_view: '', status_by: '', __baris: 2, ...o,
   });
+  const langkah = (collab, urutan, o) => ({ collab_id: collab, urutan, step: 'Langkah', pic: 'Kiki', deadline: '', done: 0, done_by: '', done_at: '', note: '', stage: 'QC', link: '', __baris: 100 + urutan, ...o });
   return {
     tasks: [
       task({ task_id: 'TSK-099', task_name: 'Melakukan Riset SKD CPNS', stage: 'RnD', platform: '', pic: 'Andika', support: 'Uma, Andika', kesulitan: 'High',
@@ -18,14 +19,20 @@ function dumpV1() {
       task({ task_id: 'TSK-101', task_name: 'Memonitor 5 liveclass jadiasn', stage: 'Operasional', status: 'Todo', pic: 'Bilar', platform: 'All Platform, Markaz', __baris: 4 }),
       task({ task_id: 'TSK-102', task_name: 'Membuat 12 Soal Liveclass TIU', stage: 'Develop Konten (materi/soal)', status: 'Review PM', pic: 'Arifah',
         platform: 'JadiASN, Markaz', status_by: 'Arifah • 2026-09-01 10:00:00', __baris: 5 }),
-      task({ task_id: 'TSK-103', task_name: 'Membuat 1 PPT Data Report Center', stage: 'Develop Konten (materi/soal)', status: 'Hold', pic: 'Dhea', __baris: 6 }),
-      task({ task_id: 'TSK-104', task_name: 'Menyusun 1 Kurikulum SIPSS', stage: 'RnD', status: 'Done', platform: '', pic: 'Andika', __baris: 7 }),
+      task({ task_id: 'TSK-103', task_name: 'Membuat 1 PPT Data Report Center', stage: 'Develop Konten (materi/soal)', status: 'Hold', pic: 'Dhea', pic_notes: 'Data FR belum masuk', __baris: 6 }),
+      task({ task_id: 'TSK-104', task_name: 'Menyusun 1 Kurikulum SIPSS', stage: 'RnD', status: 'Done', platform: '', pic: 'Andika', due_date: '2026-07-20', __baris: 7 }),
+      task({ task_id: 'TSK-105', task_name: 'Rekap fee guru', stage: '', status: 'Done', due_date: '', created_date: '2026-07-02', __baris: 8 }),
     ],
-    collabs: [{ collab_id: 'COL-021', platform: '', title: 'BUMN_PT.KAI_Rancangan', description: 'Paket KAI', created_by: 'Nynda (PM)', created_at: '2026-07-20 11:36:00', deadline: '', tipe: '', paket_id: '', __baris: 2 }],
+    collabs: [
+      { collab_id: 'COL-021', platform: '', title: 'BUMN_PT.KAI_Rancangan', description: 'Paket KAI', created_by: 'Nynda (PM)', created_at: '2026-07-20 11:36:00', __baris: 2 },
+      { collab_id: 'COL-030', platform: 'JadiASN', title: 'Jadwal Liveclass Oktober', description: '', created_by: 'Nynda (PM)', created_at: '2026-09-20 09:00:00', __baris: 3 },
+    ],
     collab_steps: [
-      { collab_id: 'COL-021', urutan: 3, step: 'Input soal', pic: 'Kiki', deadline: '2026-08-03', done: 0, done_by: '', done_at: '', note: '', stage: 'Operasional', link: '', __baris: 4 },
-      { collab_id: 'COL-021', urutan: 1, step: 'Riset kisi-kisi KAI', pic: 'Andika', deadline: '2026-07-25', done: 1, done_by: 'Andika', done_at: '2026-07-22 13:37:00', note: '', stage: 'RnD', link: 'https://docs.google.com/spreadsheets/d/xyz', __baris: 2 },
-      { collab_id: 'COL-021', urutan: 2, step: 'Develop 200 soal', pic: 'Uma', deadline: '2026-07-30', done: 0, done_by: '', done_at: '', note: 'tunggu kisi-kisi', stage: 'Develop Konten (materi/soal)', link: '', __baris: 3 },
+      langkah('COL-021', 3, { step: 'Input soal', pic: 'Kiki', deadline: '2026-08-03', stage: 'Operasional' }),
+      langkah('COL-021', 1, { step: 'Riset kisi-kisi KAI', pic: 'Andika', deadline: '2026-07-25', done: 1, done_by: 'Andika', done_at: '2026-07-22 13:37:00', stage: 'RnD', link: 'https://docs.google.com/spreadsheets/d/xyz' }),
+      langkah('COL-021', 2, { step: 'Develop 200 soal', pic: 'Uma', deadline: '2026-07-30', note: 'tunggu kisi-kisi', stage: 'Develop Konten (materi/soal)' }),
+      langkah('COL-021', 4, { step: 'Riset ulang kompetitor', pic: 'Andika', stage: 'RnD' }),
+      langkah('COL-030', 1, { step: 'Susun jadwal', pic: 'Bilar', done: 1, done_by: 'Bilar', done_at: '2026-09-25 10:00:00', stage: 'Operasional' }),
     ],
     checklists: [
       { task_id: 'TSK-100', item: 'QC paket 1', done: 1, created_by: 'Alya', checked_by: 'Kiki', checked_at: '2026-07-20 09:52:00', link: '', __baris: 2 },
@@ -42,7 +49,7 @@ function dumpV1() {
     dashboards: [{ title: 'Proyek Freelance', deskripsi: '', icon: '', url: 'https://contoh.id/freelance', __baris: 2 }, { title: 'Bukan tautan', url: 'tidak ada', __baris: 3 }],
     activity_log: [
       { terjadi_at: '2026-08-27 10:39:00', user_nama: 'Kiki', action: 'Checklist Add', task_id: 'TSK-100', detail: 'QC paket 1', status_lama: '', status_baru: '', __baris: 3 },
-      { terjadi_at: '2026-08-26 09:00:00', user_nama: 'Nynda (PM)', action: 'Update Task', task_id: 'TSK-099', detail: 'Riset', status_lama: 'In progress', status_baru: 'Done', __baris: 2 },
+      { terjadi_at: '2026-08-26 09:00:00', user_nama: 'Nynda (PM)', action: 'Update Task', task_id: 'TSK-104', detail: 'Kurikulum', status_lama: 'In progress', status_baru: 'Done', __baris: 2 },
       { terjadi_at: '2026-08-28 08:00:00', user_nama: 'Dev', action: 'User Rename', task_id: '', detail: 'Hargianti → Tri', status_lama: '', status_baru: '', __baris: 4 },
       { terjadi_at: '2026-08-25 08:00:00', user_nama: 'Alya', action: 'Delete Task', task_id: 'TSK-455', detail: 'Riset Tes Pauli', status_lama: '', status_baru: '', __baris: 5 },
     ],
@@ -55,10 +62,13 @@ function dumpV1() {
 
 const cari = (data, id) => data.tasks.find(t => t.id === id);
 
-test('nomor task v1 dipertahankan: TSK-099 → PRD-099', () => {
+test('task lepas v1 → Jalur Rutin: nomor tetap, stage v1 jadi kategori, tanpa tahap ADDIE', () => {
   const { data } = ubah(dumpV1());
-  assert.ok(cari(data, 'PRD-099'));
-  assert.ok(cari(data, 'PRD-104'));
+  const t = cari(data, 'PRD-099');
+  assert.deepEqual([t.lane, t.kategori, t.stage, t.project], ['rutin', 'RnD', '', '']);
+  assert.equal(kategori('Develop Konten (materi/soal)'), 'Develop Konten');
+  assert.equal(kategori(''), 'Umum');
+  assert.equal(cari(data, 'PRD-105').kategori, 'Umum');
 });
 
 test('orang: "Nynda (PM)" → nynda, nama di luar organogram dibiarkan, PIC tak ikut jadi support', () => {
@@ -82,75 +92,80 @@ test('platform: tunggal, campuran, sistem, dan tebakan dari judul', () => {
   assert.match(cari(ubah(dumpV1()).data, 'PRD-100').detail, /Platform di v1: JadiASN, JadiSekdin/);
 });
 
-test('tahap ADDIE: tabel stage v1, plus pengecualian dari judul', () => {
+test('status v1 → empat status v2; Hold jadi tanda tertahan dengan alasannya', () => {
+  const { data } = ubah(dumpV1());
+  const st = id => [cari(data, id).status, cari(data, id).tertahan];
+  assert.deepEqual(st('PRD-099'), ['Selesai', false]);
+  assert.deepEqual(st('PRD-100'), ['Dikerjakan', false]);
+  assert.deepEqual(st('PRD-101'), ['Antre', false]);
+  assert.deepEqual(st('PRD-102'), ['Ditinjau', false]);
+  assert.deepEqual(st('PRD-103'), ['Antre', true]);
+  assert.equal(cari(data, 'PRD-103').alasanTertahan, 'Ditahan (Hold) di v1');
+  assert.match(cari(data, 'PRD-103').notes, /Data FR belum masuk/, 'catatan PIC tetap ada di notes');
+});
+
+test('riwayat tinjauan diambil dari status_by v1, termasuk jam WIB-nya', () => {
+  const { data } = ubah(dumpV1());
+  assert.deepEqual(cari(data, 'PRD-099').tinjauan, [{ id: 'r-PRD-099', by: 'nynda', action: 'Disetujui', note: 'Ditandai selesai di v1', at: Date.UTC(2026, 7, 31, 8, 1, 49) }]);
+  assert.deepEqual(cari(data, 'PRD-102').tinjauan.map(r => [r.action, r.by]), [['Diajukan', 'Arifah']]);
+  assert.deepEqual(cari(data, 'PRD-104').tinjauan, [], 'tanpa status_by, tak ada riwayat yang dikarang');
+});
+
+test('waktu selesai: status_by, lalu riwayat aktivitas, lalu tenggat, lalu tanggal dibuat', () => {
+  const { data } = ubah(dumpV1());
+  assert.equal(cari(data, 'PRD-099').selesaiAt, Date.UTC(2026, 7, 31, 8, 1, 49));
+  assert.equal(cari(data, 'PRD-104').selesaiAt, Date.UTC(2026, 7, 26, 2, 0, 0), 'dari Update Task → Done');
+  assert.equal(cari(data, 'PRD-105').selesaiAt, Date.UTC(2026, 6, 2, 1, 0, 0), 'tanpa tenggat → tanggal dibuat');
+  assert.equal(cari(data, 'PRD-100').selesaiAt, 0);
+});
+
+test('isi task: output, evidence, catatan PM, prioritas', () => {
+  const t = cari(ubah(dumpV1()).data, 'PRD-099');
+  assert.equal(t.output, '1 laporan riset');
+  assert.equal(t.priority, 'High');
+  assert.deepEqual(t.evidence, [{ id: 'e-PRD-099', label: 'Google Docs', url: 'https://docs.google.com/document/d/abc' }]);
+  assert.equal(t.notes, 'Catatan PM: Fokus ke TIU');
+});
+
+test('tahap ADDIE untuk task proyek: tabel stage v1, plus pengecualian dari judul', () => {
   assert.deepEqual(tahap('QC', 'Melakukan 40 QC Ops Tryout'), ['V', LCI_SUB]);
   assert.deepEqual(tahap('Operasional', 'Memonitor 5 liveclass jadiasn'), ['I', 'Liveclass']);
   assert.deepEqual(tahap('Develop Konten (materi/soal)', 'Membuat 12 Soal Liveclass TIU'), ['V', '3.1 Academic Content Development'],
     'soal untuk liveclass adalah pengembangan konten, bukan pelaksanaan liveclass');
   assert.deepEqual(tahap('Develop Konten (materi/soal)', 'Membuat 1 PPT Data Report Center'), ['E', 'Report Center']);
   assert.deepEqual(tahap('RnD', 'Menyusun 1 Kurikulum SIPSS'), ['D', 'Academic blueprint']);
-  assert.deepEqual(tahap('RnD', 'Melakukan Riset SKD CPNS'), ['A', 'Market analysis']);
   assert.deepEqual(tahap('', 'To Do List'), ['V', '']);
 });
 
-test('status: daftar umum dan daftar LCI tak tertukar', () => {
-  assert.equal(statusV2('Done', 'QC', LCI_SUB), 'Published');
-  assert.equal(statusV2('In progress', 'QC', LCI_SUB), 'QC');
-  assert.equal(statusV2('In progress', 'Manajemen Sistem', LCI_SUB), 'Input');
-  assert.equal(statusV2('Review PM', 'QC', LCI_SUB), 'Approved');
-  assert.equal(statusV2('Done', 'RnD', 'Market analysis'), 'Done');
-  assert.equal(statusV2('Todo', 'RnD', 'Market analysis'), 'Ready');
-  assert.equal(statusV2('Hold', 'RnD', 'Market analysis'), 'Blocked');
-});
-
-test('gate dan log gate diambil dari status_by v1, termasuk jam WIB-nya', () => {
-  const { data } = ubah(dumpV1());
-  const selesai = cari(data, 'PRD-099');
-  assert.equal(selesai.gate, 'Lolos');
-  assert.deepEqual(selesai.gateLog, [{ id: 'g-PRD-099', by: 'nynda', action: 'Lolos', note: 'Ditandai Done di v1', at: Date.UTC(2026, 7, 31, 8, 1, 49) }]);
-  const review = cari(data, 'PRD-102');
-  assert.equal(review.status, 'Review');
-  assert.equal(review.gate, 'Diajukan');
-  assert.equal(review.gateLog[0].by, 'Arifah');
-  assert.equal(cari(data, 'PRD-104').gateLog.length, 0, 'tanpa status_by, tak ada log gate yang dikarang');
-});
-
-test('isi task: output, evidence, catatan PM, dan Hold', () => {
-  const { data } = ubah(dumpV1());
-  const t = cari(data, 'PRD-099');
-  assert.equal(t.output, '1 laporan riset');
-  assert.equal(t.priority, 'High');
-  assert.deepEqual(t.evidence, [{ id: 'e-PRD-099', label: 'Google Docs', url: 'https://docs.google.com/document/d/abc' }]);
-  assert.match(t.notes, /^Catatan PM: Fokus ke TIU$/);
-  const hold = cari(data, 'PRD-103');
-  assert.equal(hold.status, 'Blocked');
-  assert.match(hold.notes, /Hold/);
-  assert.equal(hold.stage, 'E');
-});
-
-test('kolaborasi → proyek; langkahnya jadi task berantai sesuai urutan', () => {
+test('kolaborasi → proyek ADDIE: proses berantai, Lead dari tim terbanyak, tahap = proses berjalan', () => {
   const { data, ringkasan } = ubah(dumpV1());
   const p = data.projects.find(x => x.id === 'PRJ-21');
-  assert.equal(p.platform, 'BUMN', 'ditebak dari judul BUMN_PT.KAI_…');
-  assert.equal(p.goal, 'Paket KAI');
+  assert.deepEqual([p.platform, p.stage, p.lead, p.arsip, p.goal], ['BUMN', 'V', 'andika', false, 'Paket KAI']);
   const langkah = data.tasks.filter(t => t.project === 'PRJ-21');
-  assert.deepEqual(langkah.map(t => t.id), ['PRD-105', 'PRD-106', 'PRD-107'], 'nomor sesudah task v1 terbesar, urut menurut urutan');
-  assert.deepEqual(langkah.map(t => t.title), ['Riset kisi-kisi KAI', 'Develop 200 soal', 'Input soal']);
-  assert.deepEqual(langkah.map(t => t.deps), [[], ['PRD-105'], ['PRD-106']]);
-  assert.deepEqual(langkah.map(t => t.status), ['Done', 'In Progress', 'Ready to Input'], 'yang pertama belum selesai sedang berjalan; sisanya menunggu');
-  assert.equal(p.stage, 'V', 'tahap proyek = tahap langkah yang sedang berjalan');
+  assert.deepEqual(langkah.map(t => t.id), ['PRD-106', 'PRD-107', 'PRD-108', 'PRD-109'], 'nomor sesudah task v1 terbesar, urut menurut urutan');
+  assert.deepEqual(langkah.map(t => t.lane), ['proyek', 'proyek', 'proyek', 'proyek']);
+  assert.deepEqual(langkah.map(t => t.deps), [[], ['PRD-106'], ['PRD-107'], ['PRD-108']]);
+  assert.deepEqual(langkah.map(t => t.status), ['Selesai', 'Dikerjakan', 'Antre', 'Antre']);
+  assert.deepEqual(langkah.map(t => t.stage), ['A', 'V', 'V', 'V'],
+    'proses yang belum selesai tak boleh tertinggal di tahap sebelum tahap proyek');
   assert.equal(langkah[0].evidence[0].label, 'Google Sheets');
-  assert.equal(langkah[0].gateLog[0].by, 'andika');
+  assert.equal(langkah[0].tinjauan[0].by, 'andika');
   assert.equal(langkah[1].notes, 'tunggu kisi-kisi');
-  assert.equal(ringkasan.langkahJadiTask, 3);
+  assert.equal(ringkasan.proyekArsip, 1);
+});
+
+test('kolaborasi yang semua prosesnya tuntas → proyek arsip', () => {
+  const p = ubah(dumpV1()).data.projects.find(x => x.id === 'PRJ-30');
+  assert.deepEqual([p.arsip, p.lead, p.platform], [true, 'alya', 'ASN']);
+  assert.equal(leadDari([]), 'nynda');
 });
 
 test('ceklis dan komentar ikut ke induknya; yang yatim dihitung, bukan dikarang', () => {
   const { data, ringkasan } = ubah(dumpV1());
-  assert.deepEqual(cari(data, 'PRD-100').subtasks, [{ id: 's2', title: 'QC paket 1', pic: 'kiki', due: '', status: 'Done' }]);
-  assert.deepEqual(cari(data, 'PRD-106').subtasks.map(s => [s.title, s.pic, s.status]), [['TIU 100 soal', 'uma', 'Todo']],
-    'ceklis COL-021#2 milik langkah 2; yang belum dicentang dipegang PIC langkahnya');
-  assert.deepEqual(cari(data, 'PRD-105').comments.map(c => c.text), ['Kick-off'], 'diskusi kolaborasi ditampung di langkah pertama');
+  assert.deepEqual(cari(data, 'PRD-100').subtasks, [{ id: 's2', title: 'QC paket 1', pic: 'kiki', due: '', done: true }]);
+  assert.deepEqual(cari(data, 'PRD-107').subtasks.map(s => [s.title, s.pic, s.done]), [['TIU 100 soal', 'uma', false]],
+    'ceklis COL-021#2 milik proses 2; yang belum dicentang dipegang PIC prosesnya');
+  assert.deepEqual(cari(data, 'PRD-106').comments.map(c => c.text), ['Kick-off'], 'diskusi kolaborasi ditampung di proses pertama');
   assert.deepEqual(cari(data, 'PRD-099').comments.map(c => c.author), ['ali']);
   assert.deepEqual(ringkasan.dibuang, { ceklisYatim: 1, komentarYatim: 1, logTerpotong: 0 });
 });
@@ -158,7 +173,7 @@ test('ceklis dan komentar ikut ke induknya; yang yatim dihitung, bukan dikarang'
 test('paket dan bookmark', () => {
   const { data } = ubah(dumpV1());
   assert.deepEqual(data.packages, [{ id: 'PKG-002', platform: 'BUMN', name: 'PT.KAI_BUMN', type: 'Premium', status: 'Aktif', components: ['Tryout', 'Latsol', 'Liveclass'], note: 'DL 23 Sept' }]);
-  assert.deepEqual(data.bookmarks, [{ id: 'f-dashboard', name: 'Dashboard tim (v1)', emoji: '📈', links: [{ id: 'b2', title: 'Proyek Freelance', url: 'https://contoh.id/freelance' }] }]);
+  assert.deepEqual(data.bookmarks, [{ id: 'f-dashboard', name: 'Dashboard tim (v1)', emoji: '', links: [{ id: 'b2', title: 'Proyek Freelance', url: 'https://contoh.id/freelance' }] }]);
 });
 
 test('riwayat: terbaru dulu, jenis & label dipetakan, task yang dihapus tetap terbaca', () => {
@@ -166,14 +181,14 @@ test('riwayat: terbaru dulu, jenis & label dipetakan, task yang dihapus tetap te
   assert.deepEqual(data.log.map(l => [l.type, l.task, l.by]), [
     ['system', 'Pengguna', 'Dev'],
     ['update', 'PRD-100 · Melakukan 40 QC Ops Tryout', 'kiki'],
-    ['update', 'PRD-099 · Melakukan Riset SKD CPNS', 'nynda'],
+    ['update', 'PRD-104 · Menyusun 1 Kurikulum SIPSS', 'nynda'],
     ['delete', 'PRD-455 (sudah dihapus di v1)', 'alya'],
   ]);
   assert.equal(data.log[1].detail, 'Sub-task ditambah: QC paket 1');
-  assert.equal(data.log[2].detail, 'Riset · Status: In progress → Done');
+  assert.equal(data.log[2].detail, 'Kurikulum · Status: In progress → Done');
 });
 
-test('riwayat dipotong di 1000 terbaru, sama dengan batas prototipe', () => {
+test('riwayat dipotong di 1000 terbaru', () => {
   const d = dumpV1();
   d.activity_log = Array.from({ length: 1005 }, (_, i) => ({ terjadi_at: `2026-08-01 ${String(Math.floor(i / 60) % 24).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00`, user_nama: 'Ali', action: 'Update Task', task_id: 'TSK-099', detail: '', status_lama: '', status_baru: '', __baris: i + 2 }));
   const { data, ringkasan } = ubah(d);
@@ -183,7 +198,7 @@ test('riwayat dipotong di 1000 terbaru, sama dengan batas prototipe', () => {
 
 test('PIN, catatan pribadi, dan notifikasi v1 tidak terbawa sama sekali', () => {
   const { data } = ubah(dumpV1());
-  assert.deepEqual(Object.keys(data), ['projects', 'tasks', 'backlog', 'packages', 'bookmarks', 'log']);
+  assert.deepEqual(Object.keys(data), ['projects', 'tasks', 'packages', 'bookmarks', 'log']);
   const semua = JSON.stringify(data);
   for (const rahasia of ['HASH-RAHASIA-JANGAN-BOCOR', 'CATATAN-PRIBADI-JANGAN-BOCOR', 'NOTIF-PRIBADI-JANGAN-BOCOR']) {
     assert.ok(!semua.includes(rahasia), rahasia);

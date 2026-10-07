@@ -243,28 +243,28 @@ test('menyerah setelah jatah ulang habis, dan galat lain tak diulang sama sekali
 const { urai } = require('../api/_skema');
 
 const contoh = () => ({
-  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', history: [] }],
+  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, history: [] }],
   tasks: [
     {
-      id: 'PRD-001', project: '', title: 'Task lepas', platform: 'ASN', stage: 'A', sub: 'Market analysis', detail: '', pic: 'andika',
-      support: ['uma'], priority: 'High', start: '2026-07-01', due: '2026-07-05', status: 'Done', output: '1 laporan', gate: 'Lolos',
-      deps: [], issue: '', notes: '', assignedBy: 'nynda', cycle: 1, decision: '', createdAt: Date.parse('2026-07-01T01:00:00Z'),
-      updatedAt: Date.parse('2026-07-05T01:00:00Z'),
-      subtasks: [{ id: 's1', title: 'Kumpulkan data', pic: 'uma', due: '', status: 'Done' }],
+      id: 'PRD-001', project: '', lane: 'rutin', kategori: 'RnD', title: 'Task lepas', platform: 'ASN', stage: '', sub: '', detail: '',
+      pic: 'andika', support: ['uma'], priority: 'High', start: '2026-07-01', due: '2026-07-05', status: 'Selesai',
+      tertahan: false, alasanTertahan: '', output: '1 laporan', deps: [], notes: '', assignedBy: 'nynda', cycle: 1,
+      createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedAt: Date.parse('2026-07-05T01:00:00Z'), selesaiAt: Date.parse('2026-07-05T01:00:00Z'),
+      subtasks: [{ id: 's1', title: 'Kumpulkan data', pic: 'uma', due: '', done: true }],
       comments: [{ id: 'k1', author: 'nynda', text: 'Mantap, lanjut', at: Date.parse('2026-07-04T02:00:00Z') }],
-      gateLog: [{ id: 'g1', by: 'nynda', action: 'Lolos', note: 'Ditandai Done di v1', at: Date.parse('2026-07-05T01:00:00Z') }],
+      tinjauan: [{ id: 'r1', by: 'nynda', action: 'Disetujui', note: 'Ditandai selesai di v1', at: Date.parse('2026-07-05T01:00:00Z') }],
       evidence: [{ id: 'e1', label: 'Google Docs', url: 'https://docs.google.com/document/d/x' }],
     },
     {
-      id: 'PRD-646', project: 'PRJ-3', title: 'Langkah 2', platform: 'PCPM', stage: 'V', sub: '3.2 Learning Content Implementation', detail: '',
-      pic: 'kiki', support: [], priority: 'Medium', start: '2026-07-20', due: '', status: 'Input', output: '', gate: 'Belum',
-      deps: ['PRD-001'], issue: '', notes: '', assignedBy: 'nynda', cycle: 1, decision: '', createdAt: Date.parse('2026-07-20T04:00:00Z'),
-      updatedAt: Date.parse('2026-07-20T04:00:00Z'), subtasks: [], comments: [], gateLog: [], evidence: [],
+      id: 'PRD-646', project: 'PRJ-3', lane: 'proyek', kategori: 'QC', title: 'Langkah 2', platform: 'PCPM', stage: 'V',
+      sub: '3.2 Learning Content Implementation', detail: '', pic: 'kiki', support: [], priority: 'Normal', start: '2026-07-20', due: '',
+      status: 'Antre', tertahan: true, alasanTertahan: 'Menunggu tabel konversi', output: '', deps: ['PRD-001'], notes: '', assignedBy: 'nynda', cycle: 1,
+      createdAt: Date.parse('2026-07-20T04:00:00Z'), updatedAt: Date.parse('2026-07-20T04:00:00Z'), selesaiAt: 0,
+      subtasks: [], comments: [], tinjauan: [], evidence: [],
     },
   ],
-  backlog: [],
   packages: [{ id: 'PKG-002', platform: 'BUMN', name: 'PT.KAI_BUMN', type: 'Premium', status: 'Aktif', components: ['Tryout', 'Latsol'], note: '' }],
-  bookmarks: [{ id: 'f-1', name: 'Dashboard tim (v1)', emoji: '📈', links: [{ id: 'b2', title: 'Proyek Freelance', url: 'https://contoh.id/a' }] }],
+  bookmarks: [{ id: 'f-1', name: 'Dashboard tim (v1)', emoji: '', links: [{ id: 'b2', title: 'Proyek Freelance', url: 'https://contoh.id/a' }] }],
   log: [{ id: 'l1', type: 'create', task: 'PRD-001 · Task lepas', detail: 'Dibuat', by: 'andika', at: Date.parse('2026-07-01T01:00:00Z') }],
 });
 
@@ -282,7 +282,7 @@ test('tulisContoh lalu bacaContoh mengembalikan data yang sama persis', async ()
   assert.deepEqual(baca.data.packages, asli.packages);
   assert.deepEqual(baca.data.bookmarks, asli.bookmarks);
   assert.deepEqual(baca.data.log, asli.log);
-  assert.deepEqual(baca.seq, { task: 646, prj: 3, bl: 0 });
+  assert.deepEqual(baca.seq, { task: 646, prj: 3 });
 });
 
 test('spreadsheet kosong disiapkan dulu: penanda v2 ikut terpasang', async () => {
@@ -330,4 +330,28 @@ test('kolom yang digeser orang di spreadsheet tetap terbaca benar', async () => 
   const t = tab('packages');
   t.values = t.values.map(b => [...b].reverse());   // urutan kolom dibalik total
   assert.deepEqual((await sheet.bacaContoh(k, ID)).data.packages, contoh().packages);
+});
+
+test('impor ulang membuang tab bentuk lama (gate_log, backlog) yang tertinggal', async () => {
+  const { k, tab } = kosong();
+  await sheet.siapkan(k, ID);
+  await k.api.spreadsheets.batchUpdate({ spreadsheetId: ID, requestBody: { requests: [
+    { addSheet: { properties: { sheetId: 501, title: 'gate_log' } } },
+    { addSheet: { properties: { sheetId: 502, title: 'backlog' } } },
+  ] } });
+  await sheet.tulisContoh(k, ID, urai(contoh()));
+  assert.equal(tab('gate_log'), undefined);
+  assert.equal(tab('backlog'), undefined);
+  assert.ok(tab('tinjauan'));
+});
+
+test('tanda ya/tidak tersimpan sebagai "ya" atau kosong, dan terbaca kembali sebagai boolean', async () => {
+  const { k, tab } = kosong();
+  await sheet.tulisContoh(k, ID, urai(contoh()));
+  const t = tab('tasks');
+  const kol = t.values[0].indexOf('tertahan');
+  assert.deepEqual(t.values.slice(1).map(b => b[kol]), ['', 'ya']);
+  const data = (await sheet.bacaContoh(k, ID)).data;
+  assert.deepEqual(data.tasks.map(x => x.tertahan), [false, true]);
+  assert.deepEqual(data.tasks[0].subtasks.map(x => x.done), [true]);
 });

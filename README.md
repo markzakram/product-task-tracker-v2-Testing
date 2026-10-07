@@ -1,6 +1,6 @@
 # ProductTrack v2 — sandbox
 
-Prototipe v2 (siklus ADDIE) yang dibangun **terpisah penuh** dari v1 yang sedang dipakai tim.
+ProductTrack v2 (siklus ADDIE) yang dibangun **terpisah penuh** dari v1 yang sedang dipakai tim.
 Data tetap di Google Spreadsheet dan deploy tetap di Vercel, tetapi semuanya milik v2 sendiri.
 
 | | v1 (sedang dipakai) | v2 (repo ini) |
@@ -20,10 +20,34 @@ Data tetap di Google Spreadsheet dan deploy tetap di Vercel, tetapi semuanya mil
    kosong. Sheet v1 (tab `Main`, `OPTIONS`, …) tetap ditolak walaupun akunnya punya akses.
    Aturannya ada di satu tempat: `api/_sheets.js`.
 
+## Alur v2
+
+Satu aplikasi dengan menu **Hari Ini · Papan · Proyek · Laporan**. PIN dipakai bersama, jadi
+setelah masuk setiap orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan
+Lead mulai di **Hari Ini**, Manager di **Proyek**.
+
+- **Empat status:** Antre → Dikerjakan → Ditinjau → Selesai. **Tertahan** adalah tanda yang
+  disertai alasan, bukan status.
+- **Dua jalur:**
+  - **Proyek** punya tahap ADDIE. Task-nya ditinjau sebelum selesai: task staff oleh Lead-nya,
+    task Lead oleh Manager.
+  - **Rutin** adalah pekerjaan di luar proyek. Tanpa tahap, tanpa tinjauan; PIC langsung
+    menandai selesai.
+- **Gate hanya di level proyek.** Begitu semua task di tahap aktif selesai, proyek masuk antrean
+  keputusan Manager: lanjut ke tahap berikutnya, atau tahan. Dari Evaluation, proyek kembali ke
+  Analysis dengan siklus baru.
+- **Staff** menerima task dari Lead dan boleh memegang task rutin langsung. Staff tidak membuat task.
+
+Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/inti.test.js`.
+Tampilan (`public/app.js`) hanya meneruskan klik ke aturan itu.
+
 ## Isi
 
 ```
-public/index.html     prototipe v3.0; dengan server: PIN server + data contoh dari spreadsheet
+public/index.html     kerangka halaman (layar PIN, pilih profil, aplikasi)
+public/app.js         tampilan: Hari Ini, Papan, Proyek, Laporan, detail task, formulir
+public/app.css        gaya tampilan, warna dari logo ProductTrack
+public/inti.js        aturan alur v2, dipakai browser dan tes
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
 api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh
 api/_sesi.js          gerbang PIN + cookie sesi
@@ -112,7 +136,7 @@ Label **Production** di project ini hanya berarti branch `main` milik v2. Tidak 
 
 ## Data contoh dari v1
 
-Prototipe memakai data v1 sungguhan sebagai data contoh. Datanya **hanya** disimpan di
+Aplikasi memakai data v1 sungguhan sebagai data contoh. Datanya **hanya** disimpan di
 spreadsheet v2 dan baru dikirim ke browser setelah PIN server benar. Data itu tidak pernah
 ditanam di `public/` (URL Vercel bisa dibuka siapa saja) dan tidak pernah masuk git.
 
@@ -143,18 +167,18 @@ selama versinya sama, suntingan di browser itu dibiarkan.
 
 | v1 | v2 |
 |---|---|
-| Task `TSK-099` | task `PRD-099` (nomornya tetap) |
-| Kolaborasi `COL-021` | proyek `PRJ-21` |
-| Proses kolaborasi | task di proyek itu; tiap proses menunggu proses sebelumnya (dependency) |
+| Task `TSK-099` | task `PRD-099` di **Jalur Rutin** (nomornya tetap). Stage v1 (QC, Operasional, …) jadi kategori |
+| Kolaborasi `COL-021` | **proyek** `PRJ-21`. Lead-nya = Lead yang timnya paling banyak memegang prosesnya |
+| Kolaborasi yang semua prosesnya tuntas | proyek **arsip** (20 dari 26), supaya tak membanjiri antrean keputusan |
+| Proses kolaborasi | task proyek; tiap proses menunggu proses sebelumnya. Tahap ADDIE dari tabel `TAHAP` dan aturan judul `TAHAP_KATA` |
 | Ceklis | sub-task (ceklis proses `COL-021#3` ikut ke task prosesnya) |
 | Komentar kolaborasi | komentar di task proses pertama |
-| Stage v1 (QC, RnD, …) | tahap ADDIE + sub-stage, lewat tabel `TAHAP` dan aturan judul `TAHAP_KATA` |
-| Status Done | Done + gate Lolos (task LCI: Published) |
-| Review PM / Revisi | Review + gate Diajukan / Revision + gate Ditolak |
-| `status_by` v1 | log gate (siapa dan kapan), hanya kalau tercatat |
-| Kesulitan Normal | priority Medium |
-| Paket & dashboard tim | Rancangan Paket & satu folder Bookmark |
-| Riwayat aktivitas | 1000 terbaru (batas riwayat prototipe) |
+| Done / In progress / Todo | Selesai / Dikerjakan / Antre |
+| Review PM / Revisi | Ditinjau / Dikerjakan (riwayat tinjauan: Diajukan / Dikembalikan) |
+| Hold | Antre + tanda **tertahan** |
+| `status_by` v1 | riwayat tinjauan (siapa dan kapan), hanya kalau tercatat |
+| Paket & dashboard tim | disimpan di spreadsheet; belum punya tampilan di v2 |
+| Riwayat aktivitas | 1000 terbaru |
 
 **Tidak dibawa:** hash PIN, catatan dan tautan pribadi, notifikasi, serta rincian target paket.
 
@@ -173,22 +197,25 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
 ## Batasan yang disadari
 
-- **Suntingan belum tersimpan ke spreadsheet.** Prototipe memuat data contoh dari server,
-  tetapi yang diubah orang tetap tersimpan di browser masing-masing (localStorage).
+- **Suntingan belum tersimpan ke spreadsheet.** Data contoh dimuat dari server, tetapi yang
+  diubah orang (status, tinjauan, sub-task, komentar, gate proyek) tersimpan di browser
+  masing-masing (localStorage). Menu profil → **Muat ulang data contoh** mengembalikannya.
+- **Profil dipilih sendiri** karena PIN dipakai bersama. Siapa pun bisa masuk sebagai Manager.
 - **Belum ada penyaringan per peran.** v1 menyaring data di server untuk magang dan Lintas
   Divisi; v2 belum. Siapa pun yang tahu PIN v2 melihat seluruh data contoh, jadi jangan
-  bagikan PIN v2 ke magang atau Lintas Divisi. Profil (Manager/Lead/Staff) di prototipe juga
-  masih simulasi yang dipilih sendiri.
-- Dengan ±1000 task, tampilan Tabel dan Kanban butuh ±0,5 detik untuk digambar.
+  bagikan PIN v2 ke magang atau Lintas Divisi.
+- Rancangan paket, bookmark, dan catatan pribadi belum punya tampilan. Task belum bisa dihapus.
+- Seret-lepas kartu di Papan hanya di desktop; di ponsel status diubah lewat detail task.
 - **Tebakan PIN hanya diperlambat** (jeda ±0,7 detik per PIN salah), belum dibatasi lajunya.
   Pakai PIN yang panjang.
-- Prototipe memuat Tailwind dari `cdn.tailwindcss.com`, yang memang bukan untuk produksi.
 - Gerbang yang belum disetel berarti **tertutup**. Ini berbeda dengan v1, yang terbuka kalau
   semua PIN kosong.
 
 ## Langkah berikutnya
 
 1. Simpan suntingan ke spreadsheet: aksi tulis di `/api/rpc` di atas tab yang sudah ada
-   (`api/_skema.js`), menggantikan localStorage.
-2. Login per orang, supaya profil berasal dari login dan data bisa disaring per peran.
-3. Setelah matang: pindah ke GitLab (salin isi CI ke `.gitlab-ci.yml`).
+   (`api/_skema.js`), menggantikan localStorage. Aturan alurnya sudah ada di `public/inti.js`
+   dan bisa dipakai juga di server.
+2. Tampilan rancangan paket dan bookmark.
+3. Login per orang, supaya profil berasal dari login dan data bisa disaring per peran.
+4. Setelah matang: pindah ke GitLab (salin isi CI ke `.gitlab-ci.yml`).

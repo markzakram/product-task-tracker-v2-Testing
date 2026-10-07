@@ -174,7 +174,7 @@ test('muatContoh: perlu sesi, lalu mengembalikan data contoh utuh', async () => 
   assert.equal(r.json.sumber, 'uji');
   assert.equal(r.json.data.tasks[0].id, 'PRD-099');
   assert.deepEqual(r.json.data.tasks[0].subtasks, []);
-  assert.deepEqual(r.json.seq, { task: 99, prj: 21, bl: 0 });
+  assert.deepEqual(r.json.seq, { task: 99, prj: 21 });
 });
 
 test('muatContoh sebelum ada impor: data null, bukan galat', async () => {

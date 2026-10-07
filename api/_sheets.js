@@ -15,7 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { TAB, dariBaris, rakit, nomorTerbesar } = require('./_skema');
+const { TAB, USANG, dariBaris, rakit, nomorTerbesar } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
 const CAKUPAN = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -285,6 +285,10 @@ async function tulisContoh(k, id, baris, { sumber = '' } = {}) {
 
   const dipakai = [...keadaan.idTab];
   const permintaan = [];
+  for (const nama of USANG) {
+    const i = keadaan.tab.indexOf(nama);
+    if (i >= 0 && !(nama in baris)) permintaan.push({ deleteSheet: { sheetId: keadaan.idTab[i] } });
+  }
   for (const [nama, isi] of Object.entries(baris)) {
     const i = keadaan.tab.indexOf(nama);
     if (i >= 0) permintaan.push({ deleteSheet: { sheetId: keadaan.idTab[i] } });
@@ -355,7 +359,6 @@ async function bacaContoh(k, id) {
     seq: {
       task: nomorTerbesar(data.tasks, 'PRD'),
       prj: nomorTerbesar(data.projects, 'PRJ'),
-      bl: nomorTerbesar(data.backlog, 'BL'),
     },
   };
 }

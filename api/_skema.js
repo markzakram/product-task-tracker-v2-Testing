@@ -15,27 +15,30 @@
    ========================================================================== */
 
 const TAB = {
-  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal'],
-  tasks: ['id', 'project', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support', 'priority',
-    'start', 'due', 'status', 'output', 'gate', 'deps', 'issue', 'notes', 'assignedBy', 'cycle',
-    'decision', 'createdAt', 'updatedAt'],
-  subtasks: ['id', 'task', 'title', 'pic', 'due', 'status'],
+  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip'],
+  tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
+    'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'notes', 'assignedBy',
+    'cycle', 'createdAt', 'updatedAt', 'selesaiAt'],
+  subtasks: ['id', 'task', 'title', 'pic', 'due', 'done'],
   comments: ['id', 'task', 'author', 'text', 'at'],
-  gate_log: ['id', 'task', 'by', 'action', 'note', 'at'],
+  tinjauan: ['id', 'task', 'by', 'action', 'note', 'at'],
   evidence: ['id', 'task', 'label', 'url'],
-  backlog: ['id', 'project', 'platform', 'source', 'finding', 'rec', 'status', 'by', 'at', 'task'],
   packages: ['id', 'platform', 'name', 'type', 'status', 'components', 'note'],
   bookmarks: ['id', 'folder', 'emoji', 'title', 'url'],
   log: ['id', 'type', 'task', 'detail', 'by', 'at'],
 };
+/* Tab bentuk lama (0.2.0). Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
+const USANG = ['gate_log', 'backlog'];
 
 const DAFTAR = new Set(['support', 'deps', 'components']);
 const ANGKA = new Set(['cycle']);
-const WAKTU = new Set(['createdAt', 'updatedAt', 'at']);
+const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
+const BENAR = new Set(['tertahan', 'done', 'arsip']);
 
 function keSel(kolom, nilai) {
   if (nilai === undefined || nilai === null) return '';
   if (DAFTAR.has(kolom)) return (Array.isArray(nilai) ? nilai : []).join(', ');
+  if (BENAR.has(kolom)) return nilai ? 'ya' : '';
   if (WAKTU.has(kolom)) {
     return typeof nilai === 'number' && Number.isFinite(nilai) && nilai > 0 ? new Date(nilai).toISOString() : '';
   }
@@ -45,6 +48,7 @@ function keSel(kolom, nilai) {
 function dariSel(kolom, sel) {
   const s = sel === undefined || sel === null ? '' : String(sel);
   if (DAFTAR.has(kolom)) return s.split(',').map(x => x.trim()).filter(Boolean);
+  if (BENAR.has(kolom)) return /^(ya|true|1|x)$/i.test(s.trim());
   if (ANGKA.has(kolom)) {
     const n = parseInt(s, 10);
     return Number.isFinite(n) && n > 0 ? n : 1;
@@ -74,14 +78,13 @@ function urai(data) {
   const isi = Object.fromEntries(Object.keys(TAB).map(t => [t, []]));
   for (const p of data.projects || []) isi.projects.push(p);
   for (const t of data.tasks || []) {
-    const { subtasks = [], comments = [], gateLog = [], evidence = [], ...inti } = t;
+    const { subtasks = [], comments = [], tinjauan = [], evidence = [], ...inti } = t;
     isi.tasks.push(inti);
     for (const s of subtasks) isi.subtasks.push({ ...s, task: t.id });
     for (const c of comments) isi.comments.push({ ...c, task: t.id });
-    for (const g of gateLog) isi.gate_log.push({ ...g, task: t.id });
+    for (const r of tinjauan) isi.tinjauan.push({ ...r, task: t.id });
     for (const e of evidence) isi.evidence.push({ ...e, task: t.id });
   }
-  for (const b of data.backlog || []) isi.backlog.push(b);
   for (const p of data.packages || []) isi.packages.push(p);
   for (const f of data.bookmarks || []) {
     for (const l of f.links || []) isi.bookmarks.push({ id: l.id, folder: f.name, emoji: f.emoji || '', title: l.title, url: l.url });
@@ -102,13 +105,13 @@ function rakit(tabs) {
     return m;
   };
   const sub = kelompok(tabs.subtasks), kom = kelompok(tabs.comments);
-  const gl = kelompok(tabs.gate_log), ev = kelompok(tabs.evidence);
+  const tj = kelompok(tabs.tinjauan), ev = kelompok(tabs.evidence);
 
   const tasks = (tabs.tasks || []).map(t => ({
     ...t,
     subtasks: sub.get(t.id) || [],
     comments: kom.get(t.id) || [],
-    gateLog: gl.get(t.id) || [],
+    tinjauan: tj.get(t.id) || [],
     evidence: ev.get(t.id) || [],
   }));
 
@@ -121,7 +124,6 @@ function rakit(tabs) {
   return {
     projects: (tabs.projects || []).map(p => ({ ...p, history: [] })),
     tasks,
-    backlog: tabs.backlog || [],
     packages: tabs.packages || [],
     bookmarks: [...folder.values()],
     log: tabs.log || [],
@@ -138,4 +140,4 @@ function nomorTerbesar(daftar, awalan) {
   return n;
 }
 
-module.exports = { TAB, keBaris, dariBaris, urai, rakit, nomorTerbesar };
+module.exports = { TAB, USANG, keBaris, dariBaris, urai, rakit, nomorTerbesar };

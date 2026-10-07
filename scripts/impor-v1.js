@@ -53,12 +53,12 @@ async function main() {
   console.log(`\n  Sumber : ${folder}`);
   if (asal.waktu) console.log(`  Ditarik: ${asal.waktu}`);
   console.log('\n  Hasil pemetaan');
-  baris('task v1', r.taskV1);
-  baris('langkah kolaborasi', r.langkahJadiTask, `→ task di ${r.proyek} proyek`);
-  baris('task total', r.task);
+  baris('task v1', r.taskV1, '→ Jalur Rutin');
+  baris('proses kolaborasi', r.langkahJadiTask, `→ task proyek di ${r.proyek} proyek (${r.proyekArsip} tuntas → arsip)`);
+  baris('task total', r.task, `${r.aktif} masih aktif, ${r.tertahan} tertahan`);
   baris('sub-task (ceklis)', r.subtask);
   baris('komentar', r.komentar);
-  baris('log gate', r.gateLog);
+  baris('riwayat tinjauan', r.tinjauan);
   baris('evidence', r.evidence);
   baris('paket', r.paket);
   baris('bookmark', r.bookmark);
