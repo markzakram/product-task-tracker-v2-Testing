@@ -278,16 +278,17 @@
     return `${arah} oleh ${nama(x.oleh)}`;
   }
 
-  function jalurTahap(p, tahapTask) {
-    const ke = I.TAHAP.findIndex(x => x.id === p.stage);
-    return `<div class="jalur-tahap" role="img" aria-label="Tahap proyek: ${esc(I.namaTahap(p.stage))}">${I.TAHAP.map((x, i) => `
-      <div class="${i < ke ? 'lewat' : i === ke ? 'kini' : ''} ${tahapTask === x.id && x.id !== p.stage ? 'milik' : ''}">
+  /* Siklus yang sudah ditutup E12 digambar lewat semua: tak ada tahap "sekarang" lagi. */
+  function jalurTahap(p, tahapTask, tutup = false) {
+    const ke = tutup ? I.TAHAP.length : I.TAHAP.findIndex(x => x.id === p.stage);
+    return `<div class="jalur-tahap" role="img" aria-label="${tutup ? `Siklus ${p.cycle || 1} selesai` : 'Tahap proyek: ' + esc(I.namaTahap(p.stage))}">${I.TAHAP.map((x, i) => `
+      <div class="${i < ke ? 'lewat' : i === ke ? 'kini' : ''} ${tahapTask === x.id && (tutup || x.id !== p.stage) ? 'milik' : ''}">
         <span class="kotak">${x.id}</span><span class="nama">${x.nama}</span>
       </div>`).join('')}</div>`;
   }
-  function jalurMini(p) {
-    const ke = I.TAHAP.findIndex(x => x.id === p.stage);
-    return `<span class="jalur-mini" aria-label="Tahap ${esc(I.namaTahap(p.stage))}">${I.TAHAP.map((x, i) => `<span class="${i < ke ? 'lewat' : i === ke ? 'kini' : ''}">${x.id}</span>`).join('')}</span>`;
+  function jalurMini(p, tutup = false) {
+    const ke = tutup ? I.TAHAP.length : I.TAHAP.findIndex(x => x.id === p.stage);
+    return `<span class="jalur-mini" aria-label="${tutup ? 'Siklus selesai' : 'Tahap ' + esc(I.namaTahap(p.stage))}">${I.TAHAP.map((x, i) => `<span class="${i < ke ? 'lewat' : i === ke ? 'kini' : ''}">${x.id}</span>`).join('')}</span>`;
   }
   const KEADAAN = {
     aman: 'Sesuai rencana', risiko: 'Berisiko', tunggu: 'Siklus selesai', sepi: 'Tak ada task terbuka', kosong: 'Belum ada task',
@@ -477,8 +478,10 @@
     render();
   }
 
-  async function muat() {
-    tampilKunci('Memuat data…', true);
+  /* reset = sesudah "Reset data contoh": data lokal sudah dibuang, jadi yang dimuat pasti
+     data contoh dari spreadsheet (spreadsheet tak pernah diubah aplikasi). */
+  async function muat(reset = false) {
+    tampilKunci(reset ? 'Mengembalikan data contoh…' : 'Memuat data…', true);
     const h = await api('muatContoh');
     if (h.http === 401) return tampilKunci('Masukkan PIN untuk melanjutkan.', false);
     if (!h.success) {
@@ -493,7 +496,7 @@
     } else if (h.data) {
       S.data = rapikan(h.data);
       S.dimuat = Date.now();
-      pesan = `Data contoh dimuat: ${S.data.tasks.length} task, ${S.data.projects.length} proyek, ${S.data.packages.length} paket.`;
+      pesan = `${reset ? 'Data contoh kembali ke awal' : 'Data contoh dimuat'}: ${S.data.tasks.length} task, ${S.data.projects.length} proyek, ${S.data.packages.length} paket.`;
     } else {
       S.data = rapikan({});
       S.dimuat = Date.now();
@@ -549,11 +552,13 @@
           <div class="kotak-profil-atas">${avatar(S.me, 'besar')}<span><strong>${esc(o.nama)}</strong><small>${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}</small></span></div>
           <div class="kotak-profil-aksi">
             <button type="button" class="tombol kecil" data-aksi="ganti-profil">${ikon('orang', 16)} Ganti profil</button>
-            <button type="button" class="ikon-tombol" data-aksi="muat-ulang" title="Muat ulang data contoh" aria-label="Muat ulang data contoh">${ikon('ulang')}</button>
             <button type="button" class="ikon-tombol" data-aksi="keluar" title="Keluar" aria-label="Keluar">${ikon('keluar')}</button>
           </div>
         </div>
-        <p class="samping-catatan">Prototipe: perubahan tersimpan di browser ini.</p>
+        <div class="kotak-data">
+          <p class="samping-catatan">Data contoh. Perubahan hanya tersimpan di browser ini.</p>
+          <button type="button" class="tombol kecil tombol-reset" data-aksi="reset-data">${ikon('ulang', 16)} Reset data contoh</button>
+        </div>
       </div>`;
     $('#samping').classList.toggle('buka', S.navBuka);
     $('#samping-latar').hidden = !S.navBuka;
@@ -849,7 +854,7 @@
       </div>
       ${diLaci ? `<button type="button" class="ikon-tombol" data-aksi="tutup-detail" aria-label="Tutup">${ikon('tutup', 20)}</button>` : ''}</div>
 
-      ${p ? `<section><p class="subjudul">Tahap proyek${t.stage !== p.stage ? ` · task ini di ${esc(I.namaTahap(t.stage))}` : ''}</p>${jalurTahap(p, t.stage)}</section>` : ''}
+      ${p ? `<section><p class="subjudul">Tahap proyek${t.stage !== p.stage ? ` · task ini di ${esc(I.namaTahap(t.stage))}` : ''}</p>${jalurTahap(p, t.stage, I.siklusTutup(S.data, p))}</section>` : ''}
       ${tunggu ? `<div class="banner ${t.tertahan ? 'merah' : 'kuning'}">${esc(tunggu)}</div>` : ''}
 
       ${aksi.length || bisaUbah || serahkan ? `<section>
@@ -1349,22 +1354,27 @@
         <span class="baris-proyek-nama"><strong>${esc(p.name)}</strong>
           <small>${esc(p.platform)} · ${esc(I.rumpunDari(p.platform))}${(p.cycle || 1) > 1 ? ' · siklus ' + p.cycle : ''}${r.tenggat ? ' · tenggat ' + esc(fmtTanggal(r.tenggat)) : ''}${paket.length ? ' · paket ' + esc(paket.map(judulPaket).join(', ')) : ''}</small>
           <span class="baris-tim">${timHtml(p)}</span></span>
-        ${jalurMini(p)}
+        ${jalurMini(p, r.tutup)}
         <span class="baris-proyek-maju">${r.total ? `${r.selesai}/${r.total} task ${esc(I.namaTahap(p.stage))}` : 'Belum ada task'}${r.buka ? ` · ${r.buka} terbuka` : ''}
           <span class="batang"><span style="width:${r.total ? Math.round(r.selesai / r.total * 100) : 0}%"></span></span></span>
         ${chipKeadaan(r.keadaan)}
       </button>`;
     }).join('');
 
+    /* Sesudah E12 tak ada tahap ke-6. Pilihannya: tuntas (arsip), atau ulangi ADDIE dari
+       Analysis untuk perbaikan atau versi berikutnya. Kalau semua task beres, arsip yang utama. */
     const kotakKeputusan = keputusan.map(p => {
       const r = ringkas.get(p.id);
       const c = p.cycle || 1;
+      const tuntas = r.semua === r.semuaSelesai;
       return `<div class="kotak-keputusan"><small>${esc(p.name)}</small>
-        <strong>Siklus ${c} ditutup. Lanjut ke siklus ${c + 1}?</strong>
-        <small>E12 · Final approval sudah disetujui${r.buka ? `; ${r.buka} task lain masih terbuka` : ''}.</small>
-        ${isM ? `<div class="dua"><button type="button" class="tombol utama" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Mulai siklus ${c + 1}</button>
-          ${r.semua === r.semuaSelesai ? `<button type="button" class="tombol" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Arsipkan</button>`
-            : `<button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">Tahan</button>`}</div>` : '<small>Menunggu keputusan Manager.</small>'}
+        <strong>Siklus ${c} selesai. Arsipkan, atau ulangi untuk perbaikan?</strong>
+        <small>E12 · Final approval sudah disetujui${r.buka ? `; ${r.buka} task lain masih terbuka` : ''}. Siklus ${c + 1} hanya perlu kalau ada perbaikan dari hasil evaluasi atau versi berikutnya; mulainya lagi dari Analysis.</small>
+        ${isM ? `<div class="dua">${tuntas
+          ? `<button type="button" class="tombol utama" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Selesai, arsipkan</button>
+            <button type="button" class="tombol" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Siklus ${c + 1}</button>`
+          : `<button type="button" class="tombol utama" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Siklus ${c + 1}</button>
+            <button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">Tahan</button>`}</div>` : '<small>Menunggu keputusan Manager.</small>'}
       </div>`;
     }).join('');
 
@@ -1438,14 +1448,23 @@
     } else if (p.decision === 'Hold') {
       gerbang = `<div class="banner kuning">Proyek ditahan.</div>${isM ? `<div class="detail-aksi"><button type="button" class="tombol" data-aksi="lanjutkan-proyek" data-id="${esc(p.id)}">Lanjutkan proyek</button></div>` : ''}`;
     } else if (r.siapMaju) {
-      gerbang = `<div class="banner biru">Siklus ${siklus} ditutup: E12 · Final approval sudah disetujui.${isM ? ' Mulai siklus berikutnya untuk perbaikan, atau arsipkan kalau proyek ini sudah tuntas.' : ' Menunggu keputusan Manager.'}</div>
-        ${isM ? `<div class="detail-aksi"><button type="button" class="tombol utama" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Mulai siklus ${siklus + 1}</button>${arsipkan}
-          <button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">Tahan</button></div>` : ''}`;
+      // ADDIE berhenti di Evaluation. Siklus baru opsional; kalau semua beres, arsip pilihan utamanya.
+      const tuntas = r.semua === r.semuaSelesai;
+      const pilihan = (tombol, ket) => `<div class="pilihan-akhir">${tombol}<span>${ket}</span></div>`;
+      gerbang = `<div class="banner hijau">Siklus ${siklus} selesai: semua langkah sampai E12 · Final approval sudah disetujui.${r.buka ? ` Masih ada ${r.buka} task lain yang terbuka.` : ''}</div>
+        ${isM ? `<div class="daftar-pilihan"><p class="subjudul">Apa langkah berikutnya?</p>
+          ${tuntas ? pilihan(`<button type="button" class="tombol utama" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Selesai, arsipkan</button>`,
+            'Proyek tuntas. Pindah ke Arsip; task dan riwayatnya tetap tersimpan, dan bisa diaktifkan lagi.') : ''}
+          ${pilihan(`<button type="button" class="tombol ${tuntas ? '' : 'utama'}" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Mulai siklus ${siklus + 1}</button>`,
+            'Ulangi ADDIE dari Analysis: untuk memperbaiki temuan evaluasi atau membuat versi berikutnya (mis. paket tahun depan). Task siklus ini tetap tersimpan di "Siklus sebelumnya".')}
+          ${pilihan(`<button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">Tahan</button>`,
+            'Belum diputuskan sekarang. Proyek keluar dari antrean keputusan sampai dilanjutkan.')}
+        </div>` : '<p class="hint">Menunggu keputusan Manager: arsipkan proyek ini, atau mulai siklus berikutnya untuk perbaikan.</p>'}`;
     } else if (r.keadaan === 'kosong') {
       gerbang = `<div class="banner kuning">Belum ada task di siklus ${siklus}. Mulai dari Analysis.</div>
         <div class="detail-aksi">${tambah('A', 'A1', 'Tambah task A1 · Intake', 'utama')}</div>`;
     } else if (r.keadaan === 'sepi') {
-      gerbang = `<div class="banner kuning">Semua task siklus ini selesai, tetapi siklusnya belum ditutup. Tutup lewat task E12 · Final approval (direview Manager), atau tambah task baru.</div>
+      gerbang = `<div class="banner kuning">Semua task siklus ini selesai, tetapi belum ada penutupan resmi. Tutup lewat task E12 · Final approval (direview Manager)${isM ? ', atau langsung arsipkan kalau proyek ini memang sudah tuntas' : ''}. Kalau masih ada pekerjaan, tambahkan task-nya.</div>
         <div class="detail-aksi">${tambah('E', 'E12', 'Tambah task E12 · Final approval', 'utama')}${arsipkan}</div>`;
     } else {
       gerbang = `<p class="hint">${r.selesai} dari ${r.total} task ${esc(I.namaTahap(p.stage))} selesai${r.telat ? ` · ${r.telat} terlambat` : ''}${r.tertahan ? ` · ${r.tertahan} tertahan` : ''}.
@@ -1477,7 +1496,7 @@
               <h1 class="judul-besar">${esc(p.name)}</h1>
               <p class="baris-tim" style="margin-top:6px">Tim: ${timHtml(p)}</p>
               ${p.goal ? `<p class="teks-panjang" style="margin-top:8px">${esc(p.goal)}</p>` : ''}</div>
-            ${jalurTahap(p)}
+            ${jalurTahap(p, '', r.tutup)}
             ${gerbang}
             <div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="papan-proyek" data-id="${esc(p.id)}">${ikon('kolom', 16)} Buka di kanban</button>
               ${keputusan}
@@ -2441,13 +2460,16 @@
         masukApp();
         toast(`Masuk sebagai ${I.orang(S.me).pendek} (${I.PERAN[I.orang(S.me).peran]}).`);
         break;
-      case 'muat-ulang':
-        if (!bolehTinggalkanPaket()) return;
+      case 'reset-data':
         S.navBuka = false;
-        if (!confirm('Muat ulang data contoh dari server? Semua perubahan di browser ini (task, paket, link, catatan) akan diganti.')) return render();
+        if (!confirm('Reset ke data contoh awal?\n\nSemua perubahan di browser ini dihapus: task, status, komentar, proyek, paket, link, dan catatan. '
+          + 'Data contoh dimuat lagi dari spreadsheet, persis seperti saat diimpor. Profil lain di browser ini ikut kembali ke awal.')) return render();
         hapus('data');
-        S.pilih = null;
-        muat();
+        Object.assign(S, { pilih: null, proyek: null, proyekArsip: false, cari: '' });
+        Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
+        Object.assign(S.kom, { pilih: null });
+        tutupModal();
+        muat(true);
         break;
       case 'keluar':
         S.navBuka = false;

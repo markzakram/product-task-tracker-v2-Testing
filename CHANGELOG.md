@@ -1,5 +1,18 @@
 # Changelog — ProductTrack v2
 
+## 0.6.1 — Akhir siklus lebih jelas, tombol Reset data contoh (2026-10-07)
+
+- Sesudah E12 disetujui, pilihannya dijelaskan satu per satu: **Selesai, arsipkan** (tombol
+  utama kalau semua task sudah beres), **Mulai siklus berikutnya** (ADDIE diulang dari Analysis
+  untuk perbaikan atau versi berikutnya), atau **Tahan**. Sebelumnya "Mulai siklus 2" menjadi
+  tombol utama, sehingga terkesan proyek wajib lanjut ke "tahap berikutnya" walau sudah tuntas.
+- Siklus yang sudah ditutup digambar selesai di jalur tahap: kelima tahap terisi, tanpa tanda
+  "tahap sekarang" di Evaluation. Banner proyek yang semua task-nya selesai tanpa E12 kini
+  menyebut bahwa Manager juga bisa langsung mengarsipkannya.
+- Tombol **Reset data contoh** berlabel di kaki sidebar (di ponsel: Menu), menggantikan ikon ↻
+  "Muat ulang data contoh" yang sulit ditemukan. Reset membuang semua perubahan di browser itu
+  dan memuat ulang data contoh dari spreadsheet, persis seperti saat diimpor.
+
 ## 0.6.0 — Selaras PRD v3: sub-stage, syarat ajukan, alur per jenis, tahap dihitung (2026-10-07)
 
 Mengikuti PRD v3 dari Manager, dengan satu penyederhanaan: tetap empat status.

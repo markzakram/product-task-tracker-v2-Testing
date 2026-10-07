@@ -59,8 +59,10 @@ dengan satu penyederhanaan: tetap empat status.
 - **Proyek tanpa Lead tetap.** Yang tampil adalah tim pemegang task terbukanya.
 - **Tahap proyek dihitung, bukan diputuskan:** tahap task terbuka paling awal di siklus aktif.
   Tahap pindah sendiri dan tercatat di riwayat tahap. **Siklus ditutup** oleh task E12 · Final
-  approval yang disetujui; sesudah itu Manager memutuskan: mulai siklus berikutnya (kembali ke
-  Analysis), arsipkan, atau tahan. Keputusan proyek: Build, Improve, Maintain, Hold.
+  approval yang disetujui. Sesudah Evaluation tidak ada tahap keenam; Manager memilih:
+  **arsipkan** (proyek tuntas, pilihan utama kalau semua task beres), **mulai siklus
+  berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau
+  **tahan**. Keputusan proyek: Build, Improve, Maintain, Hold.
 - **Rumpun platform** (Kedinasan & TNI/Polri, ASN & Pendidikan, BUMN & Keuangan, Bahasa &
   Beasiswa, Lainnya) untuk saringan dan Dashboard. Rumpun tak punya pemilik.
 - **Dashboard:** task aktif per status, tahap, tim pemilik, rumpun, dan platform; per orang
@@ -315,9 +317,10 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
 - **Suntingan belum tersimpan ke spreadsheet.** Data contoh dimuat dari server, tetapi yang
   diubah orang (status, tinjauan, sub-task, komentar, gate proyek, paket, link, catatan)
-  tersimpan di browser masing-masing (localStorage). Tombol ↻ di kaki sidebar (**Muat ulang
-  data contoh**) mengembalikannya. Karena itu Komunikasi dan Catatan Saya belum terbagi
-  antarperangkat.
+  tersimpan di browser masing-masing (localStorage). Tombol **Reset data contoh** di kaki
+  sidebar (di ponsel: Menu) membuang semua perubahan itu dan memuat ulang data contoh dari
+  spreadsheet. Spreadsheet sendiri tak pernah diubah aplikasi, jadi data awalnya selalu utuh.
+  Karena itu pula Komunikasi dan Catatan Saya belum terbagi antarperangkat.
 - **Profil dipilih sendiri** karena PIN dipakai bersama. Siapa pun bisa masuk sebagai Manager.
 - **Belum ada penyaringan per peran.** v1 menyaring data di server untuk magang dan Lintas
   Divisi; v2 belum. Siapa pun yang tahu PIN v2 melihat seluruh data contoh, jadi jangan
