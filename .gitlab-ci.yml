@@ -47,7 +47,7 @@ stages:
   - build
   - deploy
 
-tes:
+test:
   stage: test
 
   # Unduhan npm disimpan antar-jalan, dikunci pada package.json: selama
@@ -111,7 +111,7 @@ tes:
   services:
     - name: docker:24.0.5-dind
   needs:
-    - tes
+    - test
   before_script:
     - echo "$SERVICE_ACCOUNT_KEY_V3" | docker login -u _json_key --password-stdin $GCP_REGISTRY_URL
   script:
