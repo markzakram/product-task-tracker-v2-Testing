@@ -205,7 +205,7 @@ Selain Vercel, app bisa jalan di GCP Cloud Run lewat `.gitlab-ci.yml` (pola sama
 | push ke `staging` | manual | otomatis setelah build | `preview` |
 | tag git | manual | manual | `production` |
 
-**Variabel CI** (GitLab → Settings → CI/CD → Variables): `SERVICE_ACCOUNT_KEY_V3`, `GCP_REGISTRY_URL`,
+**Variabel CI** (GitLab → Settings → CI/CD → Variables): `SERVICE_ACCOUNT_KEY`, `GCP_REGISTRY_URL`,
 `DOCKER_IMAGE_TAG_TASK_TRACKER` (path image, tanpa tag), `GCP_PROJECT_DEV`, `GCP_PROJECT`, `GCR_SA_DEV`,
 `GCR_SA`, `GCR_NAME_TASK_TRACKER_DEV`, `GCR_NAME_TASK_TRACKER_STG`, `GCR_NAME_TASK_TRACKER_PROD`,
 `DISCORD_WEBHOOK_URL`. Yang sudah ada di group (dipakai backend-vitri) tak perlu dibuat ulang.

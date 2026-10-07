@@ -113,7 +113,7 @@ test:
   needs:
     - test
   before_script:
-    - echo "$SERVICE_ACCOUNT_KEY_V3" | docker login -u _json_key --password-stdin $GCP_REGISTRY_URL
+    - echo "$SERVICE_ACCOUNT_KEY" | docker login -u _json_key --password-stdin $GCP_REGISTRY_URL
   script:
     - docker pull ${DOCKER_IMAGE_TAG}:latest || true
     - docker build -f Dockerfile --cache-from ${DOCKER_IMAGE_TAG}:latest -t ${DOCKER_IMAGE_TAG}:latest -t ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} .
@@ -128,7 +128,7 @@ test:
   stage: deploy
   image: google/cloud-sdk:alpine
   before_script:
-    - gcloud auth activate-service-account --key-file <(echo "$SERVICE_ACCOUNT_KEY_V3")
+    - gcloud auth activate-service-account --key-file <(echo "$SERVICE_ACCOUNT_KEY")
   script:
     - gcloud config set project ${GCP_PROJECT_ID}
     - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --port 8080 --allow-unauthenticated --ingress ${INGRESS} --service-account ${SERVICE_ACCOUNT} --update-env-vars APP_ENV=${APP_ENV}
