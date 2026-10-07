@@ -4,6 +4,12 @@
      npm run impor:v1                     tarikan v1 di ../task-tracker-vercel/db/dump
      npm run impor:v1 -- <folder>         tarikan di folder lain
      npm run impor:v1 -- --kering         petakan dan tampilkan ringkasan saja, tanpa menulis
+     npm run impor:v1 -- --dengan-link    ikut membawa Link Saya tiap orang dari v1
+
+   Link Saya di v1 hanya terlihat oleh pemiliknya (PIN per orang). Di v2 PIN-nya
+   bersama dan profil dipilih sendiri, jadi siapa pun yang memegang PIN bisa membuka
+   Link Saya orang lain. Karena itu bawaannya TIDAK dibawa; --dengan-link hanya
+   dipakai kalau pemilik link-nya setuju.
 
    Sumbernya BERKAS, bukan spreadsheet v1. Tarikannya dibuat di repo v1 dengan
    `node scripts/migrasi/tarik.js` (baca-saja, kredensial v1). Skrip ini tak pernah
@@ -24,7 +30,8 @@ const sheet = require('../api/_sheets');
 const AKAR = path.join(__dirname, '..');
 muatEnv(path.join(AKAR, '.env'));
 
-const BERKAS = ['tasks', 'collabs', 'collab_steps', 'checklists', 'comments', 'packages', 'package_items', 'dashboards', 'activity_log'];
+const BERKAS = ['tasks', 'collabs', 'collab_steps', 'checklists', 'comments', 'packages', 'package_items', 'package_links',
+  'dashboards', 'user_links', 'activity_log'];
 
 function bacaDump(folder) {
   const d = {};
@@ -45,9 +52,11 @@ const baris = (label, n, ket = '') => console.log(`    ${label.padEnd(22)} ${Str
 async function main() {
   const args = process.argv.slice(2);
   const kering = args.includes('--kering');
+  const denganLink = args.includes('--dengan-link');
   const folder = path.resolve(args.find(a => !a.startsWith('--')) || path.join(AKAR, '..', 'task-tracker-vercel', 'db', 'dump'));
 
   const { d, asal } = bacaDump(folder);
+  if (!denganLink) d.user_links = [];
   const { data, ringkasan: r } = ubah(d);
 
   console.log(`\n  Sumber : ${folder}`);
@@ -60,13 +69,15 @@ async function main() {
   baris('komentar', r.komentar);
   baris('riwayat tinjauan', r.tinjauan);
   baris('evidence', r.evidence);
-  baris('paket', r.paket);
-  baris('bookmark', r.bookmark);
+  baris('rancangan paket', r.paket, `${r.targetPaket} baris target`);
+  baris('dashboard lain', r.dashboard);
+  baris('link saya', r.link, denganLink ? 'terlihat oleh siapa pun yang memegang PIN bersama' : 'tidak dibawa (pakai --dengan-link kalau pemiliknya setuju)');
   baris('riwayat aktivitas', r.log);
   const b = r.dibuang;
   console.log(`\n  Dibuang: ${b.ceklisYatim} ceklis & ${b.komentarYatim} komentar yang induknya sudah dihapus di v1, `
-    + `${b.logTerpotong} aktivitas lama (hanya ${r.log} terbaru yang dibawa).`);
-  console.log('  Tidak dibawa: PIN, catatan & tautan pribadi, notifikasi, rincian target paket.');
+    + `${b.logTerpotong} aktivitas lama (hanya ${r.log} terbaru yang dibawa)`
+    + (denganLink ? `, ${b.linkTanpaProfil} link milik orang yang tak punya profil di v2.` : '.'));
+  console.log(`  Tidak dibawa: PIN, catatan pribadi${denganLink ? '' : ', Link Saya'}, notifikasi.`);
 
   if (kering) {
     console.log('\n  --kering: tidak ada yang ditulis.\n');

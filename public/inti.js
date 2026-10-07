@@ -413,19 +413,27 @@
     });
   }
 
-  /* ---------- Laporan & pencarian ---------- */
+  /* ---------- Dashboard ---------- */
 
-  function laporan(data, hariIni) {
-    const perId = indeks(data);
+  function seninDari(iso) {
+    const d = keTanggal(iso);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return isoHari(d);
+  }
+
+  /* Angka Dashboard. ids = orang yang dihitung (null = seluruh divisi). */
+  function laporan(data, hariIni, ids = null) {
+    const dalam = t => !ids || ids.includes(t.pic);
+    const tasks = data.tasks.filter(dalam);
     const tiga0 = tambahHari(hariIni, -29);
     const dalam30 = t => selesai(t) && isoHari(t.selesaiAt) >= tiga0;
-    const aktifSemua = data.tasks.filter(aktif);
-    const senin = (() => { const d = keTanggal(hariIni); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoHari(d); })();
+    const aktifSemua = tasks.filter(aktif);
+    const senin = seninDari(hariIni);
     const mingguan = [];
     for (let i = 7; i >= 0; i--) {
       const awal = tambahHari(senin, -7 * i);
       const akhir = tambahHari(awal, 6);
-      mingguan.push({ awal, jumlah: data.tasks.filter(t => selesai(t) && isoHari(t.selesaiAt) >= awal && isoHari(t.selesaiAt) <= akhir).length });
+      mingguan.push({ awal, jumlah: tasks.filter(t => selesai(t) && isoHari(t.selesaiAt) >= awal && isoHari(t.selesaiAt) <= akhir).length });
     }
     const perPlatform = {};
     for (const t of aktifSemua) perPlatform[t.platform || '—'] = (perPlatform[t.platform || '—'] || 0) + 1;
@@ -435,17 +443,352 @@
         telat: aktifSemua.filter(t => telat(t, hariIni) && !t.tertahan).length,
         tertahan: aktifSemua.filter(ditandaiTertahan).length,
         ditinjau: aktifSemua.filter(t => t.status === 'Ditinjau').length,
-        selesai30: data.tasks.filter(dalam30).length,
+        selesai30: tasks.filter(dalam30).length,
       },
+      perStatus: STATUS.filter(s => s !== 'Selesai').map(status => ({ status, jumlah: aktifSemua.filter(t => t.status === status).length })),
+      perJalur: { proyek: aktifSemua.filter(t => t.lane === 'proyek').length, rutin: aktifSemua.filter(t => t.lane !== 'proyek').length },
       mingguan,
-      perOrang: ORANG.map(o => ({
+      perOrang: (ids ? ids.map(orang) : ORANG).map(o => ({
         id: o.id,
         aktif: aktifSemua.filter(t => t.pic === o.id).length,
         telat: aktifSemua.filter(t => t.pic === o.id && telat(t, hariIni) && !t.tertahan).length,
-        selesai30: data.tasks.filter(t => t.pic === o.id && dalam30(t)).length,
+        selesai30: tasks.filter(t => t.pic === o.id && dalam30(t)).length,
       })),
       perPlatform: Object.entries(perPlatform).sort((a, b) => b[1] - a[1]).map(([platform, jumlah]) => ({ platform, jumlah })),
     };
+  }
+
+  /* ---------- Laporan berkala (Lead: timnya, Manager: divisi) ---------- */
+
+  const PERIODE = [['minggu', 'Minggu ini'], ['lalu', 'Minggu lalu'], ['bulan', 'Bulan ini'], ['30', '30 hari terakhir']];
+
+  function rentang(kunci, hariIni) {
+    if (kunci === 'lalu') {
+      const dari = tambahHari(seninDari(hariIni), -7);
+      return { dari, sampai: tambahHari(dari, 6) };
+    }
+    if (kunci === 'bulan') return { dari: hariIni.slice(0, 8) + '01', sampai: hariIni };
+    if (kunci === '30') return { dari: tambahHari(hariIni, -29), sampai: hariIni };
+    return { dari: seninDari(hariIni), sampai: hariIni };
+  }
+
+  /* Selesai & baru dihitung DALAM periode; aktif, terlambat, dan tertahan adalah
+     keadaan HARI INI. Tepat waktu = selesai pada atau sebelum tenggatnya. */
+  function laporanPeriode(data, ids, dari, sampai, hariIni) {
+    const dalam = ms => { const h = isoHari(ms); return !!h && h >= dari && h <= sampai; };
+    const daftar = ids || ORANG.map(o => o.id);
+    const baris = daftar.map(id => {
+      const milik = data.tasks.filter(t => t.pic === id);
+      const beres = milik.filter(t => selesai(t) && dalam(t.selesaiAt)).sort((a, b) => b.selesaiAt - a.selesaiAt);
+      return {
+        id,
+        aktif: milik.filter(aktif).length,
+        selesai: beres,
+        tepat: beres.filter(t => !t.due || isoHari(t.selesaiAt) <= t.due).length,
+        baru: milik.filter(t => dalam(t.createdAt)).length,
+        telat: milik.filter(t => telat(t, hariIni) && !t.tertahan).sort((a, b) => a.due.localeCompare(b.due)),
+        tertahan: milik.filter(ditandaiTertahan),
+      };
+    });
+    const jumlah = k => baris.reduce((n, b) => n + (Array.isArray(b[k]) ? b[k].length : b[k]), 0);
+    const proyek = data.projects.flatMap(p => (p.history || []).filter(x => dalam(x.at)).map(x => ({ p, ...x })))
+      .sort((a, b) => b.at - a.at);
+    return {
+      baris,
+      total: { aktif: jumlah('aktif'), selesai: jumlah('selesai'), tepat: jumlah('tepat'), baru: jumlah('baru'), telat: jumlah('telat'), tertahan: jumlah('tertahan') },
+      proyek,
+    };
+  }
+
+  /* ---------- Daftar task (Task List, Timeline, Kalender) ---------- */
+
+  const URUT_STATUS = new Map(STATUS.map((s, i) => [s, i]));
+  const PEMBANDING = {
+    due: (a, b) => (a.due || '9999').localeCompare(b.due || '9999'),
+    id: (a, b) => a.id.localeCompare(b.id, 'id', { numeric: true }),
+    title: (a, b) => a.title.localeCompare(b.title, 'id'),
+    status: (a, b) => URUT_STATUS.get(a.status) - URUT_STATUS.get(b.status),
+    pic: (a, b) => orang(a.pic).pendek.localeCompare(orang(b.pic).pendek, 'id'),
+    platform: (a, b) => (a.platform || '').localeCompare(b.platform || '', 'id'),
+  };
+
+  /* f: saringan papan + status ('' | 'aktif' | salah satu STATUS), q, urut, arah (1 | -1). */
+  function daftarTask(data, f, hariIni) {
+    const kata = String(f.q || '').trim().toLowerCase();
+    const namaProyek = new Map(data.projects.map(p => [p.id, p.name]));
+    const isi = saring(data, f, hariIni).filter(t => (!f.status || (f.status === 'aktif' ? aktif(t) : t.status === f.status))
+      && (!kata || [t.id, t.title, orang(t.pic).nama, t.platform, t.kategori, namaProyek.get(t.project) || ''].join(' ').toLowerCase().includes(kata)));
+    const banding = PEMBANDING[f.urut] || PEMBANDING.due;
+    const arah = f.arah === -1 ? -1 : 1;
+    return isi.sort((a, b) => arah * banding(a, b) || a.id.localeCompare(b.id, 'id', { numeric: true }));
+  }
+
+  /* Rentang jadwal task: mulai = tanggal mulai (atau tanggal dibuat), akhir = tenggat. */
+  function rentangTask(t) {
+    const mulai = t.start || isoHari(t.createdAt) || t.due || '';
+    const akhir = t.due || mulai;
+    return mulai && akhir < mulai ? { mulai: akhir, akhir: mulai } : { mulai, akhir };
+  }
+
+  /* Kotak kalender satu bulan ('YYYY-MM'), mulai Senin, 5 atau 6 minggu. */
+  function gridBulan(bulan) {
+    const [y, m] = bulan.split('-').map(Number);
+    const awal = isoHari(new Date(y, m - 1, 1));
+    const akhir = isoHari(new Date(y, m, 0));
+    const mulai = seninDari(awal);
+    const minggu = Math.ceil((selisihHari(mulai, akhir) + 1) / 7);
+    return Array.from({ length: minggu * 7 }, (_, i) => tambahHari(mulai, i));
+  }
+  function geserBulan(bulan, n) {
+    const [y, m] = bulan.split('-').map(Number);
+    const d = new Date(y, m - 1 + n, 1);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+  }
+
+  /* ---------- Komunikasi ---------- */
+
+  function terlibat(t, me) {
+    return t.pic === me || (t.support || []).includes(me) || t.assignedBy === me || peninjau(t) === me
+      || (t.comments || []).some(k => k.author === me);
+  }
+  /* Komentar orang lain yang lebih baru dari `sejak` (milidetik). */
+  const belumDibaca = (t, me, sejak) => (t.comments || []).filter(k => k.author !== me && (Number(k.at) || 0) > sejak).length;
+
+  /* Utas diskusi: task yang punya komentar (atau cocok dengan pencarian), yang belum
+     dibaca di atas, lalu yang komentarnya paling baru. sejak(t) → batas baca task itu. */
+  function utasDiskusi(data, me, lingkup, sejak, q) {
+    const kata = String(q || '').trim().toLowerCase();
+    const ids = lingkup === 'tim' ? lingkupOrang(me, 'tim') : null;
+    const namaProyek = new Map(data.projects.map(p => [p.id, p.name]));
+    return data.tasks
+      .filter(t => (kata ? [t.id, t.title, orang(t.pic).nama, namaProyek.get(t.project) || ''].join(' ').toLowerCase().includes(kata) : t.comments.length > 0))
+      .filter(t => (lingkup === 'terlibat' ? terlibat(t, me) : lingkup === 'tim' ? !ids || ids.includes(t.pic) : true))
+      .map(t => ({ t, baru: belumDibaca(t, me, sejak(t)), terakhir: t.comments.reduce((a, k) => (!a || k.at > a.at ? k : a), null) }))
+      .sort((a, b) => (b.baru > 0) - (a.baru > 0) || (b.terakhir ? b.terakhir.at : 0) - (a.terakhir ? a.terakhir.at : 0));
+  }
+
+  /* ---------- Riwayat aktivitas ---------- */
+
+  const JENIS_LOG = { create: 'Dibuat', update: 'Diubah', tinjau: 'Tinjauan', gate: 'Proyek', comment: 'Komentar', delete: 'Dihapus', system: 'Sistem' };
+  function saringLog(log, f) {
+    const kata = String(f.q || '').trim().toLowerCase();
+    return log.filter(l => (!f.jenis || l.type === f.jenis) && (!f.orang || l.by === f.orang)
+      && (!kata || [l.task, l.detail, orang(l.by).nama].join(' ').toLowerCase().includes(kata)));
+  }
+
+  /* ---------- Rancangan Paket (sama dengan v1) ----------
+     Yang tampil hanya sisi produk, seperti v1: area marketing (tagline, benefit, tujuan)
+     tetap tersimpan supaya data tak hilang, tapi tidak disunting dari sini. */
+
+  const PAKET_IDENTITAS = [['program', 'Program'], ['namaPaket', 'Nama paket']];
+  /* Kategori target, dan kolom teks bebasnya di paket (catatan/bonus untuk kategori itu). */
+  const KATEGORI_PAKET = [['Dibimbing', 'dibimbing'], ['Latsol', 'latsol'], ['Materi', 'materi'], ['Tryout', 'tryout'],
+    ['Drilling', 'drilling'], ['Live Class', 'liveClass']];
+  const PAKET_PRODUK = [...KATEGORI_PAKET.map(([label, kunci]) => [kunci, label]), ['catatan', 'Catatan produk']];
+  const SATUAN_PAKET = ['Paket', 'BAB', 'Sesi', 'Video', 'Ebook', 'Video + Ebook'];
+
+  /* Status target dihitung, tak pernah diketik. "Lebih" sengaja tidak dibulatkan
+     jadi selesai: kelebihan biasanya berarti salah hitung, dan itu perlu terlihat. */
+  function hitungTarget(it) {
+    const target = Number(it.target) || 0;
+    const terpenuhi = Number(it.awal) || 0;
+    const sisa = Math.max(0, target - terpenuhi);
+    let status = 'belum';
+    if (target > 0 && terpenuhi > target) status = 'lebih';
+    else if (target > 0 && terpenuhi >= target) status = 'penuh';
+    else if (terpenuhi > 0) status = 'sebagian';
+    return { target, terpenuhi, sisa, lebih: Math.max(0, terpenuhi - target), status };
+  }
+
+  function ringkasPaket(p) {
+    const r = { target: 0, terpenuhi: 0, sisa: 0, jumlah: (p.items || []).length, penuh: 0, lebih: 0, kurang: 0 };
+    for (const it of p.items || []) {
+      const h = hitungTarget(it);
+      r.target += h.target;
+      r.terpenuhi += Math.min(h.terpenuhi, h.target || h.terpenuhi);
+      r.sisa += h.sisa;
+      if (h.status === 'penuh') r.penuh++;
+      else if (h.status === 'lebih') r.lebih++;
+      else r.kurang++;
+    }
+    r.persen = r.target ? Math.round(r.terpenuhi / r.target * 100) : 0;
+    r.isiProduk = PAKET_PRODUK.filter(([k]) => String(p[k] || '').trim()).length;
+    return r;
+  }
+
+  /* Manager & Lead menyusun paket; PIC Produk boleh menyunting paketnya sendiri. */
+  function bolehUbahPaket(p, me) {
+    const r = orang(me).peran;
+    return r === 'manager' || r === 'lead' || (!!p && p.produkPic === me);
+  }
+
+  function paketBaru(data, f, me, waktu) {
+    if (!['manager', 'lead'].includes(orang(me).peran)) throw new Error('Hanya Lead atau Manager yang membuat paket.');
+    if (!String(f.namaPaket || '').trim()) throw new Error('Nama paket wajib diisi.');
+    const p = {
+      id: 'PKG-' + String(nomorBerikut(data.packages, 'PKG')).padStart(3, '0'),
+      platform: f.platform || '', marselPic: '', program: String(f.program || '').trim(), namaPaket: String(f.namaPaket).trim(),
+      tagline: '', benefit: '', tanggal: '', tujuan: '', produkPic: f.produkPic || '',
+      dibimbing: '', latsol: '', materi: '', tryout: '', drilling: '', liveClass: '', catatan: '',
+      updatedBy: me, updatedAt: waktu, mirror: false, items: [], links: [],
+    };
+    data.packages.unshift(p);
+    catatLog(data, 'create', `${p.id} · ${p.namaPaket}`, 'Rancangan paket dibuat', me, waktu);
+    return p;
+  }
+
+  const angkaPositif = v => { const n = Number(String(v == null ? '' : v).replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : 0; };
+  const teks = v => String(v == null ? '' : v).trim();
+
+  /* Simpan suntingan rancangan paket: identitas, teks per kategori, target, tautan.
+     Membagikan (mirror) hanya boleh Lead/Manager, seperti di v1. */
+  function simpanPaket(data, p, f, me, waktu) {
+    if (!bolehUbahPaket(p, me)) throw new Error('Anda tidak bisa menyunting paket ini.');
+    const namaPaket = teks(f.namaPaket);
+    if (!namaPaket) throw new Error('Nama paket wajib diisi.');
+    const mirror = f.mirror === undefined ? !!p.mirror : !!f.mirror;
+    if (mirror !== !!p.mirror && !['manager', 'lead'].includes(orang(me).peran)) throw new Error('Hanya Lead atau Manager yang bisa membagikan paket.');
+    const kategori = new Set(KATEGORI_PAKET.map(([l]) => l));
+    const items = (f.items || []).map((it, i) => ({
+      id: teks(it.id) || `i${waktu}-${i}`, urutan: i + 1,
+      kategori: kategori.has(it.kategori) ? it.kategori : KATEGORI_PAKET[0][0], grup: teks(it.grup), nama: teks(it.nama),
+      target: angkaPositif(it.target), satuan: teks(it.satuan) || 'Paket', awal: angkaPositif(it.awal), catatan: teks(it.catatan),
+    })).filter(it => it.nama || it.target || it.awal);
+    const links = (f.links || []).filter(l => teks(l.url) || teks(l.label)).map((l, i) => {
+      const url = tautanRapi(l.url);
+      if (!url) throw new Error(`Tautan "${teks(l.label) || teks(l.url)}" bukan alamat web (http/https).`);
+      return { id: teks(l.id) || `pl${waktu}-${i}`, urutan: i + 1, label: teks(l.label) || judulTautan(url), url };
+    });
+    Object.assign(p, { platform: teks(f.platform), program: teks(f.program), namaPaket, produkPic: teks(f.produkPic), items, links, mirror, updatedBy: me, updatedAt: waktu });
+    for (const [kunci] of PAKET_PRODUK) p[kunci] = String(f[kunci] == null ? '' : f[kunci]).replace(/\s+$/, '');
+    catatLog(data, 'update', `${p.id} · ${p.namaPaket}`, 'Rancangan paket diubah', me, waktu);
+    return p;
+  }
+
+  function hapusPaket(data, p, me, waktu) {
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menghapus paket.');
+    const i = data.packages.indexOf(p);
+    if (i < 0) throw new Error('Paket tidak ditemukan.');
+    data.packages.splice(i, 1);
+    catatLog(data, 'delete', `${p.id} · ${p.namaPaket}`, 'Rancangan paket dihapus', me, waktu);
+  }
+
+  /* ---------- Link Saya, Catatan Saya, Dashboard Lain ---------- */
+
+  const FOLDER_UMUM = 'Umum';
+  const namaFolder = f => teks(f) || FOLDER_UMUM;
+  const folderSimpan = f => (teks(f).toLowerCase() === FOLDER_UMUM.toLowerCase() ? '' : teks(f));
+
+  /* Alamat tanpa skema ("docs.google.com/…") diberi https://. Selain http/https —
+     javascript:, data:, file: — ditolak supaya tak jadi tautan berbahaya di layar orang. */
+  function tautanRapi(u) {
+    let s = teks(u);
+    if (!s) return '';
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = 'https://' + s.replace(/^\/+/, '');
+    try {
+      const url = new URL(s);
+      return /^https?:$/.test(url.protocol) && url.hostname.includes('.') ? s : '';
+    } catch (e) { return ''; }
+  }
+  function judulTautan(u) {
+    if (/docs\.google\.com\/spreadsheets/i.test(u)) return 'Google Sheets';
+    if (/docs\.google\.com\/document/i.test(u)) return 'Google Docs';
+    if (/docs\.google\.com\/presentation/i.test(u)) return 'Google Slides';
+    if (/drive\.google\.com/i.test(u)) return 'Google Drive';
+    try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return 'Tautan'; }
+  }
+
+  /* Dikelompokkan per folder, "Umum" (folder kosong) paling akhir. */
+  function kelompokFolder(daftar) {
+    const m = new Map();
+    for (const x of daftar) {
+      const f = namaFolder(x.folder);
+      if (!m.has(f)) m.set(f, []);
+      m.get(f).push(x);
+    }
+    return [...m.entries()]
+      .sort(([a], [b]) => (a === FOLDER_UMUM) - (b === FOLDER_UMUM) || a.localeCompare(b, 'id'))
+      .map(([folder, isi]) => ({ folder, isi }));
+  }
+
+  function milikSaya(daftar, id, me) {
+    const x = daftar.find(y => y.id === id);
+    if (!x || x.user !== me) throw new Error('Tidak ditemukan, atau bukan milik Anda.');
+    return x;
+  }
+
+  function simpanLink(data, me, f, id, waktu) {
+    const url = tautanRapi(f.url);
+    if (!url) throw new Error('Alamat link tidak valid. Contoh: https://docs.google.com/…');
+    const isi = { title: teks(f.title) || judulTautan(url), url, folder: folderSimpan(f.folder) };
+    if (id) return Object.assign(milikSaya(data.links, id, me), isi);
+    const l = { id: `u${waktu}-${data.links.length}`, user: me, ...isi };
+    data.links.push(l);
+    return l;
+  }
+
+  function simpanCatatan(data, me, f, id, waktu) {
+    const title = teks(f.title);
+    const body = String(f.body == null ? '' : f.body).replace(/\s+$/, '');
+    if (!title && !body.trim()) throw new Error('Catatan tidak boleh kosong.');
+    const isi = { title, body, folder: folderSimpan(f.folder), updatedAt: waktu };
+    if (id) return Object.assign(milikSaya(data.notes, id, me), isi);
+    const n = { id: `n${waktu}-${data.notes.length}`, user: me, ...isi };
+    data.notes.unshift(n);
+    return n;
+  }
+
+  function hapusMilik(daftar, id, me) {
+    const x = milikSaya(daftar, id, me);
+    daftar.splice(daftar.indexOf(x), 1);
+    return x;
+  }
+
+  function gantiNamaFolder(daftar, me, lama, baru) {
+    if (namaFolder(lama) === FOLDER_UMUM) throw new Error('Folder "Umum" tidak bisa diganti namanya.');
+    const b = teks(baru);
+    if (!b) throw new Error('Nama folder wajib diisi.');
+    if (!folderSimpan(b)) throw new Error('Untuk memindah isinya ke Umum, hapus foldernya.');
+    let n = 0;
+    for (const x of daftar) if (x.user === me && namaFolder(x.folder) === lama) { x.folder = b; n++; }
+    return n;
+  }
+
+  /* Menghapus folder TIDAK menghapus isinya: semuanya pindah ke Umum. */
+  function hapusFolder(daftar, me, nama) {
+    if (namaFolder(nama) === FOLDER_UMUM) throw new Error('Folder "Umum" tidak bisa dihapus.');
+    let n = 0;
+    for (const x of daftar) if (x.user === me && namaFolder(x.folder) === nama) { x.folder = ''; n++; }
+    return n;
+  }
+
+  /* Ikon Dashboard Lain memakai nama ikon v1 (Material), digambar ulang di app.js. */
+  const IKON_DASHBOARD = ['dashboard', 'bar_chart', 'timeline', 'table_chart', 'description', 'assignment', 'school', 'event'];
+
+  function simpanDashboard(data, me, f, id, waktu) {
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola Dashboard Lain.');
+    const title = teks(f.title);
+    if (!title) throw new Error('Judul dashboard wajib diisi.');
+    const url = tautanRapi(f.url);
+    if (!url) throw new Error('Alamat dashboard tidak valid.');
+    const isi = { title, url, deskripsi: teks(f.deskripsi), icon: IKON_DASHBOARD.includes(f.icon) ? f.icon : 'dashboard' };
+    if (id) {
+      const d = data.dashboards.find(x => x.id === id);
+      if (!d) throw new Error('Dashboard tidak ditemukan.');
+      return Object.assign(d, isi);
+    }
+    const d = { id: `d${waktu}-${data.dashboards.length}`, ...isi };
+    data.dashboards.push(d);
+    catatLog(data, 'create', 'Dashboard Lain', `Dashboard "${title}" ditambahkan`, me, waktu);
+    return d;
+  }
+
+  function hapusDashboard(data, me, id, waktu) {
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola Dashboard Lain.');
+    const i = data.dashboards.findIndex(x => x.id === id);
+    if (i < 0) throw new Error('Dashboard tidak ditemukan.');
+    const [d] = data.dashboards.splice(i, 1);
+    catatLog(data, 'delete', 'Dashboard Lain', `Dashboard "${d.title}" dihapus`, me, waktu);
   }
 
   function cari(data, q, batas = 50) {
@@ -463,5 +806,10 @@
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     namaTahap, tahapBerikut, ringkasProyek, antreKeputusan, majukan, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupOrang, kolomPapan, bebanOrang, laporan, cari,
+    PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
+    terlibat, belumDibaca, utasDiskusi, JENIS_LOG, saringLog,
+    PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,
+    FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
+    IKON_DASHBOARD, simpanDashboard, hapusDashboard,
   };
 }));

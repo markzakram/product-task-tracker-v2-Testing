@@ -1,17 +1,18 @@
 /* =============================================================================
-   _skema.js — bentuk tab spreadsheet v2, dan cara baris ↔ objek prototipe.
+   _skema.js — bentuk tab spreadsheet v2, dan cara baris ↔ objek aplikasi.
 
    Satu tab per koleksi. Baris 1 berisi judul kolom, data mulai baris 2. Judul
-   kolom sama dengan nama field di prototipe, jadi pemetaannya terbaca sekilas.
+   kolom sama dengan nama field di aplikasi, jadi pemetaannya terbaca sekilas.
 
-   Larik bersarang di task (subtasks, comments, gateLog, evidence) dipecah ke tab
-   sendiri dengan kolom `task`. Larik sederhana (support, deps, components) ditulis
-   dipisah koma dalam satu sel.
+   Larik bersarang dipecah ke tab sendiri dengan kolom induknya:
+     task  → subtasks, comments, tinjauan, evidence   (kolom `task`)
+     paket → package_items, package_links             (kolom `paket`)
+   Larik sederhana (support, deps) ditulis dipisah koma dalam satu sel.
 
-   Waktu (createdAt, updatedAt, at) disimpan sebagai teks ISO supaya terbaca di
-   spreadsheet; di prototipe menjadi milidetik. Semua sel ditulis RAW, jadi tanggal
-   "2026-10-07" tetap teks dan tidak diubah Google menjadi angka seri. Angka seri itu
-   sumber kerumitan terbesar migrasi v1.
+   Waktu (createdAt, updatedAt, selesaiAt, at) disimpan sebagai teks ISO supaya
+   terbaca di spreadsheet; di aplikasi menjadi milidetik. Semua sel ditulis RAW,
+   jadi tanggal "2026-10-07" tetap teks dan tidak diubah Google menjadi angka seri.
+   Angka seri itu sumber kerumitan terbesar migrasi v1.
    ========================================================================== */
 
 const TAB = {
@@ -23,17 +24,23 @@ const TAB = {
   comments: ['id', 'task', 'author', 'text', 'at'],
   tinjauan: ['id', 'task', 'by', 'action', 'note', 'at'],
   evidence: ['id', 'task', 'label', 'url'],
-  packages: ['id', 'platform', 'name', 'type', 'status', 'components', 'note'],
-  bookmarks: ['id', 'folder', 'emoji', 'title', 'url'],
+  packages: ['id', 'platform', 'program', 'namaPaket', 'produkPic', 'dibimbing', 'latsol', 'materi', 'tryout',
+    'drilling', 'liveClass', 'catatan', 'mirror', 'marselPic', 'tagline', 'benefit', 'tanggal', 'tujuan',
+    'updatedBy', 'updatedAt'],
+  package_items: ['id', 'paket', 'urutan', 'kategori', 'grup', 'nama', 'target', 'satuan', 'awal', 'catatan'],
+  package_links: ['id', 'paket', 'urutan', 'label', 'url'],
+  dashboards: ['id', 'title', 'deskripsi', 'icon', 'url'],
+  links: ['id', 'user', 'folder', 'title', 'url'],
+  notes: ['id', 'user', 'folder', 'title', 'body', 'updatedAt'],
   log: ['id', 'type', 'task', 'detail', 'by', 'at'],
 };
-/* Tab bentuk lama (0.2.0). Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
-const USANG = ['gate_log', 'backlog'];
+/* Tab bentuk lama. Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
+const USANG = ['gate_log', 'backlog', 'bookmarks'];
 
-const DAFTAR = new Set(['support', 'deps', 'components']);
-const ANGKA = new Set(['cycle']);
+const DAFTAR = new Set(['support', 'deps']);
+const ANGKA = new Set(['urutan', 'target', 'awal']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
-const BENAR = new Set(['tertahan', 'done', 'arsip']);
+const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror']);
 
 function keSel(kolom, nilai) {
   if (nilai === undefined || nilai === null) return '';
@@ -49,9 +56,13 @@ function dariSel(kolom, sel) {
   const s = sel === undefined || sel === null ? '' : String(sel);
   if (DAFTAR.has(kolom)) return s.split(',').map(x => x.trim()).filter(Boolean);
   if (BENAR.has(kolom)) return /^(ya|true|1|x)$/i.test(s.trim());
-  if (ANGKA.has(kolom)) {
+  if (kolom === 'cycle') {
     const n = parseInt(s, 10);
     return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+  if (ANGKA.has(kolom)) {
+    const n = Number(s.replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
   }
   if (WAKTU.has(kolom)) {
     const t = Date.parse(s);
@@ -73,7 +84,7 @@ function dariBaris(tab, judul, baris) {
   return o;
 }
 
-/* Data prototipe → baris per tab, judul kolom di baris pertama. */
+/* Data aplikasi → baris per tab, judul kolom di baris pertama. */
 function urai(data) {
   const isi = Object.fromEntries(Object.keys(TAB).map(t => [t, []]));
   for (const p of data.projects || []) isi.projects.push(p);
@@ -85,52 +96,50 @@ function urai(data) {
     for (const r of tinjauan) isi.tinjauan.push({ ...r, task: t.id });
     for (const e of evidence) isi.evidence.push({ ...e, task: t.id });
   }
-  for (const p of data.packages || []) isi.packages.push(p);
-  for (const f of data.bookmarks || []) {
-    for (const l of f.links || []) isi.bookmarks.push({ id: l.id, folder: f.name, emoji: f.emoji || '', title: l.title, url: l.url });
+  for (const p of data.packages || []) {
+    const { items = [], links = [], ...inti } = p;
+    isi.packages.push(inti);
+    for (const it of items) isi.package_items.push({ ...it, paket: p.id });
+    for (const l of links) isi.package_links.push({ ...l, paket: p.id });
   }
-  for (const l of data.log || []) isi.log.push(l);
+  for (const k of ['dashboards', 'links', 'notes', 'log']) for (const x of data[k] || []) isi[k].push(x);
   return Object.fromEntries(Object.entries(isi).map(([t, daftar]) => [t, [TAB[t], ...daftar.map(o => keBaris(t, o))]]));
 }
 
-/* Baris per tab → data prototipe, lengkap dengan larik bersarangnya. */
-function rakit(tabs) {
-  const kelompok = daftar => {
-    const m = new Map();
-    for (const r of daftar || []) {
-      if (!m.has(r.task)) m.set(r.task, []);
-      const { task, ...sisa } = r;
-      m.get(task).push(sisa);
-    }
-    return m;
-  };
-  const sub = kelompok(tabs.subtasks), kom = kelompok(tabs.comments);
-  const tj = kelompok(tabs.tinjauan), ev = kelompok(tabs.evidence);
-
-  const tasks = (tabs.tasks || []).map(t => ({
-    ...t,
-    subtasks: sub.get(t.id) || [],
-    comments: kom.get(t.id) || [],
-    tinjauan: tj.get(t.id) || [],
-    evidence: ev.get(t.id) || [],
-  }));
-
-  const folder = new Map();
-  for (const b of tabs.bookmarks || []) {
-    if (!folder.has(b.folder)) folder.set(b.folder, { id: 'f-' + (folder.size + 1), name: b.folder, emoji: b.emoji, links: [] });
-    folder.get(b.folder).links.push({ id: b.id, title: b.title, url: b.url });
+function kelompok(daftar, induk) {
+  const m = new Map();
+  for (const r of daftar || []) {
+    const { [induk]: kunci, ...sisa } = r;
+    if (!m.has(kunci)) m.set(kunci, []);
+    m.get(kunci).push(sisa);
   }
+  return m;
+}
 
+/* Baris per tab → data aplikasi, lengkap dengan larik bersarangnya. */
+function rakit(tabs) {
+  const sub = kelompok(tabs.subtasks, 'task'), kom = kelompok(tabs.comments, 'task');
+  const tj = kelompok(tabs.tinjauan, 'task'), ev = kelompok(tabs.evidence, 'task');
+  const item = kelompok(tabs.package_items, 'paket'), tautan = kelompok(tabs.package_links, 'paket');
+  const urut = daftar => daftar.sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
   return {
     projects: (tabs.projects || []).map(p => ({ ...p, history: [] })),
-    tasks,
-    packages: tabs.packages || [],
-    bookmarks: [...folder.values()],
+    tasks: (tabs.tasks || []).map(t => ({
+      ...t,
+      subtasks: sub.get(t.id) || [],
+      comments: kom.get(t.id) || [],
+      tinjauan: tj.get(t.id) || [],
+      evidence: ev.get(t.id) || [],
+    })),
+    packages: (tabs.packages || []).map(p => ({ ...p, items: urut(item.get(p.id) || []), links: urut(tautan.get(p.id) || []) })),
+    dashboards: tabs.dashboards || [],
+    links: tabs.links || [],
+    notes: tabs.notes || [],
     log: tabs.log || [],
   };
 }
 
-/* Nomor terbesar per awalan ID, supaya ID baru di prototipe tak bertabrakan. */
+/* Nomor terbesar per awalan ID, supaya ID baru di aplikasi tak bertabrakan. */
 function nomorTerbesar(daftar, awalan) {
   let n = 0;
   for (const x of daftar || []) {

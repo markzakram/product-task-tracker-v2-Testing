@@ -44,9 +44,30 @@ function dumpV1() {
       { dibuat_at: '2026-07-02 09:00:00', task_id: 'TSK-099', author: 'Ali', message: 'Data scraping siap', __baris: 3 },
       { dibuat_at: '2026-07-02 09:00:00', task_id: 'COL-999', author: 'Ali', message: 'yatim', __baris: 4 },
     ],
-    packages: [{ paket_id: 'PKG-002', platform: '', program: '', nama_paket: 'PT.KAI_BUMN', latsol: '3 September', materi: '', tryout: '', drilling: '', live_class: '', tujuan: '', catatan: 'DL 23 Sept', mirror: 1, __baris: 2 }],
-    package_items: [{ item_id: 'I1', paket_id: 'PKG-002', kategori: 'Tryout', __baris: 2 }, { item_id: 'I2', paket_id: 'PKG-002', kategori: 'Dibimbing', __baris: 3 }],
-    dashboards: [{ title: 'Proyek Freelance', deskripsi: '', icon: '', url: 'https://contoh.id/freelance', __baris: 2 }, { title: 'Bukan tautan', url: 'tidak ada', __baris: 3 }],
+    packages: [{
+      paket_id: 'PKG-002', platform: '', marsel_pic: 'Alya', program: 'Rekrutmen BUMN', nama_paket: 'PT.KAI_BUMN', tagline: 'Lolos KAI', benefit: '', tanggal: '2026-09-01',
+      tujuan: 'Naikkan konversi', produk_pic: 'Andika', dibimbing: '', latsol: '3 September', materi: '', tryout: '', drilling: '', live_class: '',
+      catatan: 'DL 23 Sept', updated_by: 'Nynda (PM)', updated_at: '2026-10-02 11:35:00', mirror: 1, __baris: 2,
+    }],
+    package_items: [
+      { item_id: 'ITM-2', paket_id: 'PKG-002', urutan: 2, kategori: 'Dibimbing', grup: '', nama: 'Kelas TPA', target: 4, satuan: 'Sesi', awal: 1, catatan: '', __baris: 3 },
+      { item_id: 'ITM-1', paket_id: 'PKG-002', urutan: 1, kategori: 'Tryout', grup: 'Psikologi', nama: 'TO Akbar', target: '2', satuan: '', awal: '', catatan: 'pakai bank lama', __baris: 2 },
+    ],
+    package_links: [
+      { paket_id: 'PKG-002', urutan: 1, label: 'Brief', url: 'https://docs.google.com/document/d/brief', __baris: 2 },
+      { paket_id: 'PKG-002', urutan: 2, label: 'Rusak', url: 'bukan tautan', __baris: 3 },
+    ],
+    dashboards: [
+      { title: 'Proyek Freelance', deskripsi: 'Rekap freelance', icon: 'timeline', url: 'https://contoh.id/freelance', __baris: 2 },
+      { title: 'Bukan tautan', deskripsi: '', icon: '', url: 'tidak ada', __baris: 3 },
+      { title: 'Admin', deskripsi: 'Pass : RAHASIA-DASHBOARD-123 lalu login', icon: 'assignment', url: 'https://contoh.id/admin', __baris: 4 },
+    ],
+    user_links: [
+      { user_nama: 'Ali', title: 'Bank soal', url: 'https://docs.google.com/spreadsheets/d/bank', folder: 'Kerja', __baris: 2 },
+      { user_nama: 'Nynda (PM)', title: '', url: 'https://drive.google.com/drive/x', folder: '', __baris: 3 },
+      { user_nama: 'Arifah', title: 'Di luar organogram', url: 'https://contoh.id/a', folder: '', __baris: 4 },
+      { user_nama: 'Ali', title: 'Rusak', url: 'bukan tautan', folder: '', __baris: 5 },
+    ],
     activity_log: [
       { terjadi_at: '2026-08-27 10:39:00', user_nama: 'Kiki', action: 'Checklist Add', task_id: 'TSK-100', detail: 'QC paket 1', status_lama: '', status_baru: '', __baris: 3 },
       { terjadi_at: '2026-08-26 09:00:00', user_nama: 'Nynda (PM)', action: 'Update Task', task_id: 'TSK-104', detail: 'Kurikulum', status_lama: 'In progress', status_baru: 'Done', __baris: 2 },
@@ -167,13 +188,38 @@ test('ceklis dan komentar ikut ke induknya; yang yatim dihitung, bukan dikarang'
     'ceklis COL-021#2 milik proses 2; yang belum dicentang dipegang PIC prosesnya');
   assert.deepEqual(cari(data, 'PRD-106').comments.map(c => c.text), ['Kick-off'], 'diskusi kolaborasi ditampung di proses pertama');
   assert.deepEqual(cari(data, 'PRD-099').comments.map(c => c.author), ['ali']);
-  assert.deepEqual(ringkasan.dibuang, { ceklisYatim: 1, komentarYatim: 1, logTerpotong: 0 });
+  assert.deepEqual(ringkasan.dibuang, { ceklisYatim: 1, komentarYatim: 1, logTerpotong: 0, linkTanpaProfil: 1 });
 });
 
-test('paket dan bookmark', () => {
-  const { data } = ubah(dumpV1());
-  assert.deepEqual(data.packages, [{ id: 'PKG-002', platform: 'BUMN', name: 'PT.KAI_BUMN', type: 'Premium', status: 'Aktif', components: ['Tryout', 'Latsol', 'Liveclass'], note: 'DL 23 Sept' }]);
-  assert.deepEqual(data.bookmarks, [{ id: 'f-dashboard', name: 'Dashboard tim (v1)', emoji: '', links: [{ id: 'b2', title: 'Proyek Freelance', url: 'https://contoh.id/freelance' }] }]);
+test('rancangan paket dibawa utuh: identitas, produk, area marketing, target urut, tautan sah', () => {
+  const { data, ringkasan } = ubah(dumpV1());
+  const { items, links, ...p } = data.packages[0];
+  assert.deepEqual(p, {
+    id: 'PKG-002', platform: 'BUMN', program: 'Rekrutmen BUMN', namaPaket: 'PT.KAI_BUMN', produkPic: 'andika',
+    dibimbing: '', latsol: '3 September', materi: '', tryout: '', drilling: '', liveClass: '', catatan: 'DL 23 Sept', mirror: true,
+    marselPic: 'alya', tagline: 'Lolos KAI', benefit: '', tanggal: '2026-09-01', tujuan: 'Naikkan konversi',
+    updatedBy: 'nynda', updatedAt: Date.UTC(2026, 9, 2, 4, 35, 0),
+  });
+  assert.deepEqual(items, [
+    { id: 'ITM-1', urutan: 1, kategori: 'Tryout', grup: 'Psikologi', nama: 'TO Akbar', target: 2, satuan: 'Paket', awal: 0, catatan: 'pakai bank lama' },
+    { id: 'ITM-2', urutan: 2, kategori: 'Dibimbing', grup: '', nama: 'Kelas TPA', target: 4, satuan: 'Sesi', awal: 1, catatan: '' },
+  ], 'urut menurut urutan; angka teks jadi angka; satuan kosong → Paket');
+  assert.deepEqual(links, [{ id: 'pl2', urutan: 1, label: 'Brief', url: 'https://docs.google.com/document/d/brief' }]);
+  assert.equal(ringkasan.targetPaket, 2);
+});
+
+test('Dashboard Lain dan Link Saya: hanya tautan sah, Link Saya hanya untuk profil v2', () => {
+  const { data, ringkasan } = ubah(dumpV1());
+  assert.deepEqual(data.dashboards.map(d => [d.id, d.title, d.icon]), [['d2', 'Proyek Freelance', 'timeline'], ['d4', 'Admin', 'assignment']]);
+  assert.equal(data.dashboards[0].deskripsi, 'Rekap freelance');
+  assert.equal(data.dashboards[1].deskripsi, 'Pass : •••• (disembunyikan saat impor) lalu login', 'kata sandi di deskripsi v1 tak ikut ke v2');
+  assert.ok(!JSON.stringify(data).includes('RAHASIA-DASHBOARD-123'));
+  assert.deepEqual(data.links, [
+    { id: 'u2', user: 'ali', folder: 'Kerja', title: 'Bank soal', url: 'https://docs.google.com/spreadsheets/d/bank' },
+    { id: 'u3', user: 'nynda', folder: '', title: 'Google Drive', url: 'https://drive.google.com/drive/x' },
+  ]);
+  assert.deepEqual([ringkasan.dashboard, ringkasan.link, ringkasan.dibuang.linkTanpaProfil], [2, 2, 1]);
+  assert.deepEqual(data.notes, [], 'Catatan Saya mulai kosong');
 });
 
 test('riwayat: terbaru dulu, jenis & label dipetakan, task yang dihapus tetap terbaca', () => {
@@ -198,7 +244,7 @@ test('riwayat dipotong di 1000 terbaru', () => {
 
 test('PIN, catatan pribadi, dan notifikasi v1 tidak terbawa sama sekali', () => {
   const { data } = ubah(dumpV1());
-  assert.deepEqual(Object.keys(data), ['projects', 'tasks', 'packages', 'bookmarks', 'log']);
+  assert.deepEqual(Object.keys(data), ['projects', 'tasks', 'packages', 'dashboards', 'links', 'notes', 'log']);
   const semua = JSON.stringify(data);
   for (const rahasia of ['HASH-RAHASIA-JANGAN-BOCOR', 'CATATAN-PRIBADI-JANGAN-BOCOR', 'NOTIF-PRIBADI-JANGAN-BOCOR']) {
     assert.ok(!semua.includes(rahasia), rahasia);

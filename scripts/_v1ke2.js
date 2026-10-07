@@ -16,12 +16,14 @@
    Semua keputusan pemetaan ada di tabel-tabel di bawah. Ubah tabelnya, cek dengan
    `npm run impor:v1 -- --kering`, lalu impor ulang.
 
+   Yang ikut dibawa selain task: rancangan paket beserta target dan tautannya, dan
+   Dashboard Lain. Link Saya (user_links) dipetakan bila diberikan, tapi impor-v1.js
+   hanya memberikannya dengan --dengan-link: di v1 link itu terlindung PIN pribadi.
+
    Yang SENGAJA tidak dibawa dari v1:
      auth_pins       hash PIN — kredensial tak pernah dijadikan data contoh
-     user_notes      catatan pribadi
-     user_links      tautan pribadi tiap orang (dashboard tim tetap dibawa)
+     user_notes      catatan pribadi; Catatan Saya di v2 mulai kosong
      notifications   kotak masuk pribadi
-     package_items   rincian target per paket; v2 hanya mengenal komponen paket
      users, options  v2 memakai organogram di public/inti.js
    ========================================================================== */
 
@@ -87,9 +89,6 @@ const STATUS = { 'done': 'Selesai', 'in progress': 'Dikerjakan', 'todo': 'Antre'
 const TINJAUAN = { 'done': ['Disetujui', 'Ditandai selesai di v1'], 'review pm': ['Diajukan', 'Diajukan ke Review PM di v1'], 'revisi': ['Dikembalikan', 'Dikembalikan untuk revisi di v1'] };
 const PRIORITAS = { 'urgent': 'Urgent', 'high': 'High', 'normal': 'Normal', 'low': 'Low' };
 
-const KOMPONEN = ['Tryout', 'Latsol', 'Materi', 'Liveclass', 'Drilling', 'Psikotes', 'E-book'];
-const KATEGORI_KOMPONEN = { 'tryout': 'Tryout', 'latsol': 'Latsol', 'materi': 'Materi', 'dibimbing': 'Liveclass', 'drilling': 'Drilling', 'live class': 'Liveclass' };
-
 const LOG_JENIS = {
   'create task': 'create', 'collab create': 'create',
   'delete task': 'delete', 'collab delete': 'delete',
@@ -112,6 +111,10 @@ const tautanSah = u => /^https?:\/\/\S+$/i.test(teks(u));
 /* "PT.KAI_BUMN" → "PT KAI BUMN". Garis bawah termasuk karakter kata bagi regex, jadi
    tanpa ini \bkai\b tak pernah cocok di nama paket dan proyek v1. */
 const judulBersih = s => teks(s).replace(/[_.]+/g, ' ');
+/* Kata sandi yang terlanjur ditulis di deskripsi v1 ("Pass : …") tidak ikut ke v2:
+   data contoh dibuka siapa pun yang tahu PIN bersama. */
+const SANDI = /\b(pass(?:word)?|pwd|sandi|kata sandi|pin)(\s*[:=]\s*)\S+/gi;
+const sensor = s => teks(s).replace(SANDI, '$1$2•••• (disembunyikan saat impor)');
 
 /* Stempel v1 tertulis dalam WIB tanpa zona: "2026-08-31 15:01:49". */
 function waktu(s) {
@@ -276,25 +279,32 @@ function proyekDariV1(c, langkah, idBaru, idTask) {
   return { project, tasks };
 }
 
-function paketDariV1(p, items) {
+/* Rancangan paket v1 dibawa utuh, termasuk target per komponen (package_items).
+   Area marketing (tagline, benefit, tanggal, tujuan) ikut disimpan walau tak
+   ditampilkan — sama dengan v1 — supaya datanya tak hilang. */
+function paketDariV1(p, items, links) {
   const nama = teks(p.nama_paket) || teks(p.program) || p.paket_id;
-  const komp = new Set(items.map(i => KATEGORI_KOMPONEN[kecil(i.kategori)]).filter(Boolean));
-  for (const [kolom, k] of [['tryout', 'Tryout'], ['latsol', 'Latsol'], ['materi', 'Materi'], ['live_class', 'Liveclass'], ['drilling', 'Drilling']]) {
-    if (teks(p[kolom])) komp.add(k);
-  }
-  if (/psikotes/i.test(nama)) komp.add('Psikotes');
+  const angka = v => { const n = Number(String(v == null ? '' : v).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
   return {
-    id: p.paket_id, platform: platformV2(p.platform, nama).nilai, name: nama, type: 'Premium',
-    status: Number(p.mirror) === 1 ? 'Aktif' : 'Draft',
-    components: KOMPONEN.filter(k => komp.has(k)),
-    note: [teks(p.tujuan), teks(p.catatan)].filter(Boolean).join('\n\n'),
+    id: p.paket_id, platform: platformV2(p.platform, nama).nilai,
+    program: teks(p.program), namaPaket: teks(p.nama_paket), produkPic: idOrang(p.produk_pic),
+    dibimbing: teks(p.dibimbing), latsol: teks(p.latsol), materi: teks(p.materi), tryout: teks(p.tryout),
+    drilling: teks(p.drilling), liveClass: teks(p.live_class), catatan: teks(p.catatan),
+    mirror: Number(p.mirror) === 1 || /^(true|ya)$/i.test(teks(p.mirror)),
+    marselPic: idOrang(p.marsel_pic), tagline: teks(p.tagline), benefit: teks(p.benefit), tanggal: tanggal(p.tanggal), tujuan: teks(p.tujuan),
+    updatedBy: idOrang(p.updated_by), updatedAt: waktu(p.updated_at),
+    items: items.map(i => ({
+      id: teks(i.item_id) || 'i' + i.__baris, urutan: angka(i.urutan), kategori: teks(i.kategori), grup: teks(i.grup),
+      nama: teks(i.nama), target: angka(i.target), satuan: teks(i.satuan) || 'Paket', awal: angka(i.awal), catatan: teks(i.catatan),
+    })).sort((a, b) => a.urutan - b.urutan),
+    links: links.filter(l => tautanSah(l.url)).map(l => ({ id: 'pl' + l.__baris, urutan: angka(l.urutan), label: teks(l.label) || labelTautan(l.url), url: teks(l.url) })),
   };
 }
 
 /* ---------- Utama ------------------------------------------------------- */
 
 function ubah(d) {
-  const dibuang = { ceklisYatim: 0, komentarYatim: 0, logTerpotong: 0 };
+  const dibuang = { ceklisYatim: 0, komentarYatim: 0, logTerpotong: 0, linkTanpaProfil: 0 };
   const idTask = new Map();     // 'TSK-099' → 'PRD-099', 'COL-021#3' → 'PRD-7xx'
   const proyekV1 = new Map();   // 'COL-021' → proyek PRJ-21
   const langkahPertama = new Map();
@@ -349,13 +359,20 @@ function ubah(d) {
   }
   for (const t of tasks) t.comments.sort((a, b) => a.at - b.at);
 
-  // 5) Paket, dan dashboard tim sebagai satu folder bookmark.
+  // 5) Rancangan paket (dengan target & tautannya), Dashboard Lain, Link Saya.
   const itemPer = kelompok(d.package_items, i => i.paket_id);
-  const packages = (d.packages || []).map(p => paketDariV1(p, itemPer.get(p.paket_id) || []));
-  const dashboards = (d.dashboards || []).filter(x => tautanSah(x.url));
-  const bookmarks = dashboards.length
-    ? [{ id: 'f-dashboard', name: 'Dashboard tim (v1)', emoji: '', links: dashboards.map(x => ({ id: 'b' + x.__baris, title: teks(x.title), url: teks(x.url) })) }]
-    : [];
+  const tautanPer = kelompok(d.package_links, l => l.paket_id);
+  const packages = (d.packages || []).map(p => paketDariV1(p, itemPer.get(p.paket_id) || [], tautanPer.get(p.paket_id) || []));
+  const dashboards = (d.dashboards || []).filter(x => tautanSah(x.url))
+    .map(x => ({ id: 'd' + x.__baris, title: sensor(x.title), deskripsi: sensor(x.deskripsi), icon: teks(x.icon), url: teks(x.url) }));
+  /* Link Saya hanya untuk orang yang punya profil di v2; selain itu tak ada yang bisa melihatnya. */
+  const links = [];
+  for (const l of d.user_links || []) {
+    const user = idOrang(l.user_nama);
+    if (!tautanSah(l.url)) continue;
+    if (!ORANG_V2.has(user)) { dibuang.linkTanpaProfil++; continue; }
+    links.push({ id: 'u' + l.__baris, user, folder: teks(l.folder), title: sensor(l.title) || labelTautan(l.url), url: teks(l.url) });
+  }
 
   // 6) Riwayat aktivitas: yang terbaru saja, sebanyak yang disimpan aplikasi.
   const label = idV1 => {
@@ -388,7 +405,7 @@ function ubah(d) {
   const hitung = kunci => tasks.reduce((n, t) => n + t[kunci].length, 0);
   const aktif = tasks.filter(t => t.status !== 'Selesai');
   return {
-    data: { projects, tasks, packages, bookmarks, log },
+    data: { projects, tasks, packages, dashboards, links, notes: [], log },
     ringkasan: {
       taskV1: (d.tasks || []).length,
       langkahJadiTask: jumlahLangkah,
@@ -402,7 +419,9 @@ function ubah(d) {
       tinjauan: hitung('tinjauan'),
       evidence: hitung('evidence'),
       paket: packages.length,
-      bookmark: dashboards.length,
+      targetPaket: packages.reduce((n, p) => n + p.items.length, 0),
+      dashboard: dashboards.length,
+      link: links.length,
       log: log.length,
       dibuang,
     },

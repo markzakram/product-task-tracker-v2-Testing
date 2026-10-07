@@ -165,7 +165,7 @@ test('muatContoh: perlu sesi, lalu mengembalikan data contoh utuh', async () => 
   await sheet.tulisContoh(p.k, ID, urai({
     projects: [{ id: 'PRJ-21', name: 'KAI', platform: 'BUMN', stage: 'V', cycle: 1, decision: 'Build', goal: '' }],
     tasks: [{ id: 'PRD-099', project: 'PRJ-21', title: 'Riset', platform: 'BUMN', stage: 'A', sub: 'Market analysis', pic: 'andika', support: [], status: 'Done', gate: 'Lolos', deps: [], output: '', cycle: 1, createdAt: 1, updatedAt: 1 }],
-    packages: [], bookmarks: [], log: [],
+    packages: [{ id: 'PKG-011', platform: 'BUMN', namaPaket: 'KAI', items: [], links: [] }], dashboards: [], links: [], notes: [], log: [],
   }), { sumber: 'uji' });
 
   assert.equal((await panggil({ body: { action: 'muatContoh' } })).status, 401);
@@ -174,7 +174,7 @@ test('muatContoh: perlu sesi, lalu mengembalikan data contoh utuh', async () => 
   assert.equal(r.json.sumber, 'uji');
   assert.equal(r.json.data.tasks[0].id, 'PRD-099');
   assert.deepEqual(r.json.data.tasks[0].subtasks, []);
-  assert.deepEqual(r.json.seq, { task: 99, prj: 21 });
+  assert.deepEqual(r.json.seq, { task: 99, prj: 21, pkg: 11 });
 });
 
 test('muatContoh sebelum ada impor: data null, bukan galat', async () => {

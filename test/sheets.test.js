@@ -263,8 +263,19 @@ const contoh = () => ({
       subtasks: [], comments: [], tinjauan: [], evidence: [],
     },
   ],
-  packages: [{ id: 'PKG-002', platform: 'BUMN', name: 'PT.KAI_BUMN', type: 'Premium', status: 'Aktif', components: ['Tryout', 'Latsol'], note: '' }],
-  bookmarks: [{ id: 'f-1', name: 'Dashboard tim (v1)', emoji: '', links: [{ id: 'b2', title: 'Proyek Freelance', url: 'https://contoh.id/a' }] }],
+  packages: [{
+    id: 'PKG-002', platform: 'BUMN', program: 'Rekrutmen BUMN', namaPaket: 'PT.KAI_BUMN', produkPic: 'andika',
+    dibimbing: '', latsol: '3 September', materi: '', tryout: '2 TO', drilling: '', liveClass: '', catatan: 'DL 23 Sept', mirror: true,
+    marselPic: 'alya', tagline: '', benefit: '', tanggal: '2026-09-01', tujuan: '', updatedBy: 'nynda', updatedAt: Date.parse('2026-10-02T04:35:00Z'),
+    items: [
+      { id: 'ITM-1', urutan: 1, kategori: 'Tryout', grup: 'Psikologi', nama: 'TO Akbar', target: 2, satuan: 'Paket', awal: 0, catatan: '' },
+      { id: 'ITM-2', urutan: 2, kategori: 'Dibimbing', grup: '', nama: 'Kelas TPA', target: 4.5, satuan: 'Sesi', awal: 1, catatan: 'dua sesi daring' },
+    ],
+    links: [{ id: 'pl2', urutan: 1, label: 'Brief', url: 'https://docs.google.com/document/d/brief' }],
+  }],
+  dashboards: [{ id: 'd2', title: 'Proyek Freelance', deskripsi: 'Rekap', icon: 'timeline', url: 'https://contoh.id/a' }],
+  links: [{ id: 'u2', user: 'ali', folder: 'Kerja', title: 'Bank soal', url: 'https://contoh.id/bank' }],
+  notes: [{ id: 'n1', user: 'ali', folder: '', title: 'Ide', body: 'Baris satu\nBaris dua',updatedAt: Date.parse('2026-10-07T03:00:00Z') }],
   log: [{ id: 'l1', type: 'create', task: 'PRD-001 · Task lepas', detail: 'Dibuat', by: 'andika', at: Date.parse('2026-07-01T01:00:00Z') }],
 });
 
@@ -280,9 +291,11 @@ test('tulisContoh lalu bacaContoh mengembalikan data yang sama persis', async ()
   assert.deepEqual(baca.data.tasks, asli.tasks);
   assert.deepEqual(baca.data.projects, asli.projects);
   assert.deepEqual(baca.data.packages, asli.packages);
-  assert.deepEqual(baca.data.bookmarks, asli.bookmarks);
+  assert.deepEqual(baca.data.dashboards, asli.dashboards);
+  assert.deepEqual(baca.data.links, asli.links);
+  assert.deepEqual(baca.data.notes, asli.notes);
   assert.deepEqual(baca.data.log, asli.log);
-  assert.deepEqual(baca.seq, { task: 646, prj: 3 });
+  assert.deepEqual(baca.seq, { task: 646, prj: 3, pkg: 2 });
 });
 
 test('spreadsheet kosong disiapkan dulu: penanda v2 ikut terpasang', async () => {
@@ -332,17 +345,20 @@ test('kolom yang digeser orang di spreadsheet tetap terbaca benar', async () => 
   assert.deepEqual((await sheet.bacaContoh(k, ID)).data.packages, contoh().packages);
 });
 
-test('impor ulang membuang tab bentuk lama (gate_log, backlog) yang tertinggal', async () => {
+test('impor ulang membuang tab bentuk lama (gate_log, backlog, bookmarks) yang tertinggal', async () => {
   const { k, tab } = kosong();
   await sheet.siapkan(k, ID);
   await k.api.spreadsheets.batchUpdate({ spreadsheetId: ID, requestBody: { requests: [
     { addSheet: { properties: { sheetId: 501, title: 'gate_log' } } },
     { addSheet: { properties: { sheetId: 502, title: 'backlog' } } },
+    { addSheet: { properties: { sheetId: 503, title: 'bookmarks' } } },
   ] } });
   await sheet.tulisContoh(k, ID, urai(contoh()));
   assert.equal(tab('gate_log'), undefined);
   assert.equal(tab('backlog'), undefined);
+  assert.equal(tab('bookmarks'), undefined);
   assert.ok(tab('tinjauan'));
+  assert.ok(tab('package_items'));
 });
 
 test('tanda ya/tidak tersimpan sebagai "ya" atau kosong, dan terbaca kembali sebagai boolean', async () => {

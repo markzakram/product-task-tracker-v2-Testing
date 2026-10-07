@@ -16,7 +16,7 @@ function task(o) {
   };
 }
 const proyek = o => ({ id: 'PRJ-1', name: 'Paket Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', history: [], ...o });
-const data = (tasks, projects = []) => ({ tasks, projects, log: [], packages: [], bookmarks: [] });
+const data = (tasks, projects = []) => ({ tasks, projects, log: [], packages: [], dashboards: [], links: [], notes: [] });
 
 test.beforeEach(() => { n = 0; });
 
@@ -215,4 +215,25 @@ test('proyek arsip tak masuk antrean keputusan; task rutin bawaan Review PM diti
   const r = task({ lane: 'rutin', status: 'Ditinjau', pic: 'kiki' });
   assert.equal(I.peninjau(r), 'nynda');
   assert.equal(I.peninjau({ ...r, status: 'Dikerjakan' }), null);
+});
+
+test('target paket: status dihitung dari target dan yang sudah ada, kelebihan tetap terlihat', () => {
+  assert.deepEqual(I.hitungTarget({ target: 5, awal: 0 }), { target: 5, terpenuhi: 0, sisa: 5, lebih: 0, status: 'belum' });
+  assert.equal(I.hitungTarget({ target: 5, awal: 2 }).status, 'sebagian');
+  assert.equal(I.hitungTarget({ target: 5, awal: 5 }).status, 'penuh');
+  assert.deepEqual(I.hitungTarget({ target: 5, awal: 7 }), { target: 5, terpenuhi: 7, sisa: 0, lebih: 2, status: 'lebih' });
+  const r = I.ringkasPaket({ items: [{ target: 5, awal: 5 }, { target: 10, awal: 4 }, { target: 2, awal: 3 }], latsol: 'DL 28 Sept', tryout: '' });
+  assert.deepEqual([r.target, r.terpenuhi, r.sisa, r.penuh, r.lebih, r.kurang, r.isiProduk], [17, 11, 6, 1, 1, 1, 1],
+    'kelebihan tak menambah persentase di atas target');
+});
+
+test('paket: Lead/Manager menyusun, PIC Produk menyunting paketnya, staff lain tidak', () => {
+  const d = data([]);
+  d.packages = [];
+  const p = I.paketBaru(d, { namaPaket: 'PCPM Tahap III', platform: 'PCPM', produkPic: 'kiki' }, 'alya', WAKTU);
+  assert.deepEqual([p.id, p.namaPaket, p.mirror], ['PKG-001', 'PCPM Tahap III', false]);
+  assert.throws(() => I.paketBaru(d, { namaPaket: 'x' }, 'kiki', WAKTU), /Hanya Lead atau Manager/);
+  assert.equal(I.bolehUbahPaket(p, 'kiki'), true);
+  assert.equal(I.bolehUbahPaket(p, 'bilar'), false);
+  assert.equal(I.bolehUbahPaket(p, 'andika'), true);
 });

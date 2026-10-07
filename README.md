@@ -22,9 +22,20 @@ Data tetap di Google Spreadsheet dan deploy tetap di Vercel, tetapi semuanya mil
 
 ## Alur v2
 
-Satu aplikasi dengan menu **Hari Ini · Papan · Proyek · Laporan**. PIN dipakai bersama, jadi
-setelah masuk setiap orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan
-Lead mulai di **Hari Ini**, Manager di **Proyek**.
+Satu aplikasi dengan sidebar kiri seperti v1. PIN dipakai bersama, jadi setelah masuk setiap
+orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan Lead mulai di
+**Hari Ini**, Manager di **Proyek ADDIE**.
+
+| Grup | Halaman |
+|---|---|
+| Ringkasan | Hari Ini · Dashboard · Dashboard Lain · Laporan (Lead & Manager) |
+| Task | Kanban · Task List · Timeline · Kalender |
+| Kolaborasi | Proyek ADDIE · Rancangan Paket · Komunikasi |
+| Ruang Saya | Link Saya · Catatan Saya |
+| Manajer | Riwayat Aktivitas (Manager) |
+
+Di ponsel sidebar menjadi laci (tombol ☰), ditambah bilah bawah: Hari Ini, Kanban, Proyek,
+Komunikasi, Menu.
 
 - **Empat status:** Antre → Dikerjakan → Ditinjau → Selesai. **Tertahan** adalah tanda yang
   disertai alasan, bukan status.
@@ -38,14 +49,31 @@ Lead mulai di **Hari Ini**, Manager di **Proyek**.
   Analysis dengan siklus baru.
 - **Staff** menerima task dari Lead dan boleh memegang task rutin langsung. Staff tidak membuat task.
 
-Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/inti.test.js`.
-Tampilan (`public/app.js`) hanya meneruskan klik ke aturan itu.
+Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/inti.test.js` dan
+`test/fitur.test.js`. Tampilan (`public/app.js`) hanya meneruskan klik ke aturan itu.
+
+Halaman pendukung, setara v1:
+
+- **Rancangan Paket**: identitas paket, teks per kategori (Dibimbing, Latsol, Materi, Tryout,
+  Drilling, Live Class), target per kategori (sudah ada / target / satuan, status dihitung:
+  terpenuhi, kurang, lebih), tautan, dan **Salin ke sheet Marsel** (susunan kolom sheet Master).
+  Lead & Manager membuat paket; PIC Produk boleh menyunting paketnya; membagikan ke Lintas
+  Divisi hanya Lead/Manager; menghapus hanya Manager.
+- **Link Saya** dan **Catatan Saya**: per profil, berfolder (folder kosong = Umum), cari,
+  ganti nama/hapus folder (isinya pindah ke Umum). Link Saya mengangkat 6 link yang paling
+  sering dibuka di perangkat itu.
+- **Dashboard Lain**: kartu tautan dashboard tim; dikelola Manager.
+- **Komunikasi**: utas diskusi per task, yang belum dibaca di atas; lencana di sidebar.
+- **Laporan**: ringkasan berkala (minggu ini, minggu lalu, bulan ini, 30 hari) per orang, bisa
+  disalin sebagai teks untuk chat atau email.
+- **Task List** (saring, urutkan, ekspor CSV), **Timeline** (5 minggu), **Kalender** (tenggat
+  per hari), **Riwayat Aktivitas** (saring jenis, orang, kata).
 
 ## Isi
 
 ```
 public/index.html     kerangka halaman (layar PIN, pilih profil, aplikasi)
-public/app.js         tampilan: Hari Ini, Papan, Proyek, Laporan, detail task, formulir
+public/app.js         tampilan: sidebar, semua halaman, detail task, formulir
 public/app.css        gaya tampilan, warna dari logo ProductTrack
 public/inti.js        aturan alur v2, dipakai browser dan tes
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
@@ -177,10 +205,20 @@ selama versinya sama, suntingan di browser itu dibiarkan.
 | Review PM / Revisi | Ditinjau / Dikerjakan (riwayat tinjauan: Diajukan / Dikembalikan) |
 | Hold | Antre + tanda **tertahan** |
 | `status_by` v1 | riwayat tinjauan (siapa dan kapan), hanya kalau tercatat |
-| Paket & dashboard tim | disimpan di spreadsheet; belum punya tampilan di v2 |
+| Rancangan paket | paket utuh: identitas, teks per kategori, target (`package_items`), tautan, tanda dibagikan |
+| Dashboard tim | Dashboard Lain. Kata sandi yang tertulis di deskripsinya ("Pass : …") disensor saat impor |
+| Link Saya | **tidak dibawa** kecuali `--dengan-link` (lihat di bawah) |
 | Riwayat aktivitas | 1000 terbaru |
 
-**Tidak dibawa:** hash PIN, catatan dan tautan pribadi, notifikasi, serta rincian target paket.
+**Tidak dibawa:** hash PIN, catatan pribadi, notifikasi, dan (bawaannya) Link Saya.
+
+Link Saya di v1 hanya terlihat oleh pemiliknya karena PIN-nya per orang. Di v2 PIN-nya bersama
+dan profil dipilih sendiri, jadi siapa pun yang memegang PIN bisa membuka Link Saya orang lain.
+Bawa hanya kalau pemilik link-nya setuju:
+
+```bash
+npm run impor:v1 -- --dengan-link
+```
 
 Untuk mengubah pemetaan, sunting tabelnya, cek dengan `--kering`, lalu impor ulang.
 
@@ -198,14 +236,19 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 ## Batasan yang disadari
 
 - **Suntingan belum tersimpan ke spreadsheet.** Data contoh dimuat dari server, tetapi yang
-  diubah orang (status, tinjauan, sub-task, komentar, gate proyek) tersimpan di browser
-  masing-masing (localStorage). Menu profil → **Muat ulang data contoh** mengembalikannya.
+  diubah orang (status, tinjauan, sub-task, komentar, gate proyek, paket, link, catatan)
+  tersimpan di browser masing-masing (localStorage). Tombol ↻ di kaki sidebar (**Muat ulang
+  data contoh**) mengembalikannya. Karena itu Komunikasi dan Catatan Saya belum terbagi
+  antarperangkat.
 - **Profil dipilih sendiri** karena PIN dipakai bersama. Siapa pun bisa masuk sebagai Manager.
 - **Belum ada penyaringan per peran.** v1 menyaring data di server untuk magang dan Lintas
   Divisi; v2 belum. Siapa pun yang tahu PIN v2 melihat seluruh data contoh, jadi jangan
   bagikan PIN v2 ke magang atau Lintas Divisi.
-- Rancangan paket, bookmark, dan catatan pribadi belum punya tampilan. Task belum bisa dihapus.
-- Seret-lepas kartu di Papan hanya di desktop; di ponsel status diubah lewat detail task.
+- Task belum bisa dihapus. Dropdown Master v1 belum ada: pilihan platform & kategori masih tetap
+  di kode.
+- Setoran target paket dari proses kolaborasi (v1: `package_contribs`) belum ada; "sudah ada"
+  diisi tangan.
+- Seret-lepas kartu di Kanban hanya di desktop; di ponsel status diubah lewat detail task.
 - **Tebakan PIN hanya diperlambat** (jeda ±0,7 detik per PIN salah), belum dibatasi lajunya.
   Pakai PIN yang panjang.
 - Gerbang yang belum disetel berarti **tertutup**. Ini berbeda dengan v1, yang terbuka kalau
@@ -216,6 +259,7 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 1. Simpan suntingan ke spreadsheet: aksi tulis di `/api/rpc` di atas tab yang sudah ada
    (`api/_skema.js`), menggantikan localStorage. Aturan alurnya sudah ada di `public/inti.js`
    dan bisa dipakai juga di server.
-2. Tampilan rancangan paket dan bookmark.
-3. Login per orang, supaya profil berasal dari login dan data bisa disaring per peran.
+2. Login per orang, supaya profil berasal dari login, data bisa disaring per peran, dan Link
+   Saya kembali pribadi.
+3. Dropdown Master.
 4. Setelah matang: pindah ke GitLab (salin isi CI ke `.gitlab-ci.yml`).

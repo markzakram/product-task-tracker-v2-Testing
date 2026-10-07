@@ -1,5 +1,27 @@
 # Changelog — ProductTrack v2
 
+## 0.4.0 — Sidebar seperti v1 + halaman yang belum ada (2026-10-07)
+
+- Menu pindah dari bilah atas ke **sidebar kiri**, dikelompokkan seperti v1: Ringkasan (Hari Ini,
+  Dashboard, Dashboard Lain, Laporan), Task (Kanban, Task List, Timeline, Kalender), Kolaborasi
+  (Proyek ADDIE, Rancangan Paket, Komunikasi), Ruang Saya (Link Saya, Catatan Saya), Manajer
+  (Riwayat Aktivitas). Profil, muat ulang, dan keluar ada di kaki sidebar. Di ponsel sidebar
+  menjadi laci, plus bilah bawah.
+- Halaman baru: **Rancangan Paket** (lihat, sunting, target per kategori, salin ke sheet Marsel),
+  **Link Saya**, **Catatan Saya**, **Dashboard Lain**, **Komunikasi** (utas per task dengan tanda
+  belum dibaca), **Laporan** berkala per orang, **Task List**, **Timeline**, **Kalender**,
+  **Riwayat Aktivitas**.
+- Halaman "Papan" kini bernama **Kanban**; angka-angka "Laporan" lama kini **Dashboard** (bisa per
+  saya / tim / divisi). Halaman yang tersimpan di browser ikut dipindahkan.
+- Bentuk tab spreadsheet: `packages` membawa paket v1 utuh, ditambah `package_items`,
+  `package_links`, `dashboards`, `links`, `notes`. Tab `bookmarks` dihapus saat impor ulang.
+  **Perlu `npm run impor:v1` lagi**; versi sebelumnya tak bisa membaca bentuk baru ini.
+- Impor v1: kata sandi yang tertulis di deskripsi dashboard v1 disensor. Link Saya v1 tidak
+  dibawa kecuali dengan `--dengan-link`, karena di v2 PIN-nya bersama.
+- Layar PIN: kalau PIN benar tetapi data gagal dimuat, isian PIN tidak muncul lagi. Yang tampil
+  "PIN diterima, tetapi data gagal dimuat" beserta alasannya dan tombol **Coba lagi**.
+  Sebelumnya galat itu tampil di atas isian PIN, sehingga terbaca seperti PIN ditolak.
+
 ## 0.3.0 — Tampilan & alur baru (2026-10-07)
 
 - Prototipe lama diganti aplikasi baru dengan menu **Hari Ini · Papan · Proyek · Laporan**, sesuai

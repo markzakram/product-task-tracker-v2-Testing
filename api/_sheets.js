@@ -359,6 +359,7 @@ async function bacaContoh(k, id) {
     seq: {
       task: nomorTerbesar(data.tasks, 'PRD'),
       prj: nomorTerbesar(data.projects, 'PRJ'),
+      pkg: nomorTerbesar(data.packages, 'PKG'),
     },
   };
 }

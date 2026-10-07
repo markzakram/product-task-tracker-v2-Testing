@@ -27,16 +27,24 @@
       </label>
       <p id="kunci-galat" class="pesan-galat" role="alert" hidden></p>
       <button id="kunci-tombol" class="tombol utama lebar" hidden>Masuk</button>
+      <!-- PIN sudah benar tapi data gagal dimuat: jangan tampilkan isian PIN lagi, supaya
+           tak terbaca sebagai "PIN salah". -->
+      <button id="kunci-ulang" type="button" class="tombol utama lebar" data-aksi="coba-muat" hidden>Coba lagi</button>
     </form>
   </div>
 
   <!-- Pilih profil: dengan PIN bersama, peran dipilih sendiri -->
   <div id="profil" class="layar" hidden></div>
 
-  <div id="app" hidden>
-    <header class="kepala" id="kepala"></header>
-    <main id="isi" class="isi"></main>
-    <nav class="nav-bawah" id="nav-bawah" aria-label="Menu utama"></nav>
+  <!-- Kerangka seperti v1: sidebar kiri (laci di ponsel) + isi halaman. -->
+  <div id="app" class="kerangka" hidden>
+    <aside id="samping" class="samping" aria-label="Navigasi"></aside>
+    <div id="samping-latar" class="samping-latar" data-aksi="tutup-nav" hidden></div>
+    <div class="wadah-isi">
+      <header class="kepala" id="kepala"></header>
+      <main id="isi" class="isi"></main>
+    </div>
+    <nav class="nav-bawah" id="nav-bawah" aria-label="Menu cepat"></nav>
     <button type="button" class="fab" id="fab" data-aksi="tambah-task" aria-label="Tambah task" hidden>
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
     </button>
