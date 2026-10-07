@@ -201,7 +201,7 @@ Selain Vercel, app bisa jalan di GCP Cloud Run lewat `.gitlab-ci.yml` (pola sama
 
 | Pemicu | Build | Deploy | `APP_ENV` |
 |---|---|---|---|
-| push ke `main` | manual | manual | `production` |
+| tag git | manual | manual | `production` |
 
 Job dev & staging ada di config tapi sementara dinonaktifkan (berawalan titik).
 

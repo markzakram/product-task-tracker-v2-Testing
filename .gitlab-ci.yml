@@ -4,7 +4,7 @@
 #  Tes jalan otomatis tiap push. Build/deploy meniru pola backend-vitri:
 #    branch dev     → build manual → deploy dev     (APP_ENV=development)
 #    branch staging → build manual → deploy staging (APP_ENV=preview)
-#    branch main    → build manual → deploy prod manual (APP_ENV=production)
+#    tag git        → build manual → deploy prod manual (APP_ENV=production)
 #  (dev & staging sementara dinonaktifkan — lihat BUILD PHASE)
 #  Variabel CI yang perlu diset ada di README bagian "Deploy ke Cloud Run".
 #
@@ -119,7 +119,7 @@ test:
 
 .prod-rules:
   only:
-    - main
+    - tags
   when: manual
 
 ### BUILD APP TEMPLATES
@@ -219,7 +219,7 @@ test:
 
 ### BUILD PHASE
 # Dev & staging DINONAKTIFKAN sementara: job berawalan titik tak dijalankan GitLab.
-# Hapus titiknya untuk mengaktifkan lagi. Untuk sekarang hanya prod (dari branch main).
+# Hapus titiknya untuk mengaktifkan lagi. Untuk sekarang hanya prod (dari tag git).
 .build-app-dev:
   extends:
     - .build-app-template
@@ -242,7 +242,7 @@ build-app-prod:
     - .prod-rules
   variables:
     DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
-    IMAGE_TAG: "$CI_COMMIT_SHA"
+    IMAGE_TAG: "$CI_COMMIT_TAG"
 
 ### DEPLOY PHASE
 .deploy-dev:
@@ -289,7 +289,7 @@ deploy-prod:
     GCP_PROJECT_ID: "${GCP_PROJECT}"
     CLOUD_RUN_REGION: "asia-southeast2"
     DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
-    IMAGE_TAG: "$CI_COMMIT_SHA"
+    IMAGE_TAG: "$CI_COMMIT_TAG"
     DEPLOYMENT_NAME: "product-task-tracker"
     INGRESS: "all"
     APP_ENV: "production"
