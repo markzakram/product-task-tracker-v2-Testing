@@ -208,7 +208,7 @@ Job dev & staging ada di config tapi sementara dinonaktifkan (berawalan titik).
 **Variabel CI** — cukup yang sudah ada di level group: `SERVICE_ACCOUNT_KEY`, `GCP_REGISTRY_URL`,
 `GCP_PROJECT`, `GCP_PROJECT_DEV`. Opsional: `DISCORD_WEBHOOK_URL` (kalau kosong, notifikasi dilewati).
 Image: `asia-southeast1-docker.pkg.dev/<GCP_PROJECT>/cerebrum-internal-project/product-task-tracker-{dev,stg,prod}`.
-Service Cloud Run: `dev-product-task-tracker`, `stg-product-task-tracker`, `product-task-tracker`
+Service Cloud Run: `dev-product-task-tracker-service`, `stg-product-task-tracker-service`, `product-task-tracker-service`
 (region `asia-southeast2`, service account default Cloud Run).
 
 **Env aplikasi** (`SPREADSHEET_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `DATA_SOURCE`, `MYSQL_*`, PIN, dst. —

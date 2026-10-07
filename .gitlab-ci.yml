@@ -248,7 +248,7 @@ build-app-prod:
     CLOUD_RUN_REGION: "asia-southeast2"
     DOCKER_IMAGE_TAG: "${IMAGE_BASE}-dev"
     IMAGE_TAG: "$CI_COMMIT_SHA"
-    DEPLOYMENT_NAME: "dev-product-task-tracker"
+    DEPLOYMENT_NAME: "dev-product-task-tracker-service"
     INGRESS: "all"
     APP_ENV: "development"
   only:
@@ -265,7 +265,7 @@ build-app-prod:
     CLOUD_RUN_REGION: "asia-southeast2"
     DOCKER_IMAGE_TAG: "${IMAGE_BASE}-stg"
     IMAGE_TAG: "$CI_COMMIT_SHA"
-    DEPLOYMENT_NAME: "stg-product-task-tracker"
+    DEPLOYMENT_NAME: "stg-product-task-tracker-service"
     INGRESS: "all"
     APP_ENV: "preview"
   only:
@@ -285,7 +285,7 @@ deploy-prod:
     CLOUD_RUN_REGION: "asia-southeast2"
     DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
     IMAGE_TAG: "$CI_COMMIT_TAG"
-    DEPLOYMENT_NAME: "product-task-tracker"
+    DEPLOYMENT_NAME: "product-task-tracker-service"
     INGRESS: "all"
     APP_ENV: "production"
   needs:
