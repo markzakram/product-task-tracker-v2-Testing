@@ -48,6 +48,7 @@
     { grup: 'Ruang Saya', id: 'link', judul: 'Link Saya', ikon: 'penanda' },
     { grup: 'Ruang Saya', id: 'catatan', judul: 'Catatan Saya', ikon: 'catatan' },
     { grup: 'Manajer', id: 'riwayat', judul: 'Riwayat Aktivitas', ikon: 'riwayat', peran: ['manager'] },
+    { grup: 'Bantuan', id: 'panduan', judul: 'Panduan', ikon: 'buku' },
   ];
   const NAV_BAWAH = ['hari', 'kanban', 'proyek', 'komunikasi'];
   /* Nama halaman di 0.3.0. "laporan" dulu berisi angka-angka yang kini jadi Dashboard. */
@@ -89,6 +90,10 @@
     lnk: { q: '' },
     ctt: { q: '', buka: '' },
     rwy: { jenis: '', orang: '', q: '', batas: 100 },
+    pnd: { tab: ambil('pnd_tab', 'mulai'), buka: '' },
+    /* Panduan yang sedang dicoba: langkahnya tampil di kotak melayang (#pemandu). */
+    pemandu: null,
+    pemanduKecil: false,
     navBuka: false,
     cari: '',
     modal: null,
@@ -99,6 +104,7 @@
   function simpanPref(ruang) {
     if (ruang === 'papan') simpan('papan', S.papan);
     if (ruang === 'daftar') { const { q, hal, ...sisa } = S.daftar; simpan('daftar', sisa); }
+    if (ruang === 'pnd') simpan('pnd_tab', S.pnd.tab);
   }
 
   /* Tanda baca Komunikasi, per profil. Komentar yang sudah ada saat data dimuat
@@ -161,6 +167,8 @@
     centang: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
     bulat: '<circle cx="12" cy="12" r="9"/>',
     serah: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+    buku: '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+    atas: '<path d="m18 15-6-6-6 6"/>',
   };
   const ikon = (nama, ukuran = 18) => `<svg width="${ukuran}" height="${ukuran}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${JALUR_IKON[nama] || ''}</svg>`;
   /* Nama ikon Dashboard Lain berasal dari v1 (Material Icons). */
@@ -592,7 +600,7 @@
     hari: () => viewHari(), dashboard: () => viewDashboard(), dashlain: () => viewDashLain(), laporan: () => viewLaporan(),
     kanban: () => viewPapan(), daftar: () => viewDaftar(), timeline: () => viewTimeline(), kalender: () => viewKalender(),
     proyek: () => viewProyek(), paket: () => viewPaket(), komunikasi: () => viewKomunikasi(),
-    link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(),
+    link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(), panduan: () => viewPanduan(),
   };
   /* Bagian halaman yang digambar ulang saat orang mengetik di kotak cari halaman,
      supaya kotaknya tidak kehilangan fokus. */
@@ -606,6 +614,7 @@
     renderNavBawah(lencana);
     $('#isi').innerHTML = GAMBAR[S.view]();
     renderLaci();
+    renderPemandu();
     const isiObrolan = $('#obrolan-isi');
     if (isiObrolan) isiObrolan.scrollTop = isiObrolan.scrollHeight;
     const h = HALAMAN.find(x => x.id === S.view);
@@ -682,8 +691,9 @@
       nTinjau ? `<strong>${nTinjau}</strong> menunggu tinjauan Anda` : '',
       nAntre ? `<strong>${nAntre}</strong> langkah di antrean tim, siap didelegasikan` : '',
     ].filter(Boolean);
+    const bantu = { antrean: ['lead-antrean', 'antrean tim'], tinjau: ['lead-tinjau', 'meninjau'] };
     const daftar = kerja.grup.map(g => `<section class="grup ${g.kunci}">
-      <h2>${esc(g.judul)} <span class="jumlah">${g.isi.length}</span></h2>
+      <h2>${esc(g.judul)} <span class="jumlah">${g.isi.length}</span>${bantu[g.kunci] ? tanya(...bantu[g.kunci]) : ''}</h2>
       ${g.isi.map(x => barisTask(x.t, x.alasan)).join('')}
     </section>`).join('');
     const selesai = kerja.selesaiHariIni.length ? `<details class="ringkas"><summary>Selesai hari ini (${kerja.selesaiHariIni.length})</summary>
@@ -696,6 +706,7 @@
       </div></div>
       <div class="dua-kolom">
         <div class="kolom-utama">
+          ${ajakanPanduan()}
           ${pitaPeran()}
           ${daftar || '<div class="kosong-isi">Belum ada pekerjaan aktif untuk Anda.</div>'}
           ${selesai}
@@ -779,7 +790,7 @@
     if (t.lane !== 'proyek' || I.selesai(t) || t.status === 'Ditinjau') return '';
     const s = I.syaratAjukan(t, perId);
     const kurang = s.filter(x => !x.ok).length;
-    return `<section><p class="subjudul">Syarat ajukan ${kurang ? `<span class="pill lb-revisi">${kurang} belum</span>` : '<span class="pill st-selesai">Lengkap</span>'}</p>
+    return `<section><p class="subjudul">Syarat ajukan ${kurang ? `<span class="pill lb-revisi">${kurang} belum</span>` : '<span class="pill st-selesai">Lengkap</span>'}${tanya('staff-ajukan', 'mengajukan task')}</p>
       <ul class="syarat">${s.map(x => `<li class="${x.ok ? 'ok' : 'kurang'}">${ikon(x.ok ? 'centang' : 'bulat', 18)}<span>${esc(x.label)}</span><span class="sr">${x.ok ? 'terpenuhi' : 'belum'}</span></li>`).join('')}</ul>
     </section>`;
   }
@@ -846,7 +857,7 @@
       <div class="detail-atas"><div>
         <p class="detail-asal">${p ? `<button type="button" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button>` : `${jenis === 'lepas' ? 'Lepas' : 'Rutin'} · ${esc(t.kategori || 'Umum')}`} · ${esc(t.id)}</p>
         <h2>${esc(t.title)}</h2>
-        <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : '<span class="pill lb-menunggu">Belum ber-sub-stage</span>'}${tim ? ` · Tim ${esc(tim.nama)}` : ''}${s && s.reviewManager ? ' · direview Manager' : ''}</p>
+        <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : '<span class="pill lb-menunggu">Belum ber-sub-stage</span>'}${tim ? ` · Tim ${esc(tim.nama)}` : ''}${s && s.reviewManager ? ' · direview Manager' : ''}${tanya('konsep-kode', 'sub-stage dan tim')}</p>
         <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}</div>
         <div class="detail-orang">${avatar(t.pic, 'kecil')} PIC ${nama(t.pic)}
           ${t.support.length ? ` · bantuan ${t.support.map(nama).join(', ')}` : ''}
@@ -957,7 +968,7 @@
           <div class="detail-chip" style="margin-top:12px">${Object.keys(KEADAAN).filter(k => keadaan[k]).map(k => `${chipKeadaan(k)} <b>${keadaan[k]}</b>`).join(' ') || '<span class="hint">Belum ada proyek aktif.</span>'}</div>
           <button type="button" class="tombol kecil" style="margin-top:12px" data-aksi="ke" data-view="proyek">${ikon('lapis', 16)} Buka Proyek</button>
         </section>
-        <section class="kartu-polos lebar-penuh"><p class="subjudul">Per orang</p>
+        <section class="kartu-polos lebar-penuh"><p class="subjudul">Per orang ${tanya('manager-dashboard', 'skor bottleneck')}</p>
           <div class="tabel-gulir"><table class="tabel"><thead><tr><th>Nama</th><th>Peran</th><th>Beban</th><th class="angka">Aktif</th><th class="angka">Sub-task</th><th class="angka">Terlambat</th>
             <th class="angka" title="Task orang lain yang menunggu task-nya selesai">Menahan</th><th class="angka" title="Task yang menunggu tinjauannya">Tinjauan</th>
             <th class="angka">Bottleneck</th><th class="angka">Selesai 30 hari</th></tr></thead>
@@ -1383,11 +1394,12 @@
         <div class="segmen" role="group" aria-label="Tampilkan"><button type="button" data-aksi="proyek-arsip" data-nilai="0" aria-pressed="${!S.proyekArsip}">Aktif</button><button type="button" data-aksi="proyek-arsip" data-nilai="1" aria-pressed="${S.proyekArsip}">Arsip (${nArsip})</button></div>
         ${isM ? `<button type="button" class="tombol utama" data-aksi="proyek-baru">${ikon('tambah', 16)} Proyek baru</button>` : ''}
       </div>
+      ${isM ? ajakanPanduan() : ''}
       <div class="dua-kolom">
         <div class="kolom-utama"><div class="daftar-proyek">${baris || `<div class="kosong-isi">${S.proyekArsip ? 'Belum ada proyek arsip.' : 'Belum ada proyek aktif.'}</div>`}</div>
           <p class="hint" style="margin-top:10px">Tahap proyek dihitung dari task terbuka paling awal. Kode tim = tim pemilik sub-stage task yang masih terbuka.</p></div>
         <div class="samping-tumpuk kolom-sisi">
-          <section class="kartu-polos samping-tumpuk"><p class="subjudul">Keputusan siklus ${keputusan.length ? `<span class="lencana">${keputusan.length}</span>` : ''}</p>
+          <section class="kartu-polos samping-tumpuk"><p class="subjudul">Keputusan siklus ${keputusan.length ? `<span class="lencana">${keputusan.length}</span>` : ''}${tanya('manager-siklus', 'keputusan siklus')}</p>
             ${kotakKeputusan || '<p class="hint">Belum ada siklus yang ditutup. Proyek muncul di sini setelah task E12 · Final approval-nya disetujui.</p>'}</section>
           ${tinjau.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Menunggu tinjauan Anda <span class="lencana">${tinjau.length}</span></p>
             <div class="grup">${tinjau.map(t => barisTask(t, 'Dari ' + I.orang(t.pic).pendek)).join('')}</div></section>` : ''}
@@ -1653,7 +1665,7 @@
           ${String(p.catatan || '').trim() ? `<section class="kartu-polos"><p class="subjudul">Catatan produk</p><p class="teks-panjang" style="margin-top:8px">${esc(p.catatan)}</p></section>` : ''}
         </div>
         <div class="samping-tumpuk kolom-sisi">
-          <section class="kartu-polos samping-tumpuk"><p class="subjudul">Ringkasan target</p>
+          <section class="kartu-polos samping-tumpuk"><p class="subjudul">Ringkasan target ${tanya('konsep-progres', 'progres paket')}</p>
             ${r.jumlah ? `<div class="kartu-paket-maju">${batangPaket(r)}<small>Progres ${r.persen}% · ${fmtAngka(r.terpenuhi)} dari ${fmtAngka(r.target)} tayang${r.digarap ? ` · ${fmtAngka(r.digarap)} digarap` : ''}</small></div>
               ${legendaPaket}
               <p class="hint">${r.penuh} terpenuhi · ${r.sedang} digarap · ${r.kurang - r.sedang} belum · ${r.lebih} lebih</p>
@@ -1945,6 +1957,149 @@
               ${l.detail ? `<p class="hint">${esc(l.detail)}</p>` : ''}</div></li>`;
         }).join('')}</ul></section>`).join('')
       + (semua.length > isi.length ? `<div class="halaman-nav"><button type="button" class="tombol kecil" data-aksi="rwy-lagi">Tampilkan 100 lagi</button><span class="hint">${isi.length} dari ${semua.length}</span></div>` : '');
+  }
+
+  /* ---------- Panduan ----------
+     Isi dan pencari contohnya di panduan.js. Ilustrasinya dibuat di sini dari komponen
+     aplikasi dengan teks contoh, bukan tangkapan layar: selalu sesuai tampilan, dan berkas
+     publik tak memuat data sungguhan. "Coba sekarang" berpindah ke profil dan halaman
+     contohnya, lalu langkah panduannya tampil di kotak melayang (#pemandu). */
+
+  const P = window.Panduan || { BAGIAN: [], ILUSTRASI: [], PANDUAN: [], ISTILAH: [], cariContoh: () => null };
+  const tebal = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const tanya = (id, label) => `<button type="button" class="tanya" data-aksi="panduan" data-id="${esc(id)}" title="Panduan: ${esc(label)}" aria-label="Panduan: ${esc(label)}">?</button>`;
+  const tabPeran = () => ({ staff: 'staff', lead: 'lead', manager: 'manager' })[I.orang(S.me).peran] || 'mulai';
+  const tombolPalsu = (isi, kelas = '') => `<span class="tombol ${kelas}">${isi}</span>`;
+
+  const ILUSTRASI = {
+    reset: () => `<div class="kotak-data"><p class="samping-catatan">Data contoh. Perubahan hanya tersimpan di browser ini.</p>
+      ${tombolPalsu(`${ikon('ulang', 16)} Reset data contoh`, 'kecil tombol-reset')}</div>`,
+    status: () => `<div class="ilu-baris">${I.STATUS.map(pillStatus).join('<span class="ilu-panah">→</span>')}</div>
+      <div class="ilu-baris">${['Siap', 'Menunggu', 'Revisi', 'Tertahan'].map(l => `<span class="pill ${LABEL[l][0]}">${l}</span>`).join('')}</div>`,
+    kode: () => [['DV8', 'proyek'], ['E1', 'proyek'], ['R3', 'rutin'], ['A2', 'lepas']].map(([k, jalur]) => {
+      const s = I.subTahap(k);
+      const chip = jalur === 'rutin' ? `<span class="chip-rutin">${k}</span>` : `<span class="chip-sub ${jalur === 'lepas' ? 'lepas' : ''}">${k}</span>`;
+      return `<div class="ilu-kode">${chip}<span>${esc(s.nama)}</span>${chipTim(s.tim)}<small>${jalur}</small></div>`;
+    }).join(''),
+    tahap: () => `<small class="ilu-ket">Sedang di Development</small>${jalurTahap({ stage: 'V', cycle: 1 })}
+      <small class="ilu-ket">Siklus selesai, E12 disetujui</small>${jalurTahap({ stage: 'E', cycle: 1 }, '', true)}`,
+    progres: () => `${batangPaket({ persen: 62, persenTayang: 40, persenDigarap: 25 })}<small class="ilu-ket">Progres 62% · 40% sudah tayang · 25% sedang digarap</small>
+      ${legendaPaket}<ul class="bobot-capaian">${I.CAPAIAN.map(c => `<li><b>${Math.round(c.bobot * 100)}%</b> ${esc(c.nama)}</li>`).join('')}</ul>`,
+    // Label syaratnya diambil dari aturan, supaya ilustrasi tak bisa berbeda dari layar sungguhan.
+    syarat: () => `<p class="subjudul">Syarat ajukan <span class="pill lb-revisi">2 belum</span></p>
+      <ul class="syarat">${I.syaratAjukan({ output: '', evidence: [], subtasks: [], deps: [], tertahan: false }, new Map())
+        .map(x => `<li class="${x.ok ? 'ok' : 'kurang'}">${ikon(x.ok ? 'centang' : 'bulat', 18)}<span>${esc(x.label)}</span></li>`).join('')}</ul>
+      ${tombolPalsu('Ajukan tinjau ke Alya', 'utama mati')}`,
+    revisi: () => `<div class="ilu-baris">${pillStatus('Dikerjakan')}<span class="pill lb-revisi">Revisi</span></div>
+      <p class="subjudul">Riwayat tinjauan</p>
+      <ul class="riwayat"><li><strong>Dikembalikan</strong> oleh Andika <small>· 2 hari lalu</small><br>Bobot soal nomor 12–15 belum sesuai kisi-kisi.</li>
+        <li><strong>Diajukan</strong> oleh Wildan <small>· 3 hari lalu</small></li></ul>`,
+    tahan: () => `<div class="banner merah">Tertahan: Menunggu akses SIADU untuk tahun ajaran baru.</div><div class="ilu-baris">${tombolPalsu('Lepas tanda tertahan')}</div>`,
+    antrean: () => `<p class="subjudul">Antrean tim · siap didelegasikan</p>
+      <div class="ilu-task">${pillStatus('Antre')}<span><b>DV8 · Latsol Fisika — 3 Paket</b><small><span class="chip-sub">DV8</span> Input ke SIADU/Markaz siap</small></span></div>
+      <div class="ilu-baris">${tombolPalsu('Kiki ▾', 'input-palsu')}${tombolPalsu(`${ikon('serah', 16)} Serahkan ke staff`)}</div>`,
+    tinjau: () => `<p class="subjudul">Output & bukti</p><p class="teks-panjang">40 soal Latsol Fisika lolos QC</p>
+      <p class="ilu-tautan">${ikon('tautan', 16)} Google Sheets · hasil QC</p>
+      <div class="ilu-baris">${tombolPalsu('Setujui', 'utama')}${tombolPalsu('Kembalikan', 'bahaya')}</div>`,
+    formtask: () => `<div class="ilu-isian"><small>Sub-stage</small>${tombolPalsu('DV8 · Input ke SIADU/Markaz (LA) ▾', 'input-palsu')}<small class="ilu-ket">${esc(hintSub('DV8'))}</small></div>
+      <div class="ilu-isian"><small>PIC</small>${tombolPalsu('Alya · Lead tim pemilik ▾', 'input-palsu')}</div>`,
+    elaborasi: () => `<ol class="ilu-alur">${I.langkahAlur('Latsol').map(l => {
+      const cap = l.capaian ? I.CAPAIAN.find(c => c.kode === l.capaian) : null;
+      return `<li><span class="chip-sub">${l.kode}</span><span>${esc(I.subTahap(l.kode).nama)}${cap ? `<em>${esc(cap.nama)} ${Math.round(cap.bobot * 100)}%</em>` : ''}</span></li>`;
+    }).join('')}</ol>`,
+    keputusan: () => `<div class="banner hijau">Siklus 1 selesai: semua langkah sampai E12 disetujui.</div>
+      <div class="daftar-pilihan">${[['Selesai, arsipkan', 'utama', 'Proyek tuntas.'], ['Mulai siklus 2', '', 'Ulangi dari Analysis.'], ['Tahan', '', 'Keputusan ditunda.']]
+        .map(([t, k, ket]) => `<div class="pilihan-akhir">${tombolPalsu(t, k)}<span>${ket}</span></div>`).join('')}</div>`,
+    bottleneck: () => `<div class="ilu-skor"><span class="skor tinggi">9</span><span>= 3 task orang lain menunggu dia × 2<br>+ 1 tinjauan menunggu dia × 2<br>+ 1 task telat</span></div>
+      <div class="ilu-baris"><span class="skor">2</span><span class="ilu-ket">aman</span><span class="skor sedang">4</span><span class="ilu-ket">mulai menumpuk</span><span class="skor tinggi">7</span><span class="ilu-ket">perlu dibantu</span></div>`,
+  };
+
+  function kartuPanduan(g, no, buka) {
+    const c = g.coba ? P.cariContoh(g.id, S.data, I, hariIni(), S.me) : null;
+    const siapa = c && c.profil && c.profil !== S.me ? ` sebagai ${I.orang(c.profil).pendek}` : '';
+    const gambar = g.ilustrasi && ILUSTRASI[g.ilustrasi] ? `<div class="ilustrasi" role="img" aria-label="Ilustrasi: ${esc(g.judul)}">${ILUSTRASI[g.ilustrasi]()}</div>` : '';
+    return `<details class="kartu-panduan" id="pnd-${esc(g.id)}" ${buka ? 'open' : ''}>
+      <summary><span class="pnd-no">${no}</span><span class="pnd-teks"><span class="pnd-judul">${esc(g.judul)}</span><small>${esc(g.tujuan)}</small></span>${ikon('bawah', 18)}</summary>
+      <div class="pnd-isi ${gambar ? '' : 'tanpa-gambar'}">
+        <ol class="pnd-langkah">${g.langkah.map(l => `<li>${tebal(l)}</li>`).join('')}</ol>
+        ${gambar}
+      </div>
+      ${g.coba ? `<div class="pnd-coba">${c
+        ? `<button type="button" class="tombol utama" data-aksi="coba" data-id="${esc(g.id)}">${ikon('kanan', 16)} Coba sekarang${esc(siapa)}</button><small>${esc(c.ket || '')}</small>`
+        : '<p class="hint">Contohnya sudah terpakai di data ini. Tekan <strong>Reset data contoh</strong> di kaki sidebar untuk mengembalikannya.</p>'}</div>` : ''}
+    </details>`;
+  }
+
+  function viewPanduan() {
+    const tab = P.BAGIAN.some(b => b.id === S.pnd.tab) ? S.pnd.tab : 'mulai';
+    const bagian = P.BAGIAN.find(b => b.id === tab) || { ket: '' };
+    const daftar = P.PANDUAN.filter(g => g.peran === tab);
+    const buka = daftar.some(g => g.id === S.pnd.buka) ? S.pnd.buka : (daftar[0] || {}).id;
+    const isi = tab === 'istilah'
+      ? `<dl class="istilah">${P.ISTILAH.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${tebal(v)}</dd></div>`).join('')}</dl>`
+      : `<div class="daftar-panduan">${daftar.map((g, i) => kartuPanduan(g, i + 1, g.id === buka)).join('')}</div>`;
+    return `<div class="judul-halaman"><div><h1>Panduan</h1>
+        <p>Cara memakai ProductTrack v2, langkah demi langkah. Tombol <strong>Coba sekarang</strong> membuka contohnya di data contoh, dan kotak langkah menemani selama Anda mencoba. Salah langkah tidak apa-apa: <strong>Reset data contoh</strong> di kaki sidebar mengembalikan semuanya.</p></div></div>
+      <div class="segmen gulir" role="group" aria-label="Bagian panduan">${P.BAGIAN.map(b => `<button type="button" data-aksi="atur" data-ruang="pnd" data-kunci="tab" data-nilai="${b.id}" aria-pressed="${b.id === tab}">${esc(b.judul)}${b.id === tabPeran() ? '<small>peran Anda</small>' : ''}</button>`).join('')}</div>
+      <p class="hint panduan-ket">${tebal(bagian.ket)}</p>
+      ${isi}`;
+  }
+
+  /* Ajakan sekali per profil di halaman pertamanya; hilang setelah ditutup atau Panduan dibuka. */
+  function ajakanPanduan() {
+    if (ambil('kenal_' + S.me, false)) return '';
+    return `<div class="ajakan">${ikon('buku', 22)}
+      <div><strong>Baru mencoba ProductTrack v2?</strong><span>Panduan untuk ${esc(I.PERAN[I.orang(S.me).peran])} menjelaskan alurnya langkah demi langkah, lengkap dengan tombol Coba sekarang di data contoh.</span></div>
+      <button type="button" class="tombol kecil utama" data-aksi="panduan-buka">Buka Panduan</button>
+      <button type="button" class="ikon-tombol" data-aksi="kenal-tutup" aria-label="Tutup ajakan panduan">${ikon('tutup', 16)}</button>
+    </div>`;
+  }
+
+  function bukaPanduan(id) {
+    const g = P.PANDUAN.find(x => x.id === id);
+    if (!g) return;
+    Object.assign(S.pnd, { tab: g.peran, buka: g.id });
+    simpanPref('pnd');
+    pindahHalaman('panduan');
+    setTimeout(() => { const el = document.getElementById('pnd-' + id); if (el) el.scrollIntoView({ block: 'start' }); }, 30);
+  }
+
+  function cobaPanduan(id) {
+    const c = P.cariContoh(id, S.data, I, hariIni(), S.me);
+    if (!c) return toast('Contohnya sudah terpakai di data ini. Tekan Reset data contoh di kaki sidebar untuk mengembalikannya.', true);
+    if (!bolehTinggalkanPaket()) return;
+    const ganti = !!c.profil && c.profil !== S.me;
+    if (ganti) { S.me = c.profil; simpan('me', S.me); S.kom.pilih = null; }
+    simpan('kenal_' + S.me, 1);
+    // Di ponsel kotak langkah mulai ringkas: kalau terbuka, ia menutupi laci detail tempat orang mencoba.
+    Object.assign(S, { view: c.view, pilih: c.task || null, proyek: c.proyek || null, navBuka: false, pemandu: id, pemanduKecil: hp() });
+    Object.assign(S.pkt, { pilih: c.paket || null, sunting: false, kotor: false });
+    if (c.papan) { Object.assign(S.papan, { proyek: '', ...SARING_KOSONG, fokus: '' }, c.papan); simpanPref('papan'); }
+    if (c.dash) Object.assign(S.dash, c.dash);
+    simpan('halaman', S.view);
+    const t = c.task && S.data.tasks.find(x => x.id === c.task);
+    if (t) tandaiDibaca(t);
+    render();
+    window.scrollTo(0, 0);
+    const o = I.orang(S.me);
+    const arah = hp() ? 'Langkahnya ada di kotak panduan di bawah; ketuk untuk membukanya.' : 'Ikuti kotak langkah di bawah.';
+    toast(ganti ? `Sekarang sebagai ${o.pendek} (${I.PERAN[o.peran]}). ${arah} Profil lain bisa dipilih lagi lewat Ganti profil.` : arah);
+  }
+
+  /* Kotak langkah selama mencoba; tak tampil di halaman Panduan sendiri. */
+  function renderPemandu() {
+    const el = $('#pemandu');
+    if (!el) return;
+    const g = S.pemandu && P.PANDUAN.find(x => x.id === S.pemandu);
+    el.hidden = !g || S.view === 'panduan';
+    if (el.hidden) { el.innerHTML = ''; return; }
+    el.classList.toggle('kecil', S.pemanduKecil);
+    el.innerHTML = `<div class="pemandu-kepala">
+        <button type="button" class="pemandu-buka" data-aksi="pemandu-kecil" aria-expanded="${!S.pemanduKecil}" title="${S.pemanduKecil ? 'Tampilkan langkah' : 'Sembunyikan langkah'}">
+          ${ikon('buku', 16)}<span class="pemandu-judul">${esc(g.judul)}</span>${ikon(S.pemanduKecil ? 'atas' : 'bawah', 16)}</button>
+        <button type="button" class="ikon-tombol" data-aksi="pemandu-tutup" aria-label="Tutup kotak panduan">${ikon('tutup', 16)}</button></div>
+      ${S.pemanduKecil ? '' : `<ol>${g.langkah.map(l => `<li>${tebal(l)}</li>`).join('')}</ol>
+        <button type="button" class="tautan-kecil" data-aksi="panduan" data-id="${esc(g.id)}">Buka di halaman Panduan</button>`}`;
   }
 
   /* ---------- Modal & formulir ---------- */
@@ -2397,6 +2552,7 @@
   function aturNilai(ruang, kunci, nilai) {
     S[ruang][kunci] = nilai;
     if (kunci === 'tahap' && (ruang === 'papan' || ruang === 'daftar')) S[ruang].sub = '';
+    if (ruang === 'pnd') S.pnd.buka = '';
     if (ruang === 'daftar') S.daftar.hal = 1;
     if (ruang === 'lap' && kunci !== 'buka') S.lap.buka = '';
     if (ruang === 'kom' && kunci === 'lingkup') S.kom.pilih = null;
@@ -2657,6 +2813,18 @@
         break;
       }
       case 'rwy-lagi': S.rwy.batas += 100; $('#hasil').innerHTML = hasilRiwayat(); break;
+      /* Panduan */
+      case 'panduan': bukaPanduan(d.id); break;
+      case 'panduan-buka':
+        simpan('kenal_' + S.me, 1);
+        Object.assign(S.pnd, { tab: tabPeran(), buka: '' });
+        simpanPref('pnd');
+        pindahHalaman('panduan');
+        break;
+      case 'kenal-tutup': simpan('kenal_' + S.me, 1); render(); break;
+      case 'coba': cobaPanduan(d.id); break;
+      case 'pemandu-tutup': S.pemandu = null; renderPemandu(); break;
+      case 'pemandu-kecil': S.pemanduKecil = !S.pemanduKecil; renderPemandu(); break;
     }
   });
 

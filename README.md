@@ -33,6 +33,7 @@ orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan Lead
 | Kolaborasi | Proyek (bertahap ADDIE) · Rancangan Paket · Komunikasi |
 | Ruang Saya | Link Saya · Catatan Saya |
 | Manajer | Riwayat Aktivitas (Manager) |
+| Bantuan | Panduan |
 
 Di ponsel sidebar menjadi laci (tombol ☰), ditambah bilah bawah: Hari Ini, Kanban, Proyek,
 Komunikasi, Menu.
@@ -121,6 +122,19 @@ Halaman pendukung, setara v1:
 - **Timeline** (5 minggu), **Kalender** (tenggat per hari), **Riwayat Aktivitas** (saring
   jenis, orang, kata).
 
+### Panduan di dalam aplikasi
+
+Menu **Panduan** menjelaskan alurnya per peran (Staff, Lead, Manager), ditambah konsep dan
+istilah. Setiap panduan punya tombol **Coba sekarang**: aplikasi pindah ke profil yang cocok dan
+membuka contoh nyata di data contoh, lalu langkahnya tampil di kotak melayang selama orang
+mencoba. Tanda **?** di layar penting membuka panduan yang bersangkutan.
+
+Ilustrasinya sengaja dibuat dari komponen aplikasi sendiri dengan teks contoh, bukan tangkapan
+layar. Dengan begitu ilustrasinya tak basi setiap tampilan berubah, dan tak ada data v1 di
+berkas `public/`, yang bisa dibuka siapa saja tanpa PIN. Isi panduan ada di `public/panduan.js`
+dan bisa disunting tanpa menyentuh tampilan; `cariContoh()` di berkas yang sama memilih
+contohnya, diuji di `test/panduan.test.js`.
+
 ## Isi
 
 ```
@@ -128,6 +142,7 @@ public/index.html     kerangka halaman (layar PIN, pilih profil, aplikasi)
 public/app.js         tampilan: sidebar, semua halaman, detail task, formulir
 public/app.css        gaya tampilan, warna dari logo ProductTrack
 public/inti.js        aturan alur v2, dipakai browser dan tes
+public/panduan.js     isi halaman Panduan + pencari contoh untuk "Coba sekarang"
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
 api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh
 api/_sesi.js          gerbang PIN + cookie sesi

@@ -1,5 +1,24 @@
 # Changelog — ProductTrack v2
 
+## 0.7.0 — Panduan di dalam aplikasi (2026-10-07)
+
+- Menu **Panduan** di sidebar (grup Bantuan), dengan tab Mulai di sini, Konsep, Staff, Lead,
+  Manager, dan Istilah: 23 panduan langkah demi langkah dan 19 istilah. Tab peran sendiri
+  ditandai "peran Anda".
+- **Coba sekarang** di tiap panduan: pindah ke profil yang cocok dan membuka contoh nyata di data
+  contoh. Misalnya task staff yang syarat ajukannya belum lengkap, langkah di antrean Lead, atau
+  OJK yang siklusnya sudah selesai. Contoh milik profil yang sedang dipakai diutamakan. Kalau
+  contohnya sudah terpakai, panduan menyarankan Reset data contoh.
+- **Kotak langkah** melayang menemani selama mencoba. Di ponsel ia mulai ringkas (ketuk judulnya
+  untuk membuka) supaya tak menutupi laci detail.
+- Tanda **?** membuka panduan terkait dari layar yang bersangkutan: Syarat ajukan, sub-stage di
+  detail task, Antrean tim dan Perlu Anda tinjau di Hari Ini, Keputusan siklus, Ringkasan target
+  paket, dan tabel per orang di Dashboard.
+- Ajakan sekali per profil di halaman pertamanya: "Baru mencoba ProductTrack v2?".
+- Ilustrasi panduan dibuat dari komponen aplikasi sendiri dengan teks contoh, bukan tangkapan
+  layar: selalu sesuai tampilan terbaru, dan berkas publik tak memuat data sungguhan.
+- Isi panduan dan pencari contohnya di `public/panduan.js`, diuji di `test/panduan.test.js`.
+
 ## 0.6.1 — Akhir siklus lebih jelas, tombol Reset data contoh (2026-10-07)
 
 - Sesudah E12 disetujui, pilihannya dijelaskan satu per satu: **Selesai, arsipkan** (tombol

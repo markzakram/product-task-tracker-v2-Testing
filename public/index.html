@@ -50,6 +50,10 @@
     </button>
   </div>
 
+  <!-- Langkah panduan yang sedang dicoba (lihat panduan.js). Sengaja sesudah #app: tersembunyi
+       bersamanya di layar PIN dan pilih profil. -->
+  <aside id="pemandu" class="pemandu" aria-label="Langkah panduan" hidden></aside>
+
   <div id="laci" class="laci" hidden>
     <div class="laci-latar" data-aksi="tutup-detail"></div>
     <aside class="laci-panel" id="laci-panel" aria-label="Detail task"></aside>
@@ -63,6 +67,7 @@
   <div id="toast" class="toast-wadah" aria-live="polite"></div>
 
   <script src="/inti.js"></script>
+  <script src="/panduan.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
