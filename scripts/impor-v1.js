@@ -5,6 +5,8 @@
      npm run impor:v1 -- <folder>         tarikan di folder lain
      npm run impor:v1 -- --kering         petakan dan tampilkan ringkasan saja, tanpa menulis
      npm run impor:v1 -- --dengan-link    ikut membawa Link Saya tiap orang dari v1
+     npm run impor:v1 -- --demo           tambah skenario contoh rancangan paket → proyek
+                                          (lihat scripts/_demo.js)
 
    Link Saya di v1 hanya terlihat oleh pemiliknya (PIN per orang). Di v2 PIN-nya
    bersama dan profil dipilih sendiri, jadi siapa pun yang memegang PIN bisa membuka
@@ -24,13 +26,14 @@ const fs = require('fs');
 const path = require('path');
 const { muatEnv } = require('./_env');
 const { ubah } = require('./_v1ke2');
+const { tambahDemo } = require('./_demo');
 const { urai } = require('../api/_skema');
 const sheet = require('../api/_sheets');
 
 const AKAR = path.join(__dirname, '..');
 muatEnv(path.join(AKAR, '.env'));
 
-const BERKAS = ['tasks', 'collabs', 'collab_steps', 'checklists', 'comments', 'packages', 'package_items', 'package_links',
+const BERKAS = ['tasks', 'collabs', 'collab_steps', 'checklists', 'comments', 'packages', 'package_items', 'package_links', 'package_contribs',
   'dashboards', 'user_links', 'activity_log'];
 
 function bacaDump(folder) {
@@ -53,6 +56,7 @@ async function main() {
   const args = process.argv.slice(2);
   const kering = args.includes('--kering');
   const denganLink = args.includes('--dengan-link');
+  const demo = args.includes('--demo');
   const folder = path.resolve(args.find(a => !a.startsWith('--')) || path.join(AKAR, '..', 'task-tracker-vercel', 'db', 'dump'));
 
   const { d, asal } = bacaDump(folder);
@@ -69,7 +73,8 @@ async function main() {
   baris('komentar', r.komentar);
   baris('riwayat tinjauan', r.tinjauan);
   baris('evidence', r.evidence);
-  baris('rancangan paket', r.paket, `${r.targetPaket} baris target`);
+  baris('rancangan paket', r.paket, `${r.targetPaket} baris target, ${r.proyekPaket} proyek tertaut`);
+  baris('setoran ke paket', r.setoran);
   baris('dashboard lain', r.dashboard);
   baris('link saya', r.link, denganLink ? 'terlihat oleh siapa pun yang memegang PIN bersama' : 'tidak dibawa (pakai --dengan-link kalau pemiliknya setuju)');
   baris('riwayat aktivitas', r.log);
@@ -78,6 +83,15 @@ async function main() {
     + `${b.logTerpotong} aktivitas lama (hanya ${r.log} terbaru yang dibawa)`
     + (denganLink ? `, ${b.linkTanpaProfil} link milik orang yang tak punya profil di v2.` : '.'));
   console.log(`  Tidak dibawa: PIN, catatan pribadi${denganLink ? '' : ', Link Saya'}, notifikasi.`);
+
+  if (demo) {
+    const c = tambahDemo(data);
+    console.log('\n  Skenario contoh (--demo)');
+    for (const p of c.proyek) console.log('    proyek dari paket     ' + p);
+    baris('task hasil elaborasi', c.task);
+    baris('setoran ke paket', c.setoran);
+    baris('catatan & link contoh', c.catatan + c.link, 'folder "Contoh"');
+  }
 
   if (kering) {
     console.log('\n  --kering: tidak ada yang ditulis.\n');
@@ -90,7 +104,7 @@ async function main() {
   }
   const k = await sheet.klien();
   console.log(`\n  Menulis ke spreadsheet v2 sebagai ${k.email} …`);
-  const hasil = await sheet.tulisContoh(k, id, urai(data), { sumber: `Tarikan v1 ${asal.waktu || '(waktu tak diketahui)'}` });
+  const hasil = await sheet.tulisContoh(k, id, urai(data), { sumber: `Tarikan v1 ${asal.waktu || '(waktu tak diketahui)'}${demo ? ' + skenario contoh' : ''}` });
   console.log('\n  Tertulis');
   for (const [tab, n] of Object.entries(hasil.jumlah)) baris(tab, n);
   console.log(`\n  Versi data contoh: ${hasil.versi}`);

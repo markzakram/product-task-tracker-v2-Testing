@@ -24,13 +24,13 @@ Data tetap di Google Spreadsheet dan deploy tetap di Vercel, tetapi semuanya mil
 
 Satu aplikasi dengan sidebar kiri seperti v1. PIN dipakai bersama, jadi setelah masuk setiap
 orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan Lead mulai di
-**Hari Ini**, Manager di **Proyek ADDIE**.
+**Hari Ini**, Manager di **Proyek**.
 
 | Grup | Halaman |
 |---|---|
 | Ringkasan | Hari Ini · Dashboard · Dashboard Lain · Laporan (Lead & Manager) |
 | Task | Kanban · Task List · Timeline · Kalender |
-| Kolaborasi | Proyek ADDIE · Rancangan Paket · Komunikasi |
+| Kolaborasi | Proyek (bertahap ADDIE) · Rancangan Paket · Komunikasi |
 | Ruang Saya | Link Saya · Catatan Saya |
 | Manajer | Riwayat Aktivitas (Manager) |
 
@@ -49,14 +49,34 @@ Komunikasi, Menu.
   Analysis dengan siklus baru.
 - **Staff** menerima task dari Lead dan boleh memegang task rutin langsung. Staff tidak membuat task.
 
-Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/inti.test.js` dan
-`test/fitur.test.js`. Tampilan (`public/app.js`) hanya meneruskan klik ke aturan itu.
+Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tampilan
+(`public/app.js`) hanya meneruskan klik ke aturan itu.
+
+### Rancangan paket → proyek → progres yang bergerak sendiri
+
+1. Di **Rancangan Paket**, Lead/Manager menekan **Elaborasi jadi proyek**. Setiap target yang
+   masih terbuka menjadi **satu task** di proyek baru (bawaannya tahap Development, karena
+   rancangan paket adalah hasil tahap Design). Contoh: Latsol Fisika target 5, sudah ada 2 →
+   task "Latsol · Fisika — 3 Paket".
+2. Setiap task itu membawa **setoran**: "task ini mengisi target X sebanyak N".
+3. Progres paket **dihitung, bukan dipicu**: terpenuhi = sudah ada + setoran dari task yang
+   Selesai. Task proyek baru Selesai setelah disetujui peninjau, jadi yang terhitung hanya
+   pekerjaan yang lolos tinjauan. Task yang masih berjalan tampil sebagai **digarap**; task
+   yang dibuka kembali otomatis menurunkan angkanya lagi.
+4. Gate ikut selaras: proyek baru bisa maju dari Development setelah semua task-nya selesai,
+   artinya semua target paketnya terpenuhi.
+
+Task yang dibuat di luar elaborasi bisa menyetor lewat bagian **Setoran ke rancangan paket** di
+detail task (Lead/Manager task itu). Manager bisa menautkan proyek lama ke paket dari halaman
+proyek. Satu paket boleh diisi beberapa proyek. Aturannya di `public/inti.js`
+(`elaborasiPaket`, `setoranPaket`, `hitungTarget`), diuji di `test/setoran.test.js`.
 
 Halaman pendukung, setara v1:
 
 - **Rancangan Paket**: identitas paket, teks per kategori (Dibimbing, Latsol, Materi, Tryout,
-  Drilling, Live Class), target per kategori (sudah ada / target / satuan, status dihitung:
-  terpenuhi, kurang, lebih), tautan, dan **Salin ke sheet Marsel** (susunan kolom sheet Master).
+  Drilling, Live Class), target per kategori (terpenuhi / digarap / target / satuan, status
+  dihitung: terpenuhi, digarap, kurang, lebih, beserta task penyetornya), tautan, proyek
+  pengisi, dan **Salin ke sheet Marsel** (susunan kolom sheet Master).
   Lead & Manager membuat paket; PIC Produk boleh menyunting paketnya; membagikan ke Lintas
   Divisi hanya Lead/Manager; menghapus hanya Manager.
 - **Link Saya** dan **Catatan Saya**: per profil, berfolder (folder kosong = Umum), cari,
@@ -206,6 +226,8 @@ selama versinya sama, suntingan di browser itu dibiarkan.
 | Hold | Antre + tanda **tertahan** |
 | `status_by` v1 | riwayat tinjauan (siapa dan kapan), hanya kalau tercatat |
 | Rancangan paket | paket utuh: identitas, teks per kategori, target (`package_items`), tautan, tanda dibagikan |
+| `paket_id` kolaborasi | `paket` di proyek (3 kolaborasi v1 tertaut paket) |
+| Setoran (`package_contribs`) | tab `setoran`. Nomor proses → task proses itu; nomor 0 ("saat kolaborasi selesai") → task proses terakhirnya. Di tarikan 2 Oktober tabelnya kosong |
 | Dashboard tim | Dashboard Lain. Kata sandi yang tertulis di deskripsinya ("Pass : …") disensor saat impor |
 | Link Saya | **tidak dibawa** kecuali `--dengan-link` (lihat di bawah) |
 | Riwayat aktivitas | 1000 terbaru |
@@ -221,6 +243,27 @@ npm run impor:v1 -- --dengan-link
 ```
 
 Untuk mengubah pemetaan, sunting tabelnya, cek dengan `--kering`, lalu impor ulang.
+
+### Skenario contoh (`--demo`)
+
+```bash
+npm run impor:v1 -- --demo
+```
+
+Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di aplikasi
+(`scripts/_demo.js`):
+
+- **TKA_CEREBRUM** (target asli v1) dielaborasi 10 hari lalu: sebagian task sudah disetujui,
+  ada yang ditinjau (satu pernah dikembalikan), dikerjakan, terlambat, tertahan, dan antre.
+- **OJK** diberi target contoh; semua task-nya sudah disetujui, jadi paketnya 100% dan
+  proyeknya menunggu keputusan Manager untuk maju ke Implementation.
+- **UTBK** diberi target contoh tanpa dielaborasi — untuk mencoba tombol **Elaborasi jadi
+  proyek** sendiri.
+- Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Dashboard Lain).
+
+Bentuk tab hanya bertambah (kolom `paket` di `projects`, tab `setoran`), jadi versi yang
+sedang live tetap bisa membaca hasil impor ini; versi baru pun bisa membaca spreadsheet yang
+belum punya tab `setoran`.
 
 ---
 
@@ -246,8 +289,7 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
   bagikan PIN v2 ke magang atau Lintas Divisi.
 - Task belum bisa dihapus. Dropdown Master v1 belum ada: pilihan platform & kategori masih tetap
   di kode.
-- Setoran target paket dari proses kolaborasi (v1: `package_contribs`) belum ada; "sudah ada"
-  diisi tangan.
+- Satu task hanya menyetor saat task-nya Selesai; setoran per sub-task belum ada.
 - Seret-lepas kartu di Kanban hanya di desktop; di ponsel status diubah lewat detail task.
 - **Tebakan PIN hanya diperlambat** (jeda ±0,7 detik per PIN salah), belum dibatasi lajunya.
   Pakai PIN yang panjang.

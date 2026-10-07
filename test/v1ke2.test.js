@@ -24,8 +24,8 @@ function dumpV1() {
       task({ task_id: 'TSK-105', task_name: 'Rekap fee guru', stage: '', status: 'Done', due_date: '', created_date: '2026-07-02', __baris: 8 }),
     ],
     collabs: [
-      { collab_id: 'COL-021', platform: '', title: 'BUMN_PT.KAI_Rancangan', description: 'Paket KAI', created_by: 'Nynda (PM)', created_at: '2026-07-20 11:36:00', __baris: 2 },
-      { collab_id: 'COL-030', platform: 'JadiASN', title: 'Jadwal Liveclass Oktober', description: '', created_by: 'Nynda (PM)', created_at: '2026-09-20 09:00:00', __baris: 3 },
+      { collab_id: 'COL-021', platform: '', title: 'BUMN_PT.KAI_Rancangan', description: 'Paket KAI', created_by: 'Nynda (PM)', created_at: '2026-07-20 11:36:00', paket_id: 'PKG-002', __baris: 2 },
+      { collab_id: 'COL-030', platform: 'JadiASN', title: 'Jadwal Liveclass Oktober', description: '', created_by: 'Nynda (PM)', created_at: '2026-09-20 09:00:00', paket_id: 'Operasional', __baris: 3 },
     ],
     collab_steps: [
       langkah('COL-021', 3, { step: 'Input soal', pic: 'Kiki', deadline: '2026-08-03', stage: 'Operasional' }),
@@ -52,6 +52,12 @@ function dumpV1() {
     package_items: [
       { item_id: 'ITM-2', paket_id: 'PKG-002', urutan: 2, kategori: 'Dibimbing', grup: '', nama: 'Kelas TPA', target: 4, satuan: 'Sesi', awal: 1, catatan: '', __baris: 3 },
       { item_id: 'ITM-1', paket_id: 'PKG-002', urutan: 1, kategori: 'Tryout', grup: 'Psikologi', nama: 'TO Akbar', target: '2', satuan: '', awal: '', catatan: 'pakai bank lama', __baris: 2 },
+    ],
+    package_contribs: [
+      { paket_id: 'PKG-002', item_id: 'ITM-1', collab_id: 'COL-021', step_order: 2, jumlah: 2, catatan: 'TO dari proses develop', __baris: 2 },
+      { paket_id: 'PKG-002', item_id: 'ITM-2', collab_id: 'COL-021', step_order: 0, jumlah: 3, catatan: '', __baris: 3 },
+      { paket_id: 'PKG-002', item_id: 'ITM-404', collab_id: 'COL-021', step_order: 1, jumlah: 1, catatan: '', __baris: 4 },
+      { paket_id: 'PKG-002', item_id: 'ITM-1', collab_id: 'COL-999', step_order: 1, jumlah: 1, catatan: '', __baris: 5 },
     ],
     package_links: [
       { paket_id: 'PKG-002', urutan: 1, label: 'Brief', url: 'https://docs.google.com/document/d/brief', __baris: 2 },
@@ -188,7 +194,7 @@ test('ceklis dan komentar ikut ke induknya; yang yatim dihitung, bukan dikarang'
     'ceklis COL-021#2 milik proses 2; yang belum dicentang dipegang PIC prosesnya');
   assert.deepEqual(cari(data, 'PRD-106').comments.map(c => c.text), ['Kick-off'], 'diskusi kolaborasi ditampung di proses pertama');
   assert.deepEqual(cari(data, 'PRD-099').comments.map(c => c.author), ['ali']);
-  assert.deepEqual(ringkasan.dibuang, { ceklisYatim: 1, komentarYatim: 1, logTerpotong: 0, linkTanpaProfil: 1 });
+  assert.deepEqual(ringkasan.dibuang, { ceklisYatim: 1, komentarYatim: 1, logTerpotong: 0, linkTanpaProfil: 1, setoranYatim: 2 });
 });
 
 test('rancangan paket dibawa utuh: identitas, produk, area marketing, target urut, tautan sah', () => {
@@ -222,6 +228,17 @@ test('Dashboard Lain dan Link Saya: hanya tautan sah, Link Saya hanya untuk prof
   assert.deepEqual(data.notes, [], 'Catatan Saya mulai kosong');
 });
 
+test('kolaborasi yang tertaut paket → proyek.paket; setoran v1 menunjuk task prosesnya', () => {
+  const { data, ringkasan } = ubah(dumpV1());
+  const p = id => data.projects.find(x => x.id === id);
+  assert.deepEqual([p('PRJ-21').paket, p('PRJ-30').paket], ['PKG-002', ''], 'paket_id yang bukan ID paket diabaikan');
+  assert.deepEqual(data.setoran, [
+    { id: 'st2', paket: 'PKG-002', item: 'ITM-1', task: 'PRD-107', jumlah: 2, catatan: 'TO dari proses develop' },
+    { id: 'st3', paket: 'PKG-002', item: 'ITM-2', task: 'PRD-109', jumlah: 3, catatan: '' },
+  ], 'proses 2 = PRD-107; proses 0 ("saat kolaborasi selesai") = proses terakhirnya, PRD-109');
+  assert.deepEqual([ringkasan.proyekPaket, ringkasan.setoran, ringkasan.dibuang.setoranYatim], [1, 2, 2]);
+});
+
 test('riwayat: terbaru dulu, jenis & label dipetakan, task yang dihapus tetap terbaca', () => {
   const { data } = ubah(dumpV1());
   assert.deepEqual(data.log.map(l => [l.type, l.task, l.by]), [
@@ -244,7 +261,7 @@ test('riwayat dipotong di 1000 terbaru', () => {
 
 test('PIN, catatan pribadi, dan notifikasi v1 tidak terbawa sama sekali', () => {
   const { data } = ubah(dumpV1());
-  assert.deepEqual(Object.keys(data), ['projects', 'tasks', 'packages', 'dashboards', 'links', 'notes', 'log']);
+  assert.deepEqual(Object.keys(data), ['projects', 'tasks', 'packages', 'setoran', 'dashboards', 'links', 'notes', 'log']);
   const semua = JSON.stringify(data);
   for (const rahasia of ['HASH-RAHASIA-JANGAN-BOCOR', 'CATATAN-PRIBADI-JANGAN-BOCOR', 'NOTIF-PRIBADI-JANGAN-BOCOR']) {
     assert.ok(!semua.includes(rahasia), rahasia);

@@ -243,7 +243,7 @@ test('menyerah setelah jatah ulang habis, dan galat lain tak diulang sama sekali
 const { urai } = require('../api/_skema');
 
 const contoh = () => ({
-  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, history: [] }],
+  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, paket: 'PKG-002', history: [] }],
   tasks: [
     {
       id: 'PRD-001', project: '', lane: 'rutin', kategori: 'RnD', title: 'Task lepas', platform: 'ASN', stage: '', sub: '', detail: '',
@@ -275,7 +275,8 @@ const contoh = () => ({
   }],
   dashboards: [{ id: 'd2', title: 'Proyek Freelance', deskripsi: 'Rekap', icon: 'timeline', url: 'https://contoh.id/a' }],
   links: [{ id: 'u2', user: 'ali', folder: 'Kerja', title: 'Bank soal', url: 'https://contoh.id/bank' }],
-  notes: [{ id: 'n1', user: 'ali', folder: '', title: 'Ide', body: 'Baris satu\nBaris dua',updatedAt: Date.parse('2026-10-07T03:00:00Z') }],
+  notes: [{ id: 'n1', user: 'ali', folder: '', title: 'Ide', body: 'Baris satu\nBaris dua', updatedAt: Date.parse('2026-10-07T03:00:00Z') }],
+  setoran: [{ id: 'st-PRD-646-ITM-1', paket: 'PKG-002', item: 'ITM-1', task: 'PRD-646', jumlah: 2, catatan: '' }, { id: 'st2', paket: 'PKG-002', item: 'ITM-2', task: 'PRD-001', jumlah: 1.5, catatan: 'setengah sesi' }],
   log: [{ id: 'l1', type: 'create', task: 'PRD-001 · Task lepas', detail: 'Dibuat', by: 'andika', at: Date.parse('2026-07-01T01:00:00Z') }],
 });
 
@@ -294,6 +295,7 @@ test('tulisContoh lalu bacaContoh mengembalikan data yang sama persis', async ()
   assert.deepEqual(baca.data.dashboards, asli.dashboards);
   assert.deepEqual(baca.data.links, asli.links);
   assert.deepEqual(baca.data.notes, asli.notes);
+  assert.deepEqual(baca.data.setoran, asli.setoran);
   assert.deepEqual(baca.data.log, asli.log);
   assert.deepEqual(baca.seq, { task: 646, prj: 3, pkg: 2 });
 });
@@ -328,6 +330,23 @@ test('tab dibuat seukuran isinya — log 1001 baris tak menabrak batas grid 1000
   besar.log = Array.from({ length: 1000 }, (_, i) => ({ id: 'l' + i, type: 'update', task: 'x', detail: '', by: 'ali', at: Date.UTC(2026, 7, 1) + i }));
   await sheet.tulisContoh(k, ID, urai(besar));
   assert.equal((await sheet.bacaContoh(k, ID)).data.log.length, 1000);
+});
+
+test('spreadsheet yang diimpor sebelum ada tab setoran tetap terbaca: setorannya kosong', async () => {
+  const { k, tab } = kosong();
+  await sheet.tulisContoh(k, ID, urai(contoh()));
+  await k.api.spreadsheets.batchUpdate({ spreadsheetId: ID, requestBody: { requests: [{ deleteSheet: { sheetId: tab('setoran').sheetId } }] } });
+  assert.equal(tab('setoran'), undefined);
+  const baca = await sheet.bacaContoh(k, ID);
+  assert.deepEqual(baca.data.setoran, []);
+  assert.equal(baca.data.tasks.length, 2);
+});
+
+test('tab wajib yang hilang tetap ditolak dengan pesan yang jelas', async () => {
+  const { k, tab } = kosong();
+  await sheet.tulisContoh(k, ID, urai(contoh()));
+  await k.api.spreadsheets.batchUpdate({ spreadsheetId: ID, requestBody: { requests: [{ deleteSheet: { sheetId: tab('packages').sheetId } }] } });
+  await assert.rejects(sheet.bacaContoh(k, ID), /tak ada: packages/);
 });
 
 test('bacaContoh: belum pernah diimpor → data null; belum disiapkan → ditolak', async () => {

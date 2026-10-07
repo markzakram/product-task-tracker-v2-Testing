@@ -269,7 +269,7 @@
     if (!String(f.name || '').trim()) throw new Error('Nama proyek wajib diisi.');
     const p = {
       id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ'), name: String(f.name).trim(), platform: f.platform || 'All Platform',
-      stage: 'A', cycle: 1, decision: 'Build', goal: String(f.goal || '').trim(), lead: f.lead || MANAGER, history: [],
+      stage: 'A', cycle: 1, decision: 'Build', goal: String(f.goal || '').trim(), lead: f.lead || MANAGER, arsip: false, paket: '', history: [],
     };
     data.projects.unshift(p);
     catatLog(data, 'create', `${p.id} · ${p.name}`, 'Proyek dibuat di tahap Analysis', me, waktu);
@@ -587,31 +587,67 @@
   const PAKET_PRODUK = [...KATEGORI_PAKET.map(([label, kunci]) => [kunci, label]), ['catatan', 'Catatan produk']];
   const SATUAN_PAKET = ['Paket', 'BAB', 'Sesi', 'Video', 'Ebook', 'Video + Ebook'];
 
-  /* Status target dihitung, tak pernah diketik. "Lebih" sengaja tidak dibulatkan
-     jadi selesai: kelebihan biasanya berarti salah hitung, dan itu perlu terlihat. */
-  function hitungTarget(it) {
+  /* Setoran = "task X mengisi target Y sebanyak N". Inilah yang membuat progres paket
+     bergerak sendiri: setoran terhitung begitu task-nya Selesai — untuk task proyek
+     artinya sudah disetujui peninjau. Task yang masih berjalan dihitung "digarap".
+     Tak ada yang ditulis saat task selesai; progres selalu dihitung ulang dari status
+     task, jadi task yang dibuka kembali otomatis menurunkan angkanya lagi. */
+  function setoranPaket(data, p, perId = indeks(data)) {
+    const per = new Map((p.items || []).map(it => [it.id, []]));
+    for (const s of data.setoran || []) {
+      if (s.paket !== p.id || !per.has(s.item)) continue;
+      const t = perId.get(s.task) || null;
+      per.get(s.item).push({ ...s, t, selesai: !!t && selesai(t), hilang: !t });
+    }
+    return per;
+  }
+
+  /* Status target dihitung, tak pernah diketik:
+       terpenuhi = sudah ada (awal) + setoran dari task yang Selesai
+       digarap   = setoran dari task yang belum Selesai
+     "Lebih" sengaja tidak dibulatkan jadi penuh: kelebihan biasanya berarti salah hitung
+     atau setoran dobel, dan itu perlu terlihat. Setoran yang task-nya hilang tak dihitung. */
+  function hitungTarget(it, kontrib = []) {
     const target = Number(it.target) || 0;
-    const terpenuhi = Number(it.awal) || 0;
-    const sisa = Math.max(0, target - terpenuhi);
+    const awal = Number(it.awal) || 0;
+    let masuk = 0, digarap = 0;
+    for (const k of kontrib) {
+      if (k.hilang) continue;
+      if (k.selesai) masuk += Number(k.jumlah) || 0;
+      else digarap += Number(k.jumlah) || 0;
+    }
+    const terpenuhi = awal + masuk;
     let status = 'belum';
     if (target > 0 && terpenuhi > target) status = 'lebih';
     else if (target > 0 && terpenuhi >= target) status = 'penuh';
+    else if (digarap > 0) status = 'digarap';
     else if (terpenuhi > 0) status = 'sebagian';
-    return { target, terpenuhi, sisa, lebih: Math.max(0, terpenuhi - target), status };
+    return { target, awal, masuk, terpenuhi, digarap, sisa: Math.max(0, target - terpenuhi), lebih: Math.max(0, terpenuhi - target), status };
   }
 
-  function ringkasPaket(p) {
-    const r = { target: 0, terpenuhi: 0, sisa: 0, jumlah: (p.items || []).length, penuh: 0, lebih: 0, kurang: 0 };
+  /* Yang belum ditangani siapa pun: belum terpenuhi dan belum sedang digarap. */
+  function sisaTerbuka(it, kontrib = []) {
+    const h = hitungTarget(it, kontrib);
+    return Math.max(0, h.target - h.terpenuhi - h.digarap);
+  }
+
+  function ringkasPaket(p, kontribPer = new Map()) {
+    const r = { target: 0, terpenuhi: 0, digarap: 0, sisa: 0, jumlah: (p.items || []).length, penuh: 0, lebih: 0, kurang: 0, sedang: 0, terbuka: 0 };
     for (const it of p.items || []) {
-      const h = hitungTarget(it);
+      const k = kontribPer.get(it.id) || [];
+      const h = hitungTarget(it, k);
       r.target += h.target;
       r.terpenuhi += Math.min(h.terpenuhi, h.target || h.terpenuhi);
+      r.digarap += Math.min(h.digarap, h.sisa);
       r.sisa += h.sisa;
       if (h.status === 'penuh') r.penuh++;
       else if (h.status === 'lebih') r.lebih++;
       else r.kurang++;
+      if (h.status === 'digarap') r.sedang++;
+      if (sisaTerbuka(it, k) > 0) r.terbuka++;
     }
     r.persen = r.target ? Math.round(r.terpenuhi / r.target * 100) : 0;
+    r.persenDigarap = r.target ? Math.round(r.digarap / r.target * 100) : 0;
     r.isiProduk = PAKET_PRODUK.filter(([k]) => String(p[k] || '').trim()).length;
     return r;
   }
@@ -661,6 +697,9 @@
     });
     Object.assign(p, { platform: teks(f.platform), program: teks(f.program), namaPaket, produkPic: teks(f.produkPic), items, links, mirror, updatedBy: me, updatedAt: waktu });
     for (const [kunci] of PAKET_PRODUK) p[kunci] = String(f[kunci] == null ? '' : f[kunci]).replace(/\s+$/, '');
+    // Target yang dihapus membawa setorannya: setoran tanpa target tak bisa ditampilkan di mana pun.
+    const adaItem = new Set(items.map(it => it.id));
+    if (data.setoran) data.setoran = data.setoran.filter(s => s.paket !== p.id || adaItem.has(s.item));
     catatLog(data, 'update', `${p.id} · ${p.namaPaket}`, 'Rancangan paket diubah', me, waktu);
     return p;
   }
@@ -670,7 +709,93 @@
     const i = data.packages.indexOf(p);
     if (i < 0) throw new Error('Paket tidak ditemukan.');
     data.packages.splice(i, 1);
+    if (data.setoran) data.setoran = data.setoran.filter(s => s.paket !== p.id);
+    for (const proj of data.projects) if (proj.paket === p.id) proj.paket = '';
     catatLog(data, 'delete', `${p.id} · ${p.namaPaket}`, 'Rancangan paket dihapus', me, waktu);
+  }
+
+  /* ---------- Rancangan paket → proyek ---------- */
+
+  /* Task hasil elaborasi ada di tahap Development; sub-tahapnya mengikuti kategori. */
+  const SUB_ELABORASI = { Dibimbing: '3.3 Content Production', 'Live Class': '3.3 Content Production' };
+  const fmtJumlah = n => (Number.isInteger(n) ? String(n) : String(n).replace('.', ','));
+
+  /* Setiap target terpilih yang masih terbuka menjadi satu task proyek, yang menyetor
+     sisanya ke target itu. Progres paket lalu bergerak sendiri setiap kali task itu
+     disetujui. Bawaannya tahap Development: rancangan paketnya sendiri adalah hasil Design. */
+  function elaborasiPaket(data, p, f, me, waktu, hariIni) {
+    const peran = orang(me).peran;
+    if (!['manager', 'lead'].includes(peran)) throw new Error('Hanya Lead atau Manager yang mengelaborasi paket.');
+    const lead = peran === 'lead' ? me : (teks(f.lead) || MANAGER);
+    if (orang(lead).peran === 'staff') throw new Error('Lead proyek harus Lead atau Manager.');
+    const pic = teks(f.pic) || lead;
+    if (!picBoleh(me).includes(pic)) throw new Error('PIC itu di luar tim Anda.');
+    const stage = TAHAP.some(x => x.id === f.stage) ? f.stage : 'V';
+    const pilih = new Set(f.items || []);
+    const kontrib = setoranPaket(data, p);
+    const terbuka = (p.items || []).filter(it => pilih.has(it.id))
+      .map(it => ({ it, jumlah: sisaTerbuka(it, kontrib.get(it.id) || []) })).filter(x => x.jumlah > 0);
+    if (!terbuka.length) throw new Error('Tidak ada target terbuka yang dipilih. Target terpilih sudah terpenuhi atau sedang digarap.');
+    const judul = p.namaPaket || p.program || p.id;
+    const proj = {
+      id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ'), name: teks(f.name) || `Produksi ${judul}`, platform: p.platform || 'All Platform',
+      stage, cycle: 1, decision: 'Build', goal: teks(f.goal) || `Memenuhi target rancangan paket ${p.id} · ${judul}.`, lead, arsip: false, paket: p.id, history: [],
+    };
+    data.projects.unshift(proj);
+    catatLog(data, 'create', `${proj.id} · ${proj.name}`, `Proyek dari rancangan paket ${p.id}, tahap ${namaTahap(stage)}`, me, waktu);
+    data.setoran = data.setoran || [];
+    const tasks = terbuka.map(({ it, jumlah }) => {
+      const satuan = it.satuan || 'Paket';
+      const t = taskBaru(data, {
+        title: `${it.kategori} · ${it.nama || 'Tanpa nama'} — ${fmtJumlah(jumlah)} ${satuan}`,
+        project: proj.id, stage, pic, due: teks(f.due), priority: 'Normal',
+        output: `${fmtJumlah(jumlah)} ${satuan} ${it.nama || ''}`.trim(),
+        detail: [`Target paket ${p.id} · ${it.kategori}${it.grup ? ' / ' + it.grup : ''} · ${it.nama}: target ${fmtJumlah(Number(it.target) || 0)} ${satuan}.`,
+          `Saat task ini disetujui, ${fmtJumlah(jumlah)} ${satuan} masuk ke progres paket.`, it.catatan].filter(Boolean).join('\n'),
+      }, me, waktu, hariIni);
+      t.kategori = 'Develop Konten';
+      t.sub = SUB_ELABORASI[it.kategori] || '3.1 Academic Content Development';
+      data.setoran.push({ id: `st-${t.id}-${it.id}`, paket: p.id, item: it.id, task: t.id, jumlah, catatan: '' });
+      return t;
+    });
+    return { project: proj, tasks };
+  }
+
+  const bolehSetor = (t, me) => ['manager', 'lead'].includes(orang(me).peran) && bolehUbah(t, me);
+
+  /* Setoran manual dari detail task, untuk task yang dibuat di luar elaborasi.
+     Satu task + satu target = satu setoran; menyetor lagi mengganti jumlahnya. */
+  function setorkan(data, t, f, me, waktu) {
+    if (!bolehSetor(t, me)) throw new Error('Hanya Lead atau Manager task ini yang mengatur setoran.');
+    const p = data.packages.find(x => x.id === f.paket);
+    if (!p) throw new Error('Paket tidak ditemukan.');
+    const it = (p.items || []).find(x => x.id === f.item);
+    if (!it) throw new Error('Pilih target paketnya.');
+    const jumlah = angkaPositif(f.jumlah);
+    if (!jumlah) throw new Error('Jumlah setoran harus lebih dari 0.');
+    data.setoran = data.setoran || [];
+    const ada = data.setoran.find(s => s.task === t.id && s.paket === p.id && s.item === it.id);
+    if (ada) ada.jumlah = jumlah;
+    else data.setoran.push({ id: `st-${t.id}-${it.id}`, paket: p.id, item: it.id, task: t.id, jumlah, catatan: teks(f.catatan) });
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Setoran ke ${p.id}: ${it.kategori} · ${it.nama} ${fmtJumlah(jumlah)} ${it.satuan || 'Paket'}`, me, waktu);
+  }
+
+  function hapusSetoran(data, id, me, waktu) {
+    const daftar = data.setoran || [];
+    const i = daftar.findIndex(s => s.id === id);
+    if (i < 0) throw new Error('Setoran tidak ditemukan.');
+    const t = indeks(data).get(daftar[i].task);
+    if (!['manager', 'lead'].includes(orang(me).peran) || (t && !bolehUbah(t, me))) throw new Error('Hanya Lead atau Manager task ini yang mengatur setoran.');
+    const [s] = daftar.splice(i, 1);
+    catatLog(data, 'update', t ? `${t.id} · ${t.title}` : s.task, `Setoran ke ${s.paket} dihapus`, me, waktu);
+  }
+
+  /* Menautkan proyek yang sudah ada (mis. kolaborasi v1) ke rancangan paket. */
+  function tautkanPaket(data, proj, paketId, me, waktu) {
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menautkan proyek ke paket.');
+    if (paketId && !data.packages.some(p => p.id === paketId)) throw new Error('Paket tidak ditemukan.');
+    proj.paket = paketId || '';
+    catatLog(data, 'update', `${proj.id} · ${proj.name}`, paketId ? `Ditautkan ke rancangan paket ${paketId}` : 'Tautan rancangan paket dilepas', me, waktu);
   }
 
   /* ---------- Link Saya, Catatan Saya, Dashboard Lain ---------- */
@@ -809,6 +934,7 @@
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
     terlibat, belumDibaca, utasDiskusi, JENIS_LOG, saringLog,
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,
+    setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
     FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
   };

@@ -218,10 +218,10 @@ test('proyek arsip tak masuk antrean keputusan; task rutin bawaan Review PM diti
 });
 
 test('target paket: status dihitung dari target dan yang sudah ada, kelebihan tetap terlihat', () => {
-  assert.deepEqual(I.hitungTarget({ target: 5, awal: 0 }), { target: 5, terpenuhi: 0, sisa: 5, lebih: 0, status: 'belum' });
+  assert.deepEqual(I.hitungTarget({ target: 5, awal: 0 }), { target: 5, awal: 0, masuk: 0, terpenuhi: 0, digarap: 0, sisa: 5, lebih: 0, status: 'belum' });
   assert.equal(I.hitungTarget({ target: 5, awal: 2 }).status, 'sebagian');
   assert.equal(I.hitungTarget({ target: 5, awal: 5 }).status, 'penuh');
-  assert.deepEqual(I.hitungTarget({ target: 5, awal: 7 }), { target: 5, terpenuhi: 7, sisa: 0, lebih: 2, status: 'lebih' });
+  assert.deepEqual(I.hitungTarget({ target: 5, awal: 7 }), { target: 5, awal: 7, masuk: 0, terpenuhi: 7, digarap: 0, sisa: 0, lebih: 2, status: 'lebih' });
   const r = I.ringkasPaket({ items: [{ target: 5, awal: 5 }, { target: 10, awal: 4 }, { target: 2, awal: 3 }], latsol: 'DL 28 Sept', tryout: '' });
   assert.deepEqual([r.target, r.terpenuhi, r.sisa, r.penuh, r.lebih, r.kurang, r.isiProduk], [17, 11, 6, 1, 1, 1, 1],
     'kelebihan tak menambah persentase di atas target');

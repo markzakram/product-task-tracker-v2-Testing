@@ -7,6 +7,8 @@
    Larik bersarang dipecah ke tab sendiri dengan kolom induknya:
      task  → subtasks, comments, tinjauan, evidence   (kolom `task`)
      paket → package_items, package_links             (kolom `paket`)
+   Setoran (task → target paket) berdiri sendiri di tab `setoran`, karena ia menaut
+   dua induk sekaligus.
    Larik sederhana (support, deps) ditulis dipisah koma dalam satu sel.
 
    Waktu (createdAt, updatedAt, selesaiAt, at) disimpan sebagai teks ISO supaya
@@ -16,7 +18,7 @@
    ========================================================================== */
 
 const TAB = {
-  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip'],
+  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket'],
   tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
     'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'notes', 'assignedBy',
     'cycle', 'createdAt', 'updatedAt', 'selesaiAt'],
@@ -32,13 +34,19 @@ const TAB = {
   dashboards: ['id', 'title', 'deskripsi', 'icon', 'url'],
   links: ['id', 'user', 'folder', 'title', 'url'],
   notes: ['id', 'user', 'folder', 'title', 'body', 'updatedAt'],
+  setoran: ['id', 'paket', 'item', 'task', 'jumlah', 'catatan'],
   log: ['id', 'type', 'task', 'detail', 'by', 'at'],
 };
+/* Tab yang baru ada sejak versi tertentu. Spreadsheet yang diimpor sebelum itu tetap
+   terbaca: tab ini dianggap kosong, bukan galat. Begitu juga sebaliknya — versi lama
+   mengabaikan tab dan kolom yang tak dikenalnya — jadi impor ulang tak memutus versi
+   yang sedang live. */
+const TAB_OPSIONAL = new Set(['setoran']);
 /* Tab bentuk lama. Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
 const USANG = ['gate_log', 'backlog', 'bookmarks'];
 
 const DAFTAR = new Set(['support', 'deps']);
-const ANGKA = new Set(['urutan', 'target', 'awal']);
+const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
 const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror']);
 
@@ -102,7 +110,7 @@ function urai(data) {
     for (const it of items) isi.package_items.push({ ...it, paket: p.id });
     for (const l of links) isi.package_links.push({ ...l, paket: p.id });
   }
-  for (const k of ['dashboards', 'links', 'notes', 'log']) for (const x of data[k] || []) isi[k].push(x);
+  for (const k of ['dashboards', 'links', 'notes', 'setoran', 'log']) for (const x of data[k] || []) isi[k].push(x);
   return Object.fromEntries(Object.entries(isi).map(([t, daftar]) => [t, [TAB[t], ...daftar.map(o => keBaris(t, o))]]));
 }
 
@@ -135,6 +143,7 @@ function rakit(tabs) {
     dashboards: tabs.dashboards || [],
     links: tabs.links || [],
     notes: tabs.notes || [],
+    setoran: tabs.setoran || [],
     log: tabs.log || [],
   };
 }
@@ -149,4 +158,4 @@ function nomorTerbesar(daftar, awalan) {
   return n;
 }
 
-module.exports = { TAB, USANG, keBaris, dariBaris, urai, rakit, nomorTerbesar };
+module.exports = { TAB, TAB_OPSIONAL, USANG, keBaris, dariBaris, urai, rakit, nomorTerbesar };

@@ -16,7 +16,8 @@
    Semua keputusan pemetaan ada di tabel-tabel di bawah. Ubah tabelnya, cek dengan
    `npm run impor:v1 -- --kering`, lalu impor ulang.
 
-   Yang ikut dibawa selain task: rancangan paket beserta target dan tautannya, dan
+   Yang ikut dibawa selain task: rancangan paket beserta target dan tautannya,
+   tautan kolaborasi → paket (jadi proyek.paket), setoran (package_contribs), dan
    Dashboard Lain. Link Saya (user_links) dipetakan bila diberikan, tapi impor-v1.js
    hanya memberikannya dengan --dengan-link: di v1 link itu terlindung PIN pribadi.
 
@@ -273,6 +274,7 @@ function proyekDariV1(c, langkah, idBaru, idTask) {
     id: prj, name: teks(c.title), platform: pl.nilai, stage: stageProyek,
     cycle: 1, decision: 'Build', goal: [teks(c.description), pl.catatan].filter(Boolean).join('\n\n'),
     lead: leadDari(urut),
+    paket: '',   // diisi sesudah paket dipetakan (kolom paket_id kolaborasi)
     // Kolaborasi v1 yang tuntas = proyek selesai: masuk arsip, bukan antrean keputusan.
     arsip: tasks.length > 0 && tasks.every(t => t.status === 'Selesai'),
   };
@@ -304,10 +306,11 @@ function paketDariV1(p, items, links) {
 /* ---------- Utama ------------------------------------------------------- */
 
 function ubah(d) {
-  const dibuang = { ceklisYatim: 0, komentarYatim: 0, logTerpotong: 0, linkTanpaProfil: 0 };
+  const dibuang = { ceklisYatim: 0, komentarYatim: 0, logTerpotong: 0, linkTanpaProfil: 0, setoranYatim: 0 };
   const idTask = new Map();     // 'TSK-099' → 'PRD-099', 'COL-021#3' → 'PRD-7xx'
   const proyekV1 = new Map();   // 'COL-021' → proyek PRJ-21
   const langkahPertama = new Map();
+  const langkahTerakhir = new Map();
 
   // Waktu selesai yang tercatat di riwayat aktivitas v1, per task.
   const selesaiLog = new Map();
@@ -335,6 +338,7 @@ function ubah(d) {
     const { project, tasks: milik } = proyekDariV1(c, langkahPer.get(c.collab_id) || [], idBaru, idTask);
     proyekV1.set(c.collab_id, project);
     if (milik.length) langkahPertama.set(c.collab_id, milik[0].id);
+    if (milik.length) langkahTerakhir.set(c.collab_id, milik[milik.length - 1].id);
     projects.push(project);
     tasks.push(...milik);
     jumlahLangkah += milik.length;
@@ -363,6 +367,29 @@ function ubah(d) {
   const itemPer = kelompok(d.package_items, i => i.paket_id);
   const tautanPer = kelompok(d.package_links, l => l.paket_id);
   const packages = (d.packages || []).map(p => paketDariV1(p, itemPer.get(p.paket_id) || [], tautanPer.get(p.paket_id) || []));
+
+  /* Kolaborasi v1 yang tertaut paket (kolom paket_id) → proyek bertaut paket. Kolom itu
+     sempat diisi hal lain (nama stage) sebelum jadi Paket ID, jadi hanya ID paket yang
+     benar-benar ada yang dipakai. */
+  const adaPaket = new Set(packages.map(p => p.id));
+  for (const c of d.collabs || []) {
+    const pid = teks(c.paket_id);
+    const proj = proyekV1.get(c.collab_id);
+    if (proj && adaPaket.has(pid)) proj.paket = pid;
+  }
+  /* Setoran v1 (PACKAGE_CONTRIB): proses kolaborasi → target paket. Nomor proses 0 berarti
+     "dihitung saat seluruh kolaborasi selesai" → disetorkan oleh proses terakhirnya, yang
+     di v2 memang menunggu semua proses sebelumnya. */
+  const itemAda = new Set(packages.flatMap(p => p.items.map(i => `${p.id}|${i.id}`)));
+  const setoran = [];
+  for (const k of d.package_contribs || []) {
+    const paket = teks(k.paket_id), item = teks(k.item_id), cid = teks(k.collab_id);
+    const urutan = Number(k.step_order) || 0;
+    const task = urutan ? idTask.get(`${cid}#${urutan}`) : langkahTerakhir.get(cid);
+    if (!task || !itemAda.has(`${paket}|${item}`)) { dibuang.setoranYatim++; continue; }
+    setoran.push({ id: 'st' + k.__baris, paket, item, task, jumlah: Number(k.jumlah) || 0, catatan: teks(k.catatan) });
+  }
+
   const dashboards = (d.dashboards || []).filter(x => tautanSah(x.url))
     .map(x => ({ id: 'd' + x.__baris, title: sensor(x.title), deskripsi: sensor(x.deskripsi), icon: teks(x.icon), url: teks(x.url) }));
   /* Link Saya hanya untuk orang yang punya profil di v2; selain itu tak ada yang bisa melihatnya. */
@@ -405,7 +432,7 @@ function ubah(d) {
   const hitung = kunci => tasks.reduce((n, t) => n + t[kunci].length, 0);
   const aktif = tasks.filter(t => t.status !== 'Selesai');
   return {
-    data: { projects, tasks, packages, dashboards, links, notes: [], log },
+    data: { projects, tasks, packages, setoran, dashboards, links, notes: [], log },
     ringkasan: {
       taskV1: (d.tasks || []).length,
       langkahJadiTask: jumlahLangkah,
@@ -420,6 +447,8 @@ function ubah(d) {
       evidence: hitung('evidence'),
       paket: packages.length,
       targetPaket: packages.reduce((n, p) => n + p.items.length, 0),
+      proyekPaket: projects.filter(p => p.paket).length,
+      setoran: setoran.length,
       dashboard: dashboards.length,
       link: links.length,
       log: log.length,

@@ -15,7 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { TAB, USANG, dariBaris, rakit, nomorTerbesar } = require('./_skema');
+const { TAB, TAB_OPSIONAL, USANG, dariBaris, rakit, nomorTerbesar } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
 const CAKUPAN = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -339,14 +339,16 @@ async function bacaContoh(k, id) {
   if (keadaan.kepemilikan !== 'v2') {
     throw new GalatDitolak('Spreadsheet ini belum disiapkan untuk v2. Buka /cek lalu tekan "Siapkan untuk v2".');
   }
-  const nama = Object.keys(TAB);
-  const kurang = nama.filter(n => !keadaan.tab.includes(n));
-  if (kurang.length === nama.length || !keadaan.contoh) return { versi: '', sumber: '', data: null };
-  if (kurang.length) {
-    throw new GalatDitolak(`Tab data contoh tidak lengkap (tak ada: ${kurang.join(', ')}). Jalankan ulang npm run impor:v1.`);
+  const semua = Object.keys(TAB);
+  const kurang = semua.filter(n => !keadaan.tab.includes(n));
+  if (kurang.length === semua.length || !keadaan.contoh) return { versi: '', sumber: '', data: null };
+  const wajibKurang = kurang.filter(n => !TAB_OPSIONAL.has(n));
+  if (wajibKurang.length) {
+    throw new GalatDitolak(`Tab data contoh tidak lengkap (tak ada: ${wajibKurang.join(', ')}). Jalankan ulang npm run impor:v1.`);
   }
+  const nama = semua.filter(n => keadaan.tab.includes(n));
   const r = await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges: nama.map(n => rentang(n, 'A:Z')) }));
-  const tabs = {};
+  const tabs = Object.fromEntries(kurang.map(n => [n, []]));
   (r.data.valueRanges || []).forEach((vr, i) => {
     const [judul = [], ...isi] = vr.values || [];
     tabs[nama[i]] = isi.filter(b => b.some(sel => String(sel).trim())).map(b => dariBaris(nama[i], judul, b));

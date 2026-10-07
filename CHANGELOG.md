@@ -1,5 +1,24 @@
 # Changelog — ProductTrack v2
 
+## 0.5.0 — Rancangan paket → proyek, progres yang bergerak sendiri (2026-10-07)
+
+- **Elaborasi jadi proyek** di Rancangan Paket (Lead/Manager): setiap target yang masih terbuka
+  menjadi satu task proyek, bawaannya di tahap Development, lengkap dengan **setoran**-nya.
+- Progres paket dihitung dari setoran: terpenuhi = sudah ada + setoran dari task yang Selesai
+  (sudah disetujui peninjau); setoran task yang masih berjalan tampil sebagai **digarap**. Task
+  yang dibuka kembali otomatis mengurangi angkanya lagi. Tabel target menampilkan task
+  penyetornya; batang progres dua warna (terpenuhi / digarap).
+- Detail task: bagian **Setoran ke rancangan paket** (lihat, tambah, hapus). Pesan setelah
+  menyetujui menyebut apa yang masuk ke paket.
+- Halaman proyek: kartu **Rancangan paket** dengan progresnya; Manager bisa menautkan proyek
+  lama ke paket. Halaman paket: daftar **Proyek pengisi**.
+- Menu **Proyek ADDIE** berganti nama menjadi **Proyek**. Tahap ADDIE di dalam proyek tetap.
+- Impor v1 membawa tautan kolaborasi → paket (`paket_id`) dan setoran (`package_contribs`).
+- `npm run impor:v1 -- --demo`: skenario contoh di atas data v1 (TKA_CEREBRUM campuran, OJK
+  tuntas dan siap maju tahap, UTBK siap dielaborasi), dibangun dengan aturan aplikasi.
+- Bentuk tab hanya bertambah: kolom `paket` di `projects`, tab `setoran`. Spreadsheet yang
+  belum punya tab `setoran` tetap terbaca (setorannya kosong).
+
 ## 0.4.0 — Sidebar seperti v1 + halaman yang belum ada (2026-10-07)
 
 - Menu pindah dari bilah atas ke **sidebar kiri**, dikelompokkan seperti v1: Ringkasan (Hari Ini,
