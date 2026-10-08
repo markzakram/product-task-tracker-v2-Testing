@@ -1,5 +1,37 @@
 # Changelog — ProductTrack v2
 
+## 0.8.0 — Sidebar ringkas, halaman Task, Link & Catatan gaya ide v2 (2026-10-08)
+
+- **Sidebar ditata ulang.** Grup Pekerjaan berurutan sesuai alurnya: Rancangan Paket → Proyek →
+  Task → Komunikasi. Grup Task dan Kolaborasi digabung ke sana. Menu Dashboard Lain dihapus;
+  isinya pindah ke Link Saya sebagai kartu **Tautan tim**. Bilah bawah ponsel: Hari Ini, Task,
+  Proyek, Komunikasi, Menu. Halaman yang tersimpan dari versi lama (Kanban, Task List, Timeline,
+  Kalender, Dashboard Lain) otomatis diarahkan ke penggantinya.
+- **Satu halaman Task** dengan lima tampilan dalam bingkai yang sama, diganti lewat ikon: Daftar,
+  Kanban, Per orang (baru), Timeline, Kalender. Tab fokus berangka (Semua, Terlambat, Tertahan,
+  Tinjauan saya), kotak cari, lingkup, dan panel **Saringan** berlencana berlaku di semua
+  tampilan. Cari kini juga menemukan nama proyek.
+- **Link Saya gaya ide v2**: kartu per folder, tempel alamat lalu Enter (atau Ctrl+V di
+  halaman itu) dan judulnya terisi sendiri, ★ Favorit, buka semua isi kartu sekaligus, pindah
+  folder, Folder baru. Kartu **Tautan tim** terlihat semua orang dan dikelola Manager.
+- **Catatan Saya gaya ide v2**: dua panel (daftar + editor besar), tersimpan otomatis saat
+  mengetik, Ctrl+S menyimpan seketika, sematkan di atas, unduh .txt, folder sebagai chip.
+  Catatan tanpa judul memakai baris pertamanya. Di ponsel daftar dulu, lalu editor penuh.
+- **Alamat per halaman**: setiap halaman, tampilan Task, proyek, paket, catatan, dan task yang
+  terbuka punya alamat (`#/task/kanban/PRD-1038`). Tombol **Salin tautan** di detail task,
+  proyek, dan paket. Back/Forward browser berjalan, dan alamat yang dibuka sebelum memasukkan PIN
+  tetap dituju sesudahnya.
+- **Pencarian cepat** (Ctrl+K / ⌘K, atau /): lompat ke halaman, tampilan, aksi, rancangan paket,
+  proyek, task, catatan, dan link dengan papan ketik.
+- **Notifikasi** di lonceng bilah atas: task baru atau diserahkan ke Anda, task yang siap
+  dimulai, tinjauan yang menunggu, dikembalikan/disetujui, komentar baru, dan siklus proyek yang
+  selesai (Manager). Dihitung dari data yang ada (`notifikasi()` di `public/inti.js`).
+- Panduan diperbarui untuk halaman Task, ditambah dua panduan baru: pencarian cepat & lonceng,
+  serta Link Saya & Catatan Saya. Ilustrasi baru untuk pencarian cepat.
+- Perbaikan tampilan ponsel: Dashboard tak lagi melebar melewati layar (kotak tahap jadi tiga
+  kolom, tabel per orang bergulir di dalam kartunya), tab fokus Task bergeser tanpa batang
+  gulir, dan Saringan tersusun dua kolom.
+
 ## 0.7.0 — Panduan di dalam aplikasi (2026-10-07)
 
 - Menu **Panduan** di sidebar (grup Bantuan), dengan tab Mulai di sini, Konsep, Staff, Lead,

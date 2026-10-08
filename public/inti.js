@@ -607,8 +607,15 @@
     return s && s.tahap !== 'R' ? 'lepas' : 'rutin';
   }
 
+  /* Saringan bersama semua tampilan Task (Daftar, Kanban, Per orang, Timeline, Kalender).
+     f.q mencari di ID, judul, PIC, platform, kategori, sub-stage, dan nama proyek. */
   function saring(data, f, hariIni, perId) {
-    return data.tasks.filter(t => (!f.orang || f.orang.includes(t.pic))
+    const kata = String(f.q || '').trim().toLowerCase();
+    const namaProyek = kata ? new Map(data.projects.map(p => [p.id, p.name])) : null;
+    const cocok = t => [t.id, t.title, orang(t.pic).nama, t.platform, t.kategori, t.sub, namaProyek.get(t.project) || '']
+      .join(' ').toLowerCase().includes(kata);
+    return data.tasks.filter(t => (!kata || cocok(t))
+      && (!f.orang || f.orang.includes(t.pic))
       && (!f.proyek || t.project === f.proyek)
       && (!f.jalur || jenisJalur(t) === f.jalur)
       && (!f.platform || t.platform === f.platform)
@@ -761,10 +768,7 @@
 
   /* f: saringan papan + status ('' | 'aktif' | salah satu STATUS), q, urut, arah (1 | -1). */
   function daftarTask(data, f, hariIni) {
-    const kata = String(f.q || '').trim().toLowerCase();
-    const namaProyek = new Map(data.projects.map(p => [p.id, p.name]));
-    const isi = saring(data, f, hariIni).filter(t => (!f.status || (f.status === 'aktif' ? aktif(t) : t.status === f.status))
-      && (!kata || [t.id, t.title, orang(t.pic).nama, t.platform, t.kategori, namaProyek.get(t.project) || ''].join(' ').toLowerCase().includes(kata)));
+    const isi = saring(data, f, hariIni).filter(t => !f.status || (f.status === 'aktif' ? aktif(t) : t.status === f.status));
     const banding = PEMBANDING[f.urut] || PEMBANDING.due;
     const arah = f.arah === -1 ? -1 : 1;
     return isi.sort((a, b) => arah * banding(a, b) || a.id.localeCompare(b.id, 'id', { numeric: true }));
@@ -812,6 +816,53 @@
       .filter(t => (lingkup === 'terlibat' ? terlibat(t, me) : lingkup === 'tim' ? !ids || ids.includes(t.pic) : true))
       .map(t => ({ t, baru: belumDibaca(t, me, sejak(t)), terakhir: t.comments.reduce((a, k) => (!a || k.at > a.at ? k : a), null) }))
       .sort((a, b) => (b.baru > 0) - (a.baru > 0) || (b.terakhir ? b.terakhir.at : 0) - (a.terakhir ? a.terakhir.at : 0));
+  }
+
+  /* ---------- Notifikasi ----------
+     Yang menyangkut `me`, dibaca dari jejak yang sudah ada di data (log, tinjauan, komentar,
+     status task); tak ada tabel notifikasi tersendiri.
+       baru      task dibuat orang lain untuk saya          siap     task yang ditunggu sudah selesai
+       serah     task diserahkan ke saya (delegasi)         tinjau   task diajukan, menunggu tinjauan saya
+       kembali   task saya dikembalikan peninjau            setuju   task saya disetujui
+       komentar  komentar baru di task yang melibatkan saya siklus   (Manager) siklus proyek ditutup E12
+     Terbaru di atas. Penanda dibaca/belum disimpan di app.js, per profil. */
+  function notifikasi(data, me, batas = 60) {
+    const perId = indeks(data);
+    const pendek = orang(me).pendek.toLowerCase();
+    const out = [];
+    const tambah = (jenis, t, at, oleh, isi = '') => { if (at) out.push({ id: `${jenis}-${t.id}-${at}`, jenis, task: t.id, at, oleh, teks: isi }); };
+    for (const t of data.tasks) {
+      if (t.pic === me && t.status === 'Antre' && (t.deps || []).length) {
+        const ditunggu = t.deps.map(id => perId.get(id)).filter(Boolean);
+        if (ditunggu.length && ditunggu.every(selesai)) tambah('siap', t, Math.max(...ditunggu.map(d => d.selesaiAt || 0)), '');
+      }
+      for (const r of t.tinjauan || []) {
+        if (r.by === me) continue;
+        if (r.action === 'Diajukan' && t.status === 'Ditinjau' && peninjau(t) === me) tambah('tinjau', t, r.at, r.by);
+        if (t.pic === me && r.action === 'Dikembalikan') tambah('kembali', t, r.at, r.by, r.note);
+        if (t.pic === me && r.action === 'Disetujui') tambah('setuju', t, r.at, r.by);
+      }
+      if (terlibat(t, me)) for (const k of t.comments || []) if (k.author !== me) tambah('komentar', t, k.at, k.author, k.text);
+    }
+    // Task baru dan delegasi hanya tercatat di log: "Dibuat untuk Kiki · E4", "Diubah: diserahkan ke Kiki".
+    for (const l of data.log) {
+      if (l.by === me) continue;
+      const t = perId.get(String(l.task).split(' ')[0]);
+      if (!t || t.pic !== me) continue;
+      const d = String(l.detail || '');
+      const dibuat = /^Dibuat untuk (.+?)(?: · |$)/.exec(d);
+      const serah = /(?:diserahkan|didelegasikan) ke ([^,.;]+)/i.exec(d);
+      if (l.type === 'create' && dibuat && dibuat[1].trim().toLowerCase() === pendek) tambah('baru', t, l.at, l.by);
+      else if (serah && serah[1].trim().toLowerCase() === pendek) tambah('serah', t, l.at, l.by);
+    }
+    if (orang(me).peran === 'manager') {
+      for (const p of data.projects) {
+        if (p.arsip || p.decision === 'Hold' || !siklusTutup(data, p)) continue;
+        const e12 = tugasSiklus(data, p).filter(t => t.sub === 'E12' && selesai(t)).sort((a, b) => b.selesaiAt - a.selesaiAt)[0];
+        if (e12.selesaiAt) out.push({ id: `siklus-${p.id}-${e12.selesaiAt}`, jenis: 'siklus', proyek: p.id, task: e12.id, at: e12.selesaiAt, oleh: '', teks: '' });
+      }
+    }
+    return out.sort((a, b) => b.at - a.at).slice(0, batas);
   }
 
   /* ---------- Riwayat aktivitas ---------- */
@@ -1168,7 +1219,7 @@
     catatLog(data, 'update', `${proj.id} · ${proj.name}`, paketId ? `Ditautkan ke rancangan paket ${paketId}` : 'Tautan rancangan paket dilepas', me, waktu);
   }
 
-  /* ---------- Link Saya, Catatan Saya, Dashboard Lain ---------- */
+  /* ---------- Link Saya, Catatan Saya, Tautan tim ---------- */
 
   const FOLDER_UMUM = 'Umum';
   const namaFolder = f => teks(f) || FOLDER_UMUM;
@@ -1228,8 +1279,20 @@
     if (!title && !body.trim()) throw new Error('Catatan tidak boleh kosong.');
     const isi = { title, body, folder: folderSimpan(f.folder), updatedAt: waktu };
     if (id) return Object.assign(milikSaya(data.notes, id, me), isi);
-    const n = { id: `n${waktu}-${data.notes.length}`, user: me, ...isi };
+    const n = { id: `n${waktu}-${data.notes.length}`, user: me, createdAt: waktu, pin: false, ...isi };
     data.notes.unshift(n);
+    return n;
+  }
+
+  /* Link favorit tampil di kartu ★ Favorit; catatan yang disematkan selalu di atas daftar. */
+  function tandaiLink(data, me, id, favorit) {
+    const l = milikSaya(data.links, id, me);
+    l.favorit = !!favorit;
+    return l;
+  }
+  function sematkanCatatan(data, me, id, pin) {
+    const n = milikSaya(data.notes, id, me);
+    n.pin = !!pin;
     return n;
   }
 
@@ -1257,33 +1320,33 @@
     return n;
   }
 
-  /* Ikon Dashboard Lain memakai nama ikon v1 (Material), digambar ulang di app.js. */
+  /* Tautan tim (dulu menu Dashboard Lain). Ikonnya memakai nama ikon v1 (Material), digambar ulang di app.js. */
   const IKON_DASHBOARD = ['dashboard', 'bar_chart', 'timeline', 'table_chart', 'description', 'assignment', 'school', 'event'];
 
   function simpanDashboard(data, me, f, id, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola Dashboard Lain.');
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola tautan tim.');
     const title = teks(f.title);
-    if (!title) throw new Error('Judul dashboard wajib diisi.');
+    if (!title) throw new Error('Judul tautan tim wajib diisi.');
     const url = tautanRapi(f.url);
-    if (!url) throw new Error('Alamat dashboard tidak valid.');
+    if (!url) throw new Error('Alamat tautan tim tidak valid.');
     const isi = { title, url, deskripsi: teks(f.deskripsi), icon: IKON_DASHBOARD.includes(f.icon) ? f.icon : 'dashboard' };
     if (id) {
       const d = data.dashboards.find(x => x.id === id);
-      if (!d) throw new Error('Dashboard tidak ditemukan.');
+      if (!d) throw new Error('Tautan tim tidak ditemukan.');
       return Object.assign(d, isi);
     }
     const d = { id: `d${waktu}-${data.dashboards.length}`, ...isi };
     data.dashboards.push(d);
-    catatLog(data, 'create', 'Dashboard Lain', `Dashboard "${title}" ditambahkan`, me, waktu);
+    catatLog(data, 'create', 'Tautan tim', `"${title}" ditambahkan`, me, waktu);
     return d;
   }
 
   function hapusDashboard(data, me, id, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola Dashboard Lain.');
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola tautan tim.');
     const i = data.dashboards.findIndex(x => x.id === id);
-    if (i < 0) throw new Error('Dashboard tidak ditemukan.');
+    if (i < 0) throw new Error('Tautan tim tidak ditemukan.');
     const [d] = data.dashboards.splice(i, 1);
-    catatLog(data, 'delete', 'Dashboard Lain', `Dashboard "${d.title}" dihapus`, me, waktu);
+    catatLog(data, 'delete', 'Tautan tim', `"${d.title}" dihapus`, me, waktu);
   }
 
   function cari(data, q, batas = 50) {
@@ -1305,11 +1368,11 @@
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupOrang, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
-    terlibat, belumDibaca, utasDiskusi, JENIS_LOG, saringLog,
+    terlibat, belumDibaca, utasDiskusi, notifikasi, JENIS_LOG, saringLog,
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,
     setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
-    FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
+    FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
   };
 }));

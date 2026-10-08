@@ -28,15 +28,16 @@ orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan Lead
 
 | Grup | Halaman |
 |---|---|
-| Ringkasan | Hari Ini · Dashboard · Dashboard Lain · Laporan (Lead & Manager) |
-| Task | Kanban · Task List · Timeline · Kalender |
-| Kolaborasi | Proyek (bertahap ADDIE) · Rancangan Paket · Komunikasi |
-| Ruang Saya | Link Saya · Catatan Saya |
+| Ringkasan | Hari Ini · Dashboard · Laporan (Lead & Manager) |
+| Pekerjaan | Rancangan Paket · Proyek (bertahap ADDIE) · Task · Komunikasi |
+| Ruang Saya | Link Saya (termasuk Tautan tim) · Catatan Saya |
 | Manajer | Riwayat Aktivitas (Manager) |
 | Bantuan | Panduan |
 
-Di ponsel sidebar menjadi laci (tombol ☰), ditambah bilah bawah: Hari Ini, Kanban, Proyek,
-Komunikasi, Menu.
+Urutan Pekerjaan mengikuti alurnya: paket dirancang, dielaborasi jadi proyek, lalu proyek
+berisi task. Di ponsel sidebar menjadi laci (tombol ☰), ditambah bilah bawah: Hari Ini, Task,
+Proyek, Komunikasi, Menu. Bilah atas berisi **pencarian cepat** (Ctrl+K) dan **lonceng
+notifikasi**; keduanya dijelaskan di bagian *Alamat, pencarian cepat, dan notifikasi*.
 
 Sejak 0.6.0 alurnya mengikuti PRD v3 dari Manager (*ProductTrack v3 Product Operations System*),
 dengan satu penyederhanaan: tetap empat status.
@@ -110,17 +111,44 @@ Halaman pendukung, setara v1:
   proyek pengisi, dan **Salin ke sheet Marsel** (susunan kolom sheet Master).
   Lead & Manager membuat paket; PIC Produk boleh menyunting paketnya; membagikan ke Lintas
   Divisi hanya Lead/Manager; menghapus hanya Manager.
-- **Link Saya** dan **Catatan Saya**: per profil, berfolder (folder kosong = Umum), cari,
-  ganti nama/hapus folder (isinya pindah ke Umum). Link Saya mengangkat 6 link yang paling
-  sering dibuka di perangkat itu.
-- **Dashboard Lain**: kartu tautan dashboard tim; dikelola Manager.
+- **Task**: satu halaman dengan lima tampilan yang diganti lewat deretan ikon di atas daftar:
+  **Daftar** (bisa diurutkan dan diekspor ke CSV, ikut sub-stage, tim, rumpun, dan keadaannya),
+  **Kanban** (seret-lepas di desktop), **Per orang**, **Timeline** (5 minggu), dan **Kalender**
+  (tenggat per hari). Tab fokus berangka di atasnya: Semua, Terlambat, Tertahan, dan Tinjauan
+  saya (Lead & Manager). Kotak cari, lingkup (Saya / Tim saya / Semua), dan **Saringan**
+  (proyek, jalur, tahap, sub-stage, tim, rumpun, platform) berlaku di semua tampilan. Tampilan
+  dan saringan terakhir diingat per browser.
+- **Link Saya** (gaya ide v2): kartu per folder. Tempel alamat di kotak atas lalu Enter, atau
+  cukup Ctrl+V di halaman itu; judulnya terisi sendiri dan bisa diubah. ★ memasukkan link ke
+  kartu **Favorit**; ikon di kepala kartu membuka semua isinya sekaligus. Link bisa dipindah
+  folder; folder bisa diganti nama atau dihapus (isinya pindah ke Umum). Baris **Sering dibuka**
+  mengangkat 6 link yang paling sering dibuka di perangkat itu. Kartu **Tautan tim** (dulu menu
+  Dashboard Lain) berisi dashboard dan laporan tim: terlihat semua orang, dikelola Manager.
+- **Catatan Saya** (gaya ide v2): dua panel, daftar di kiri (cari, folder, yang disematkan di
+  atas) dan editor besar di kanan. Catatan **tersimpan sendiri** 0,7 detik setelah berhenti
+  mengetik; Ctrl+S menyimpan seketika. Bisa disematkan, diunduh sebagai .txt, dan dihapus.
+  Catatan tanpa judul memakai baris pertamanya. Di ponsel daftar dulu, lalu editor penuh.
 - **Komunikasi**: utas diskusi per task, yang belum dibaca di atas; lencana di sidebar.
 - **Laporan**: ringkasan berkala (minggu ini, minggu lalu, bulan ini, 30 hari) per orang, bisa
   disalin sebagai teks untuk chat atau email.
-- **Kanban** dan **Task List** disaring per jalur, tahap, sub-stage, tim, rumpun, dan platform.
-  Task List bisa diurutkan dan diekspor ke CSV (ikut sub-stage, tim, rumpun, dan keadaannya).
-- **Timeline** (5 minggu), **Kalender** (tenggat per hari), **Riwayat Aktivitas** (saring
-  jenis, orang, kata).
+- **Riwayat Aktivitas** (Manager): saring jenis, orang, kata.
+
+### Alamat, pencarian cepat, dan notifikasi
+
+- **Alamat per halaman.** Setiap halaman dan yang sedang terbuka punya alamat sendiri, mis.
+  `#/task/kanban/PRD-1038`, `#/proyek/PRJ-33`, `#/paket/PKG-001`, `#/catatan/<id>`. Tombol
+  **Salin tautan** ada di detail task, halaman proyek, dan rancangan paket; tautannya bisa
+  ditempel di chat. Penerimanya tetap perlu PIN v2, dan alamatnya bertahan melewati layar PIN
+  dan pilih profil. Tombol Back/Forward browser ikut berjalan. Saringan tidak masuk alamat.
+- **Pencarian cepat**: Ctrl+K (⌘K di Mac), tombol **/**, atau kotak cari di bilah atas. Isinya
+  halaman, tampilan Task, dan aksi; begitu mengetik muncul rancangan paket, proyek, task,
+  catatan, dan link yang cocok. Panah atas/bawah memilih, Enter membuka.
+- **Notifikasi** di lonceng bilah atas: task baru untuk Anda, task yang diserahkan ke Anda, task
+  Anda yang siap dimulai, tinjauan yang menunggu Anda, task yang dikembalikan atau disetujui,
+  komentar baru di task yang Anda ikuti, dan (Manager) siklus proyek yang selesai. Semuanya
+  dihitung dari data yang sudah ada (riwayat, tinjauan, komentar, keadaan task) oleh
+  `notifikasi()` di `public/inti.js`, tidak disimpan terpisah. Tanda sudah dibaca disimpan per
+  profil di browser itu.
 
 ### Panduan di dalam aplikasi
 
@@ -276,7 +304,7 @@ selama versinya sama, suntingan di browser itu dibiarkan.
 | Rancangan paket | paket utuh: identitas, teks per kategori, target (`package_items`), tautan, tanda dibagikan |
 | `paket_id` kolaborasi | `paket` di proyek (3 kolaborasi v1 tertaut paket) |
 | Setoran (`package_contribs`) | tab `setoran`. Nomor proses → task proses itu; nomor 0 ("saat kolaborasi selesai") → task proses terakhirnya. Di tarikan 2 Oktober tabelnya kosong |
-| Dashboard tim | Dashboard Lain. Kata sandi yang tertulis di deskripsinya ("Pass : …") disensor saat impor |
+| Dashboard Lain | **Tautan tim** di Link Saya. Kata sandi yang tertulis di deskripsinya ("Pass : …") disensor saat impor |
 | Link Saya | **tidak dibawa** kecuali `--dengan-link` (lihat di bawah) |
 | Riwayat aktivitas | 1000 terbaru |
 
@@ -311,7 +339,7 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
   keputusan Manager.
 - **UTBK** diberi target contoh tanpa dielaborasi, untuk mencoba tombol **Elaborasi jadi
   proyek** sendiri.
-- Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Dashboard Lain).
+- Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
 
 Bentuk tab hanya bertambah (kolom `paket` di `projects`; tab `setoran`, sejak 0.6.0 dengan kolom
 `tahap` dan `batch`), jadi versi yang sedang live tetap bisa membaca hasil impor ini. Versi baru
@@ -335,7 +363,10 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
   tersimpan di browser masing-masing (localStorage). Tombol **Reset data contoh** di kaki
   sidebar (di ponsel: Menu) membuang semua perubahan itu dan memuat ulang data contoh dari
   spreadsheet. Spreadsheet sendiri tak pernah diubah aplikasi, jadi data awalnya selalu utuh.
-  Karena itu pula Komunikasi dan Catatan Saya belum terbagi antarperangkat.
+  Karena itu pula Komunikasi dan Catatan Saya belum terbagi antarperangkat, dan **tautan ke
+  task yang dibuat di browser lain tidak ditemukan** (aplikasi memberi tahu "tidak ada di data
+  browser ini"). Tautan ke apa pun yang sudah ada di data contoh selalu jalan.
+- **Notifikasi hanya di dalam aplikasi**, dari data di browser itu. Belum ada email atau push.
 - **Profil dipilih sendiri** karena PIN dipakai bersama. Siapa pun bisa masuk sebagai Manager.
 - **Belum ada penyaringan per peran.** v1 menyaring data di server untuk magang dan Lintas
   Divisi; v2 belum. Siapa pun yang tahu PIN v2 melihat seluruh data contoh, jadi jangan

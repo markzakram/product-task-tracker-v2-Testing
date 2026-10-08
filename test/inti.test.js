@@ -278,6 +278,60 @@ test('ubah task: delegasi dari antrean tim, sub-stage menentukan tahap, batas PI
   assert.deepEqual(I.cari(d, 'r2').map(x => x.id), [lepas.id], 'kode sub-stage ikut dicari');
 });
 
+test('notifikasi: task baru, siap, tinjauan, disetujui, delegasi, komentar, dikembalikan, siklus selesai', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const dv1 = I.taskBaru(d, { title: 'DV1 soal', project: 'PRJ-1', sub: 'DV1', pic: 'uma' }, 'andika', WAKTU, HARI);
+  const dv8 = I.taskBaru(d, { title: 'DV8 input', project: 'PRJ-1', sub: 'DV8', pic: 'alya', deps: [dv1.id] }, 'andika', WAKTU + 1, HARI);
+  const jenis = me => I.notifikasi(d, me).map(n => `${n.jenis}:${n.task}`);
+  assert.deepEqual(jenis('uma'), [`baru:${dv1.id}`]);
+  assert.deepEqual(jenis('alya'), [`baru:${dv8.id}`]);
+  assert.deepEqual(jenis('andika'), [], 'pembuatnya sendiri tak diberi tahu');
+
+  Object.assign(dv1, { output: 'Soal', evidence: [{ id: 'e1', label: 'Bukti', url: 'https://contoh.id/b' }] });
+  I.terapkanAksi(d, dv1, 'mulai', 'uma', WAKTU + 2);
+  I.terapkanAksi(d, dv1, 'ajukan', 'uma', WAKTU + 3);
+  assert.deepEqual(jenis('andika'), [`tinjau:${dv1.id}`]);
+  I.terapkanAksi(d, dv1, 'setujui', 'andika', WAKTU + 4);
+  assert.deepEqual(jenis('andika'), [], 'sudah ditinjau: tak lagi ditagih');
+  assert.equal(jenis('uma')[0], `setuju:${dv1.id}`);
+  assert.equal(jenis('alya')[0], `siap:${dv8.id}`, 'langkah berikutnya masuk antrean Alya');
+
+  I.ubahTask(d, dv8, { pic: 'kiki' }, 'alya', WAKTU + 5);
+  assert.deepEqual(jenis('kiki').slice(0, 2), [`serah:${dv8.id}`, `siap:${dv8.id}`]);
+  assert.ok(!jenis('kiki').includes(`baru:${dv8.id}`), 'dibuat untuk Alya, bukan untuk Kiki');
+  assert.ok(!jenis('ali').length, 'nama mirip (Ali / Alya) tak tertukar');
+
+  dv8.comments.push({ id: 'k1', author: 'alya', text: 'Cek kisi-kisi dulu', at: WAKTU + 6 });
+  assert.deepEqual(I.notifikasi(d, 'kiki')[0], { id: `komentar-${dv8.id}-${WAKTU + 6}`, jenis: 'komentar', task: dv8.id, at: WAKTU + 6, oleh: 'alya', teks: 'Cek kisi-kisi dulu' });
+  assert.ok(!jenis('alya').some(x => x.startsWith('komentar')), 'komentar sendiri tak jadi notifikasi');
+
+  Object.assign(dv8, { output: 'Input', evidence: [{ id: 'e2', label: 'Bukti', url: 'https://contoh.id/c' }] });
+  I.terapkanAksi(d, dv8, 'mulai', 'kiki', WAKTU + 7);
+  I.terapkanAksi(d, dv8, 'ajukan', 'kiki', WAKTU + 8);
+  I.terapkanAksi(d, dv8, 'kembalikan', 'alya', WAKTU + 9, 'Urutan soal tertukar');
+  assert.equal(I.notifikasi(d, 'kiki')[0].jenis, 'kembali');
+  assert.equal(I.notifikasi(d, 'kiki')[0].teks, 'Urutan soal tertukar');
+
+  const e12 = siap({ project: 'PRJ-1', stage: 'E', sub: 'E12', pic: 'alya', status: 'Ditinjau' });
+  d.tasks.push(e12);
+  I.terapkanAksi(d, e12, 'setujui', 'nynda', WAKTU + 10);
+  assert.deepEqual(I.notifikasi(d, 'nynda').filter(n => n.jenis === 'siklus').map(n => n.proyek), ['PRJ-1'], 'Manager: siklus selesai, perlu keputusan');
+});
+
+test('link favorit dan catatan yang disematkan: hanya milik sendiri', () => {
+  const d = data([]);
+  const l = I.simpanLink(d, 'kiki', { url: 'docs.google.com/spreadsheets/d/x' }, '', WAKTU);
+  assert.equal(l.title, 'Google Sheets', 'judul terisi sendiri dari alamatnya');
+  I.tandaiLink(d, 'kiki', l.id, true);
+  assert.equal(l.favorit, true);
+  assert.throws(() => I.tandaiLink(d, 'uma', l.id, false), /bukan milik Anda/);
+  const n = I.simpanCatatan(d, 'kiki', { title: 'Rapat', body: 'Agenda' }, '', WAKTU);
+  assert.deepEqual([n.createdAt, n.pin], [WAKTU, false]);
+  I.sematkanCatatan(d, 'kiki', n.id, true);
+  I.simpanCatatan(d, 'kiki', { title: 'Rapat Senin', body: 'Agenda baru' }, n.id, WAKTU + 1);
+  assert.deepEqual([n.pin, n.createdAt, n.updatedAt], [true, WAKTU, WAKTU + 1], 'menyunting tak melepas sematan atau mengubah tanggal dibuat');
+});
+
 test('riwayat tahap: perpindahan otomatis dan siklus baru dibedakan', () => {
   const p = proyek({ stage: 'A' });
   const e12 = siap({ project: 'PRJ-1', stage: 'E', sub: 'E12', pic: 'alya', status: 'Selesai' });

@@ -31,7 +31,7 @@
   ];
 
   /* Ilustrasi yang tersedia; gambarnya ada di app.js (ILUSTRASI). */
-  const ILUSTRASI = ['reset', 'status', 'kode', 'tahap', 'progres', 'syarat', 'revisi', 'tahan', 'antrean', 'tinjau', 'formtask',
+  const ILUSTRASI = ['reset', 'palet', 'status', 'kode', 'tahap', 'progres', 'syarat', 'revisi', 'tahan', 'antrean', 'tinjau', 'formtask',
     'elaborasi', 'keputusan', 'bottleneck'];
 
   /* **teks** = tebal. coba: true = ada tombol "Coba sekarang" (lihat cariContoh). */
@@ -56,11 +56,28 @@
     {
       id: 'mulai-menu', peran: 'mulai', judul: 'Peta menu', tujuan: 'Tahu halaman mana untuk apa.',
       langkah: [
-        '**Hari Ini**: pekerjaan Anda per tenggat. Lead juga melihat antrean timnya dan task yang menunggu tinjauannya.',
-        '**Kanban** dan **Task List**: semua task, bisa disaring per tahap, sub-stage, tim, rumpun, dan platform.',
-        '**Proyek**: proyek ADDIE, tahapnya, dan keputusan sesudah siklus selesai.',
-        '**Rancangan Paket**: target tiap paket dan progresnya. Dari sini paket dielaborasi jadi proyek.',
-        '**Dashboard** dan **Laporan**: angka tim dan divisi. **Komunikasi**: diskusi per task.',
+        '**Ringkasan**: **Hari Ini** (pekerjaan Anda per tenggat; Lead juga melihat antrean timnya), **Dashboard**, dan **Laporan**.',
+        '**Pekerjaan**, berurutan seperti alurnya: **Rancangan Paket** (target paket) → **Proyek** (ADDIE) → **Task** → **Komunikasi** (diskusi per task).',
+        '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
+        '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
+      ],
+    },
+    {
+      id: 'mulai-cepat', peran: 'mulai', judul: 'Cari cepat, notifikasi, dan tautan', tujuan: 'Bergerak cepat tanpa menelusuri menu.', ilustrasi: 'palet',
+      langkah: [
+        'Tekan **Ctrl+K** (di Mac: ⌘K) atau klik kotak cari di atas. Ketik nama task, kode PRD, proyek, paket, catatan, atau halaman, lalu **Enter**.',
+        'Kotak yang sama menjalankan aksi: **Tambah task**, **Catatan baru**, **Ganti profil**, **Reset data contoh**, dan lainnya.',
+        '**Lonceng** di kanan atas berisi yang menyangkut Anda: task baru, task yang dikembalikan atau disetujui, tinjauan yang menunggu, dan komentar baru.',
+        'Setiap halaman, task, proyek, dan paket punya alamat sendiri. Tombol **Salin tautan** menyalinnya untuk dikirim di chat, dan tombol Back browser berfungsi.',
+      ],
+    },
+    {
+      id: 'mulai-ruang', peran: 'mulai', judul: 'Link Saya dan Catatan Saya', tujuan: 'Menyimpan tautan kerja dan catatan pribadi.', coba: true,
+      langkah: [
+        '**Link Saya**: tempel alamat di kotak atas lalu **Enter**; judulnya terisi sendiri. Bisa juga cukup **Ctrl+V** di halaman itu.',
+        'Link dikelompokkan dalam kartu per folder. **★** menjadikannya favorit, dan **↗** di kartu membuka semua link folder itu sekaligus.',
+        'Kartu **Tautan tim** berisi dashboard dan laporan tim (dulu menu Dashboard Lain), dikelola Manager.',
+        '**Catatan Saya**: daftar di kiri, editor di kanan. Catatan **tersimpan sendiri** saat Anda menulis; **Ctrl+S** menyimpan seketika. Sematkan yang penting supaya selalu di atas.',
       ],
     },
 
@@ -189,8 +206,8 @@
     {
       id: 'lead-pantau', peran: 'lead', judul: 'Memantau tim', tujuan: 'Melihat beban dan hambatan tim.', ilustrasi: 'bottleneck', coba: true,
       langkah: [
-        'Di **Kanban**, pilih **Per orang** untuk melihat beban tiap anggota tim.',
-        'Chip **Perlu perhatian** menyaring task terlambat, tertahan, atau yang menunggu tinjauan Anda.',
+        'Di **Task**, pilih tampilan **Per orang** (ikon di atas daftar) untuk melihat beban tiap anggota tim.',
+        'Tab **Terlambat**, **Tertahan**, dan **Tinjauan saya** di atas daftar langsung menyaring task yang perlu ditindak.',
         '**Dashboard** menunjukkan skor bottleneck: siapa yang paling banyak ditunggu orang lain.',
         '**Laporan** merangkum per minggu atau bulan; **Salin ringkasan** siap ditempel di chat.',
       ],
@@ -225,7 +242,7 @@
     {
       id: 'manager-dashboard', peran: 'manager', judul: 'Membaca Dashboard', tujuan: 'Melihat beban dan hambatan divisi.', ilustrasi: 'bottleneck', coba: true,
       langkah: [
-        'Ubin atas: task aktif, terlambat, tertahan, menunggu tinjauan, dan selesai 30 hari. Ubin Terlambat dan Tertahan bisa diklik untuk membuka Kanban yang tersaring.',
+        'Ubin atas: task aktif, terlambat, tertahan, menunggu tinjauan, dan selesai 30 hari. Ubin Terlambat dan Tertahan bisa diklik untuk membuka Task yang tersaring.',
         'Task aktif dibagi per tahap, tim pemilik, rumpun, dan platform.',
         'Tabel per orang menampilkan **skor bottleneck**. Kuning mulai 3 dan merah mulai 6: orang itu perlu dibantu, atau pekerjaannya dibagi.',
       ],
@@ -265,7 +282,7 @@
   const potong = (s, n) => (String(s).length > n ? String(s).slice(0, n - 1).trimEnd() + '…' : String(s));
 
   /* Contoh untuk tombol "Coba sekarang" sebuah panduan, dipilih dari data yang sedang dimuat.
-     Hasil: { profil?, view, task?, proyek?, paket?, papan?, dash?, ket } — atau null kalau
+     Hasil: { profil?, view, tampilan?, tugas?, task?, proyek?, paket?, dash?, ket } (tampilan & tugas = setelan halaman Task) — atau null kalau
      contohnya tak ada lagi. profil kosong = tetap di profil yang sedang dipakai. Contoh milik
      `me` sendiri diutamakan, supaya profil tak perlu berganti kalau tak perlu. */
   function cariContoh(id, data, I, hariIni, me = '') {
@@ -290,8 +307,8 @@
     const keProyek = (p, profil) => (p ? { profil, view: 'proyek', proyek: p.id, ket: `${p.id} · ${p.name}` } : null);
 
     switch (id) {
-      case 'konsep-status': return { view: 'kanban', ket: 'Kanban' };
-      case 'konsep-kode': return { view: 'daftar', ket: 'Task List' };
+      case 'konsep-status': return { view: 'task', tampilan: 'kanban', ket: 'Task · Kanban' };
+      case 'konsep-kode': return { view: 'task', tampilan: 'daftar', ket: 'Task · Daftar' };
       case 'konsep-tahap': return keProyek(proyekContoh());
       case 'konsep-progres': return kePaket(paketContoh());
 
@@ -315,6 +332,7 @@
       case 'staff-rutin':
         return keTask(cari(t => staf(t.pic) && I.aktif(t) && !t.tertahan && I.jenisJalur(t) === 'rutin' && /^R/.test(t.sub || '')));
       case 'staff-diskusi': return { view: 'komunikasi', ket: 'Komunikasi' };
+      case 'mulai-ruang': return { view: 'link', ket: 'Link Saya' };
 
       case 'lead-antrean':
         for (const l of lead.includes(me) ? [me, ...lead.filter(x => x !== me)] : lead) {
@@ -333,7 +351,7 @@
         const p = data.packages.find(x => terbuka(x) && !I.proyekPengisi(data, x.id).some(y => !y.arsip)) || data.packages.find(terbuka);
         return kePaket(p, pilihLead('alya'));
       }
-      case 'lead-pantau': return { profil: pilihLead('alya'), view: 'kanban', papan: { kelompok: 'orang', lingkup: 'tim' }, ket: 'Kanban per orang' };
+      case 'lead-pantau': return { profil: pilihLead('alya'), view: 'task', tampilan: 'orang', tugas: { lingkup: 'tim' }, ket: 'Task · Per orang' };
 
       case 'manager-proyek': return { profil: I.MANAGER, view: 'proyek', ket: 'Halaman Proyek' };
       case 'manager-siklus': return keProyek(I.antreKeputusan(data, hariIni)[0], I.MANAGER);
