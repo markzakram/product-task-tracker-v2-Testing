@@ -85,9 +85,12 @@ svg { flex: 0 0 auto; }
 .lencana { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--merah); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .lencana.biru { background: var(--biru); }
 
-.avatar { width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
-.avatar.besar { width: 40px; height: 40px; font-size: 14px; }
-.avatar.kecil { width: 24px; height: 24px; font-size: 10px; }
+/* Sejak foto profil (0.12.x) avatar diperbesar supaya fotonya jelas: kecil 28, biasa 32,
+   sedang 36 (obrolan), besar 48 (sidebar, pilih profil, Per orang). */
+.avatar { width: 32px; height: 32px; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.avatar.besar { width: 48px; height: 48px; font-size: 16px; }
+.avatar.sedang { width: 36px; height: 36px; font-size: 13px; }
+.avatar.kecil { width: 28px; height: 28px; font-size: 11px; }
 .avatar.raksasa { width: 96px; height: 96px; font-size: 32px; }
 /* Avatar sendiri di kaki sidebar = tombol ganti foto, bertanda kamera kecil. */
 .ganti-foto { position: relative; flex-shrink: 0; padding: 0; border: 0; border-radius: 50%; background: none; }
@@ -745,10 +748,10 @@ button.chip-setoran:hover { text-decoration: underline; }
 .km-sistem small { flex: 0 0 auto; color: var(--samar); }
 .km-sistem.kembali { background: var(--kuning-muda); color: var(--kuning); }
 .km-sistem.setuju { background: var(--hijau-muda); color: var(--hijau); }
-.km-psn { position: relative; display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; }
+.km-psn { position: relative; display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; }
 .km-psn.sambung { margin-top: 3px; }
-.km-psn.saya { justify-content: flex-end; padding-left: 40px; }
-.km-av { flex: 0 0 24px; width: 24px; }
+.km-psn.saya { justify-content: flex-end; padding-left: 48px; }
+.km-av { flex: 0 0 36px; width: 36px; }
 .km-psn-badan { display: flex; flex-direction: column; gap: 3px; min-width: 0; max-width: min(78%, 580px); }
 .km-psn.saya .km-psn-badan { align-items: flex-end; }
 .km-psn-kepala { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
@@ -778,7 +781,7 @@ button.chip-setoran:hover { text-decoration: underline; }
 .km-status { font-size: 11.5px; color: var(--samar); }
 .km-status.gagal { color: var(--merah); }
 .km-alat-psn { position: absolute; top: -16px; right: 0; z-index: 2; display: none; gap: 2px; padding: 2px; border: 1px solid var(--garis); border-radius: 10px; background: var(--muka); box-shadow: var(--bayang); }
-.km-psn.saya .km-alat-psn { right: auto; left: 40px; }
+.km-psn.saya .km-alat-psn { right: auto; left: 48px; }
 .km-psn:hover .km-alat-psn, .km-psn.aktif .km-alat-psn, .km-psn:focus-within .km-alat-psn { display: flex; }
 .km-alat-tombol { width: 30px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--tinta-2); font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
 .km-alat-tombol:hover { background: var(--abu); }
@@ -807,7 +810,7 @@ button.chip-setoran:hover { text-decoration: underline; }
 .km-calon > span:last-child { display: flex; flex-direction: column; min-width: 0; }
 .km-calon b { font-size: 13px; color: var(--tinta); }
 .km-calon small { font-size: 11.5px; color: var(--samar); }
-.km-calon-ikon { width: 24px; height: 24px; border-radius: 50%; background: var(--abu); color: var(--redup); display: inline-flex; align-items: center; justify-content: center; }
+.km-calon-ikon { width: 32px; height: 32px; border-radius: 50%; background: var(--abu); color: var(--redup); display: inline-flex; align-items: center; justify-content: center; }
 .diskusi-detail { display: flex; flex-direction: column; gap: 8px; }
 .baris-subjudul { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .baris-subjudul .subjudul { margin: 0; }
@@ -837,6 +840,8 @@ button.chip-setoran:hover { text-decoration: underline; }
   .km-kepala-alat .tombol { display: none; }
   .km-psn-badan { max-width: 86%; }
   .km-psn.saya { padding-left: 24px; }
+  .km-av { flex-basis: 32px; width: 32px; }
+  .km-av .avatar { width: 32px; height: 32px; font-size: 12px; }
   .km-bantu { display: none; }
 }
 

@@ -1,5 +1,13 @@
 # Changelog — ProductTrack v2
 
+## 0.12.1 — Avatar lebih besar (2026-10-08)
+
+- Supaya foto profil terlihat jelas, semua avatar diperbesar:
+  - **Obrolan** (Komunikasi dan Diskusi di detail task): 24 → 36 px (32 px di ponsel).
+  - **Sidebar, pemilih profil, dan tampilan Per orang**: 40 → 48 px.
+  - **Kartu, tabel, timeline, dan riwayat**: 24 → 28 px.
+  - **PIC di detail task dan paket, pilihan @sebut, dan anggota ruang tim**: 32 px.
+
 ## 0.12.0 — Foto profil (2026-10-08)
 
 - **Foto profil unggahan sendiri.** Klik foto atau inisial sendiri di kaki sidebar (di ponsel:

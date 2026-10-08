@@ -1270,7 +1270,7 @@
         <h2>${esc(t.title)}</h2>
         <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : '<span class="pill lb-menunggu">Belum ber-sub-stage</span>'}${tim ? ` · Tim ${esc(tim.nama)}` : ''}${s && s.reviewManager ? ' · direview Manager' : ''}${tanya('konsep-kode', 'sub-stage dan tim')}</p>
         <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}</div>
-        <div class="detail-orang">${avatar(t.pic, 'kecil')} PIC ${nama(t.pic)}
+        <div class="detail-orang">${avatar(t.pic)} PIC ${nama(t.pic)}
           ${t.support.length ? ` · bantuan ${t.support.map(nama).join(', ')}` : ''}
           · ${tinjau ? 'ditinjau ' + nama(tinjau) : jenis === 'proyek' ? 'tanpa tinjauan' : 'tanpa tinjauan (di luar proyek)'}</div>
       </div>
@@ -2046,7 +2046,7 @@
         <div><p class="detail-asal">${esc(p.platform || 'Tanpa platform')} · ${esc(p.id)}${p.mirror ? ' · <span class="pill kd-aman">Dibagikan ke Lintas Divisi</span>' : ''}</p>
           <h1 class="judul-besar">${esc(judulPaket(p))}</h1>
           ${p.program ? `<p class="teks-panjang" style="margin-top:4px">${esc(p.program)}</p>` : ''}
-          <p class="detail-orang" style="margin-top:8px">${p.produkPic ? `${avatar(p.produkPic, 'kecil')} PIC produk ${nama(p.produkPic)}` : 'PIC produk belum diisi'}${p.updatedAt ? ` · diperbarui ${esc(relatif(p.updatedAt))}${p.updatedBy ? ' oleh ' + nama(p.updatedBy) : ''}` : ''}</p></div>
+          <p class="detail-orang" style="margin-top:8px">${p.produkPic ? `${avatar(p.produkPic)} PIC produk ${nama(p.produkPic)}` : 'PIC produk belum diisi'}${p.updatedAt ? ` · diperbarui ${esc(relatif(p.updatedAt))}${p.updatedBy ? ' oleh ' + nama(p.updatedBy) : ''}` : ''}</p></div>
         <div class="detail-aksi tanpa-regang">
           ${bolehElaborasi() ? `<button type="button" class="tombol utama" data-aksi="paket-elaborasi" ${r.terbuka ? '' : 'disabled'} title="${r.terbuka ? `${r.terbuka} target belum ditangani` : 'Semua target sudah terpenuhi atau sedang digarap'}">${ikon('lapis', 16)} Elaborasi jadi proyek</button>` : ''}
           ${boleh ? `<button type="button" class="tombol" data-aksi="paket-ubah">${ikon('sunting', 16)} Ubah rancangan</button>` : ''}
@@ -2531,7 +2531,7 @@
     }
     const anggota = I.anggotaTim(id);
     return `${kembali}<div class="km-kepala-isi"><p class="detail-asal">Ruang tim · ${esc(id)}</p><h2>${esc(judulRuang(ruang))}</h2>
-        <div class="km-anggota">${anggota.map(o => avatar(o, 'kecil')).join('')}<span class="hint">${anggota.length} anggota, ditambah Manager</span></div></div>
+        <div class="km-anggota">${anggota.map(o => avatar(o)).join('')}<span class="hint">${anggota.length} anggota, ditambah Manager</span></div></div>
       <div class="km-kepala-alat">${salin}</div>`;
   }
 
@@ -2625,7 +2625,7 @@
     const status = m.tertunda ? '<div class="km-status">Mengirim…</div>'
       : m.gagal ? `<div class="km-status gagal">Belum terkirim. <button type="button" class="tautan-kecil" data-aksi="psn-ulang" data-id="${esc(m.id)}">Kirim ulang</button> · <button type="button" class="tautan-kecil" data-aksi="psn-buang" data-id="${esc(m.id)}">Buang</button></div>` : '';
     return `<div class="km-psn ${saya ? 'saya' : ''} ${sambung ? 'sambung' : ''} ${kena ? 'kena' : ''}" id="psn-${wadah}-${esc(m.id)}">
-        ${saya ? '' : `<span class="km-av">${sambung ? '' : avatar(m.oleh, 'kecil')}</span>`}
+        ${saya ? '' : `<span class="km-av">${sambung ? '' : avatar(m.oleh, 'sedang')}</span>`}
         <div class="km-psn-badan">
           ${kepala}
           <div class="km-gel">${m.balas ? kutipan(m.balas) : ''}${isi}${m.tanya.length && !m.dihapus ? tandaTanya(m, pesanRuang) : ''}</div>
@@ -2831,7 +2831,7 @@
     const kotak = $('#sebut-' + s.wadah);
     if (!kotak) return;
     kotak.innerHTML = s.calon.map((x, i) => `<button type="button" role="option" aria-selected="${i === s.i}" class="km-calon ${i === s.i ? 'aktif' : ''}" data-aksi="sebut-pilih" data-i="${i}">
-        ${x.id ? avatar(x.id, 'kecil') : `<span class="km-calon-ikon">${ikon('orang', 14)}</span>`}<span><b>${esc(x.label)}</b><small>${esc(x.ket)}</small></span></button>`).join('');
+        ${x.id ? avatar(x.id) : `<span class="km-calon-ikon">${ikon('orang', 14)}</span>`}<span><b>${esc(x.label)}</b><small>${esc(x.ket)}</small></span></button>`).join('');
     kotak.hidden = false;
   }
   function pakaiSebutan(i) {
