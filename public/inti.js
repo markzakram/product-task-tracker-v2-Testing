@@ -869,6 +869,24 @@
 
   /* Satu pintu peristiwa ke spreadsheet — dipakai server juga. Bentuknya dibersihkan, yang
      tak masuk akal ditolak. Pengirimnya tak bisa dibuktikan selama PIN dipakai bersama. */
+  /* ---------- Foto profil (0.12.0) ----------
+     Data URL JPEG/PNG/WebP kecil yang dipotong dan diperkecil di browser, atau '' (hapus).
+     FOTO_MAKS karakter muat di satu sel spreadsheet (batasnya 50.000) dan cukup untuk 192 px.
+     fotoSah juga dipakai browser sebelum memasang foto di CSS: hanya base64, tak ada tanda
+     kutip atau kurung yang bisa keluar dari url("…"). */
+  const FOTO_MAKS = 45000;
+  const POLA_FOTO = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+  const fotoSah = g => typeof g === 'string' && g.length <= FOTO_MAKS && POLA_FOTO.test(g);
+  function periksaFoto(f) {
+    const x = f && typeof f === 'object' ? f : {};
+    const orang = String(x.orang || '');
+    if (!ORANG_PER_ID.has(orang)) throw new Error('Profil tidak dikenal.');
+    const gambar = x.gambar == null ? '' : String(x.gambar);
+    if (gambar.length > FOTO_MAKS) throw new Error('Foto terlalu besar. Pilih foto lain atau perbesar potongannya.');
+    if (gambar && !POLA_FOTO.test(gambar)) throw new Error('Format foto tidak dikenal. Pakai JPG, PNG, atau WebP.');
+    return { orang, gambar };
+  }
+
   function periksaPeristiwa(e) {
     const x = e && typeof e === 'object' ? e : {};
     const jenis = String(x.jenis || '');
@@ -1665,6 +1683,7 @@
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
     FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
     WARNA_CATATAN, warnaiCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
+    FOTO_MAKS, fotoSah, periksaFoto,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
   };
 }));

@@ -10,6 +10,8 @@
      POST /api/rpc  { action: 'muatContoh' }         data contoh untuk prototipe
      POST /api/rpc  { action: 'muatObrolan', args: [sejak] }   pesan Komunikasi sejak waktu itu
      POST /api/rpc  { action: 'kirimObrolan', args: [peristiwa] } satu pesan/ubah/hapus/reaksi/beres
+     POST /api/rpc  { action: 'muatFoto', args: [sejak] }      foto profil yang berubah sejak waktu itu
+     POST /api/rpc  { action: 'simpanFoto', args: [{ orang, gambar }] }  ganti atau hapus (gambar '')
 
    Balasan berbentuk { success, message, ... } seperti v1.
 
@@ -91,6 +93,17 @@ const AKSI = {
     try { bersih = Inti.periksaPeristiwa(peristiwa); } catch (err) { throw new GalatIsian(err.message); }
     const k = await sheet.klien();
     return { peristiwa: await sheet.tulisObrolan(k, sheet.idSpreadsheet(), bersih) };
+  },
+  /* Foto profil (0.12.0): tab foto di spreadsheet v2, satu baris per orang. */
+  async muatFoto(sejak) {
+    const k = await sheet.klien();
+    return await sheet.bacaFoto(k, sheet.idSpreadsheet(), sejak);
+  },
+  async simpanFoto(foto) {
+    let bersih;
+    try { bersih = Inti.periksaFoto(foto); } catch (err) { throw new GalatIsian(err.message); }
+    const k = await sheet.klien();
+    return { foto: await sheet.tulisFoto(k, sheet.idSpreadsheet(), bersih) };
   },
 };
 

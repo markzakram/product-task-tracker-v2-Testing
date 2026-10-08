@@ -88,6 +88,12 @@ svg { flex: 0 0 auto; }
 .avatar { width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .avatar.besar { width: 40px; height: 40px; font-size: 14px; }
 .avatar.kecil { width: 24px; height: 24px; font-size: 10px; }
+.avatar.raksasa { width: 96px; height: 96px; font-size: 32px; }
+/* Avatar sendiri di kaki sidebar = tombol ganti foto, bertanda kamera kecil. */
+.ganti-foto { position: relative; flex-shrink: 0; padding: 0; border: 0; border-radius: 50%; background: none; }
+.ganti-foto:focus-visible { outline: 2px solid var(--biru); outline-offset: 2px; }
+.ganti-foto-tanda { position: absolute; right: -3px; bottom: -3px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--garis); border-radius: 50%; background: var(--muka); color: var(--tinta-2); box-shadow: var(--bayang); }
+.ganti-foto:hover .ganti-foto-tanda { color: var(--biru); border-color: var(--biru-garis); }
 
 .batang { height: 6px; border-radius: 999px; background: var(--abu); overflow: hidden; flex: 1; }
 .batang > span { display: block; height: 100%; border-radius: 999px; background: var(--biru); }
@@ -255,6 +261,25 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .riwayat { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--tinta-2); }
 .riwayat small { color: var(--redup); }
 .tautan-daftar a { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+
+/* ---------- Foto profil: pilih, potong di bingkai bulat, simpan ---------- */
+
+.modal-panel.panel-foto { max-width: 440px; }
+.form-foto { display: flex; flex-direction: column; gap: 12px; padding: 22px; }
+.foto-awal { display: flex; align-items: center; gap: 18px; padding: 6px 0; }
+.foto-awal-aksi { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.foto-awal-aksi .hint { font-size: 12.5px; }
+.foto-panggung { position: relative; width: min(300px, 100%); aspect-ratio: 1 / 1; margin: 0 auto; overflow: hidden; border-radius: 16px; background: #10151C; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.foto-panggung:active { cursor: grabbing; }
+.foto-panggung:focus-visible { outline: 3px solid var(--langit); outline-offset: 2px; }
+.foto-panggung img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; }
+/* Di luar lingkaran digelapkan: yang di dalamnya itulah fotonya. */
+.foto-bingkai { position: absolute; inset: 0; border: 2px solid rgba(255, 255, 255, .9); border-radius: 50%; box-shadow: 0 0 0 999px rgba(16, 21, 28, .55); pointer-events: none; }
+.foto-zoom { display: flex; align-items: center; gap: 10px; width: min(300px, 100%); margin: 12px auto 0; color: var(--redup); }
+.foto-zoom input { flex: 1; min-width: 0; accent-color: var(--biru); }
+.foto-petunjuk { margin-top: 6px; text-align: center; font-size: 12.5px; }
+.foto-lain { display: block; margin: 6px auto 0; }
+.form-foto .modal-kaki { align-items: center; }
 
 /* ---------- Laci & modal ---------- */
 
@@ -1317,4 +1342,6 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
   .panel-saring select { width: 100%; max-width: none; }
   .panel-notif { position: fixed; top: 60px; left: 12px; right: 12px; width: auto; }
   .modal-panel.panel-palet { margin-top: 8px; }
+  .foto-awal { flex-direction: column; text-align: center; }
+  .foto-awal-aksi { align-items: center; }
 }

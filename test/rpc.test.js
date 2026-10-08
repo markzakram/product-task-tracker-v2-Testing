@@ -262,3 +262,90 @@ test('obrolan: impor ulang data contoh tidak menghapus tab obrolan', async () =>
   const r = await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie });
   assert.deepEqual(r.json.peristiwa.map(x => x.teks), ['Rapat jam 2']);
 });
+
+
+/* ---------- Foto profil (0.12.0) ---------- */
+
+const fotoUji = (n, isi = 'A') => 'data:image/jpeg;base64,' + isi.repeat(n);
+
+test('aturan foto: hanya data URL gambar base64 yang kecil; kosong = hapus', () => {
+  const I = require('../public/inti');
+  assert.ok(I.fotoSah(fotoUji(200)));
+  assert.ok(I.fotoSah('data:image/webp;base64,QUJD'));
+  for (const salah of ['data:image/svg+xml;base64,PHN2Zz4=', 'data:image/png;base64,AA")}', 'https://contoh.test/a.jpg',
+    'data:text/html;base64,PGI+', fotoUji(I.FOTO_MAKS), '', null]) assert.equal(I.fotoSah(salah), false, String(salah).slice(0, 40));
+  assert.deepEqual(I.periksaFoto({ orang: 'kiki', gambar: '' }), { orang: 'kiki', gambar: '' });
+  assert.deepEqual(I.periksaFoto({ orang: 'kiki', gambar: fotoUji(8), lain: 'x' }), { orang: 'kiki', gambar: fotoUji(8) });
+});
+
+test('foto: perlu sesi; unggahan pertama membuat tab berjudul, ganti menimpa baris orang itu, hapus = gambar kosong', async () => {
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  await sheet.siapkan(p.k, ID);
+  const kiki = { orang: 'kiki', gambar: fotoUji(300) };
+  assert.equal((await panggil({ body: { action: 'simpanFoto', args: [kiki] } })).status, 401);
+  const cookie = await masuk();
+  const r = await panggil({ body: { action: 'simpanFoto', args: [kiki] }, cookie });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.foto.orang, 'kiki');
+  assert.ok(r.json.foto.diperbarui > 1000, 'waktu dari server');
+  assert.deepEqual(p.tab('foto').values[0], ['orang', 'gambar', 'diperbarui']);
+  assert.deepEqual(p.tab('foto').values[1].slice(0, 2), ['kiki', kiki.gambar]);
+
+  await panggil({ body: { action: 'simpanFoto', args: [{ orang: 'alya', gambar: fotoUji(100, 'B') }] }, cookie });
+  const baru = fotoUji(120, 'C');
+  const ganti = (await panggil({ body: { action: 'simpanFoto', args: [{ orang: 'kiki', gambar: baru }] }, cookie })).json.foto;
+  assert.equal(p.tab('foto').values.length, 3, 'judul + kiki + alya: foto kiki ditimpa, bukan ditambah');
+
+  const semua = await panggil({ body: { action: 'muatFoto', args: [0] }, cookie });
+  assert.equal(semua.status, 200);
+  assert.deepEqual(semua.json.foto.map(f => [f.orang, f.gambar.length]).sort(), [['alya', 123], ['kiki', 143]]);
+  const sejak = (await panggil({ body: { action: 'muatFoto', args: [ganti.diperbarui] }, cookie })).json.foto;
+  assert.ok(sejak.some(f => f.orang === 'kiki' && f.gambar === baru), 'tarikan bertahap memuat yang baru diganti');
+  assert.ok(sejak.every(f => f.diperbarui >= ganti.diperbarui), 'dan tak mengirim ulang yang lebih lama');
+
+  await panggil({ body: { action: 'simpanFoto', args: [{ orang: 'kiki', gambar: '' }] }, cookie });
+  const sesudah = (await panggil({ body: { action: 'muatFoto', args: [0] }, cookie })).json.foto;
+  assert.equal(sesudah.find(f => f.orang === 'kiki').gambar, '', 'dihapus = gambar kosong (browser kembali ke inisial)');
+  assert.equal(p.tab('foto').values.length, 3);
+});
+
+test('foto: belum ada tab = daftar kosong tanpa menulis; isian tak sah 400 dan v1 409, keduanya tanpa tulisan', async () => {
+  const tulisan = pasangSheet([{ title: '_meta', sheetId: 1, values: [['app', 'producttrack-v2']] }]);
+  const cookie = await masuk();
+  const kosong = await panggil({ body: { action: 'muatFoto', args: [0] }, cookie });
+  assert.equal(kosong.status, 200);
+  assert.deepEqual(kosong.json.foto, []);
+  for (const [f, pola] of [
+    [{ orang: 'tamu', gambar: fotoUji(10) }, /Profil/],
+    [{ orang: 'kiki', gambar: 'data:image/svg+xml;base64,PHN2Zz4=' }, /Format/],
+    [{ orang: 'kiki', gambar: 'data:image/png;base64,AA")}' }, /Format/],
+    [{ orang: 'kiki', gambar: fotoUji(50000) }, /terlalu besar/],
+    ['bukan objek', /Profil/],
+  ]) {
+    const r = await panggil({ body: { action: 'simpanFoto', args: [f] }, cookie });
+    assert.equal(r.status, 400, JSON.stringify(f).slice(0, 60));
+    assert.match(r.json.message, pola);
+  }
+  assert.equal(tulisan.length, 0);
+  const { sheetV1 } = require('./bantu/sheet-palsu');
+  const v1 = sheetV1();
+  sheet.klien = async () => v1.k;
+  assert.equal((await panggil({ body: { action: 'simpanFoto', args: [{ orang: 'kiki', gambar: fotoUji(10) }] }, cookie })).status, 409);
+  assert.equal((await panggil({ body: { action: 'muatFoto', args: [0] }, cookie })).status, 409);
+  assert.equal(v1.tulisan.length, 0, 'sheet v1 tak ditulisi sama sekali');
+});
+
+test('foto: impor ulang data contoh tidak menghapus tab foto', async () => {
+  const { urai } = require('../api/_skema');
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  const isi = { projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], log: [] };
+  await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji' });
+  const cookie = await masuk();
+  await panggil({ body: { action: 'simpanFoto', args: [{ orang: 'alya', gambar: fotoUji(40) }] }, cookie });
+  await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji lagi' });
+  assert.equal(p.tab('foto').values.length, 2, 'judul + satu foto tetap ada');
+  const r = await panggil({ body: { action: 'muatFoto', args: [0] }, cookie });
+  assert.deepEqual(r.json.foto.map(f => f.orang), ['alya']);
+});

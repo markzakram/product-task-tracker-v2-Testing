@@ -1,5 +1,25 @@
 # Changelog — ProductTrack v2
 
+## 0.12.0 — Foto profil (2026-10-08)
+
+- **Foto profil unggahan sendiri.** Klik foto atau inisial sendiri di kaki sidebar (di ponsel:
+  Menu), atau cari "Foto profil" di pencarian cepat. Foto menggantikan inisial di semua avatar,
+  untuk semua orang.
+  - Pilih berkas, seret ke jendela, atau tempel (Ctrl+V); JPG, PNG, atau WebP.
+  - Atur di **bingkai bulat**: seret untuk menggeser, perbesar dengan penggeser, roda tetikus,
+    atau cubit dua jari. Papan tombol: panah, + dan −, Enter menyimpan.
+  - Diperkecil di browser menjadi JPEG persegi 192 px; foto asli tak pernah dikirim.
+  - **Hapus foto** mengembalikan avatar ke inisial.
+- **Tersimpan bersama di spreadsheet v2**, tab baru `foto`: satu baris per orang, ditimpa saat
+  diganti. Impor ulang data contoh dan Reset data contoh tidak menyentuhnya.
+  - Aksi baru di `/api/rpc`: `muatFoto` (hanya yang berubah sejak waktu tertentu) dan
+    `simpanFoto`. Isinya diperiksa di browser dan server (`periksaFoto`), dan spreadsheet yang
+    bukan milik v2 tetap ditolak.
+  - Browser menyimpan foto supaya langsung tampil saat dibuka, lalu menarik yang berubah saat
+    aplikasi dibuka dan tiap 5 menit.
+- Disiapkan untuk MySQL nanti: cukup satu tabel `foto_profil`; aksi API dan tampilannya tetap.
+- **Panduan:** langkah memasang foto profil di *Masuk sebagai siapa*.
+
 ## 0.11.1 — Aplikasi tak lagi tertahan di "Memuat data…" (2026-10-08)
 
 - Sesudah 0.11.0 dirilis, aplikasi bisa berhenti di **Memuat data…** tanpa pesan apa pun.

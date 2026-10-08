@@ -174,8 +174,8 @@ Halaman pendukung, setara v1:
 
 ### Komunikasi bersama
 
-Satu-satunya bagian yang sudah **terbagi antar orang dan perangkat**: pesan disimpan ke tab
-`obrolan` di spreadsheet v2, bukan di browser.
+Bagian pertama yang **terbagi antar orang dan perangkat** (sejak 0.12.0 bersama *Foto profil*):
+pesan disimpan ke tab `obrolan` di spreadsheet v2, bukan di browser.
 
 - **Tampilan kotak masuk.** Kolom kiri berisi saringan **Belum dibaca**, **Menyebut saya**,
   **Perlu jawaban**, dan **Semua utas**, lalu ruang tim dan ruang proyek. Kolom tengah berisi
@@ -224,6 +224,37 @@ saling menimpa.
 Aturannya ada di `public/inti.js` (`susunObrolan`, `daftarUtas`, `sebutan`,
 `tanyaTerbuka`, `notifikasi`) dan `api/_sheets.js` (`bacaObrolan`, `tulisObrolan`),
 diuji di `test/obrolan.test.js` dan `test/rpc.test.js`.
+
+### Foto profil
+
+Sejak 0.12.0 setiap orang bisa memasang foto sendiri; foto itu menggantikan inisial di semua
+avatar (pemilih profil, sidebar, Komunikasi, detail task, kartu, laporan) untuk semua orang.
+
+- **Memasang.** Klik foto atau inisial sendiri di kaki sidebar (di ponsel: Menu), atau cari
+  "Foto profil" di pencarian cepat. Pilih berkas, seret ke jendela itu, atau tempel (Ctrl+V).
+- **Memotong.** Foto tampil di bingkai bulat: seret untuk menggeser, perbesar dengan penggeser,
+  roda tetikus, atau cubit dua jari (papan tombol: panah, + dan −, Enter menyimpan).
+- **Ukuran.** Potongan diperkecil di browser menjadi JPEG persegi 192 px (sekitar 10–20 KB),
+  jadi foto asli tak pernah dikirim. Kalau masih melebihi batas, mutu lalu ukurannya diturunkan.
+- **Menghapus.** **Hapus foto** mengembalikan avatar ke inisial.
+
+**Cara kerjanya.** Tab `foto` di spreadsheet v2 berisi satu baris per orang (`orang`,
+`gambar`, `diperbarui`). `gambar` adalah data URL base64 yang muat di satu sel (paling banyak
+45.000 karakter; batas sel 50.000). Berbeda dengan `obrolan`, baris orang yang sama ditimpa,
+supaya tab tetap kecil; gambar kosong berarti foto dihapus.
+
+- **Pemeriksaan.** `periksaFoto` di `public/inti.js` dipakai browser dan server: hanya JPEG, PNG,
+  atau WebP dalam base64 murni. Browser juga memeriksa ulang sebelum memasang foto, karena foto
+  dipasang lewat satu stylesheet (`.av-<id>`), bukan disalin ke setiap avatar.
+- **Tarikan.** Foto disimpan di browser supaya langsung tampil, lalu hanya yang berubah yang
+  ditarik: saat aplikasi dibuka dan tiap 5 menit selama tab terlihat.
+- **Aman dari impor ulang.** Seperti `obrolan`, tab `foto` tak disentuh `npm run impor:v1`
+  maupun **Reset data contoh**.
+- **Nanti di MySQL.** Cukup satu tabel `foto_profil` (id orang, gambar atau path berkas, waktu
+  diperbarui). Aksi API-nya (`muatFoto`, `simpanFoto`) tetap, jadi tampilan tak perlu diubah.
+
+Diuji di `test/rpc.test.js` (aturan foto, tab dibuat berjudul, baris ditimpa, hapus, tarikan
+bertahap, isian tak sah, sheet v1 ditolak, aman dari impor ulang).
 
 ### Alamat, pencarian cepat, dan notifikasi
 
@@ -456,14 +487,17 @@ lama dengan `app.js` baru.
 
 - **Suntingan belum tersimpan ke spreadsheet.** Data contoh dimuat dari server, tetapi yang
   diubah orang (status, tinjauan, sub-task, gate proyek, paket, link, catatan) tersimpan di
-  browser masing-masing (localStorage). Pengecualiannya pesan Komunikasi, yang sudah tersimpan
-  bersama di spreadsheet (lihat *Komunikasi bersama*). Tombol **Reset data contoh** di kaki
+  browser masing-masing (localStorage). Pengecualiannya pesan Komunikasi dan foto profil, yang
+  sudah tersimpan bersama di spreadsheet (lihat *Komunikasi bersama* dan *Foto profil*). Tombol **Reset data contoh** di kaki
   sidebar (di ponsel: Menu) membuang semua perubahan itu dan memuat ulang data contoh dari
   spreadsheet. Data contoh di spreadsheet tak pernah diubah aplikasi, jadi selalu utuh. Karena
   itu pula Catatan Saya belum terbagi antarperangkat. Jejak dan tombol aksi task di percakapan
   mengikuti data task di browser masing-masing, dan **tautan ke
   task yang dibuat di browser lain tidak ditemukan** (aplikasi memberi tahu "tidak ada di data
   browser ini"). Tautan ke apa pun yang sudah ada di data contoh selalu jalan.
+- **Foto profil bisa diganti siapa pun yang memilih profil itu.** PIN-nya bersama dan profil
+  dipilih sendiri, sama seperti data lain di prototipe. Dengan login per orang nanti, hanya
+  pemiliknya yang bisa mengganti.
 - **Notifikasi hanya di dalam aplikasi.** Pesan Komunikasi terbagi untuk semua orang; aktivitas
   task lainnya dari data di browser itu. Belum ada email atau push.
 - **Pesan yang diubah atau dihapus tetap ada di spreadsheet.** Aplikasi hanya menampilkan

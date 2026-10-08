@@ -136,6 +136,9 @@
     pemanduKecil: false,
     palet: { q: '', pilih: 0 },
     notif: { buka: false, sebelum: 0 },
+    /* Foto profil dari tab foto spreadsheet v2: isi = { orang: { gambar, diperbarui } }, sejak =
+       waktu foto terbaru yang dimiliki (tarikan berikutnya hanya yang berubah). */
+    foto: Object.assign({ sejak: 0, isi: {} }, ambil('foto', {}), { ditarik: 0, menarik: false }),
     navBuka: false,
     modal: null,
     seret: null,
@@ -250,6 +253,8 @@
     mata: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
     bintang: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
     semat: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+    kamera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+    kurang: '<path d="M5 12h14"/>',
     lainnya: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
     tambahFolder: '<path d="M12 10v6M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   };
@@ -266,7 +271,9 @@
     for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
     return WARNA[h % WARNA.length];
   }
-  const avatar = (id, kelas = '') => `<span class="avatar ${kelas}" style="background:${warnaOrang(id)}" title="${esc(I.orang(id).nama)}">${esc(I.inisial(id))}</span>`;
+  /* Foto profil (0.12.0) tak ditulis di sini: kelas av-<id> mendapat fotonya dari satu stylesheet
+     (pasangGayaFoto), jadi ratusan avatar tak membawa salinan gambar dan langsung berganti. */
+  const avatar = (id, kelas = '') => `<span class="avatar ${kelas} av-${esc(id)}" style="background:${warnaOrang(id)}" title="${esc(I.orang(id).nama)}">${esc(I.inisial(id))}</span>`;
   const nama = id => esc(I.orang(id).pendek);
 
   const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -663,6 +670,7 @@
     if (pesan) toast(pesan);
     // Pesan Komunikasi tersimpan bersama di spreadsheet, terpisah dari data contoh.
     tarikObrolan(true).then(jadwalkanTarik);
+    tarikFoto();
   }
 
   /* Galat saat menyiapkan data atau menggambar layar pertama: pesannya ditampilkan, bukan
@@ -674,6 +682,7 @@
   }
 
   async function mulai() {
+    pasangGayaFoto();
     tampilKunci('Memeriksa sesi…', true);
     const ada = await adaServer();
     if (ada === 'habis') return tampilKunci('Server tidak menjawab. Periksa koneksi, lalu coba lagi.', true, true);
@@ -784,7 +793,7 @@
       }).join('')}</nav>
       <div class="samping-kaki">
         <div class="kotak-profil">
-          <div class="kotak-profil-atas">${avatar(S.me, 'besar')}<span><strong>${esc(o.nama)}</strong><small>${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}</small></span></div>
+          <div class="kotak-profil-atas"><button type="button" class="ganti-foto" data-aksi="foto-profil" title="Ganti foto profil" aria-label="Ganti foto profil">${avatar(S.me, 'besar')}<span class="ganti-foto-tanda">${ikon('kamera', 12)}</span></button><span><strong>${esc(o.nama)}</strong><small>${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}</small></span></div>
           <div class="kotak-profil-aksi">
             <button type="button" class="tombol kecil" data-aksi="ganti-profil">${ikon('orang', 16)} Ganti profil</button>
             <button type="button" class="ikon-tombol" data-aksi="keluar" title="Keluar" aria-label="Keluar">${ikon('keluar')}</button>
@@ -998,6 +1007,7 @@
       ['penanda', 'Tambah link', () => { pindahHalaman('link'); setTimeout(() => { const el = $('#link-tempel'); if (el) el.focus(); }, 30); }],
       ['lonceng', 'Buka notifikasi', () => bukaTutupNotif(true)],
       ['orang', 'Ganti profil', () => tampilProfil()],
+      ['kamera', 'Foto profil', () => bukaFoto()],
       ['buku', 'Buka Panduan', () => pindahHalaman('panduan')],
       ['ulang', 'Reset data contoh', () => resetData()],
     ].filter(Boolean);
@@ -3563,6 +3573,270 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
+  /* ---------- Foto profil (0.12.0) ----------
+     Foto dipotong (geser & perbesar di bingkai bulat) dan diperkecil ke 192 px di browser, lalu
+     disimpan di tab foto spreadsheet v2: satu baris per orang, terlihat semua orang. Nanti di
+     MySQL cukup satu tabel foto_profil; aksi API-nya (muatFoto/simpanFoto) tetap sama.
+     Di prototipe profil dipilih sendiri, jadi foto yang diganti adalah foto profil yang aktif. */
+
+  const UKURAN_FOTO = [192, 160, 128];
+
+  /* Satu stylesheet untuk semua avatar: .av-<id> mendapat background-image. Hanya data URL yang
+     lolos Inti.fotoSah (base64 murni) yang dipasang, jadi isinya tak bisa keluar dari url("…"). */
+  function pasangGayaFoto() {
+    let el = document.getElementById('gaya-foto');
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'gaya-foto';
+      document.head.appendChild(el);
+    }
+    const isi = S.foto.isi && typeof S.foto.isi === 'object' ? S.foto.isi : {};
+    el.textContent = Object.entries(isi)
+      .filter(([id, f]) => /^[a-z0-9-]+$/.test(id) && f && I.fotoSah(f.gambar))
+      .map(([id, f]) => `.avatar.av-${id}{background-image:url("${f.gambar}")!important;background-size:cover!important;background-position:center!important;color:transparent!important}`)
+      .join('\n');
+  }
+  const simpanCacheFoto = () => simpan('foto', { sejak: S.foto.sejak, isi: S.foto.isi });
+  const punyaFoto = id => !!(S.foto.isi[id] && I.fotoSah(S.foto.isi[id].gambar));
+
+  /* Hanya yang berubah sejak foto terbaru yang dimiliki. Tumpang-tindih semenit: jam instance
+     server yang meleset beberapa detik tak membuat foto terlewat. */
+  async function tarikFoto() {
+    const f = S.foto;
+    if (f.menarik) return;
+    f.menarik = true;
+    f.ditarik = Date.now();
+    try {
+      const h = await api('muatFoto', [Math.max(0, (Number(f.sejak) || 0) - 60000)]);
+      if (!h.success || !Array.isArray(h.foto) || !h.foto.length) return;
+      let berubah = false;
+      for (const x of h.foto) {
+        if (!x || !I.ORANG.some(o => o.id === x.orang)) continue;
+        const gambar = I.fotoSah(x.gambar) ? x.gambar : '';
+        f.sejak = Math.max(Number(f.sejak) || 0, Number(x.diperbarui) || 0);
+        if (f.isi[x.orang] && f.isi[x.orang].gambar === gambar) continue;
+        f.isi[x.orang] = { gambar, diperbarui: Number(x.diperbarui) || 0 };
+        berubah = true;
+      }
+      simpanCacheFoto();
+      if (berubah) pasangGayaFoto();
+    } finally {
+      f.menarik = false;
+    }
+  }
+  // Foto orang lain ikut berganti tanpa memuat ulang: paling lama 5 menit, selama tab terlihat.
+  setInterval(() => {
+    if (!document.hidden && S.data && !$('#app').hidden && Date.now() - S.foto.ditarik > 5 * 60000) tarikFoto();
+  }, 60000);
+
+  function formFoto() {
+    const ada = punyaFoto(S.me);
+    return `<div class="form-foto">
+      <h2>Foto profil</h2>
+      <p class="hint">Tampil di samping nama ${esc(I.orang(S.me).pendek)} di seluruh aplikasi, untuk semua orang. Disimpan di spreadsheet v2.</p>
+      <div class="foto-awal" id="foto-awal">
+        ${avatar(S.me, 'raksasa')}
+        <div class="foto-awal-aksi">
+          <button type="button" class="tombol utama" data-aksi="foto-pilih">${ikon('kamera', 16)} ${ada ? 'Ganti foto…' : 'Pilih foto…'}</button>
+          ${ada ? `<button type="button" class="tombol" data-aksi="foto-hapus">${ikon('hapus', 16)} Hapus foto</button>` : ''}
+          <p class="hint">JPG, PNG, atau WebP. Bisa juga diseret ke sini atau ditempel (Ctrl+V). Foto diperkecil di perangkat ini sebelum dikirim.</p>
+        </div>
+      </div>
+      <div class="foto-potong" id="foto-potong" hidden>
+        <div class="foto-panggung" id="foto-panggung" tabindex="0" role="img" aria-label="Potongan foto. Seret untuk menggeser; panah menggeser, plus dan minus memperbesar, Enter menyimpan.">
+          <img id="foto-gambar" alt="" draggable="false">
+          <span class="foto-bingkai" aria-hidden="true"></span>
+        </div>
+        <label class="foto-zoom">${ikon('kurang', 16)}<span class="sr">Perbesar</span><input type="range" id="foto-zoom" min="1" max="4" step="0.01" value="1">${ikon('tambah', 16)}</label>
+        <p class="hint foto-petunjuk">Seret foto untuk menggeser. Perbesar dengan penggeser, roda tetikus, atau cubit dua jari.</p>
+        <button type="button" class="tautan-kecil foto-lain" data-aksi="foto-pilih">Pilih foto lain</button>
+      </div>
+      <input type="file" id="foto-berkas" accept="image/jpeg,image/png,image/webp,image/*" hidden>
+      <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
+      <div class="modal-kaki">
+        <button type="button" class="tombol" data-aksi="tutup-modal">Batal</button>
+        <button type="button" class="tombol utama" data-aksi="foto-simpan" id="foto-simpan" hidden>Simpan foto</button>
+      </div>
+    </div>`;
+  }
+  function bukaFoto() {
+    if (!S.me) return;
+    akhiriPotong();
+    bukaModal({ jenis: 'foto' }, formFoto());
+    $('#modal-panel').classList.add('panel-foto');
+  }
+
+  /* ----- Memotong: x, y = posisi pojok kiri atas gambar di panggung (px); skala = dasar × zoom,
+     dasar = skala terkecil yang menutup panggung, jadi bingkai tak pernah berisi ruang kosong. */
+  let kerat = null;
+  const skalaPotong = () => kerat.dasar * kerat.zoom;
+  /* Panggung bisa berubah ukuran (ponsel diputar, jendela diubah): semua ukuran diskalakan
+     bersama, jadi bagian foto yang terpotong tetap sama. */
+  function sesuaikanPanggung() {
+    const el = $('#foto-panggung');
+    const sisi = el && el.clientWidth;
+    if (!sisi || sisi === kerat.sisi) return;
+    const f = sisi / kerat.sisi;
+    Object.assign(kerat, { sisi, dasar: kerat.dasar * f, x: kerat.x * f, y: kerat.y * f });
+  }
+  function gambarPotong() {
+    sesuaikanPanggung();
+    const p = kerat, s = skalaPotong();
+    p.x = Math.min(0, Math.max(p.sisi - p.w * s, p.x));
+    p.y = Math.min(0, Math.max(p.sisi - p.h * s, p.y));
+    const g = $('#foto-gambar');
+    if (g) g.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
+  }
+  /* Titik (cx, cy) di panggung tetap di tempatnya saat diperbesar; bawaannya tengah. */
+  function aturZoom(z, cx = kerat.sisi / 2, cy = kerat.sisi / 2) {
+    const lama = skalaPotong();
+    kerat.zoom = Math.min(4, Math.max(1, Number(z) || 1));
+    const baru = skalaPotong();
+    kerat.x = cx - (cx - kerat.x) * (baru / lama);
+    kerat.y = cy - (cy - kerat.y) * (baru / lama);
+    gambarPotong();
+    const r = $('#foto-zoom');
+    if (r && Number(r.value) !== kerat.zoom) r.value = kerat.zoom;
+  }
+  function akhiriPotong() {
+    if (kerat) URL.revokeObjectURL(kerat.url);
+    kerat = null;
+  }
+  function mulaiPotong(berkas) {
+    if (!berkas || !S.modal || S.modal.jenis !== 'foto') return;
+    if (!/^image\//.test(berkas.type)) return galatModal('Itu bukan berkas gambar. Pilih JPG, PNG, atau WebP.');
+    if (berkas.size > 30 * 1024 * 1024) return galatModal('Fotonya terlalu besar (lebih dari 30 MB). Pilih foto lain.');
+    const url = URL.createObjectURL(berkas);
+    const img = new Image();
+    img.onload = () => {
+      if (!S.modal || S.modal.jenis !== 'foto' || !img.naturalWidth) return URL.revokeObjectURL(url);
+      // Foto ponsel bisa 8000 px: diperkecil dulu ke 2048 px supaya ringan digeser dan diperbesar.
+      const besar = Math.max(img.naturalWidth, img.naturalHeight);
+      if (besar <= 2048) return pasangPotong(img, url, img.naturalWidth, img.naturalHeight);
+      const f = 2048 / besar;
+      const k = document.createElement('canvas');
+      k.width = Math.round(img.naturalWidth * f);
+      k.height = Math.round(img.naturalHeight * f);
+      k.getContext('2d').drawImage(img, 0, 0, k.width, k.height);
+      URL.revokeObjectURL(url);
+      k.toBlob(b => {
+        if (b && S.modal && S.modal.jenis === 'foto') pasangPotong(k, URL.createObjectURL(b), k.width, k.height);
+      }, 'image/jpeg', 0.92);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      galatModal('Foto ini tidak bisa dibaca browser. Pilih JPG, PNG, atau WebP (foto HEIC dari iPhone: simpan dulu sebagai JPG).');
+    };
+    img.src = url;
+  }
+
+  /* sumber = gambar atau kanvas yang sudah diperkecil; url = alamat tampilannya di panggung. */
+  function pasangPotong(sumber, url, w, h) {
+    akhiriPotong();
+    $('#galat-modal').hidden = true;
+    $('#foto-awal').hidden = true;
+    $('#foto-potong').hidden = false;
+    $('#foto-simpan').hidden = false;
+    const panggung = $('#foto-panggung');
+    const sisi = panggung.clientWidth || 280;
+    const dasar = Math.max(sisi / w, sisi / h);
+    // Mulai di tengah.
+    kerat = { img: sumber, url, w, h, sisi, dasar, zoom: 1, x: (sisi - w * dasar) / 2, y: (sisi - h * dasar) / 2, jari: new Map() };
+    const g = $('#foto-gambar');
+    g.style.width = w + 'px';
+    g.style.height = h + 'px';
+    g.src = url;
+    $('#foto-zoom').value = 1;
+    gambarPotong();
+    panggung.focus();
+  }
+
+  /* Potongan → JPEG persegi 192 px; kalau masih melebihi batas sel, mutu lalu ukurannya diturunkan. */
+  function hasilPotong() {
+    sesuaikanPanggung();
+    const s = skalaPotong();
+    for (const u of UKURAN_FOTO) {
+      const kanvas = document.createElement('canvas');
+      kanvas.width = kanvas.height = u;
+      const c = kanvas.getContext('2d');
+      c.fillStyle = '#FFFFFF';   // PNG transparan: JPEG tak punya transparansi, jadi latarnya putih
+      c.fillRect(0, 0, u, u);
+      c.imageSmoothingQuality = 'high';
+      c.drawImage(kerat.img, -kerat.x / s, -kerat.y / s, kerat.sisi / s, kerat.sisi / s, 0, 0, u, u);
+      for (const q of [0.86, 0.76, 0.66]) {
+        const data = kanvas.toDataURL('image/jpeg', q);
+        if (data.length <= I.FOTO_MAKS) return data;
+      }
+    }
+    return '';
+  }
+  function simpanFotoSaya() {
+    if (!kerat) return;
+    const data = hasilPotong();
+    if (!I.fotoSah(data)) return galatModal('Foto ini tidak bisa diperkecil. Coba foto lain.');
+    kirimFoto(data);
+  }
+  /* gambar '' = hapus. */
+  async function kirimFoto(gambar) {
+    const tombol = $$('#modal-panel button');
+    tombol.forEach(b => { b.disabled = true; });
+    const sp = $('#foto-simpan');
+    if (sp) sp.textContent = 'Menyimpan…';
+    const h = await api('simpanFoto', [{ orang: S.me, gambar }]);
+    if (!h.success || !h.foto) {
+      tombol.forEach(b => { b.disabled = false; });
+      if (sp) sp.textContent = 'Simpan foto';
+      return galatModal(h.message || 'Foto gagal disimpan. Coba lagi.');
+    }
+    S.foto.isi[S.me] = { gambar: h.foto.gambar, diperbarui: h.foto.diperbarui };
+    S.foto.sejak = Math.max(Number(S.foto.sejak) || 0, h.foto.diperbarui);
+    simpanCacheFoto();
+    pasangGayaFoto();
+    if (S.modal && S.modal.jenis === 'foto') tutupModal();
+    toast(gambar ? 'Foto profil disimpan. Orang lain melihatnya paling lama 5 menit lagi, atau saat membuka aplikasi.'
+      : 'Foto profil dihapus; avatar kembali ke inisial.');
+  }
+
+  /* Geser dengan satu jari/tetikus, cubit dengan dua jari, roda tetikus memperbesar di titik kursor. */
+  document.addEventListener('pointerdown', e => {
+    const p = e.target.closest && e.target.closest('#foto-panggung');
+    if (!p || !kerat) return;
+    e.preventDefault();
+    p.focus();
+    try { p.setPointerCapture(e.pointerId); } catch (err) { /* pointer sudah lepas */ }
+    kerat.jari.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  document.addEventListener('pointermove', e => {
+    if (!kerat || !kerat.jari.has(e.pointerId)) return;
+    const jari = kerat.jari;
+    const lama = jari.get(e.pointerId);
+    jari.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (jari.size === 1) {
+      kerat.x += e.clientX - lama.x;
+      kerat.y += e.clientY - lama.y;
+      return gambarPotong();
+    }
+    const lain = [...jari.entries()].find(([id]) => id !== e.pointerId);
+    if (!lain) return;
+    const sebelum = Math.hypot(lama.x - lain[1].x, lama.y - lain[1].y);
+    const sesudah = Math.hypot(e.clientX - lain[1].x, e.clientY - lain[1].y);
+    if (!sebelum) return;
+    const r = $('#foto-panggung').getBoundingClientRect();
+    aturZoom(kerat.zoom * (sesudah / sebelum), (e.clientX + lain[1].x) / 2 - r.left, (e.clientY + lain[1].y) / 2 - r.top);
+  });
+  const lepasJari = e => { if (kerat) kerat.jari.delete(e.pointerId); };
+  document.addEventListener('pointerup', lepasJari);
+  document.addEventListener('pointercancel', lepasJari);
+  window.addEventListener('resize', () => { if (kerat) gambarPotong(); });
+  document.addEventListener('wheel', e => {
+    const p = e.target.closest && e.target.closest('#foto-panggung');
+    if (!p || !kerat) return;
+    e.preventDefault();
+    const r = p.getBoundingClientRect();
+    aturZoom(kerat.zoom * Math.exp(-e.deltaY / 400), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+
+
   /* ---------- Riwayat Aktivitas ---------- */
 
   function viewRiwayat() {
@@ -3769,6 +4043,7 @@
     // Editor catatan di jendela (tampilan kartu): ketikan yang belum tersimpan disimpan dulu.
     const editorTutup = editorDiJendela();
     if (editorTutup) simpanCatatanTertunda();
+    if (m && m.jenis === 'foto') akhiriPotong();
     S.modal = null;
     $('#modal').hidden = true;
     $('#modal-panel').innerHTML = '';
@@ -4334,6 +4609,16 @@
         break;
       }
       case 'tutup-modal': tutupModal(); break;
+      case 'foto-profil':
+        // Di ponsel tombolnya ada di laci Menu, yang lapisannya di atas jendela: tutup lacinya dulu.
+        if (S.navBuka) { S.navBuka = false; render(); }
+        bukaFoto();
+        break;
+      case 'foto-pilih': { const b = $('#foto-berkas'); if (b) b.click(); break; }
+      case 'foto-simpan': simpanFotoSaya(); break;
+      case 'foto-hapus':
+        if (confirm('Hapus foto profil Anda? Avatar kembali ke inisial, untuk semua orang.')) kirimFoto('');
+        break;
       case 'ganti-profil': if (!bolehTinggalkanPaket()) return; S.navBuka = false; tampilProfil(); break;
       case 'pilih-profil':
         S.me = d.id;
@@ -4730,6 +5015,11 @@
 
   document.addEventListener('change', e => {
     const el = e.target;
+    if (el.id === 'foto-berkas') {
+      mulaiPotong(el.files && el.files[0]);
+      el.value = '';
+      return;
+    }
     if (el.dataset.aksi === 'centang-sub') {
       const t = S.data.tasks.find(x => x.id === el.dataset.id);
       const s = t && t.subtasks.find(x => x.id === el.dataset.sub);
@@ -4850,6 +5140,7 @@
 
   document.addEventListener('input', e => {
     const el = e.target;
+    if (el.id === 'foto-zoom') { if (kerat) aturZoom(Number(el.value)); return; }
     if (el.id === 'palet-q') { S.palet.q = el.value; S.palet.pilih = 0; $('#palet-hasil').innerHTML = hasilPalet(); return; }
     if (el.classList.contains('km-isian')) {
       // Draf per ruang; teks yang sedang diubah bukan draf.
@@ -4872,6 +5163,8 @@
 
   /* Di Link Saya, menempel alamat di mana saja (bukan di kotak isian) langsung menambah link. */
   document.addEventListener('paste', e => {
+    const berkas = e.clipboardData && [...e.clipboardData.files].find(f => /^image\//.test(f.type));
+    if (S.modal && S.modal.jenis === 'foto' && berkas) { e.preventDefault(); return mulaiPotong(berkas); }
     if (S.view !== 'link' || $('#app').hidden || !$('#modal').hidden) return;
     if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
     const teks = (e.clipboardData && e.clipboardData.getData('text') || '').trim();
@@ -4886,6 +5179,15 @@
   document.addEventListener('keydown', e => {
     const tombol = String(e.key || '').toLowerCase();
     const aplikasi = !$('#app').hidden && !!S.data;
+    // Panggung potong foto: panah menggeser, + dan − memperbesar, Enter menyimpan.
+    if (e.target.id === 'foto-panggung' && kerat) {
+      const d = e.shiftKey ? 30 : 8;
+      const geser = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
+      if (geser) { e.preventDefault(); kerat.x += geser[0]; kerat.y += geser[1]; return gambarPotong(); }
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); return aturZoom(kerat.zoom * 1.1); }
+      if (e.key === '-' || e.key === '_') { e.preventDefault(); return aturZoom(kerat.zoom / 1.1); }
+      if (e.key === 'Enter') { e.preventDefault(); return simpanFotoSaya(); }
+    }
     // Kotak tulis Komunikasi: Enter kirim, Shift+Enter baris baru; panah memilih @sebutan.
     if (e.target.classList && e.target.classList.contains('km-isian')) {
       const kotak = sebutAktif && $('#sebut-' + sebutAktif.wadah);
@@ -4976,7 +5278,9 @@
     if (f.dataset.tujuan === FAVORIT ? l.favorit : (l.folder || I.FOLDER_UMUM) === f.dataset.tujuan) return null;
     return f;
   };
+  const adaBerkas = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files'));
   document.addEventListener('dragover', e => {
+    if (S.modal && S.modal.jenis === 'foto' && adaBerkas(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; return; }
     if (seretLink) {
       const f = folderTujuan(e);
       document.querySelectorAll('.kartu-folder.tujuan').forEach(x => x !== f && x.classList.remove('tujuan'));
@@ -4993,6 +5297,7 @@
     kol.classList.add('sasaran');
   });
   document.addEventListener('drop', e => {
+    if (S.modal && S.modal.jenis === 'foto' && adaBerkas(e)) { e.preventDefault(); return mulaiPotong(e.dataTransfer.files[0]); }
     if (seretLink) {
       const f = folderTujuan(e);
       if (!f) return;

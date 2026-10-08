@@ -15,7 +15,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, dariBaris, obrolanKeBaris, obrolanDariBaris, rakit, nomorTerbesar } = require('./_skema');
+const {
+  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO,
+  dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, rakit, nomorTerbesar,
+} = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
 const CAKUPAN = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -421,20 +424,20 @@ async function bacaObrolan(k, id, sejak = 0) {
   return { peristiwa: batas ? semua.filter(e => e.at >= batas) : semua, waktu: Date.now() };
 }
 
-/* Tab dan judul kolomnya dibuat dalam satu batchUpdate atomik: tab tanpa judul tak pernah
-   ada, jadi pesan pertama tak mungkin mendarat di baris judul. */
-async function buatTabObrolan(k, id) {
+/* Tab milik aplikasi (obrolan, foto) dan judul kolomnya dibuat dalam satu batchUpdate atomik:
+   tab tanpa judul tak pernah ada, jadi baris pertama tak mungkin mendarat di baris judul. */
+async function buatTabAplikasi(k, id, nama, kolom, baris = 1000) {
   const sheetId = idTabBaru([]);
   try {
     await panggil(() => k.api.spreadsheets.batchUpdate({
       spreadsheetId: id,
       requestBody: {
         requests: [
-          { addSheet: { properties: { sheetId, title: TAB_OBROLAN, gridProperties: { rowCount: 1000, columnCount: OBROLAN.length, frozenRowCount: 1 } } } },
+          { addSheet: { properties: { sheetId, title: nama, gridProperties: { rowCount: baris, columnCount: kolom.length, frozenRowCount: 1 } } } },
           {
             updateCells: {
               start: { sheetId, rowIndex: 0, columnIndex: 0 },
-              rows: [{ values: OBROLAN.map(s => ({ userEnteredValue: { stringValue: s } })) }],
+              rows: [{ values: kolom.map(s => ({ userEnteredValue: { stringValue: s } })) }],
               fields: 'userEnteredValue',
             },
           },
@@ -461,10 +464,74 @@ async function tulisObrolan(k, id, e) {
     await tambah();
   } catch (err) {
     if (!tabBelumAda(err)) throw err;
-    await buatTabObrolan(k, id);
+    await buatTabAplikasi(k, id, TAB_OBROLAN, OBROLAN);
     await tambah();
   }
   bacaanHangat = null;
+  return baris;
+}
+
+/* ---------- Foto profil (0.12.0) ---------------------------------------
+   Tab `foto`: satu baris per orang (orang, gambar, diperbarui). gambar = data URL JPEG kecil
+   (192 px, paling banyak Inti.FOTO_MAKS karakter: muat di satu sel, yang batasnya 50.000).
+   Berbeda dengan obrolan, baris orang yang sama DITIMPA supaya tab tetap kecil; gambar kosong
+   berarti foto dihapus. Bukan data contoh: impor ulang dan Reset data contoh tak menyentuhnya. */
+
+/* null = tab belum ada (belum pernah ada yang mengunggah). */
+async function barisFoto(k, id) {
+  try {
+    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(TAB_FOTO, 'A:C') }));
+    return r.data.values || [];
+  } catch (err) {
+    if (tabBelumAda(err)) return null;
+    throw err;
+  }
+}
+/* Satu foto per orang: kalau ada baris ganda (dua unggahan bersamaan), yang terbaru menang. */
+function fotoTerbaru(nilai) {
+  const [judul = [], ...isi] = nilai || [];
+  const per = new Map();
+  for (const b of isi) {
+    const f = fotoDariBaris(judul, b);
+    if (!f.orang) continue;
+    const lama = per.get(f.orang);
+    if (!lama || f.diperbarui >= lama.diperbarui) per.set(f.orang, f);
+  }
+  return [...per.values()];
+}
+
+/* sejak = waktu (ms) foto terbaru yang sudah dimiliki browser: yang tak berubah tak dikirim ulang. */
+async function bacaFoto(k, id, sejak = 0) {
+  await pastikanV2(k, id);
+  const batas = Number(sejak) || 0;
+  const semua = fotoTerbaru(await barisFoto(k, id));
+  return { foto: batas ? semua.filter(f => f.diperbarui >= batas) : semua, waktu: Date.now() };
+}
+
+/* f sudah dibersihkan Inti.periksaFoto. Waktu diberikan server, seperti obrolan. */
+async function tulisFoto(k, id, f) {
+  await pastikanV2(k, id);
+  const baris = { orang: f.orang, gambar: f.gambar, diperbarui: Date.now() };
+  let nilai = await barisFoto(k, id);
+  if (!nilai) {
+    await buatTabAplikasi(k, id, TAB_FOTO, FOTO, 100);
+    nilai = [FOTO];
+  }
+  // Baris terakhir milik orang itu ditimpa; kalau belum ada, ditambah di bawah.
+  const judul = nilai[0] || FOTO;
+  let n = -1;
+  nilai.forEach((b, i) => { if (i > 0 && fotoDariBaris(judul, b).orang === f.orang) n = i; });
+  if (n > 0) {
+    await panggil(() => k.api.spreadsheets.values.update({
+      spreadsheetId: id, range: rentang(TAB_FOTO, `A${n + 1}:C${n + 1}`), valueInputOption: 'RAW',
+      requestBody: { values: [fotoKeBaris(baris)] },
+    }), { tulis: true });
+  } else {
+    await panggil(() => k.api.spreadsheets.values.append({
+      spreadsheetId: id, range: rentang(TAB_FOTO, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [fotoKeBaris(baris)] },
+    }), { tulis: true });
+  }
   return baris;
 }
 
@@ -496,5 +563,5 @@ module.exports = {
   PENANDA, GalatSetelan, GalatDitolak,
   setelanAda, idSpreadsheet, kredensial, emailAkun, klien,
   panggil, kenaKuota, gangguanSesaat,
-  periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, jelaskanGalat,
+  periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto, jelaskanGalat,
 };

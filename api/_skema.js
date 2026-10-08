@@ -51,6 +51,11 @@ const USANG = ['gate_log', 'backlog', 'bookmarks'];
 const TAB_OBROLAN = 'obrolan';
 const OBROLAN = ['id', 'jenis', 'ruang', 'oleh', 'at', 'teks', 'target', 'kode', 'tanya', 'judul'];
 
+/* Tab foto (foto profil, 0.12.0) juga BUKAN data contoh. Satu baris per orang: gambar = data URL
+   kecil yang dipotong dan diperkecil di browser; ditimpa saat diganti, kosong = foto dihapus. */
+const TAB_FOTO = 'foto';
+const FOTO = ['orang', 'gambar', 'diperbarui'];
+
 const DAFTAR = new Set(['support', 'deps']);
 const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
@@ -111,6 +116,12 @@ function obrolanDariBaris(judul, baris) {
     o[k] = k === 'at' ? dariSel('at', sel) : k === 'tanya' ? sel.split(',').map(x => x.trim()).filter(Boolean) : sel;
   }
   return o;
+}
+
+const fotoKeBaris = f => [String(f.orang || ''), String(f.gambar || ''), keSel('at', f.diperbarui)];
+function fotoDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  return { orang: sel('orang'), gambar: sel('gambar'), diperbarui: dariSel('at', sel('diperbarui')) };
 }
 
 /* Data aplikasi → baris per tab, judul kolom di baris pertama. */
@@ -179,4 +190,7 @@ function nomorTerbesar(daftar, awalan) {
   return n;
 }
 
-module.exports = { TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, urai, rakit, nomorTerbesar };
+module.exports = {
+  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO,
+  keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, urai, rakit, nomorTerbesar,
+};

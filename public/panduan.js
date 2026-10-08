@@ -50,6 +50,7 @@
       langkah: [
         'Setelah PIN, pilih profil Anda sendiri. Tampilan menyesuaikan peran: Staff dan Lead mulai di **Hari Ini**, Manager di **Proyek**.',
         'Untuk melihat sisi peran lain, tekan **Ganti profil** di kaki sidebar.',
+        'Pasang **foto profil**: klik foto atau inisial Anda di kaki sidebar (di ponsel: **Menu**), pilih foto, geser dan perbesar di bingkai bulat, lalu **Simpan foto**. Fotonya terlihat semua orang.',
         'Tombol **Coba sekarang** di panduan ini pindah ke profil yang cocok dengan sendirinya. Kotak **langkah panduan** di pojok bawah menemani selama Anda mencoba.',
       ],
     },
