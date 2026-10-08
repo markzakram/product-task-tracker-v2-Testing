@@ -1541,6 +1541,50 @@
     return n;
   }
 
+  /* Warna catatan (seperti Google Keep); kosong = tanpa warna. */
+  const WARNA_CATATAN = ['biru', 'hijau', 'kuning', 'merah', 'ungu'];
+  function warnaiCatatan(data, me, id, warna) {
+    const n = milikSaya(data.notes, id, me);
+    n.warna = WARNA_CATATAN.includes(warna) ? warna : '';
+    return n;
+  }
+
+  /* Checklist di isi catatan: baris "[ ] …" atau "[x] …", boleh diawali "- ". Isinya tetap
+     teks biasa, jadi catatan lama dan unduhan .txt tetap terbaca. */
+  const POLA_CENTANG = /^(\s*(?:[-*]\s+)?)\[( |x|X)\]( ?)/;
+  function hitungChecklist(isi) {
+    let selesai = 0, total = 0;
+    for (const b of String(isi || '').split('\n')) {
+      const m = POLA_CENTANG.exec(b);
+      if (m) { total++; if (m[2] !== ' ') selesai++; }
+    }
+    return { selesai, total };
+  }
+  function centangBaris(isi, n) {
+    const baris = String(isi || '').split('\n');
+    const m = POLA_CENTANG.exec(baris[n] || '');
+    if (!m) return String(isi || '');
+    baris[n] = baris[n].replace(POLA_CENTANG, `${m[1]}[${m[2] === ' ' ? 'x' : ' '}]${m[3]}`);
+    return baris.join('\n');
+  }
+  /* Satu baris catatan sebagai judul task: tanpa penanda checklist, daftar, judul, format,
+     dan tanpa "→ PRD-…" yang ditempel saat baris itu sudah pernah dijadikan task. */
+  function teksBarisCatatan(isi, n) {
+    return String(String(isi || '').split('\n')[n] || '')
+      .replace(POLA_CENTANG, '')
+      .replace(/^\s*(?:#{1,3}|[-*]|\d+[.)])\s+/, '')
+      .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
+      .replace(/\*\*|~~|`/g, '')
+      .replace(/\s*→\s*PRD-\d+\s*$/, '')
+      .trim();
+  }
+  function tandaiBarisTask(isi, n, idTask) {
+    const baris = String(isi || '').split('\n');
+    if (baris[n] === undefined || baris[n].includes(idTask)) return String(isi || '');
+    baris[n] = baris[n].replace(/\s+$/, '') + ' → ' + idTask;
+    return baris.join('\n');
+  }
+
   function hapusMilik(daftar, id, me) {
     const x = milikSaya(daftar, id, me);
     daftar.splice(daftar.indexOf(x), 1);
@@ -1620,6 +1664,7 @@
     setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
     FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
+    WARNA_CATATAN, warnaiCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
   };
 }));

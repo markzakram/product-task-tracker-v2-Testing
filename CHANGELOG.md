@@ -1,5 +1,39 @@
 # Changelog — ProductTrack v2
 
+## 0.11.0 — Link Saya yang ringkas, Catatan Saya yang lebih kaya (2026-10-08)
+
+- **Link Saya tetap rapi walau link dan foldernya banyak:**
+  - Folder bisa **diciutkan**: klik namanya, atau **Ciutkan semua / Buka semua** sekaligus.
+    Saat mencari, semua folder terbuka.
+  - **Sematkan folder ke atas**: tampil paling atas, di atas Tautan tim dan Favorit (urutan
+    sesuai saat disematkan; ditandai di kepalanya).
+  - Kartu berisi lebih dari **6 link** dipotong; **Lihat semua (n)** membukanya.
+  - Tampilan **daftar ringkas**: satu kolom, link bersebelahan tanpa ikon.
+  - **Seret link** ke kartu folder lain untuk memindahkannya (desktop); ke Favorit berarti
+    menandainya ★. Tautan tim bukan tujuan seret.
+  - Kepala kartu kini ringkas: **+** dan menu **⋯** (buka semua, sematkan, ganti nama, hapus).
+  - Folder yang diciutkan, yang disematkan, dan bentuk tampilan diingat per profil di browser
+    ini, dan ikut berganti saat foldernya diganti nama.
+- **Catatan Saya:**
+  - Tampilan **dua panel** atau **kartu** (editor terbuka di jendela; tombol Back menutupnya).
+  - Daftar dikelompokkan per **folder yang bisa diciutkan**, dengan kelompok **Disematkan**
+    paling atas; tombol + di tiap folder membuat catatan langsung di folder itu. Folder catatan
+    bisa diganti nama dan dihapus.
+  - Mode **Baca** dan **Sunting** (Ctrl+E). Baca menampilkan format dan **checklist yang bisa
+    dicentang**; klik teksnya untuk menyunting tepat di baris itu.
+  - **Toolbar format**: judul, tebal, miring, daftar, checklist, dan tautan `[teks](alamat)`
+    (format tautan ini juga tampil di pesan Komunikasi).
+  - **Jadikan task** dari satu baris catatan: form Tambah task terisi, lalu "→ PRD-…" ditempel
+    di baris itu dan bisa diklik.
+  - **Templat**: notulen rapat, rencana minggu ini, checklist QC, catatan 1-on-1.
+  - **Warna catatan** dan saringan menurut warna.
+  - **Riwayat versi** (maksimal 15 per catatan, di browser ini) yang bisa dipulihkan.
+  - Progres checklist (mis. 2/5) tampil di daftar dan kartu.
+- Catatan tetap pribadi dan hanya di browser ini; tidak ada perubahan di spreadsheet maupun
+  `/api`.
+- **Panduan:** *Link Saya* dan *Catatan Saya* kini panduan terpisah dengan tombol Coba sekarang
+  masing-masing, ditambah istilah Mode Baca.
+
 ## 0.10.0 — Komunikasi bersama: kotak masuk kerja (2026-10-08)
 
 - **Pesan Komunikasi tersimpan bersama** di tab baru `obrolan` spreadsheet v2. Ini data pertama

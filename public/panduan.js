@@ -73,12 +73,24 @@
       ],
     },
     {
-      id: 'mulai-ruang', peran: 'mulai', judul: 'Link Saya dan Catatan Saya', tujuan: 'Menyimpan tautan kerja dan catatan pribadi.', coba: true,
+      id: 'mulai-ruang', peran: 'mulai', judul: 'Link Saya', tujuan: 'Menyimpan tautan kerja, serapi apa pun banyaknya.', coba: true,
       langkah: [
-        '**Link Saya**: tempel alamat di kotak atas lalu **Enter**; judulnya terisi sendiri. Bisa juga cukup **Ctrl+V** di halaman itu.',
-        'Link dikelompokkan dalam kartu per folder. **★** menjadikannya favorit, dan **↗** di kartu membuka semua link folder itu sekaligus.',
+        'Tempel alamat di kotak atas lalu **Enter**; judulnya terisi sendiri. Bisa juga cukup **Ctrl+V** di halaman itu.',
+        'Link dikelompokkan dalam kartu per folder. Klik **nama folder** untuk menciutkan atau membukanya, atau **Ciutkan semua** sekaligus. Pilihan ini diingat di browser ini.',
+        'Menu **⋯** di kartu folder: **Sematkan ke atas** (paling atas, di atas Tautan tim), buka semua link sekaligus, ganti nama, atau hapus folder. Kartu berisi lebih dari 6 link dipotong; **Lihat semua** membukanya.',
+        'Ikon di atas kartu berganti antara tampilan **kartu** dan **daftar ringkas**. Di komputer, **seret** link ke kartu folder lain untuk memindahkannya; ke Favorit berarti menandainya **★**.',
         'Kartu **Tautan tim** berisi dashboard dan laporan tim (dulu menu Dashboard Lain), dikelola Manager.',
-        '**Catatan Saya**: daftar di kiri, editor di kanan. Catatan **tersimpan sendiri** saat Anda menulis; **Ctrl+S** menyimpan seketika. Sematkan yang penting supaya selalu di atas.',
+      ],
+    },
+    {
+      id: 'mulai-catatan', peran: 'mulai', judul: 'Catatan Saya', tujuan: 'Mencatat, mencentang, dan mengubah catatan jadi task.', coba: true,
+      langkah: [
+        'Pilih tampilan **dua panel** (daftar + editor) atau **kartu** (editor terbuka di jendela). Catatan dikelompokkan per folder yang bisa diciutkan; yang disematkan selalu di atas.',
+        'Catatan **tersimpan sendiri** saat Anda menulis; **Ctrl+S** menyimpan seketika. Mulai dari **Templat** bila perlu: notulen rapat, rencana minggu, checklist QC, atau 1-on-1.',
+        'Mode **Baca** menampilkan format dan checklist yang bisa **dicentang**. Klik teksnya (atau **Ctrl+E**) untuk kembali ke **Sunting**, yang punya toolbar judul, tebal, miring, daftar, checklist, dan tautan.',
+        '**Jadikan task** membuat task dari satu baris catatan; nomor task-nya ditempel di ujung baris itu dan bisa diklik.',
+        'Beri **warna** untuk menandai catatan dan saring menurut warnanya. **Riwayat versi** menyimpan isi lama, jadi suntingan yang keliru bisa dipulihkan.',
+        'Catatan pribadi dan hanya ada di **browser ini**; tidak terkirim ke spreadsheet. Unduh sebagai .txt bila perlu disimpan di tempat lain.',
       ],
     },
 
@@ -294,6 +306,7 @@
     ['Bottleneck', 'Skor orang yang paling banyak ditunggu: task orang lain × 2 + tinjauan × 2 + task telat.'],
     ['Data contoh', 'Data latihan di aplikasi ini. **Reset data contoh** di kaki sidebar mengembalikannya ke awal. Pesan Komunikasi tidak ikut di-reset.'],
     ['Ruang', 'Tempat obrolan di Komunikasi: utas per task, ruang proyek (terbuka untuk semua), dan ruang tim (anggota tim dan Manager).'],
+    ['Mode Baca', 'Tampilan catatan berformat: checklist bisa dicentang dan tiap baris bisa dijadikan task. Lawannya **Sunting** (Ctrl+E berganti).'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];
 
@@ -352,6 +365,7 @@
       case 'staff-tambah': return { profil: staf(me) ? me : 'kiki', view: 'task', ket: 'Task · tombol Tambah task' };
       case 'staff-diskusi': return { view: 'komunikasi', ket: 'Komunikasi' };
       case 'mulai-ruang': return { view: 'link', ket: 'Link Saya' };
+      case 'mulai-catatan': return { view: 'catatan', ket: 'Catatan Saya' };
 
       case 'lead-antrean':
         for (const l of lead.includes(me) ? [me, ...lead.filter(x => x !== me)] : lead) {

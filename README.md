@@ -132,14 +132,41 @@ Halaman pendukung, setara v1:
   dan saringan terakhir diingat per browser.
 - **Link Saya** (gaya ide v2): kartu per folder. Tempel alamat di kotak atas lalu Enter, atau
   cukup Ctrl+V di halaman itu; judulnya terisi sendiri dan bisa diubah. ★ memasukkan link ke
-  kartu **Favorit**; ikon di kepala kartu membuka semua isinya sekaligus. Link bisa dipindah
-  folder; folder bisa diganti nama atau dihapus (isinya pindah ke Umum). Baris **Sering dibuka**
-  mengangkat 6 link yang paling sering dibuka di perangkat itu. Kartu **Tautan tim** (dulu menu
-  Dashboard Lain) berisi dashboard dan laporan tim: terlihat semua orang, dikelola Manager.
-- **Catatan Saya** (gaya ide v2): dua panel, daftar di kiri (cari, folder, yang disematkan di
-  atas) dan editor besar di kanan. Catatan **tersimpan sendiri** 0,7 detik setelah berhenti
-  mengetik; Ctrl+S menyimpan seketika. Bisa disematkan, diunduh sebagai .txt, dan dihapus.
-  Catatan tanpa judul memakai baris pertamanya. Di ponsel daftar dulu, lalu editor penuh.
+  kartu **Favorit**. Baris **Sering dibuka** mengangkat 5 link yang paling sering dibuka di
+  perangkat itu. Kartu **Tautan tim** (dulu menu Dashboard Lain) berisi dashboard dan laporan
+  tim: terlihat semua orang, dikelola Manager. Supaya tetap rapi walau link dan folder banyak
+  (0.11.0):
+  - Klik nama folder untuk **menciutkan** atau membukanya; **Ciutkan semua** sekaligus.
+  - Menu **⋯** di kartu: **sematkan ke atas** (paling atas, di atas Tautan tim dan Favorit;
+    urutan sesuai saat disematkan), buka semua link
+    sekaligus, ganti nama, dan hapus folder (isinya pindah ke Umum).
+  - Kartu berisi lebih dari 6 link dipotong; **Lihat semua** membukanya.
+  - Tampilan **kartu** atau **daftar ringkas** (satu kolom, link bersebelahan tanpa ikon).
+  - Di desktop, link bisa **diseret** ke kartu folder lain; ke Favorit berarti menandainya ★.
+    Di ponsel tetap lewat tombol Pindah folder.
+  - Folder yang diciutkan, yang disematkan, dan bentuk tampilan diingat per profil di browser
+    itu. Ini preferensi tampilan, jadi tidak ikut Reset data contoh.
+- **Catatan Saya** (gaya ide v2, diperluas di 0.11.0). Catatan tetap pribadi dan hanya ada di
+  browser itu (tidak terkirim ke spreadsheet).
+  - **Dua panel** (daftar di kiri, editor besar di kanan) atau **kartu** ala Google Keep
+    (editor terbuka di jendela). Daftar dikelompokkan per folder yang bisa diciutkan, dengan
+    kelompok **Disematkan** paling atas. Folder catatan bisa diganti nama dan dihapus lewat ⋯.
+  - Mode **Baca** menampilkan format (# judul, - daftar, **tebal**, _miring_, ~~coret~~,
+    `kode`, tautan) dan **checklist `[ ]` yang bisa dicentang**. Mengeklik teksnya membuka
+    **Sunting** tepat di baris itu; Ctrl+E berganti mode. Catatan yang berisi terbuka dalam mode
+    Baca.
+  - **Toolbar** Sunting: judul, tebal, miring, daftar, checklist, tautan `[teks](alamat)`.
+  - **Jadikan task** dari baris tempat kursor (atau ikon di ujung baris saat Baca): form Tambah
+    task terisi judul dari baris itu. Sesudah task dibuat, "→ PRD-…" ditempel di ujung baris
+    dan bisa diklik untuk membuka task-nya.
+  - **Templat**: Notulen rapat, Rencana minggu ini, Checklist QC, Catatan 1-on-1.
+  - **Warna** (biru, hijau, kuning, merah, ungu) dan saringan menurut warna.
+  - **Riwayat versi**: isi lama disimpan sebelum tertimpa (sekali di awal sesi menyunting,
+    lalu paling sering tiap 10 menit; maksimal 15 versi per catatan) dan bisa dipulihkan.
+    Memulihkan tidak menghapus versi sekarang.
+  - Tetap **tersimpan sendiri** 0,7 detik setelah berhenti mengetik; Ctrl+S menyimpan seketika.
+    Bisa disematkan, diunduh sebagai .txt, dan dihapus. Catatan tanpa judul memakai baris
+    pertamanya. Di ponsel daftar dulu, lalu editor penuh.
 - **Komunikasi** (0.10.0, "kotak masuk kerja"): lihat bagian *Komunikasi bersama* di bawah.
 - **Laporan**: ringkasan berkala (minggu ini, minggu lalu, bulan ini, 30 hari) per orang, bisa
   disalin sebagai teks untuk chat atau email.
