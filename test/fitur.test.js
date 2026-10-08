@@ -165,8 +165,11 @@ test('komunikasi: utas yang belum dibaca di atas; komentar sendiri tak dihitung'
   const sejak = () => 200;
   const u = I.utasDiskusi(d, 'kiki', 'terlibat', sejak, '');
   assert.deepEqual(u.map(x => [x.t.title, x.baru]), [['Baru dibalas', 1], ['Saya saja', 0], ['Lama', 0]]);
-  assert.deepEqual(I.utasDiskusi(d, 'kiki', 'semua', sejak, '').map(x => x.t.title), ['Orang lain', 'Baru dibalas', 'Saya saja', 'Lama'],
-    'lingkup semua: utas orang lain ikut, juga dihitung belum dibaca');
+  assert.deepEqual(I.utasDiskusi(d, 'nynda', 'semua', sejak, '').map(x => x.t.title), ['Orang lain', 'Saya saja', 'Baru dibalas', 'Lama'],
+    'Manager, lingkup semua: utas orang lain ikut, juga dihitung belum dibaca');
+  assert.deepEqual(I.utasDiskusi(d, 'kiki', 'semua', sejak, '').map(x => x.t.title), u.map(x => x.t.title),
+    'staff tak punya lingkup "semua": tetap utas yang melibatkannya');
+  assert.deepEqual(I.utasDiskusi(d, 'dhea', 'tim', sejak, '').map(x => x.t.title), ['Orang lain'], 'Lead: utas task timnya');
   assert.ok(!u.some(x => x.t.title === 'Orang lain'), 'tak terlibat → tak muncul di "terlibat"');
   assert.deepEqual(I.utasDiskusi(d, 'kiki', 'terlibat', sejak, 'tanpa').map(x => x.t.title), ['Tanpa komentar'], 'pencarian juga menemukan task tanpa komentar');
 });

@@ -59,6 +59,7 @@
         '**Ringkasan**: **Hari Ini** (pekerjaan Anda per tenggat; Lead juga melihat antrean timnya), **Dashboard**, dan **Laporan**.',
         '**Pekerjaan**, berurutan seperti alurnya: **Rancangan Paket** (target paket) → **Proyek** (ADDIE) → **Task** → **Komunikasi** (diskusi per task).',
         '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
+        'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
       ],
     },
@@ -103,6 +104,7 @@
       langkah: [
         'Tahap proyek **dihitung**, bukan diputuskan: tahap dari task terbuka yang paling awal. Begitu task Development selesai semua, proyek pindah sendiri ke tahap berikutnya.',
         'Proyek tidak punya Lead tetap. Kode tim di proyek menunjukkan tim yang sedang memegang task terbukanya.',
+        'Klik salah satu tahap di jalur **A D V I E** untuk membuka daftar task tahap itu di halaman proyek.',
         'Siklus ditutup oleh task **E12 · Final approval** yang disetujui Manager.',
         'Sesudah Evaluation tidak ada tahap keenam. Manager memilih: **arsipkan** (tuntas), **mulai siklus berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau **tahan**.',
       ],
@@ -160,6 +162,16 @@
       ],
     },
     {
+      id: 'staff-tambah', peran: 'staff', judul: 'Menambah task sendiri', tujuan: 'Mencatat pekerjaan Anda yang belum ada di daftar.', coba: true,
+      langkah: [
+        'Tekan **Tambah task** di kanan atas (di ponsel: tombol **+**).',
+        'Pilih jalur: **Rutin** (R1–R4) untuk pekerjaan harian, atau **Proyek** bila pekerjaannya bagian dari proyek. Sub-stage proyek yang tersedia hanya milik tim Anda.',
+        'PIC-nya otomatis Anda sendiri. Menyerahkan task ke orang lain tetap lewat Lead.',
+        'Lead Anda mendapat notifikasi. Task proyek tetap diajukan ke Lead untuk ditinjau; task rutin langsung ditandai selesai.',
+        'Salah ketik? Task buatan sendiri bisa diperbaiki lewat **Ubah** di detail task.',
+      ],
+    },
+    {
       id: 'staff-diskusi', peran: 'staff', judul: 'Berdiskusi tentang task', tujuan: 'Bertanya atau memberi kabar tanpa keluar dari aplikasi.', coba: true,
       langkah: [
         'Tulis komentar di bagian **Diskusi** pada detail task.',
@@ -197,7 +209,7 @@
       id: 'lead-elaborasi', peran: 'lead', judul: 'Elaborasi rancangan paket jadi proyek', tujuan: 'Mengubah target paket menjadi langkah kerja.', ilustrasi: 'elaborasi', coba: true,
       langkah: [
         'Buka **Rancangan Paket**, pilih paketnya, lalu tekan **Elaborasi jadi proyek**.',
-        'Centang target yang dikerjakan. Jumlahnya boleh dikecilkan, mis. target 10 tapi proyek ini 5.',
+        'Centang target yang dikerjakan; awalnya belum ada yang tercentang (**Centang semua** bila semuanya). Jumlahnya boleh dikecilkan, mis. target 10 tapi proyek ini 5.',
         'Pilih **Alur lengkap per jenis**, lalu coret langkah yang tidak perlu.',
         'Pilih **proyek tujuan** (baru atau yang sudah ada) dan tenggat, lalu tekan **Buat task**.',
         'Langkah pertama tiap target langsung masuk antrean Lead tim pemiliknya.',
@@ -218,7 +230,7 @@
       langkah: [
         'Setiap baris menunjukkan jalur tahap, tim yang sedang bekerja, progres tahap, dan keadaannya: Sesuai rencana, Berisiko, Siklus selesai, dan lainnya.',
         'Kotak **Keputusan siklus** berisi proyek yang task E12-nya sudah disetujui.',
-        'Klik proyek untuk melihat task per tahap, rancangan paket yang dikerjakannya, dan riwayat tahapnya.',
+        'Klik proyek untuk melihat task per tahap, rancangan paket yang dikerjakannya, dan riwayat tahapnya. Di dalamnya, klik tahap pada jalur ADDIE untuk langsung ke task tahap itu.',
       ],
     },
     {
@@ -331,6 +343,7 @@
         return keTask(cari(t => staf(t.pic) && I.ditandaiTertahan(t)) || cari(t => adaProfil(t.pic) && I.ditandaiTertahan(t)));
       case 'staff-rutin':
         return keTask(cari(t => staf(t.pic) && I.aktif(t) && !t.tertahan && I.jenisJalur(t) === 'rutin' && /^R/.test(t.sub || '')));
+      case 'staff-tambah': return { profil: staf(me) ? me : 'kiki', view: 'task', ket: 'Task · tombol Tambah task' };
       case 'staff-diskusi': return { view: 'komunikasi', ket: 'Komunikasi' };
       case 'mulai-ruang': return { view: 'link', ket: 'Link Saya' };
 
@@ -356,7 +369,7 @@
       case 'manager-proyek': return { profil: I.MANAGER, view: 'proyek', ket: 'Halaman Proyek' };
       case 'manager-siklus': return keProyek(I.antreKeputusan(data, hariIni)[0], I.MANAGER);
       case 'manager-baru': return { profil: I.MANAGER, view: 'proyek', ket: 'Halaman Proyek' };
-      case 'manager-dashboard': return { profil: I.MANAGER, view: 'dashboard', dash: { lingkup: 'tim' }, ket: 'Dashboard divisi' };
+      case 'manager-dashboard': return { profil: I.MANAGER, view: 'dashboard', dash: { lingkup: 'semua' }, ket: 'Dashboard divisi' };
       case 'manager-paket': return kePaket(paketContoh(), I.MANAGER);
       default: return null;
     }

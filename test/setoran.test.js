@@ -118,6 +118,7 @@ test('elaborasi dengan jumlah sendiri: target 10 cukup dikerjakan 5 dulu, sisany
   elaborasi(d, { items: ['ITM-E'], jumlah: { 'ITM-E': 5 } });
   assert.equal(sisa(), 0);
   assert.throws(() => elaborasi(data(), { items: ['ITM-A'], jumlah: { 'ITM-A': '0' } }), /Tidak ada target terbuka/, 'jumlah 0 = tidak dikerjakan');
+  assert.throws(() => elaborasi(data(), { items: [] }), /Centang dulu target/, 'tanpa target tercentang: pesan yang jelas');
   assert.equal(elaborasi(data(), { items: ['ITM-A'], jumlah: { 'ITM-A': '' }, mode: 'satu' }).tasks[0].title, 'DV1 · Latsol Fisika — 3 Paket', 'kosong = seluruh sisa');
 });
 

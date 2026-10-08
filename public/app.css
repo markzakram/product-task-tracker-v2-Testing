@@ -222,13 +222,20 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .banner.biru { background: var(--biru-muda); color: var(--biru-tua); }
 .banner.hijau { background: var(--hijau-muda); color: var(--hijau); }
 .teks-panjang { margin: 0; font-size: 14px; white-space: pre-line; color: var(--tinta-2); }
+.teks-panjang a { color: var(--biru); overflow-wrap: anywhere; }
 
 .jalur-tahap { display: flex; gap: 4px; }
-.jalur-tahap > div { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.jalur-tahap > * { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+/* Jalur yang bisa diklik (halaman proyek, detail task): tiap tahap membuka task-nya. */
+.jalur-tahap > button { min-width: 0; padding: 0; border: 0; border-radius: 8px; background: none; font: inherit; color: inherit; cursor: pointer; }
+.jalur-tahap > button:hover .kotak { filter: brightness(0.93); }
+.jalur-tahap > button:hover .nama { color: var(--tinta); }
+.jalur-tahap > button:focus-visible { outline: 2px solid var(--biru); outline-offset: 3px; }
+.jalur-tahap .dipilih .nama { color: var(--biru-tua); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .jalur-tahap .kotak { width: 100%; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--abu); color: var(--redup); }
 .jalur-tahap .lewat .kotak { background: var(--biru); color: #fff; }
 .jalur-tahap .kini .kotak { background: var(--navy); color: #fff; box-shadow: 0 0 0 2px var(--muka), 0 0 0 4px var(--navy); }
-.jalur-tahap .nama { font-size: 11px; color: var(--redup); }
+.jalur-tahap .nama { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--redup); }
 .jalur-tahap .kini .nama { color: var(--navy); font-weight: 700; }
 .jalur-tahap .milik .kotak { outline: 2px dashed var(--langit); outline-offset: 2px; }
 .jalur-mini { display: inline-flex; gap: 3px; }
@@ -332,7 +339,9 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .kotak-keputusan .dua .tombol { flex: 1; }
 .samping-tumpuk { display: flex; flex-direction: column; gap: 16px; }
 .kepala-proyek { display: flex; flex-direction: column; gap: 14px; }
-.tahap-bagian { display: flex; flex-direction: column; gap: 6px; }
+.tahap-bagian { display: flex; flex-direction: column; gap: 6px; scroll-margin-top: 80px; border-radius: 12px; }
+.tahap-bagian.sorot-tahap { animation: sorot-tahap 1.6s ease-out; }
+@keyframes sorot-tahap { from { box-shadow: 0 0 0 3px var(--langit); background: var(--biru-muda); } to { box-shadow: 0 0 0 3px transparent; background: transparent; } }
 .tahap-bagian summary { cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 40px; font-weight: 700; }
 .kembali { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 0; min-height: 36px; color: var(--biru); font-weight: 600; font-size: 14px; }
 
@@ -537,6 +546,7 @@ button.chip-setoran:hover { text-decoration: underline; }
 .setoran-baris .tautan-task { display: inline; }
 .setoran-baris small { display: block; margin-top: 2px; font-size: 12px; color: var(--redup); }
 .setoran-baris .ikon-tombol { width: 36px; height: 36px; }
+.judul-pilih-target { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pilih-target { border: 1px solid var(--garis); border-radius: 12px; margin: 0; padding: 6px 12px 10px; }
 .pilih-target + .pilih-target { margin-top: 8px; }
 .pilih-target legend { padding: 0 6px; font-size: 13px; font-weight: 700; color: var(--navy); }
@@ -782,7 +792,7 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 .notif-ikon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--abu); color: var(--tinta-2); }
 .jn-kembali { background: var(--kuning-muda); color: var(--kuning); }
 .jn-setuju, .jn-siap { background: var(--hijau-muda); color: var(--hijau); }
-.jn-tinjau, .jn-baru, .jn-serah { background: var(--biru-muda); color: var(--biru-tua); }
+.jn-tinjau, .jn-baru, .jn-tambah, .jn-serah { background: var(--biru-muda); color: var(--biru-tua); }
 .jn-siklus { background: #E6EDF7; color: var(--navy); }
 .panel-notif-kaki { margin: 0; padding: 10px 16px; border-top: 1px solid var(--garis); font-size: 12px; color: var(--samar); }
 

@@ -185,10 +185,21 @@ test('papan: kolom Selesai hanya 7 hari terakhir; lingkup tim mengikuti Lead', (
     task({ pic: 'kiki', status: 'Selesai', selesaiAt: lama, title: 'arsip' }),
     task({ pic: 'uma', status: 'Dikerjakan', title: 'tim lain' }),
   ];
-  const kol = I.kolomPapan(data(tasks), { orang: I.lingkupOrang('kiki', 'tim') }, HARI);
+  const kol = I.kolomPapan(data(tasks), { orang: I.lingkupOrang('alya', 'tim') }, HARI);
   assert.deepEqual(kol.map(k => [k.status, k.isi.map(t => t.title)]), [['Antre', []], ['Dikerjakan', []], ['Ditinjau', []], ['Selesai', ['baru']]]);
-  assert.deepEqual(I.lingkupOrang('kiki', 'tim'), ['alya', 'kiki', 'bilar']);
-  assert.equal(I.lingkupOrang('nynda', 'tim'), null, 'Manager: seluruh divisi');
+  assert.deepEqual(I.lingkupOrang('alya', 'tim'), ['alya', 'kiki', 'bilar']);
+});
+
+test('lingkup per peran: Staff hanya Saya, Lead + Tim saya, Manager + Semua', () => {
+  assert.deepEqual(['kiki', 'alya', 'nynda'].map(I.lingkupBoleh), [['saya'], ['saya', 'tim'], ['saya', 'tim', 'semua']]);
+  assert.deepEqual(['kiki', 'alya', 'nynda'].map(I.lingkupAwal), ['saya', 'tim', 'semua']);
+  assert.deepEqual(I.lingkupOrang('kiki', 'tim'), ['kiki'], 'staff: "tim" jatuh ke dirinya sendiri');
+  assert.deepEqual(I.lingkupOrang('kiki', 'semua'), ['kiki']);
+  assert.deepEqual(I.lingkupOrang('alya', 'semua'), ['alya', 'kiki', 'bilar'], 'Lead tak punya "semua": jatuh ke timnya');
+  assert.deepEqual(I.lingkupOrang('nynda', 'tim'), ['nynda', 'ali', 'andika', 'alya', 'dhea'], 'tim Manager = para Lead');
+  assert.equal(I.lingkupOrang('nynda', 'semua'), null, 'Manager: seluruh divisi');
+  assert.equal(I.lingkupSah('alya', ''), 'tim');
+  assert.equal(I.lingkupKom('kiki', 'tim'), 'terlibat');
 });
 
 test('tahap proyek dihitung dari task terbuka paling awal; perpindahannya tercatat', () => {
@@ -248,9 +259,36 @@ test('membuat task: sub-stage wajib & menentukan tahap; Lead untuk timnya atau L
   assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'E4', pic: 'uma' }, 'alya', WAKTU, HARI), /di luar tim/);
   const serah = I.taskBaru(d, { title: 'Produksi soal batch 2', project: 'PRJ-1', sub: 'DV1', pic: 'andika' }, 'alya', WAKTU, HARI);
   assert.equal(serah.pic, 'andika', 'Alya menyerahkan DV1 ke Andika, Lead tim pemiliknya');
-  assert.equal(I.bolehBuatTask('kiki'), false);
+  assert.equal(I.bolehBuatTask('kiki'), true, 'staff boleh menambah task (untuk dirinya)');
   const r = I.taskBaru(d, { title: 'Rekap fee guru', sub: 'R1', pic: 'nadya' }, 'nynda', WAKTU, HARI);
   assert.deepEqual([r.lane, r.stage, r.sub, r.kategori], ['rutin', '', 'R1', 'Rekap & administrasi']);
+});
+
+test('staff menambah task untuk dirinya: rutin, atau proyek di sub-stage timnya; Lead diberi tahu', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const r = I.taskBaru(d, { title: 'Show/hide harian', sub: 'R3', pic: 'kiki' }, 'kiki', WAKTU, HARI);
+  assert.deepEqual([r.lane, r.pic, r.assignedBy], ['rutin', 'kiki', 'kiki']);
+  const p = I.taskBaru(d, { title: 'Input revisi soal', project: 'PRJ-1', sub: 'DV8', pic: 'kiki' }, 'kiki', WAKTU + 1, HARI);
+  assert.deepEqual([p.lane, p.stage, I.peninjau(p)], ['proyek', 'V', 'alya'], 'task proyek staff tetap ditinjau Lead-nya');
+  assert.ok(I.taskBaru(d, { title: 'Revisi QC', project: 'PRJ-1', sub: 'E11', pic: 'kiki' }, 'kiki', WAKTU + 2, HARI), 'E11 milik siapa saja');
+  assert.throws(() => I.taskBaru(d, { title: 'x', sub: 'R1', pic: 'bilar' }, 'kiki', WAKTU, HARI), /dirinya sendiri/);
+  assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'E1', pic: 'kiki' }, 'kiki', WAKTU, HARI), /tim lain/, 'E1 milik AK');
+  assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'D1', pic: 'kiki' }, 'kiki', WAKTU, HARI), /direview Manager/);
+  assert.deepEqual(['R1', 'DV8', 'E1', 'D1', 'E11'].map(k => I.subBolehBagi('kiki', k)), [true, true, false, false, true]);
+  assert.ok(['E1', 'D1', 'A1'].every(k => I.subBolehBagi('alya', k)), 'Lead tak dibatasi');
+  // Staff boleh mengubah task buatannya sendiri, tapi tak bisa menyerahkannya ke orang lain.
+  assert.ok(I.bolehUbahTask(p, 'kiki'));
+  I.ubahTask(d, p, { title: 'Input revisi soal batch 2', due: '2026-10-12' }, 'kiki', WAKTU + 3);
+  assert.equal(p.title, 'Input revisi soal batch 2');
+  assert.throws(() => I.ubahTask(d, p, { pic: 'bilar' }, 'kiki', WAKTU), /di luar tim/);
+  assert.throws(() => I.ubahTask(d, p, { sub: 'E1' }, 'kiki', WAKTU), /tim lain/);
+  const dariLead = I.taskBaru(d, { title: 'QC web', project: 'PRJ-1', sub: 'E5', pic: 'kiki' }, 'alya', WAKTU + 4, HARI);
+  assert.equal(I.bolehUbahTask(dariLead, 'kiki'), false, 'task dari Lead tetap diubah Lead');
+  // Lead-nya diberi tahu; orang lain tidak. Task yang dibuat Lead untuk staff bukan "tambah".
+  const tambah = me => I.notifikasi(d, me).filter(n => n.jenis === 'tambah').map(n => n.task);
+  assert.deepEqual(tambah('alya').sort(), [r.id, p.id, d.tasks.find(t => t.sub === 'E11').id].sort());
+  assert.deepEqual(tambah('andika'), []);
+  assert.deepEqual(tambah('nynda'), []);
 });
 
 test('ubah task: delegasi dari antrean tim, sub-stage menentukan tahap, batas PIC & jalur', () => {

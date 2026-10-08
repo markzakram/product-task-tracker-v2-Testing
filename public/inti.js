@@ -175,17 +175,30 @@
     return false;
   }
 
-  /* PIC yang boleh dipilih saat membuat atau mengubah task. */
+  /* PIC yang boleh dipilih saat membuat atau mengubah task. Staff hanya dirinya sendiri. */
   function picBoleh(me) {
     const r = orang(me).peran;
     if (r === 'manager') return ORANG.map(o => o.id);
     if (r === 'lead') return [me, ...timDari(me)];
-    return [];
+    return ORANG_PER_ID.has(me) ? [me] : [];
   }
   /* Delegasi ke tim pemilik sub-stage (PRD): Lead boleh menyerahkan task ke Lead tim
      yang memiliki sub-stage itu, mis. Andika menyerahkan DV8 Input ke Alya. */
   const picSah = (me, pic, sub) => picBoleh(me).includes(pic) || (orang(me).peran === 'lead' && !!pic && pic === leadSub(sub));
-  const bolehBuatTask = me => orang(me).peran !== 'staff';
+  /* Semua profil boleh menambah task. Staff menambah untuk dirinya sendiri (keputusan user
+     2026-10-08, menggantikan "Staff tidak membuat task" di PRD v3). */
+  const bolehBuatTask = me => ORANG_PER_ID.has(me);
+  /* Sub-stage yang boleh dipakai staff: rutin R1–R4, atau sub-stage proyek milik timnya
+     (E11 revisi milik siapa saja), kecuali yang direview Manager. Lead & Manager bebas. */
+  function subBolehBagi(me, kode) {
+    const s = subTahap(kode);
+    if (!s) return false;
+    if (orang(me).peran !== 'staff' || s.tahap === 'R') return true;
+    const tim = timOrang(me);
+    return !s.reviewManager && (s.tim === '' || (!!tim && s.tim === tim.kode));
+  }
+  /* Form Ubah: Lead/Manager untuk task timnya; staff hanya untuk task yang ia buat sendiri. */
+  const bolehUbahTask = (t, me) => bolehUbah(t, me) && (orang(me).peran !== 'staff' || (t.assignedBy === me && t.pic === me));
 
   const potong = (s, n) => (String(s).length > n ? String(s).slice(0, n - 1).trimEnd() + '…' : String(s));
 
@@ -344,6 +357,11 @@
     const s = subTahap(f.sub);
     if (p && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
     if (!p && s && s.tahap !== 'R') throw new Error('Task di luar proyek memakai sub-stage rutin (R1–R4).');
+    if (!bolehBuatTask(me)) throw new Error('Pilih profil dulu.');
+    if (orang(me).peran === 'staff') {
+      if (f.pic !== me) throw new Error('Staff menambah task untuk dirinya sendiri. Penyerahan ke orang lain lewat Lead.');
+      if (s && !subBolehBagi(me, s.kode)) throw new Error(`${s.kode} dipegang tim lain atau direview Manager. Staff memakai sub-stage milik timnya sendiri.`);
+    }
     if (!picSah(me, f.pic, f.sub)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
     const t = {
       id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD')).padStart(3, '0'),
@@ -387,18 +405,20 @@
     catatLog(data, 'update', `${t.id} · ${t.title}`, 'Bukti dihapus: ' + e.label, me, waktu);
   }
 
-  /* Mengubah task (Lead/Manager; staff mengisi output & bukti dari detail). Sub-stage task
-     proyek tetap ADDIE dan tahapnya ikut kode; di luar proyek R1–R4, kecuali kode ADDIE task
-     "lepas" warisan v1 yang boleh dipertahankan. Mengganti PIC = mendelegasikan: ke anggota
-     tim sendiri, atau ke Lead tim pemilik sub-stage-nya. */
+  /* Mengubah task (Lead/Manager; staff hanya task yang ia buat sendiri — selain itu staff
+     mengisi output & bukti dari detail). Sub-stage task proyek tetap ADDIE dan tahapnya ikut
+     kode; di luar proyek R1–R4, kecuali kode ADDIE task "lepas" warisan v1 yang boleh
+     dipertahankan. Mengganti PIC = mendelegasikan: ke anggota tim sendiri, atau ke Lead tim
+     pemilik sub-stage-nya. Staff tak bisa mengganti PIC. */
   function ubahTask(data, t, f, me, waktu) {
-    if (!bolehUbah(t, me) || orang(me).peran === 'staff') throw new Error('Hanya Lead atau Manager yang mengubah task ini.');
+    if (!bolehUbahTask(t, me)) throw new Error('Hanya Lead atau Manager yang mengubah task ini; staff hanya task yang ia buat sendiri.');
     const ambil = (k, lama) => (f[k] === undefined ? lama : f[k]);
     const judul = teks(ambil('title', t.title));
     if (!judul) throw new Error('Judul task wajib diisi.');
     const kode = teks(ambil('sub', t.sub));
     const s = subTahap(kode);
     if (kode && !s) throw new Error('Sub-stage tidak dikenal.');
+    if (kode !== t.sub && s && !subBolehBagi(me, kode)) throw new Error(`${kode} dipegang tim lain atau direview Manager. Staff memakai sub-stage milik timnya sendiri.`);
     if (t.lane === 'proyek' && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
     if (t.lane !== 'proyek' && s && s.tahap !== 'R' && kode !== t.sub) throw new Error('Task di luar proyek memakai sub-stage rutin (R1–R4).');
     const pic = teks(ambil('pic', t.pic));
@@ -588,13 +608,21 @@
 
   /* ---------- Papan ---------- */
 
+  /* Lingkup yang boleh dilihat per peran (keputusan user 2026-10-08): Staff hanya dirinya;
+     Lead dirinya dan timnya; Manager dirinya, timnya (para Lead), dan seluruh divisi.
+     Lingkup yang tak boleh (mis. tersimpan dari profil lain) jatuh ke bawaan perannya. */
+  const LINGKUP_PERAN = { staff: ['saya'], lead: ['saya', 'tim'], manager: ['saya', 'tim', 'semua'] };
+  const LINGKUP_AWAL = { staff: 'saya', lead: 'tim', manager: 'semua' };
+  const lingkupBoleh = me => LINGKUP_PERAN[orang(me).peran] || ['saya'];
+  const lingkupAwal = me => LINGKUP_AWAL[orang(me).peran] || 'saya';
+  const lingkupSah = (me, lingkup) => (lingkupBoleh(me).includes(lingkup) ? lingkup : lingkupAwal(me));
+
+  /* null = tanpa batas orang. Tim = dirinya + bawahan langsungnya: staff bagi Lead, para Lead bagi Manager. */
   function lingkupOrang(me, lingkup) {
-    const o = orang(me);
-    if (lingkup === 'saya') return [me];
-    if (lingkup === 'semua') return null;
-    if (o.peran === 'manager') return null;
-    const lead = o.peran === 'lead' ? me : o.lead;
-    return lead ? [lead, ...timDari(lead)] : [me];
+    const l = lingkupSah(me, lingkup);
+    if (l === 'saya') return [me];
+    if (l === 'semua') return null;
+    return [me, ...ORANG.filter(o => o.lead === me).map(o => o.id)];
   }
 
   /* Tim pemilik sebuah task: dari sub-stage-nya; kalau tak berkode, tim PIC-nya. */
@@ -805,15 +833,18 @@
   /* Komentar orang lain yang lebih baru dari `sejak` (milidetik). */
   const belumDibaca = (t, me, sejak) => (t.comments || []).filter(k => k.author !== me && (Number(k.at) || 0) > sejak).length;
 
+  /* Lingkup Komunikasi mengikuti peran: "terlibat" untuk semua, "tim" Lead & Manager, "semua" Manager. */
+  const lingkupKom = (me, lingkup) => { const l = lingkupSah(me, lingkup); return l === 'saya' ? 'terlibat' : l; };
   /* Utas diskusi: task yang punya komentar (atau cocok dengan pencarian), yang belum
      dibaca di atas, lalu yang komentarnya paling baru. sejak(t) → batas baca task itu. */
   function utasDiskusi(data, me, lingkup, sejak, q) {
     const kata = String(q || '').trim().toLowerCase();
-    const ids = lingkup === 'tim' ? lingkupOrang(me, 'tim') : null;
+    const l = lingkup === 'terlibat' ? 'terlibat' : lingkupKom(me, lingkup);
+    const ids = l === 'tim' ? lingkupOrang(me, 'tim') : null;
     const namaProyek = new Map(data.projects.map(p => [p.id, p.name]));
     return data.tasks
       .filter(t => (kata ? [t.id, t.title, orang(t.pic).nama, namaProyek.get(t.project) || ''].join(' ').toLowerCase().includes(kata) : t.comments.length > 0))
-      .filter(t => (lingkup === 'terlibat' ? terlibat(t, me) : lingkup === 'tim' ? !ids || ids.includes(t.pic) : true))
+      .filter(t => (l === 'terlibat' ? terlibat(t, me) : l === 'tim' ? ids.includes(t.pic) : true))
       .map(t => ({ t, baru: belumDibaca(t, me, sejak(t)), terakhir: t.comments.reduce((a, k) => (!a || k.at > a.at ? k : a), null) }))
       .sort((a, b) => (b.baru > 0) - (a.baru > 0) || (b.terakhir ? b.terakhir.at : 0) - (a.terakhir ? a.terakhir.at : 0));
   }
@@ -825,6 +856,7 @@
        serah     task diserahkan ke saya (delegasi)         tinjau   task diajukan, menunggu tinjauan saya
        kembali   task saya dikembalikan peninjau            setuju   task saya disetujui
        komentar  komentar baru di task yang melibatkan saya siklus   (Manager) siklus proyek ditutup E12
+       tambah    (Lead) staff saya menambah task untuk dirinya sendiri
      Terbaru di atas. Penanda dibaca/belum disimpan di app.js, per profil. */
   function notifikasi(data, me, batas = 60) {
     const perId = indeks(data);
@@ -848,7 +880,10 @@
     for (const l of data.log) {
       if (l.by === me) continue;
       const t = perId.get(String(l.task).split(' ')[0]);
-      if (!t || t.pic !== me) continue;
+      if (!t) continue;
+      // Lead diberi tahu saat staff-nya menambah task untuk dirinya sendiri.
+      if (l.type === 'create' && t.pic === l.by && orang(l.by).peran === 'staff' && orang(l.by).lead === me) { tambah('tambah', t, l.at, l.by); continue; }
+      if (t.pic !== me) continue;
       const d = String(l.detail || '');
       const dibuat = /^Dibuat untuk (.+?)(?: · |$)/.exec(d);
       const serah = /(?:diserahkan|didelegasikan) ke ([^,.;]+)/i.exec(d);
@@ -1114,6 +1149,7 @@
       if (!proj || proj.arsip) throw new Error('Proyek tujuan tidak ditemukan atau sudah diarsipkan.');
     }
     const pilih = new Set(f.items || []);
+    if (!pilih.size) throw new Error('Centang dulu target yang dikerjakan proyek ini.');
     const kontrib = setoranPaket(data, p);
     const minta = f.jumlah || {};
     const terbuka = (p.items || []).filter(it => pilih.has(it.id)).map(it => {
@@ -1360,13 +1396,13 @@
   return {
     MANAGER, KAPASITAS, STATUS, TAHAP, PERAN, ORANG,
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
-    selesai, aktif, indeks, depsBelum, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, alasanTunggu,
+    selesai, aktif, indeks, depsBelum, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, RUMPUN, rumpunDari, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,
     namaTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
     KEPUTUSAN, setKeputusan, setArsip,
-    pekerjaanSaya, perhatian, lingkupOrang, kolomPapan, bebanOrang, laporan, cari,
+    pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupKom, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
     terlibat, belumDibaca, utasDiskusi, notifikasi, JENIS_LOG, saringLog,
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,

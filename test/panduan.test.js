@@ -57,6 +57,8 @@ test('Coba sekarang memilih contoh yang cocok dengan panduannya', () => {
   assert.equal(I.labelKeadaan(task('staff-revisi'), perId), 'Revisi');
   assert.ok(task('staff-tahan').tertahan);
   assert.equal(I.jenisJalur(task('staff-rutin')), 'rutin');
+  assert.equal(I.orang(c('staff-tambah').profil).peran, 'staff', 'menambah task dicoba sebagai staff');
+  assert.ok(I.bolehBuatTask(c('staff-tambah').profil));
 
   const antre = c('lead-antrean');
   assert.equal(I.orang(antre.profil).peran, 'lead');

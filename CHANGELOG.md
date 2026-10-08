@@ -1,5 +1,26 @@
 # Changelog — ProductTrack v2
 
+## 0.9.0 — Lingkup per peran, staff menambah task, ADDIE bisa diklik (2026-10-08)
+
+- **Lingkup mengikuti peran.** Staff hanya melihat task-nya sendiri (pilihan lingkupnya tidak
+  ditampilkan), Lead melihat **Saya** dan **Tim saya**, dan Manager melihat **Saya**, **Tim
+  saya** (para Lead), dan **Semua** (bawaannya). Berlaku di Task, Dashboard, Komunikasi, dan
+  pencarian cepat. Sebelumnya staff dan Lead bisa memilih "Semua", sedangkan Manager hanya
+  punya "Divisi". Lingkup yang tersimpan dari 0.8.0 dibuang sekali, karena "tim" Manager kini
+  berarti para Lead.
+- **Staff bisa menambah task** untuk dirinya sendiri: rutin (R1–R4), atau task proyek di
+  sub-stage milik timnya (selain yang direview Manager). PIC-nya selalu dirinya, task proyeknya
+  tetap ditinjau Lead, dan task buatan sendiri bisa ia ubah. Lead-nya mendapat notifikasi
+  "menambah task untuk dirinya sendiri". Tombol tambah per tahap di halaman proyek hanya muncul
+  di tahap yang punya sub-stage tim staff itu. Panduan baru: *Menambah task sendiri*.
+- **Elaborasi tanpa centang bawaan.** Target harus dipilih sendiri; ada tombol **Centang
+  semua**/**Kosongkan**, dan tombol Buat task menunggu sampai ada target (lalu menyebut
+  jumlahnya). Langkah per jenis muncul setelah targetnya dicentang.
+- **Jalur ADDIE bisa diklik** di halaman proyek dan detail task: halaman bergulir ke bagian
+  tahap itu dan membukanya, juga untuk tahap yang belum punya task.
+- Alamat web di tujuan proyek dan keterangan task kini bisa diklik.
+- Nama tahap di jalur ADDIE tak lagi bertumpuk di ponsel (dipotong dengan elipsis).
+
 ## 0.8.0 — Sidebar ringkas, halaman Task, Link & Catatan gaya ide v2 (2026-10-08)
 
 - **Sidebar ditata ulang.** Grup Pekerjaan berurutan sesuai alurnya: Rancangan Paket → Proyek →

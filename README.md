@@ -61,7 +61,8 @@ dengan satu penyederhanaan: tetap empat status.
 - **Proyek tanpa Lead tetap.** Yang tampil adalah tim pemegang task terbukanya.
 - **Tahap proyek dihitung, bukan diputuskan:** tahap task terbuka paling awal di siklus aktif.
   Tahap pindah sendiri dan tercatat di riwayat tahap. **Siklus ditutup** oleh task E12 · Final
-  approval yang disetujui. Sesudah Evaluation tidak ada tahap keenam; Manager memilih:
+  approval yang disetujui. Jalur **A D V I E** di halaman proyek dan detail task bisa diklik untuk
+  membuka task tahap itu. Sesudah Evaluation tidak ada tahap keenam; Manager memilih:
   **arsipkan** (proyek tuntas, pilihan utama kalau semua task beres), **mulai siklus
   berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau
   **tahan**. Keputusan proyek: Build, Improve, Maintain, Hold.
@@ -70,15 +71,26 @@ dengan satu penyederhanaan: tetap empat status.
 - **Dashboard:** task aktif per status, tahap, tim pemilik, rumpun, dan platform; per orang
   ditambah sub-task terbuka dan **skor bottleneck** (task orang lain yang menunggu dia × 2 +
   tinjauan yang menunggu dia × 2 + task telatnya).
-- **Staff** menerima task dari Lead. Staff tidak membuat task.
+- **Staff** menerima task dari Lead, dan sejak 0.9.0 boleh **menambah task untuk dirinya
+  sendiri**: rutin (R1–R4), atau task proyek di sub-stage milik timnya (E11 revisi juga boleh;
+  sub-stage yang direview Manager tidak). PIC-nya selalu dirinya; menyerahkan ke orang lain tetap
+  lewat Lead. Lead-nya mendapat notifikasi, task proyeknya tetap ditinjau Lead, dan task buatan
+  sendiri bisa ia ubah. Ini keputusan user yang menggantikan "Staff tidak membuat task" di PRD v3.
+- **Lingkup per peran:** Staff hanya melihat task-nya sendiri (**Saya**); Lead dirinya dan
+  timnya (**Tim saya**); Manager dirinya, para Lead (**Tim saya**), dan seluruh divisi
+  (**Semua**, bawaannya). Berlaku di Task, Dashboard, Komunikasi, dan pencarian cepat (ditambah
+  task yang melibatkan orang itu: pemberi, peninjau, pendukung, atau yang berkomentar). Halaman
+  proyek dan rancangan paket tetap terbuka untuk semua, karena itulah konteks kerja bersama.
+  Aturannya `lingkupBoleh`/`lingkupOrang` di `public/inti.js`.
 
 Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tampilan
 (`public/app.js`) hanya meneruskan klik ke aturan itu.
 
 ### Rancangan paket → proyek → progres yang bergerak sendiri
 
-1. Di **Rancangan Paket**, Lead/Manager menekan **Elaborasi jadi proyek**. Setiap target yang
-   dipilih menjadi satu **batch**: rangkaian task sesuai alur jenisnya. Contoh Latsol: DV1
+1. Di **Rancangan Paket**, Lead/Manager menekan **Elaborasi jadi proyek**. Tak ada target yang
+   tercentang dari awal: targetnya dipilih sendiri (ada tombol **Centang semua**), dan tombol
+   Buat task baru aktif sesudahnya. Setiap target yang dipilih menjadi satu **batch**: rangkaian task sesuai alur jenisnya. Contoh Latsol: DV1
    Produksi soal → E1 QC soal → DV8 Input → I1 Generate → E4 QC SIADU → E5 QC Web → E6 QC
    Android → I4 Show/hide. Setiap langkah menunggu langkah sebelumnya dan diserahkan ke Lead tim
    pemilik sub-stage-nya. Langkah yang tak perlu bisa dicoret. Mode **Satu task per target**
@@ -115,7 +127,7 @@ Halaman pendukung, setara v1:
   **Daftar** (bisa diurutkan dan diekspor ke CSV, ikut sub-stage, tim, rumpun, dan keadaannya),
   **Kanban** (seret-lepas di desktop), **Per orang**, **Timeline** (5 minggu), dan **Kalender**
   (tenggat per hari). Tab fokus berangka di atasnya: Semua, Terlambat, Tertahan, dan Tinjauan
-  saya (Lead & Manager). Kotak cari, lingkup (Saya / Tim saya / Semua), dan **Saringan**
+  saya (Lead & Manager). Kotak cari, lingkup (sesuai peran), dan **Saringan**
   (proyek, jalur, tahap, sub-stage, tim, rumpun, platform) berlaku di semua tampilan. Tampilan
   dan saringan terakhir diingat per browser.
 - **Link Saya** (gaya ide v2): kartu per folder. Tempel alamat di kotak atas lalu Enter, atau
@@ -368,9 +380,10 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
   browser ini"). Tautan ke apa pun yang sudah ada di data contoh selalu jalan.
 - **Notifikasi hanya di dalam aplikasi**, dari data di browser itu. Belum ada email atau push.
 - **Profil dipilih sendiri** karena PIN dipakai bersama. Siapa pun bisa masuk sebagai Manager.
-- **Belum ada penyaringan per peran.** v1 menyaring data di server untuk magang dan Lintas
-  Divisi; v2 belum. Siapa pun yang tahu PIN v2 melihat seluruh data contoh, jadi jangan
-  bagikan PIN v2 ke magang atau Lintas Divisi.
+- **Lingkup per peran baru di tampilan.** Staff, Lead, dan Manager melihat lingkup berbeda,
+  tetapi seluruh data contoh tetap dikirim ke browser dan profil dipilih sendiri. v1 menyaring
+  data di server untuk magang dan Lintas Divisi; v2 belum. Siapa pun yang tahu PIN v2 bisa
+  melihat seluruh data contoh, jadi jangan bagikan PIN v2 ke magang atau Lintas Divisi.
 - Task belum bisa dihapus. Dropdown Master v1 belum ada: pilihan platform & kategori masih tetap
   di kode.
 - Satu task hanya menyetor saat task-nya Selesai; setoran per sub-task belum ada.
