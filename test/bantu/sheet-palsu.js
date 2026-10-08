@@ -1,5 +1,5 @@
 /* Tiruan Google Sheets API secukupnya untuk tes: daftar tab, baca, batchGet,
-   update nilai, dan batchUpdate (addSheet, deleteSheet, updateCells, repeatCell).
+   update dan append nilai, dan batchUpdate (addSheet, deleteSheet, updateCells, repeatCell).
 
    Setiap panggilan tulis dicatat di `tulisan`, supaya tes bisa memastikan sebuah
    jalur benar-benar TIDAK menulis apa pun. Batas grid ditegakkan seperti aslinya:
@@ -51,6 +51,17 @@ function sheetPalsu(tabs, { judul = 'Sheet Uji', email = 'producttrack-v2@contoh
           }
           isi.forEach((b, i) => { t.values[awal + i] = b.map(String); });
           return { data: {} };
+        },
+        /* INSERT_ROWS seperti aslinya: baris baru ditaruh sesudah baris terakhir yang berisi,
+           dan grid bertambah sendiri. */
+        async append({ range, requestBody }) {
+          tulisan.push({ jenis: 'values.append', range });
+          const t = tabDari(range);
+          let akhir = t.values.length;
+          while (akhir > 0 && !(t.values[akhir - 1] || []).some(s => String(s).trim())) akhir--;
+          requestBody.values.forEach((b, i) => { t.values[akhir + i] = b.map(String); });
+          t.rowCount = Math.max(t.rowCount, t.values.length);
+          return { data: { updates: { updatedRows: requestBody.values.length } } };
         },
       },
       async batchUpdate({ requestBody }) {

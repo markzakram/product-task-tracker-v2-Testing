@@ -140,10 +140,63 @@ Halaman pendukung, setara v1:
   atas) dan editor besar di kanan. Catatan **tersimpan sendiri** 0,7 detik setelah berhenti
   mengetik; Ctrl+S menyimpan seketika. Bisa disematkan, diunduh sebagai .txt, dan dihapus.
   Catatan tanpa judul memakai baris pertamanya. Di ponsel daftar dulu, lalu editor penuh.
-- **Komunikasi**: utas diskusi per task, yang belum dibaca di atas; lencana di sidebar.
+- **Komunikasi** (0.10.0, "kotak masuk kerja"): lihat bagian *Komunikasi bersama* di bawah.
 - **Laporan**: ringkasan berkala (minggu ini, minggu lalu, bulan ini, 30 hari) per orang, bisa
   disalin sebagai teks untuk chat atau email.
 - **Riwayat Aktivitas** (Manager): saring jenis, orang, kata.
+
+### Komunikasi bersama
+
+Satu-satunya bagian yang sudah **terbagi antar orang dan perangkat**: pesan disimpan ke tab
+`obrolan` di spreadsheet v2, bukan di browser.
+
+- **Tampilan kotak masuk.** Kolom kiri berisi saringan **Belum dibaca**, **Menyebut saya**,
+  **Perlu jawaban**, dan **Semua utas**, lalu ruang tim dan ruang proyek. Kolom tengah berisi
+  daftar utas; kolom kanan percakapannya. Di bawah 1360 px kolom kiri menjadi deretan chip; di
+  ponsel daftar tampil dulu, lalu percakapan penuh dengan tombol kembali.
+- **Ruang.** Ada tiga jenis: utas per task, **ruang proyek** (terbuka untuk semua), dan **ruang
+  tim** (Lead dan staff tim itu, ditambah Manager). Alamatnya `#/komunikasi/PRD-12`,
+  `#/komunikasi/PRJ-3`, dan `#/komunikasi/tim-LA`.
+- **Menulis pesan.**
+  - Enter mengirim, Shift+Enter membuat baris baru.
+  - Format ringan seperti v1: **tebal**, _miring_, ~~coret~~, `kode`, dan tautan otomatis.
+  - Ketik **@** untuk menyebut orang (@Kiki) atau peran (@manager, @lead, @staff, @semua).
+  - Ada pesan cepat ("Sudah saya cek", "Mohon dicek", dan lainnya) dan draf yang tersimpan per
+    ruang.
+- **Mengelola pesan.** Pesan bisa dibalas dengan kutipannya dan diberi reaksi 👍 ✅ 👀 🙏.
+  Pesan sendiri bisa diubah (bertanda "diubah") atau dihapus (tampil "Pesan dihapus").
+- **Perlu jawaban.** Tombol **?** menandai pesan menunggu jawaban orang yang disebut; di
+  ruang task tanpa sebutan, yang ditunggu adalah PIC-nya. Pesan itu muncul di **Perlu jawaban**
+  orang tersebut sampai ia membalas atau seseorang menandainya beres.
+- **Konteks kerja di percakapan.** Utas task memuat jejak task-nya (diajukan, dikembalikan
+  beserta alasannya, disetujui, diserahkan, tertahan) dan panel konteks: sub-stage, proyek, PIC,
+  peninjau, tenggat, dan syarat ajukan. Tombol aksinya (Mulai, Ajukan, Setujui, Kembalikan, …)
+  ada di kepala percakapan.
+- **Diskusi di detail task.** Bagian **Diskusi** di laci detail task memakai utas yang sama.
+- **Notifikasi.** Lonceng dan lencana sidebar ikut pesan bersama: pesan baru di task yang
+  melibatkan Anda, sebutan, dan pertanyaan untuk Anda. Ruang tim dan proyek hanya memberi tahu
+  lewat sebutan dan pertanyaan, supaya lonceng tak riuh.
+
+**Cara kerjanya.** Tab `obrolan` hanya bertambah (`values.append`). Setiap pesan, ubah,
+hapus, reaksi, atau "beres" adalah satu baris peristiwa, dan keadaan akhirnya disusun ulang di
+browser oleh `susunObrolan` di `public/inti.js`. Dua orang yang menulis bersamaan tak
+saling menimpa.
+
+- **Pemeriksaan.** Peristiwa diperiksa di browser dan di server (`periksaPeristiwa`).
+  Peristiwa yang tak sah, mis. mengubah pesan orang lain, diabaikan saat disusun.
+- **Waktu.** id dan waktu diberikan server, supaya tarikan bertahap tak melewatkan pesan dari
+  browser yang jamnya meleset.
+- **Tarikan berkala.** Browser menarik pesan baru tiap 20 detik di Komunikasi dan tiap 60
+  detik di halaman lain, berhenti saat tab tak terlihat, dan melambat saat gagal.
+- **Kuota.** Kuota baca Google Sheets dihitung per service account, jadi server juga memakai
+  ulang bacaan yang berdekatan selama 3 detik.
+- **Aman dari impor ulang.** `npm run impor:v1` tak pernah menyentuh tab `obrolan`
+  (tab itu tak ada di `TAB` maupun `USANG`), dan **Reset data contoh** juga tidak.
+- **Komentar lama** dari data contoh tetap tampil di utas task-nya.
+
+Aturannya ada di `public/inti.js` (`susunObrolan`, `daftarUtas`, `sebutan`,
+`tanyaTerbuka`, `notifikasi`) dan `api/_sheets.js` (`bacaObrolan`, `tulisObrolan`),
+diuji di `test/obrolan.test.js` dan `test/rpc.test.js`.
 
 ### Alamat, pencarian cepat, dan notifikasi
 
@@ -184,9 +237,9 @@ public/app.css        gaya tampilan, warna dari logo ProductTrack
 public/inti.js        aturan alur v2, dipakai browser dan tes
 public/panduan.js     isi halaman Panduan + pencari contoh untuk "Coba sekarang"
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
-api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh
+api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh, muatObrolan, kirimObrolan
 api/_sesi.js          gerbang PIN + cookie sesi
-api/_sheets.js        Google Sheets + aturan kepemilikan + tulis/baca data contoh
+api/_sheets.js        Google Sheets + aturan kepemilikan + tulis/baca data contoh + tab obrolan
 api/_skema.js         bentuk tab spreadsheet v2, baris ↔ objek prototipe
 scripts/impor-v1.js   npm run impor:v1 — tarikan v1 → data contoh di spreadsheet v2
 scripts/_v1ke2.js     semua aturan pemetaan v1 → v2 (tabel yang bisa diubah)
@@ -371,14 +424,20 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 ## Batasan yang disadari
 
 - **Suntingan belum tersimpan ke spreadsheet.** Data contoh dimuat dari server, tetapi yang
-  diubah orang (status, tinjauan, sub-task, komentar, gate proyek, paket, link, catatan)
-  tersimpan di browser masing-masing (localStorage). Tombol **Reset data contoh** di kaki
+  diubah orang (status, tinjauan, sub-task, gate proyek, paket, link, catatan) tersimpan di
+  browser masing-masing (localStorage). Pengecualiannya pesan Komunikasi, yang sudah tersimpan
+  bersama di spreadsheet (lihat *Komunikasi bersama*). Tombol **Reset data contoh** di kaki
   sidebar (di ponsel: Menu) membuang semua perubahan itu dan memuat ulang data contoh dari
-  spreadsheet. Spreadsheet sendiri tak pernah diubah aplikasi, jadi data awalnya selalu utuh.
-  Karena itu pula Komunikasi dan Catatan Saya belum terbagi antarperangkat, dan **tautan ke
+  spreadsheet. Data contoh di spreadsheet tak pernah diubah aplikasi, jadi selalu utuh. Karena
+  itu pula Catatan Saya belum terbagi antarperangkat. Jejak dan tombol aksi task di percakapan
+  mengikuti data task di browser masing-masing, dan **tautan ke
   task yang dibuat di browser lain tidak ditemukan** (aplikasi memberi tahu "tidak ada di data
   browser ini"). Tautan ke apa pun yang sudah ada di data contoh selalu jalan.
-- **Notifikasi hanya di dalam aplikasi**, dari data di browser itu. Belum ada email atau push.
+- **Notifikasi hanya di dalam aplikasi.** Pesan Komunikasi terbagi untuk semua orang; aktivitas
+  task lainnya dari data di browser itu. Belum ada email atau push.
+- **Pesan yang diubah atau dihapus tetap ada di spreadsheet.** Aplikasi hanya menampilkan
+  versi terakhir atau "Pesan dihapus"; teks aslinya masih terbaca di tab `obrolan`. Pengirim
+  pesan juga belum bisa dibuktikan selama PIN dipakai bersama.
 - **Profil dipilih sendiri** karena PIN dipakai bersama. Siapa pun bisa masuk sebagai Manager.
 - **Lingkup per peran baru di tampilan.** Staff, Lead, dan Manager melihat lingkup berbeda,
   tetapi seluruh data contoh tetap dikirim ke browser dan profil dipilih sendiri. v1 menyaring
@@ -400,9 +459,10 @@ penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
 ## Langkah berikutnya
 
-1. Simpan suntingan ke spreadsheet: aksi tulis di `/api/rpc` di atas tab yang sudah ada
-   (`api/_skema.js`), menggantikan localStorage. Aturan alurnya sudah ada di `public/inti.js`
-   dan bisa dipakai juga di server.
+1. Simpan suntingan task, proyek, dan paket ke spreadsheet, menggantikan localStorage. Komunikasi
+   (0.10.0) sudah memakai pola peristiwa yang hanya bertambah; pola yang sama bisa dipakai untuk
+   status dan tinjauan task. Aturan alurnya sudah ada di `public/inti.js` dan bisa dipakai juga
+   di server.
 2. Login per orang, supaya profil berasal dari login, data bisa disaring per peran, dan Link
    Saya kembali pribadi.
 3. Dropdown Master.

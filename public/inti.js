@@ -824,29 +824,223 @@
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
   }
 
-  /* ---------- Komunikasi ---------- */
+  /* ---------- Komunikasi: ruang, pesan, sebutan, pertanyaan (0.10.0) ----------
+     Pesan tersimpan BERSAMA di tab `obrolan` spreadsheet v2, sebagai peristiwa yang hanya
+     bertambah — dua orang yang menulis bersamaan tak saling menimpa:
+       pesan   teks baru di sebuah ruang; target = pesan yang dibalas, tanya = yang perlu menjawab
+       ubah    pengirim mengganti teks pesannya       hapus  pengirim menghapus pesannya
+       reaksi  memasang reaksi pada pesan             lepas  melepasnya lagi
+       beres   pertanyaan dianggap terjawab (oleh yang ditanya, atau pengirimnya)
+     Keadaan akhirnya disusun di sini (susunObrolan), sama di semua browser; peristiwa yang
+     tak sah — mis. mengubah pesan orang lain — diabaikan. Ruang: task:PRD-… (utas per task),
+     proyek:PRJ-…, tim:AK. Komentar lama di data contoh ikut tampil di ruang task-nya. */
 
-  function terlibat(t, me) {
-    return t.pic === me || (t.support || []).includes(me) || t.assignedBy === me || peninjau(t) === me
-      || (t.comments || []).some(k => k.author === me);
+  const JENIS_PERISTIWA = ['pesan', 'ubah', 'hapus', 'reaksi', 'lepas', 'beres'];
+  const REAKSI = [
+    { kode: 'jempol', simbol: '👍', nama: 'Oke' },
+    { kode: 'centang', simbol: '✅', nama: 'Sudah' },
+    { kode: 'mata', simbol: '👀', nama: 'Sedang dilihat' },
+    { kode: 'terima', simbol: '🙏', nama: 'Terima kasih' },
+  ];
+  const BATAS_PESAN = 4000;
+  const POLA_RUANG = /^(task:PRD-\d+|proyek:PRJ-\d+|tim:(AK|LA|CO|SI))$/;
+  const POLA_ID_PESAN = /^[A-Za-z0-9_-]{1,80}$/;
+
+  const ruangTask = id => 'task:' + id;
+  const ruangProyek = id => 'proyek:' + id;
+  const ruangTim = kode => 'tim:' + kode;
+  function bacaRuang(ruang) {
+    const s = String(ruang || '');
+    const i = s.indexOf(':');
+    return i < 0 ? { jenis: '', id: s } : { jenis: s.slice(0, i), id: s.slice(i + 1) };
   }
-  /* Komentar orang lain yang lebih baru dari `sejak` (milidetik). */
-  const belumDibaca = (t, me, sejak) => (t.comments || []).filter(k => k.author !== me && (Number(k.at) || 0) > sejak).length;
+  const anggotaTim = kode => (TIM[kode] ? [TIM[kode].lead, ...timDari(TIM[kode].lead)] : []);
+
+  /* Ruang tim hanya untuk anggotanya dan Manager; ruang task dan proyek terbuka untuk semua,
+     karena itulah konteks kerja bersama. */
+  function bolehRuang(me, ruang) {
+    const { jenis, id } = bacaRuang(ruang);
+    if (jenis === 'task' || jenis === 'proyek') return true;
+    if (jenis !== 'tim' || !TIM[id] || id === 'MG') return false;
+    return orang(me).peran === 'manager' || anggotaTim(id).includes(me);
+  }
+  /* Ruang tim yang tampil: Manager semua tim, selain itu tim sendiri. */
+  const ruangTimSaya = me => Object.keys(TIM).filter(kode => bolehRuang(me, ruangTim(kode)));
+
+  /* Satu pintu peristiwa ke spreadsheet — dipakai server juga. Bentuknya dibersihkan, yang
+     tak masuk akal ditolak. Pengirimnya tak bisa dibuktikan selama PIN dipakai bersama. */
+  function periksaPeristiwa(e) {
+    const x = e && typeof e === 'object' ? e : {};
+    const jenis = String(x.jenis || '');
+    if (!JENIS_PERISTIWA.includes(jenis)) throw new Error('Jenis pesan tidak dikenal.');
+    const ruang = String(x.ruang || '');
+    if (!POLA_RUANG.test(ruang)) throw new Error('Ruang obrolan tidak dikenal.');
+    const oleh = String(x.oleh || '');
+    if (!ORANG_PER_ID.has(oleh)) throw new Error('Pengirim harus profil yang terdaftar.');
+    const isi = String(x.teks == null ? '' : x.teks).replace(/\r\n?/g, '\n').replace(/\s+$/, '');
+    if (isi.length > BATAS_PESAN) throw new Error(`Pesan terlalu panjang (maks. ${BATAS_PESAN} karakter).`);
+    const target = String(x.target || '');
+    if (target && !POLA_ID_PESAN.test(target)) throw new Error('Pesan yang dirujuk tidak dikenal.');
+    const hasil = { jenis, ruang, oleh, teks: '', target: '', kode: '', tanya: [], judul: teks(x.judul).slice(0, 200) };
+    if (jenis === 'pesan') {
+      if (!isi.trim()) throw new Error('Pesan masih kosong.');
+      const tanya = Array.isArray(x.tanya) ? x.tanya.map(String) : [];
+      return { ...hasil, teks: isi, target, tanya: [...new Set(tanya)].filter(id => ORANG_PER_ID.has(id) && id !== oleh).slice(0, 12) };
+    }
+    if (!target) throw new Error('Pesan yang dirujuk wajib ada.');
+    if (jenis === 'ubah') {
+      if (!isi.trim()) throw new Error('Pesan masih kosong.');
+      return { ...hasil, teks: isi, target };
+    }
+    if (jenis === 'reaksi' || jenis === 'lepas') {
+      if (!REAKSI.some(r => r.kode === x.kode)) throw new Error('Reaksi tidak dikenal.');
+      return { ...hasil, target, kode: x.kode };
+    }
+    return { ...hasil, target };
+  }
+
+  /* Komentar data contoh + peristiwa bersama → pesan per ruang, terurut waktu.
+     Pesan: { id, ruang, oleh, at, teks, balas, tanya, diubah, dihapus, reaksi {kode: [orang]},
+     beres {oleh, at}, bersama, judul, tertunda, gagal }. */
+  function susunObrolan(data, peristiwa = []) {
+    const perId = new Map();
+    const perRuang = new Map();
+    const masuk = m => {
+      perId.set(m.id, m);
+      if (!perRuang.has(m.ruang)) perRuang.set(m.ruang, []);
+      perRuang.get(m.ruang).push(m);
+    };
+    const kosong = { balas: '', diubah: 0, dihapus: false, beres: null, judul: '', tertunda: false, gagal: false };
+    for (const t of data.tasks) {
+      for (const k of t.comments || []) {
+        masuk({ ...kosong, id: String(k.id), ruang: ruangTask(t.id), oleh: k.author, at: Number(k.at) || 0, teks: String(k.text || ''), tanya: [], reaksi: {}, bersama: false });
+      }
+    }
+    const urut = (peristiwa || []).slice().sort((a, b) => (a.at - b.at) || String(a.id).localeCompare(String(b.id)));
+    for (const e of urut) {
+      if (e.jenis === 'pesan') {
+        if (!perId.has(e.id)) {
+          masuk({ ...kosong, id: e.id, ruang: e.ruang, oleh: e.oleh, at: e.at, teks: e.teks, balas: e.target || '', tanya: e.tanya || [],
+            reaksi: {}, bersama: true, judul: e.judul || '', tertunda: !!e.tertunda, gagal: !!e.gagal });
+        }
+        continue;
+      }
+      const m = perId.get(e.target);
+      if (!m || m.ruang !== e.ruang) continue;
+      if (e.jenis === 'ubah' && m.oleh === e.oleh && !m.dihapus) Object.assign(m, { teks: e.teks, diubah: e.at });
+      else if (e.jenis === 'hapus' && m.oleh === e.oleh) Object.assign(m, { teks: '', dihapus: true, reaksi: {} });
+      else if ((e.jenis === 'reaksi' || e.jenis === 'lepas') && !m.dihapus) {
+        const siapa = new Set(m.reaksi[e.kode] || []);
+        if (e.jenis === 'reaksi') siapa.add(e.oleh); else siapa.delete(e.oleh);
+        if (siapa.size) m.reaksi[e.kode] = [...siapa]; else delete m.reaksi[e.kode];
+      } else if (e.jenis === 'beres' && m.tanya.length && !m.beres && (m.tanya.includes(e.oleh) || m.oleh === e.oleh)) {
+        m.beres = { oleh: e.oleh, at: e.at };
+      }
+    }
+    for (const daftar of perRuang.values()) daftar.sort((a, b) => a.at - b.at);
+    return { perId, perRuang };
+  }
+
+  /* @sebutan: nama pendek (@Kiki) atau peran (@manager, @lead, @staff, @semua). */
+  const PERAN_SEBUT = { manager: 'manager', lead: 'lead', leader: 'lead', staff: 'staff', semua: '*' };
+  function sebutan(isi) {
+    const siapa = new Set(), peran = new Set();
+    for (const m of String(isi || '').matchAll(/(^|[^A-Za-z0-9_])@([A-Za-z]+)/g)) {
+      const kata = m[2].toLowerCase();
+      const o = ORANG.find(x => x.pendek.toLowerCase() === kata);
+      if (o) siapa.add(o.id);
+      else if (PERAN_SEBUT[kata]) peran.add(PERAN_SEBUT[kata]);
+    }
+    return { orang: [...siapa], peran: [...peran] };
+  }
+  function menyebut(isi, me) {
+    if (!String(isi || '').includes('@')) return false;
+    const s = sebutan(isi);
+    return s.orang.includes(me) || s.peran.includes('*') || s.peran.includes(orang(me).peran);
+  }
+
+  /* Pertanyaan masih terbuka bila belum ditandai beres, pesannya tak dihapus, dan belum ada
+     balasan dari salah satu yang ditanya sesudahnya di ruang yang sama. */
+  function tanyaTerbuka(m, pesanRuang) {
+    if (!m.tanya.length || m.beres || m.dihapus) return false;
+    return !pesanRuang.some(x => x.at > m.at && !x.dihapus && m.tanya.includes(x.oleh));
+  }
+
+  /* Orang yang terlibat di sebuah task: PIC, pendukung, pemberi, peninjau, yang ikut berdiskusi,
+     dan yang disebut atau ditanya di utasnya. pesan = pesan ruang task itu (bila sudah disusun). */
+  function terlibat(t, me, pesan) {
+    if (t.pic === me || (t.support || []).includes(me) || t.assignedBy === me || peninjau(t) === me) return true;
+    const daftar = pesan || (t.comments || []).map(k => ({ oleh: k.author, teks: String(k.text || ''), tanya: [] }));
+    return daftar.some(m => m.oleh === me || m.tanya.includes(me) || menyebut(m.teks, me));
+  }
+
+  /* Jejak task yang ikut tampil di percakapannya: dibuat, diubah/diserahkan, mulai, tertahan,
+     pengajuan dan hasil tinjauan (beserta catatannya), dibuka kembali. */
+  function aktivitasTask(data, t) {
+    const out = (t.tinjauan || []).map(r => ({ id: 'tj-' + r.id, at: Number(r.at) || 0, oleh: r.by, jenis: 'tinjau', aksi: r.action, teks: r.note || '' }));
+    for (const l of data.log) {
+      if (l.type === 'comment' || l.type === 'tinjau' || String(l.task).split(' ')[0] !== t.id) continue;
+      out.push({ id: 'lg-' + l.id, at: Number(l.at) || 0, oleh: l.by, jenis: l.type, aksi: '', teks: String(l.detail || '') });
+    }
+    return out.filter(x => x.at).sort((a, b) => a.at - b.at);
+  }
 
   /* Lingkup Komunikasi mengikuti peran: "terlibat" untuk semua, "tim" Lead & Manager, "semua" Manager. */
   const lingkupKom = (me, lingkup) => { const l = lingkupSah(me, lingkup); return l === 'saya' ? 'terlibat' : l; };
-  /* Utas diskusi: task yang punya komentar (atau cocok dengan pencarian), yang belum
-     dibaca di atas, lalu yang komentarnya paling baru. sejak(t) → batas baca task itu. */
-  function utasDiskusi(data, me, lingkup, sejak, q) {
+
+  /* Daftar utas Komunikasi, satu per ruang.
+       saring  'semua' | 'baru' (belum dibaca) | 'sebut' (menyebut saya) | 'tanya' (perlu jawaban saya)
+       lingkup utas task: 'terlibat' | 'tim' | 'semua', mengikuti peran
+       q       cari judul, ID, proyek, PIC, atau isi pesan; task tanpa pesan ikut bila cocok
+       sejak   (ruang, pesan) → batas baca: pesan orang lain sesudahnya terhitung baru
+     Ruang tim & proyek ikut bila sudah ada pesannya. Yang belum dibaca di atas, lalu yang
+     paling baru. */
+  function daftarUtas(data, me, susunan, { saring = 'semua', lingkup = 'terlibat', q = '', sejak = () => 0 } = {}) {
     const kata = String(q || '').trim().toLowerCase();
+    const perIdTask = indeks(data);
+    const proyekPer = new Map(data.projects.map(p => [p.id, p]));
     const l = lingkup === 'terlibat' ? 'terlibat' : lingkupKom(me, lingkup);
     const ids = l === 'tim' ? lingkupOrang(me, 'tim') : null;
-    const namaProyek = new Map(data.projects.map(p => [p.id, p.name]));
-    return data.tasks
-      .filter(t => (kata ? [t.id, t.title, orang(t.pic).nama, namaProyek.get(t.project) || ''].join(' ').toLowerCase().includes(kata) : t.comments.length > 0))
-      .filter(t => (l === 'terlibat' ? terlibat(t, me) : l === 'tim' ? ids.includes(t.pic) : true))
-      .map(t => ({ t, baru: belumDibaca(t, me, sejak(t)), terakhir: t.comments.reduce((a, k) => (!a || k.at > a.at ? k : a), null) }))
-      .sort((a, b) => (b.baru > 0) - (a.baru > 0) || (b.terakhir ? b.terakhir.at : 0) - (a.terakhir ? a.terakhir.at : 0));
+    const masukLingkup = (t, pesan) => l === 'semua' || terlibat(t, me, pesan) || (l === 'tim' && ids.includes(t.pic));
+    const cocok = (teksCari, pesan) => !kata || teksCari.toLowerCase().includes(kata)
+      || pesan.some(m => !m.dihapus && m.teks.toLowerCase().includes(kata));
+    const hasil = [];
+    const sudah = new Set();
+    for (const [ruang, pesan] of susunan.perRuang) {
+      if (!pesan.length || !bolehRuang(me, ruang)) continue;
+      const { jenis, id } = bacaRuang(ruang);
+      const t = jenis === 'task' ? perIdTask.get(id) || null : null;
+      const p = jenis === 'proyek' ? proyekPer.get(id) || null : t && t.project ? proyekPer.get(t.project) || null : null;
+      if (t && !masukLingkup(t, pesan)) continue;
+      // Task yang tak ada di data browser ini (dibuat di browser lain): tampil bagi yang terlibat.
+      if (jenis === 'task' && !t && l !== 'semua' && !pesan.some(m => m.oleh === me || m.tanya.includes(me) || menyebut(m.teks, me))) continue;
+      const cadangan = (pesan.find(m => m.judul) || {}).judul || id;
+      const judul = jenis === 'task' ? (t ? t.title : cadangan) : jenis === 'proyek' ? (p ? p.name : cadangan) : 'Tim ' + TIM[id].nama;
+      if (!cocok([judul, id, p ? p.name : '', t ? orang(t.pic).nama : ''].join(' '), pesan)) continue;
+      const lain = pesan.filter(m => m.oleh !== me && !m.dihapus);
+      const baru = lain.filter(m => m.at > sejak(ruang, m));
+      const sebut = lain.filter(m => menyebut(m.teks, me));
+      const tanya = pesan.filter(m => m.tanya.includes(me) && tanyaTerbuka(m, pesan)).length;
+      if ((saring === 'baru' && !baru.length) || (saring === 'sebut' && !sebut.length) || (saring === 'tanya' && !tanya)) continue;
+      sudah.add(ruang);
+      hasil.push({
+        ruang, jenis, id, judul, t, p, terakhir: pesan[pesan.length - 1], baru: baru.length,
+        sebut: sebut.length, sebutBaru: sebut.filter(m => baru.includes(m)).length, sebutTerakhir: sebut.length ? sebut[sebut.length - 1].at : 0, tanya,
+      });
+    }
+    // Pencarian juga menemukan task yang belum punya pesan, untuk memulai diskusi.
+    if (kata && saring === 'semua') {
+      for (const t of data.tasks) {
+        const ruang = ruangTask(t.id);
+        if (sudah.has(ruang) || !masukLingkup(t, [])) continue;
+        const p = t.project ? proyekPer.get(t.project) || null : null;
+        if (![t.id, t.title, orang(t.pic).nama, p ? p.name : ''].join(' ').toLowerCase().includes(kata)) continue;
+        hasil.push({ ruang, jenis: 'task', id: t.id, judul: t.title, t, p, terakhir: null, baru: 0, sebut: 0, sebutBaru: 0, sebutTerakhir: 0, tanya: 0 });
+        if (hasil.length >= 300) break;
+      }
+    }
+    const kunci = x => (saring === 'sebut' ? x.sebutTerakhir : x.terakhir ? x.terakhir.at : 0);
+    return hasil.sort((a, b) => (b.baru > 0) - (a.baru > 0) || kunci(b) - kunci(a));
   }
 
   /* ---------- Notifikasi ----------
@@ -855,10 +1049,13 @@
        baru      task dibuat orang lain untuk saya          siap     task yang ditunggu sudah selesai
        serah     task diserahkan ke saya (delegasi)         tinjau   task diajukan, menunggu tinjauan saya
        kembali   task saya dikembalikan peninjau            setuju   task saya disetujui
-       komentar  komentar baru di task yang melibatkan saya siklus   (Manager) siklus proyek ditutup E12
+       komentar  pesan baru di task yang melibatkan saya    siklus   (Manager) siklus proyek ditutup E12
        tambah    (Lead) staff saya menambah task untuk dirinya sendiri
-     Terbaru di atas. Penanda dibaca/belum disimpan di app.js, per profil. */
-  function notifikasi(data, me, batas = 60) {
+       sebut     pesan yang menyebut saya (@Kiki, @staff, @semua), di ruang mana pun yang boleh saya buka
+       tanya     pesan yang menunggu jawaban saya
+     Terbaru di atas. Penanda dibaca/belum disimpan di app.js, per profil.
+     susunan = hasil susunObrolan (komentar data contoh + pesan bersama); tanpanya, komentar data saja. */
+  function notifikasi(data, me, batas = 60, susunan = null) {
     const perId = indeks(data);
     const pendek = orang(me).pendek.toLowerCase();
     const out = [];
@@ -874,7 +1071,19 @@
         if (t.pic === me && r.action === 'Dikembalikan') tambah('kembali', t, r.at, r.by, r.note);
         if (t.pic === me && r.action === 'Disetujui') tambah('setuju', t, r.at, r.by);
       }
-      if (terlibat(t, me)) for (const k of t.comments || []) if (k.author !== me) tambah('komentar', t, k.at, k.author, k.text);
+    }
+    // Pesan: pertanyaan untuk saya > sebutan > pesan di task yang melibatkan saya. Ruang tim dan
+    // proyek hanya memberi tahu lewat sebutan dan pertanyaan, supaya lonceng tak riuh.
+    for (const [ruang, pesan] of (susunan || susunObrolan(data, [])).perRuang) {
+      if (!bolehRuang(me, ruang)) continue;
+      const { jenis, id } = bacaRuang(ruang);
+      const t = jenis === 'task' ? perId.get(id) : null;
+      const ikut = !!t && terlibat(t, me, pesan);
+      for (const m of pesan) {
+        if (m.oleh === me || m.dihapus || !m.at || m.tertunda || m.gagal) continue;
+        const j = m.tanya.includes(me) ? 'tanya' : menyebut(m.teks, me) ? 'sebut' : ikut ? 'komentar' : '';
+        if (j) out.push({ id: `${j}-${m.id}`, jenis: j, ruang, pesan: m.id, task: t ? t.id : '', proyek: jenis === 'proyek' ? id : '', at: m.at, oleh: m.oleh, teks: m.teks });
+      }
     }
     // Task baru dan delegasi hanya tercatat di log: "Dibuat untuk Kiki · E4", "Diubah: diserahkan ke Kiki".
     for (const l of data.log) {
@@ -1404,7 +1613,9 @@
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupKom, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
-    terlibat, belumDibaca, utasDiskusi, notifikasi, JENIS_LOG, saringLog,
+    terlibat, notifikasi, JENIS_LOG, saringLog,
+    JENIS_PERISTIWA, REAKSI, BATAS_PESAN, ruangTask, ruangProyek, ruangTim, bacaRuang, anggotaTim, bolehRuang, ruangTimSaya,
+    periksaPeristiwa, susunObrolan, sebutan, menyebut, tanyaTerbuka, aktivitasTask, daftarUtas,
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,
     setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,

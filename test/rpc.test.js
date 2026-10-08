@@ -185,3 +185,80 @@ test('muatContoh sebelum ada impor: data null, bukan galat', async () => {
   assert.equal(r.status, 200);
   assert.equal(r.json.data, null);
 });
+
+/* ---------- Obrolan (Komunikasi bersama, 0.10.0) ---------- */
+
+const JUDUL_OBROLAN = ['id', 'jenis', 'ruang', 'oleh', 'at', 'teks', 'target', 'kode', 'tanya', 'judul'];
+
+test('obrolan: perlu sesi; pesan pertama membuat tab berjudul, lalu terbaca lagi, juga bertahap', async () => {
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  await sheet.siapkan(p.k, ID);
+  const e = { jenis: 'pesan', ruang: 'task:PRD-12', oleh: 'kiki', teks: 'Halo @Alya', tanya: ['alya'], judul: 'QC web', at: 1, id: 'palsu' };
+  assert.equal((await panggil({ body: { action: 'kirimObrolan', args: [e] } })).status, 401);
+  const cookie = await masuk();
+  const r = await panggil({ body: { action: 'kirimObrolan', args: [e] }, cookie });
+  assert.equal(r.status, 200);
+  const satu = r.json.peristiwa;
+  assert.match(satu.id, /^o[a-z0-9]+$/, 'id dari server, bukan dari browser');
+  assert.ok(satu.at > 1000, 'waktu dari server');
+  assert.deepEqual(p.tab('obrolan').values[0], JUDUL_OBROLAN);
+  assert.deepEqual(p.tab('obrolan').values[1].slice(1, 4), ['pesan', 'task:PRD-12', 'kiki']);
+
+  const balas = { jenis: 'reaksi', ruang: 'task:PRD-12', oleh: 'alya', target: satu.id, kode: 'jempol' };
+  const dua = (await panggil({ body: { action: 'kirimObrolan', args: [balas] }, cookie })).json.peristiwa;
+  const semua = await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie });
+  assert.equal(semua.status, 200);
+  assert.deepEqual(semua.json.peristiwa.map(x => [x.id, x.jenis, x.teks, x.tanya, x.judul, x.target, x.kode]),
+    [[satu.id, 'pesan', 'Halo @Alya', ['alya'], 'QC web', '', ''], [dua.id, 'reaksi', '', [], '', satu.id, 'jempol']],
+    'rujukan pesan (target) tetap teks setelah lewat spreadsheet, bukan angka');
+  const sejak = await panggil({ body: { action: 'muatObrolan', args: [dua.at] }, cookie });
+  assert.deepEqual(sejak.json.peristiwa.map(x => x.id), [dua.id], 'tarikan bertahap: yang sejak waktu itu saja');
+});
+
+test('obrolan: belum ada pesan = daftar kosong, tanpa menulis apa pun', async () => {
+  const tulisan = pasangSheet([{ title: '_meta', sheetId: 1, values: [['app', 'producttrack-v2']] }]);
+  const r = await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie: await masuk() });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json.peristiwa, []);
+  assert.equal(tulisan.length, 0);
+});
+
+test('obrolan: isian tak sah 400 tanpa tulisan; spreadsheet v1 ditolak 409 tanpa tulisan', async () => {
+  pasangSheet([{ title: '_meta', sheetId: 1, values: [['app', 'producttrack-v2']] }]);
+  const cookie = await masuk();
+  for (const [e, pola] of [
+    [{ jenis: 'pesan', ruang: 'task:PRD-1', oleh: 'kiki', teks: '' }, /kosong/],
+    [{ jenis: 'pesan', ruang: 'catatan:1', oleh: 'kiki', teks: 'x' }, /Ruang/],
+    [{ jenis: 'pesan', ruang: 'task:PRD-1', oleh: 'tamu', teks: 'x' }, /Pengirim/],
+    [{ jenis: 'reaksi', ruang: 'task:PRD-1', oleh: 'kiki', target: 'o1', kode: 'api' }, /Reaksi/],
+    ['bukan objek', /Jenis/],
+  ]) {
+    const r = await panggil({ body: { action: 'kirimObrolan', args: [e] }, cookie });
+    assert.equal(r.status, 400, JSON.stringify(e));
+    assert.match(r.json.message, pola);
+  }
+  const { sheetV1 } = require('./bantu/sheet-palsu');
+  const v1 = sheetV1();
+  sheet.klien = async () => v1.k;
+  const pesan = { jenis: 'pesan', ruang: 'task:PRD-1', oleh: 'kiki', teks: 'Halo' };
+  const r = await panggil({ body: { action: 'kirimObrolan', args: [pesan] }, cookie });
+  assert.equal(r.status, 409);
+  assert.match(r.json.message, /bukan milik v2/);
+  assert.equal((await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie })).status, 409);
+  assert.equal(v1.tulisan.length, 0, 'sheet v1 tak ditulisi sama sekali');
+});
+
+test('obrolan: impor ulang data contoh tidak menghapus tab obrolan', async () => {
+  const { urai } = require('../api/_skema');
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  const isi = { projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], log: [] };
+  await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji' });
+  const cookie = await masuk();
+  await panggil({ body: { action: 'kirimObrolan', args: [{ jenis: 'pesan', ruang: 'tim:LA', oleh: 'alya', teks: 'Rapat jam 2' }] }, cookie });
+  await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji lagi' });
+  assert.equal(p.tab('obrolan').values.length, 2, 'judul + satu pesan tetap ada');
+  const r = await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie });
+  assert.deepEqual(r.json.peristiwa.map(x => x.teks), ['Rapat jam 2']);
+});

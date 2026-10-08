@@ -1,5 +1,40 @@
 # Changelog — ProductTrack v2
 
+## 0.10.0 — Komunikasi bersama: kotak masuk kerja (2026-10-08)
+
+- **Pesan Komunikasi tersimpan bersama** di tab baru `obrolan` spreadsheet v2. Ini data pertama
+  yang ditulis aplikasi ke spreadsheet, dan semua orang melihat percakapan yang sama.
+  - Tab itu hanya bertambah (pesan, ubah, hapus, reaksi, dan "beres" sebagai baris
+    peristiwa), jadi penulis bersamaan tak saling menimpa.
+  - Impor ulang data contoh dan Reset data contoh tidak menyentuhnya.
+  - Aksi baru di `/api/rpc`: `muatObrolan` dan `kirimObrolan`. Isinya diperiksa di browser dan
+    server, dan spreadsheet yang bukan milik v2 tetap ditolak.
+- **Tampilan kotak masuk tiga kolom:**
+  - Kiri: saringan **Belum dibaca**, **Menyebut saya**, **Perlu jawaban**, **Semua utas**, lalu
+    ruang tim dan ruang proyek.
+  - Tengah: daftar utas dengan penanda sebutan dan pertanyaan.
+  - Kanan: percakapan bergelembung dengan pemisah hari dan batas "Pesan baru".
+  - Di ponsel daftar tampil dulu, lalu percakapan penuh.
+- **Ruang tim** (anggota tim dan Manager) dan **ruang proyek** (terbuka untuk semua), di luar
+  utas per task.
+- **@sebut** orang atau peran (@lead, @staff, @semua), dengan daftar pilihan saat mengetik @.
+  Yang disebut mendapat notifikasi dan muncul di **Menyebut saya**.
+- **Balas dengan kutipan**, **reaksi** 👍 ✅ 👀 🙏, **pesan cepat**, **ubah/hapus** pesan
+  sendiri, format ringan (**tebal**, _miring_, ~~coret~~, `kode`, tautan), Enter kirim dan
+  Shift+Enter baris baru, serta draf per ruang.
+- **Perlu jawaban:** pesan bisa ditandai menunggu jawaban orang yang disebut (di ruang task
+  tanpa sebutan: PIC-nya). Tanda itu terbuka sampai orang itu membalas atau ada yang menandainya
+  beres.
+- **Konteks kerja di percakapan:**
+  - Jejak task tampil sebagai baris sistem (diajukan, dikembalikan beserta alasannya,
+    disetujui, diserahkan, tertahan).
+  - Panel konteks (sub-stage, proyek, PIC, peninjau, tenggat, syarat ajukan) dan tombol aksi
+    task (Mulai, Ajukan, Setujui, Kembalikan, …) ada di kepala percakapan.
+- **Diskusi di detail task** memakai utas yang sama, dengan tombol "Buka di Komunikasi".
+- **Lonceng:** jenis notifikasi baru **sebut** dan **tanya**; pesan di ruang tim dan proyek hanya
+  memberi tahu lewat keduanya.
+- **Panduan diperbarui:** *Berdiskusi di Komunikasi*, ditambah istilah Ruang dan Perlu jawaban.
+
 ## 0.9.0 — Lingkup per peran, staff menambah task, ADDIE bisa diklik (2026-10-08)
 
 - **Lingkup mengikuti peran.** Staff hanya melihat task-nya sendiri (pilihan lingkupnya tidak

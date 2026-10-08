@@ -340,7 +340,9 @@ test('notifikasi: task baru, siap, tinjauan, disetujui, delegasi, komentar, dike
   assert.ok(!jenis('ali').length, 'nama mirip (Ali / Alya) tak tertukar');
 
   dv8.comments.push({ id: 'k1', author: 'alya', text: 'Cek kisi-kisi dulu', at: WAKTU + 6 });
-  assert.deepEqual(I.notifikasi(d, 'kiki')[0], { id: `komentar-${dv8.id}-${WAKTU + 6}`, jenis: 'komentar', task: dv8.id, at: WAKTU + 6, oleh: 'alya', teks: 'Cek kisi-kisi dulu' });
+  assert.deepEqual(I.notifikasi(d, 'kiki')[0], {
+    id: 'komentar-k1', jenis: 'komentar', ruang: `task:${dv8.id}`, pesan: 'k1', task: dv8.id, proyek: '', at: WAKTU + 6, oleh: 'alya', teks: 'Cek kisi-kisi dulu',
+  });
   assert.ok(!jenis('alya').some(x => x.startsWith('komentar')), 'komentar sendiri tak jadi notifikasi');
 
   Object.assign(dv8, { output: 'Input', evidence: [{ id: 'e2', label: 'Bukti', url: 'https://contoh.id/c' }] });

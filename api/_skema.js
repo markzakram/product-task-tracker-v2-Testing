@@ -45,6 +45,12 @@ const TAB_OPSIONAL = new Set(['setoran']);
 /* Tab bentuk lama. Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
 const USANG = ['gate_log', 'backlog', 'bookmarks'];
 
+/* Tab obrolan (Komunikasi bersama, 0.10.0) BUKAN data contoh: tak ada di TAB maupun USANG,
+   jadi impor ulang tak pernah menyentuhnya, dan aplikasi hanya MENAMBAH baris ke sana.
+   Satu baris = satu peristiwa (pesan, ubah, hapus, reaksi, lepas, beres); lihat Inti.susunObrolan. */
+const TAB_OBROLAN = 'obrolan';
+const OBROLAN = ['id', 'jenis', 'ruang', 'oleh', 'at', 'teks', 'target', 'kode', 'tanya', 'judul'];
+
 const DAFTAR = new Set(['support', 'deps']);
 const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
@@ -88,6 +94,21 @@ function dariBaris(tab, judul, baris) {
   for (const k of TAB[tab]) {
     const i = judul.indexOf(k);
     o[k] = dariSel(k, i >= 0 ? baris[i] : '');
+  }
+  return o;
+}
+
+/* Kolom obrolan semuanya teks, kecuali `at` (ISO ↔ milidetik) dan `tanya` (dipisah koma).
+   Sengaja tak memakai keSel/dariSel umum: nama kolom `target` di sana berarti angka target
+   paket, dan id pesan yang dibaca sebagai angka menjadi 0. */
+const obrolanKeBaris = e => OBROLAN.map(k => (k === 'at' ? keSel('at', e.at)
+  : k === 'tanya' ? (Array.isArray(e.tanya) ? e.tanya : []).join(', ') : String(e[k] == null ? '' : e[k])));
+function obrolanDariBaris(judul, baris) {
+  const o = {};
+  for (const k of OBROLAN) {
+    const i = judul.indexOf(k);
+    const sel = i >= 0 && baris[i] != null ? String(baris[i]) : '';
+    o[k] = k === 'at' ? dariSel('at', sel) : k === 'tanya' ? sel.split(',').map(x => x.trim()).filter(Boolean) : sel;
   }
   return o;
 }
@@ -158,4 +179,4 @@ function nomorTerbesar(daftar, awalan) {
   return n;
 }
 
-module.exports = { TAB, TAB_OPSIONAL, USANG, keBaris, dariBaris, urai, rakit, nomorTerbesar };
+module.exports = { TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, urai, rakit, nomorTerbesar };

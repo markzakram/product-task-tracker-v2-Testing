@@ -1,6 +1,6 @@
 {
   "name": "product-tracker-v2",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "ProductTrack v2 (siklus ADDIE) — sandbox terpisah dari v1: aplikasi statis + fungsi Vercel ke Google Spreadsheet khusus v2.",
   "scripts": {

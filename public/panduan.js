@@ -57,7 +57,7 @@
       id: 'mulai-menu', peran: 'mulai', judul: 'Peta menu', tujuan: 'Tahu halaman mana untuk apa.',
       langkah: [
         '**Ringkasan**: **Hari Ini** (pekerjaan Anda per tenggat; Lead juga melihat antrean timnya), **Dashboard**, dan **Laporan**.',
-        '**Pekerjaan**, berurutan seperti alurnya: **Rancangan Paket** (target paket) → **Proyek** (ADDIE) → **Task** → **Komunikasi** (diskusi per task).',
+        '**Pekerjaan**, berurutan seperti alurnya: **Rancangan Paket** (target paket) → **Proyek** (ADDIE) → **Task** → **Komunikasi** (utas per task, ruang tim, dan ruang proyek).',
         '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
@@ -68,7 +68,7 @@
       langkah: [
         'Tekan **Ctrl+K** (di Mac: ⌘K) atau klik kotak cari di atas. Ketik nama task, kode PRD, proyek, paket, catatan, atau halaman, lalu **Enter**.',
         'Kotak yang sama menjalankan aksi: **Tambah task**, **Catatan baru**, **Ganti profil**, **Reset data contoh**, dan lainnya.',
-        '**Lonceng** di kanan atas berisi yang menyangkut Anda: task baru, task yang dikembalikan atau disetujui, tinjauan yang menunggu, dan komentar baru.',
+        '**Lonceng** di kanan atas berisi yang menyangkut Anda: task baru, task yang dikembalikan atau disetujui, tinjauan yang menunggu, pesan baru, serta sebutan dan pertanyaan untuk Anda.',
         'Setiap halaman, task, proyek, dan paket punya alamat sendiri. Tombol **Salin tautan** menyalinnya untuk dikirim di chat, dan tombol Back browser berfungsi.',
       ],
     },
@@ -172,10 +172,14 @@
       ],
     },
     {
-      id: 'staff-diskusi', peran: 'staff', judul: 'Berdiskusi tentang task', tujuan: 'Bertanya atau memberi kabar tanpa keluar dari aplikasi.', coba: true,
+      id: 'staff-diskusi', peran: 'staff', judul: 'Berdiskusi di Komunikasi', tujuan: 'Bertanya, memberi kabar, dan menjawab tanpa keluar dari aplikasi.', coba: true,
       langkah: [
-        'Tulis komentar di bagian **Diskusi** pada detail task.',
-        'Semua utas ada di **Komunikasi**. Yang belum Anda baca muncul paling atas, dan jumlahnya tampil di sidebar.',
+        'Buka **Komunikasi**. Kiri: **Belum dibaca**, **Menyebut saya**, **Perlu jawaban**, ruang tim, dan ruang proyek. Tengah: utas. Kanan: percakapan.',
+        'Pesan tersimpan bersama di spreadsheet v2: semua orang melihat percakapan yang sama. Di detail task, bagian **Diskusi** memuat utas yang sama.',
+        'Ketik **@** untuk menyebut orang (@Kiki) atau peran (@lead, @semua). Yang disebut mendapat notifikasi di lonceng.',
+        'Arahkan kursor ke pesan (di ponsel: ketuk) untuk memberi reaksi, **membalas** dengan kutipan, atau mengubah dan menghapus pesan sendiri.',
+        'Tombol **?** di kotak tulis menandai pesan **perlu jawaban** dari orang yang disebut. Pesan itu ada di **Perlu jawaban** orang itu sampai dibalas atau ditandai beres.',
+        'Enter mengirim, Shift+Enter membuat baris baru. Format ringan: **tebal** dengan dua bintang, _miring_ dengan garis bawah.',
       ],
     },
 
@@ -288,7 +292,9 @@
     ['Setoran', 'Catatan bahwa sebuah langkah membawa target paket sampai capaian tertentu.'],
     ['Rumpun', 'Kelompok platform, mis. BUMN & Keuangan atau Kedinasan & TNI/Polri.'],
     ['Bottleneck', 'Skor orang yang paling banyak ditunggu: task orang lain × 2 + tinjauan × 2 + task telat.'],
-    ['Data contoh', 'Data latihan di aplikasi ini. **Reset data contoh** di kaki sidebar mengembalikannya ke awal.'],
+    ['Data contoh', 'Data latihan di aplikasi ini. **Reset data contoh** di kaki sidebar mengembalikannya ke awal. Pesan Komunikasi tidak ikut di-reset.'],
+    ['Ruang', 'Tempat obrolan di Komunikasi: utas per task, ruang proyek (terbuka untuk semua), dan ruang tim (anggota tim dan Manager).'],
+    ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];
 
   const potong = (s, n) => (String(s).length > n ? String(s).slice(0, n - 1).trimEnd() + '…' : String(s));

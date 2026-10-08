@@ -15,7 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { TAB, TAB_OPSIONAL, USANG, dariBaris, rakit, nomorTerbesar } = require('./_skema');
+const { TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, dariBaris, obrolanKeBaris, obrolanDariBaris, rakit, nomorTerbesar } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
 const CAKUPAN = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -366,6 +366,108 @@ async function bacaContoh(k, id) {
   };
 }
 
+/* ---------- Obrolan (Komunikasi bersama, 0.10.0) ------------------------
+   Satu-satunya data yang DITULIS aplikasi ke spreadsheet. Tab `obrolan` hanya bertambah
+   (values.append): pesan, ubah, hapus, reaksi, dan "beres" adalah baris peristiwa, dan
+   keadaan akhirnya disusun di browser (Inti.susunObrolan). Dua orang yang menulis bersamaan
+   tak saling menimpa, dan tak ada baris yang perlu dikunci.
+
+   id dan waktu `at` diberikan di sini, bukan oleh browser: urutannya satu, dan tarikan
+   bertahap (sejak) tak melewatkan baris dari browser yang jamnya meleset. */
+
+/* Kepemilikan jarang berubah. Supaya tiap tarikan obrolan tak memakan dua bacaan tambahan,
+   hasil pemeriksaannya dipakai ulang di instance yang sama paling lama 10 menit. */
+const UMUR_KEPEMILIKAN = 10 * 60 * 1000;
+let kepemilikanHangat = null;
+async function pastikanV2(k, id) {
+  const h = kepemilikanHangat;
+  if (h && h.k === k && h.id === id && Date.now() - h.waktu < UMUR_KEPEMILIKAN) return;
+  const keadaan = await bacaKeadaan(k, id);
+  if (keadaan.kepemilikan !== 'v2') {
+    throw new GalatDitolak(`Spreadsheet "${keadaan.judul}" bukan milik v2${keadaan.alasan ? ': ' + keadaan.alasan : ''}. Pesan tidak dibaca atau ditulis.`);
+  }
+  kepemilikanHangat = { k, id, waktu: Date.now() };
+}
+
+/* Bacaan tab dipakai bersama permintaan yang berdekatan di instance yang sama: dua belas
+   orang yang menarik pesan hampir bersamaan cukup memakan satu kuota baca. Kuota baca
+   Sheets dihitung per service account, jadi ini yang menjaga jeda tarikan tetap aman. */
+const UMUR_BACAAN = 3000;
+let bacaanHangat = null;
+const tabBelumAda = err => /unable to parse range/.test(jejak(err));
+
+async function semuaObrolan(k, id) {
+  const h = bacaanHangat;
+  if (h && h.k === k && h.id === id && Date.now() - h.waktu < UMUR_BACAAN) return h.isi;
+  let nilai = [];
+  try {
+    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(TAB_OBROLAN, 'A:J') }));
+    nilai = r.data.values || [];
+  } catch (err) {
+    if (!tabBelumAda(err)) throw err;   // tab belum ada: belum pernah ada yang menulis
+  }
+  const [judul = [], ...isi] = nilai;
+  const peristiwa = isi.filter(b => b.some(sel => String(sel).trim())).map(b => obrolanDariBaris(judul, b));
+  bacaanHangat = { k, id, waktu: Date.now(), isi: peristiwa };
+  return peristiwa;
+}
+
+/* sejak = waktu (ms) peristiwa terbaru yang sudah dimiliki browser. Yang sama persis ikut
+   dikirim lagi (dua baris bisa bertanggal sama); browser membuang yang id-nya sudah ada. */
+async function bacaObrolan(k, id, sejak = 0) {
+  await pastikanV2(k, id);
+  const batas = Number(sejak) || 0;
+  const semua = await semuaObrolan(k, id);
+  return { peristiwa: batas ? semua.filter(e => e.at >= batas) : semua, waktu: Date.now() };
+}
+
+/* Tab dan judul kolomnya dibuat dalam satu batchUpdate atomik: tab tanpa judul tak pernah
+   ada, jadi pesan pertama tak mungkin mendarat di baris judul. */
+async function buatTabObrolan(k, id) {
+  const sheetId = idTabBaru([]);
+  try {
+    await panggil(() => k.api.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      requestBody: {
+        requests: [
+          { addSheet: { properties: { sheetId, title: TAB_OBROLAN, gridProperties: { rowCount: 1000, columnCount: OBROLAN.length, frozenRowCount: 1 } } } },
+          {
+            updateCells: {
+              start: { sheetId, rowIndex: 0, columnIndex: 0 },
+              rows: [{ values: OBROLAN.map(s => ({ userEnteredValue: { stringValue: s } })) }],
+              fields: 'userEnteredValue',
+            },
+          },
+        ],
+      },
+    }), { tulis: true });
+  } catch (err) {
+    if (!/already exists/.test(jejak(err))) throw err;   // baru saja dibuat permintaan lain
+  }
+}
+
+let urutId = 0;
+const idPeristiwa = () => 'o' + Date.now().toString(36) + (urutId++ % 1296).toString(36).padStart(2, '0') + Math.random().toString(36).slice(2, 6);
+
+/* e sudah dibersihkan Inti.periksaPeristiwa. */
+async function tulisObrolan(k, id, e) {
+  await pastikanV2(k, id);
+  const baris = { ...e, id: idPeristiwa(), at: Date.now() };
+  const tambah = () => panggil(() => k.api.spreadsheets.values.append({
+    spreadsheetId: id, range: rentang(TAB_OBROLAN, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: [obrolanKeBaris(baris)] },
+  }), { tulis: true });
+  try {
+    await tambah();
+  } catch (err) {
+    if (!tabBelumAda(err)) throw err;
+    await buatTabObrolan(k, id);
+    await tambah();
+  }
+  bacaanHangat = null;
+  return baris;
+}
+
 /* ---------- Pesan galat ------------------------------------------------
    Kegagalan pertama hampir selalu salah satu dari lima ini, dan pesan mentah Google
    tak menyebut langkah perbaikannya. */
@@ -394,5 +496,5 @@ module.exports = {
   PENANDA, GalatSetelan, GalatDitolak,
   setelanAda, idSpreadsheet, kredensial, emailAkun, klien,
   panggil, kenaKuota, gangguanSesaat,
-  periksa, siapkan, tulisContoh, bacaContoh, jelaskanGalat,
+  periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, jelaskanGalat,
 };

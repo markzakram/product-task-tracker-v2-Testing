@@ -117,7 +117,11 @@
     /* Lingkup kosong = bawaan peran (I.lingkupAwal); yang tak boleh bagi peran itu ikut jatuh ke sana. */
     dash: { lingkup: '' },
     lap: { periode: 'minggu', tim: '', buka: '' },
-    kom: { lingkup: 'terlibat', q: '', baru: false, pilih: null },
+    /* Komunikasi: pilih = ruang yang terbuka (task:PRD-…, proyek:PRJ-…, tim:AK); balas/ubah = id
+       pesan di kotak tulis; tanya = pesan berikut menunggu jawaban; draf per ruang. */
+    kom: { lingkup: 'terlibat', q: '', saring: 'semua', pilih: null, balas: '', ubah: '', tanya: false, draf: {}, konteks: ambil('kom_konteks', !hp()), proyekSemua: false, lompat: '', batasBaru: null, keBawah: false },
+    /* Pesan bersama dari tab obrolan spreadsheet v2 (lihat tarikObrolan). */
+    obr: { peristiwa: [], sejak: 0, versi: 0, diperbarui: 0, galat: '', gagal: 0, menarik: false },
     pkt: { q: '', platform: '', pilih: null, sunting: false, kotor: false },
     lnk: { q: '' },
     /* pilih = catatan yang terbuka di editor: id, '__baru' (belum tersimpan), atau null. */
@@ -146,18 +150,32 @@
     if (ruang === 'pnd') simpan('pnd_tab', S.pnd.tab);
   }
 
-  /* Tanda baca Komunikasi, per profil. Komentar yang sudah ada saat data dimuat
-     dianggap terbaca; yang ditulis sesudahnya (oleh profil lain) belum. */
+  /* Tanda baca Komunikasi, per profil dan per ruang. Komentar data contoh yang sudah ada saat
+     data dimuat dianggap terbaca. Pesan bersama dihitung baru sejak tiga hari sebelum profil
+     ini pertama kali membuka aplikasi di browser ini, supaya sebutan terbaru tak terlewat. */
   let bacaMilik = null, bacaPeta = {};
   function petaBaca() {
-    if (bacaMilik !== S.me) { bacaPeta = ambil('baca_' + S.me, {}); bacaMilik = S.me; }
+    if (bacaMilik !== S.me) {
+      bacaPeta = ambil('baca_' + S.me, {});
+      // Sampai 0.9 tanda baca disimpan per ID task; sejak 0.10 per ruang (task:PRD-…).
+      for (const k of Object.keys(bacaPeta)) {
+        if (/^PRD-/.test(k)) { bacaPeta['task:' + k] = Math.max(Number(bacaPeta['task:' + k]) || 0, Number(bacaPeta[k]) || 0); delete bacaPeta[k]; }
+      }
+      bacaMilik = S.me;
+    }
     return bacaPeta;
   }
-  const sejakBaca = t => Math.max(S.dimuat || 0, Number(petaBaca()[t.id]) || 0);
-  function tandaiDibaca(t) {
-    const terakhir = t.comments.reduce((m, k) => Math.max(m, Number(k.at) || 0), 0);
+  function awalBersama() {
+    const kunci = 'baca_awal_' + S.me;
+    let t = Number(ambil(kunci, 0)) || 0;
+    if (!t) { t = Date.now() - 3 * 864e5; simpan(kunci, t); }
+    return t;
+  }
+  const sejakBaca = (ruang, m) => Math.max(Number(petaBaca()[ruang]) || 0, m && m.bersama ? awalBersama() : S.dimuat || 0);
+  function tandaiDibaca(ruang) {
+    const terakhir = (susunan().perRuang.get(ruang) || []).reduce((n, m) => (m.tertunda || m.gagal ? n : Math.max(n, m.at || 0)), 0);
     const p = petaBaca();
-    if (terakhir > (Number(p[t.id]) || 0)) { p[t.id] = terakhir; simpan('baca_' + S.me, p); }
+    if (terakhir > (Number(p[ruang]) || 0)) { p[ruang] = terakhir; simpan('baca_' + S.me, p); }
   }
   /* Link Saya yang sering dibuka, dihitung di perangkat ini (sama dengan v1). */
   const petaKlik = () => ambil('klik_' + S.me, {});
@@ -211,6 +229,13 @@
     tugas: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/>',
     saring: '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
     lonceng: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    at: '<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>',
+    tanya: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    balas: '<path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+    kirim: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+    kotakMasuk: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    pesan: '<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>',
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
     bintang: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
     semat: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
     tambahFolder: '<path d="M12 10v6M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
@@ -558,13 +583,14 @@
     $('#kunci').hidden = true;
     $('#profil').hidden = true;
     $('#app').hidden = false;
-    let hilang = '';
-    if (alamatAwal) { hilang = terapkanAlamat(alamatAwal).hilang; alamatAwal = ''; }
+    let hasil = { hilang: '', ditolak: '' };
+    if (alamatAwal) { hasil = terapkanAlamat(alamatAwal); alamatAwal = ''; }
     if (!halamanBoleh(S.view)) S.view = halamanAwal();
     simpan('halaman', S.view);
     alamatGanti = true;
     render();
-    if (hilang) toast(`${hilang} tidak ada di data browser ini. Data contoh tersimpan per browser, jadi yang dibuat di browser lain tidak ikut.`, true);
+    if (hasil.ditolak) toast(hasil.ditolak, true);
+    else if (hasil.hilang) toast(`${hasil.hilang} tidak ada di data browser ini. Data contoh tersimpan per browser, jadi yang dibuat di browser lain tidak ikut.`, true);
   }
 
   /* reset = sesudah "Reset data contoh": data lokal sudah dibuang, jadi yang dimuat pasti
@@ -599,6 +625,8 @@
     if (!S.me || !I.ORANG.some(o => o.id === S.me)) tampilProfil();
     else masukApp();
     if (pesan) toast(pesan);
+    // Pesan Komunikasi tersimpan bersama di spreadsheet, terpisah dari data contoh.
+    tarikObrolan(true).then(jadwalkanTarik);
   }
 
   async function mulai() {
@@ -620,7 +648,7 @@
     if (S.view === 'task') b.push(S.task.tampilan);
     if (S.view === 'proyek' && S.proyek) b.push(S.proyek);
     if (S.view === 'paket' && S.pkt.pilih) b.push(S.pkt.pilih);
-    if (S.view === 'komunikasi' && S.kom.pilih) b.push(S.kom.pilih);
+    if (S.view === 'komunikasi' && S.kom.pilih) b.push(alamatRuang(S.kom.pilih));
     if (S.view === 'catatan' && S.ctt.pilih && S.ctt.pilih !== '__baru') b.push(S.ctt.pilih);
     if (S.pilih && S.view !== 'komunikasi') b.push(S.pilih);
     return '#' + b.map(encodeURIComponent).join('/');
@@ -633,7 +661,7 @@
       .map(x => { try { return decodeURIComponent(x); } catch (e) { return x; } });
     const [hal, ...sisa] = bagian;
     if (!hal || !HALAMAN.some(h => h.id === hal) || !halamanBoleh(hal)) return { ok: false, hilang: '' };
-    let hilang = '';
+    let hilang = '', ditolak = '';
     const ada = (daftar, id) => { const ok = daftar.some(x => x.id === id); if (!ok && !hilang) hilang = id; return ok; };
     Object.assign(S, { view: hal, pilih: null });
     if (hal === 'proyek') S.proyek = null;
@@ -641,13 +669,23 @@
     if (hal === 'komunikasi') S.kom.pilih = null;
     if (hal === 'catatan') S.ctt.pilih = null;
     for (const x of sisa) {
-      if (/^PRD-/.test(x)) { if (ada(S.data.tasks, x)) { if (hal === 'komunikasi') S.kom.pilih = x; else S.pilih = x; } }
+      if (hal === 'komunikasi') {
+        // Ruang task yang tak ada di data browser ini tetap boleh dibuka kalau sudah ada pesannya.
+        const r = ruangDariAlamat(x);
+        const dikenal = r && (!/^PRD-/.test(x) || S.data.tasks.some(t => t.id === x) || susunan().perRuang.has(r))
+          && (!/^PRJ-/.test(x) || S.data.projects.some(p => p.id === x));
+        if (dikenal && I.bolehRuang(S.me, r)) S.kom.pilih = r;
+        else if (dikenal) ditolak = `${judulRuang(r)} hanya untuk anggota timnya dan Manager.`;
+        else if (!hilang) hilang = x;
+        continue;
+      }
+      if (/^PRD-/.test(x)) { if (ada(S.data.tasks, x)) S.pilih = x; }
       else if (hal === 'task' && ID_TAMPILAN.includes(x)) S.task.tampilan = x;
       else if (hal === 'proyek' && /^PRJ-/.test(x)) { if (ada(S.data.projects, x)) S.proyek = x; }
       else if (hal === 'paket' && /^PKG-/.test(x)) { if (ada(S.data.packages, x)) S.pkt.pilih = x; }
       else if (hal === 'catatan' && S.data.notes.some(n => n.id === x && n.user === S.me)) S.ctt.pilih = x;
     }
-    return { ok: true, hilang };
+    return { ok: true, hilang, ditolak };
   }
 
   /* Gambar pertama dan sesudah tombol Back: ganti alamat, jangan menambah riwayat. */
@@ -667,7 +705,8 @@
     if (!r.ok) S.view = halamanAwal();
     alamatGanti = true;
     render();
-    if (r.hilang) toast(`${r.hilang} tidak ada di data browser ini.`, true);
+    if (r.ditolak) toast(r.ditolak, true);
+    else if (r.hilang) toast(`${r.hilang} tidak ada di data browser ini.`, true);
   });
   const tautanKe = alamat => location.href.split('#')[0] + alamat;
 
@@ -679,7 +718,7 @@
     return {
       hari: kerja.grup.filter(g => ['tinjau', 'antrean', 'telat', 'hari'].includes(g.kunci)).reduce((n, g) => n + g.isi.length, 0),
       proyek: I.orang(S.me).peran === 'manager' ? I.antreKeputusan(S.data, h).length : 0,
-      komunikasi: I.utasDiskusi(S.data, S.me, 'terlibat', sejakBaca, '').filter(x => x.baru).length,
+      komunikasi: I.daftarUtas(S.data, S.me, susunan(), { saring: 'baru', lingkup: 'terlibat', sejak: sejakBaca }).length,
     };
   }
   const lencanaHtml = (id, n) => (n ? `<span class="lencana ${id === 'hari' ? 'biru' : ''}">${n}</span>` : '');
@@ -753,6 +792,8 @@
 
   function render() {
     if (!halamanBoleh(S.view)) S.view = halamanAwal();
+    tandaiRuangTerbuka();
+    tutupSebutan();
     const lencana = lencanaNav();
     renderSamping(lencana);
     renderKepala();
@@ -760,8 +801,9 @@
     $('#isi').innerHTML = GAMBAR[S.view]();
     renderLaci();
     renderPemandu();
-    const isiObrolan = $('#obrolan-isi');
-    if (isiObrolan) isiObrolan.scrollTop = isiObrolan.scrollHeight;
+    gulirPesan('kom');
+    gulirPesan('detail');
+    for (const ta of $$('.km-isian')) if (ta.value) tumbuhkan(ta);
     const h = HALAMAN.find(x => x.id === S.view);
     document.title = (h ? h.judul : 'ProductTrack') + ' · ProductTrack v2';
     catatAlamat();
@@ -787,6 +829,9 @@
     simpan('halaman', S.view);
     render();
     window.scrollTo(0, 0);
+    // Komunikasi menarik pesan lebih sering; masuk ke sana langsung menarik yang terbaru.
+    if (view === 'komunikasi' && Date.now() - (S.obr.diperbarui || 0) > 5000) tarikObrolan();
+    jadwalkanTarik();
   }
   function bukaProyek(id) {
     if (!bolehTinggalkanPaket()) return;
@@ -822,8 +867,8 @@
   let notifSimpan = { kunci: '', isi: [] };
   function notifSaya() {
     const log = S.data.log;
-    const kunci = `${S.me}|${S.dimuat}|${log.length}|${log[0] ? log[0].id : ''}`;
-    if (notifSimpan.kunci !== kunci) notifSimpan = { kunci, isi: I.notifikasi(S.data, S.me) };
+    const kunci = `${S.me}|${S.dimuat}|${log.length}|${log[0] ? log[0].id : ''}|${S.obr.versi}`;
+    if (notifSimpan.kunci !== kunci) notifSimpan = { kunci, isi: I.notifikasi(S.data, S.me, 60, susunan()) };
     return notifSimpan.isi;
   }
   function notifDibaca() {
@@ -832,13 +877,16 @@
     return (Date.parse(S.versi) || S.dimuat || Date.now()) - 2 * 864e5;
   }
   const jumlahNotifBaru = () => { const batas = notifDibaca(); return notifSaya().filter(n => n.at > batas).length; };
-  const IKON_NOTIF = { baru: 'tambah', tambah: 'tambah', serah: 'serah', siap: 'centang', tinjau: 'tugas', kembali: 'ulang', setuju: 'centang', komentar: 'obrolan', siklus: 'lapis' };
+  const IKON_NOTIF = {
+    baru: 'tambah', tambah: 'tambah', serah: 'serah', siap: 'centang', tinjau: 'tugas', kembali: 'ulang', setuju: 'centang',
+    komentar: 'obrolan', sebut: 'at', tanya: 'tanya', siklus: 'lapis',
+  };
 
   function kalimatNotif(n) {
     const t = n.task ? perIdKini().get(n.task) : null;
     const siapa = n.oleh ? `<strong>${nama(n.oleh)}</strong> ` : '';
-    const judul = t ? `<b>${esc(t.id)}</b> ${esc(potong(t.title, 64))}` : esc(n.task || '');
-    const kutip = s => (s ? ` “${esc(potong(s, 90))}”` : '');
+    const judul = t ? `<b>${esc(t.id)}</b> ${esc(potong(t.title, 64))}` : n.ruang ? `<b>${esc(judulRuang(n.ruang))}</b>` : esc(n.task || '');
+    const kutip = s => (s ? ` “${esc(potong(teksPolos(s), 90))}”` : '');
     switch (n.jenis) {
       case 'baru': return `${siapa}memberi Anda task baru: ${judul}`;
       case 'tambah': return `${siapa}menambah task untuk dirinya sendiri: ${judul}`;
@@ -848,7 +896,9 @@
       case 'tinjau': return `${siapa}mengajukan ${judul} untuk Anda tinjau`;
       case 'kembali': return `${siapa}mengembalikan ${judul}.${kutip(n.teks)}`;
       case 'setuju': return `${siapa}menyetujui ${judul}`;
-      case 'komentar': return `${siapa}berkomentar di ${judul}:${kutip(n.teks)}`;
+      case 'komentar': return `${siapa}menulis di ${judul}:${kutip(n.teks)}`;
+      case 'sebut': return `${siapa}menyebut Anda di ${judul}:${kutip(n.teks)}`;
+      case 'tanya': return `${siapa}menunggu jawaban Anda di ${judul}:${kutip(n.teks)}`;
       case 'siklus': { const p = proyekDari(n.proyek); return `Siklus <strong>${esc(p ? p.name : n.proyek)}</strong> selesai: E12 disetujui, perlu keputusan Anda`; }
       default: return judul;
     }
@@ -858,11 +908,11 @@
     const daftar = notifSaya().slice(0, 40);
     return `<div class="panel-notif" role="dialog" aria-label="Notifikasi">
       <div class="panel-notif-kepala"><strong>Notifikasi</strong><span class="hint">untuk ${esc(I.orang(S.me).pendek)}</span></div>
-      <div class="panel-notif-isi">${daftar.map(n => `<button type="button" class="notif-item ${n.at > S.notif.sebelum ? 'baru' : ''}" data-aksi="notif-buka" data-id="${esc(n.task || '')}" data-proyek="${esc(n.proyek || '')}">
+      <div class="panel-notif-isi">${daftar.map(n => `<button type="button" class="notif-item ${n.at > S.notif.sebelum ? 'baru' : ''}" data-aksi="notif-buka" data-id="${esc(n.task || '')}" data-proyek="${esc(n.proyek || '')}" data-ruang="${esc(n.ruang || '')}" data-pesan="${esc(n.pesan || '')}">
           <span class="notif-ikon jn-${n.jenis}">${ikon(IKON_NOTIF[n.jenis] || 'lonceng', 16)}</span>
           <span class="notif-teks">${kalimatNotif(n)}<small>${esc(relatif(n.at))}</small></span>
         </button>`).join('') || '<p class="hint panel-notif-kosong">Belum ada yang menyangkut Anda.</p>'}</div>
-      <p class="panel-notif-kaki">Dibaca dari aktivitas di data contoh browser ini. Ganti profil untuk melihat notifikasi orang lain.</p>
+      <p class="panel-notif-kaki">Pesan Komunikasi terbagi untuk semua orang; aktivitas task lainnya dari data contoh browser ini. Ganti profil untuk melihat notifikasi orang lain.</p>
     </div>`;
   }
 
@@ -1031,15 +1081,6 @@
   }
 
   /* ---------- Detail task ---------- */
-
-  function komentarHtml(k) {
-    return `<div class="komentar ${k.author === S.me ? 'saya' : ''}">${avatar(k.author, 'kecil')}<div><small><strong>${nama(k.author)}</strong> · ${esc(relatif(k.at))}</small><p>${esc(k.text)}</p></div></div>`;
-  }
-  const formKomentar = t => `<form class="baris-form" data-form="komentar" data-id="${esc(t.id)}">
-      <label class="sr" for="kom-${esc(t.id)}">Tulis komentar</label>
-      <input class="input" id="kom-${esc(t.id)}" name="teks" placeholder="Tulis komentar…" required maxlength="2000" autocomplete="off">
-      <button class="tombol">Kirim</button>
-    </form>`;
 
   /* Setoran task ini ke rancangan paket. Lead/Manager task ini bisa menambah atau menghapus;
      untuk task proyek yang tertaut paket, pilihan targetnya dari paket itu saja. */
@@ -1220,11 +1261,7 @@
       ${t.tinjauan.length ? `<section><p class="subjudul">Riwayat tinjauan</p><ul class="riwayat">${t.tinjauan.slice().sort((a, b) => b.at - a.at).map(r => `
         <li><strong>${esc(r.action)}</strong> oleh ${nama(r.by)} <small>· ${esc(relatif(r.at))}</small>${r.note ? `<br>${esc(r.note)}` : ''}</li>`).join('')}</ul></section>` : ''}
 
-      <section>
-        <p class="subjudul">Diskusi${t.comments.length ? ' · ' + t.comments.length : ''}</p>
-        ${t.comments.map(komentarHtml).join('')}
-        ${formKomentar(t)}
-      </section>
+      ${diskusiDetail(t)}
 
       ${log.length ? `<section><p class="subjudul">Aktivitas</p><ul class="riwayat">${log.map(l => `<li>${nama(l.by)}: ${esc(l.detail)} <small>· ${esc(relatif(l.at))}</small></li>`).join('')}</ul></section>` : ''}
     </div>`;
@@ -2087,46 +2124,681 @@
     salinKeKlip(teks, html, `${daftar.length} paket disalin. Tempel (Ctrl+V) di sheet Marsel.`);
   }
 
-  /* ---------- Komunikasi ---------- */
+  /* ---------- Komunikasi (0.10.0) ----------
+     Kotak masuk kerja: saringan & ruang di kiri, daftar utas di tengah, percakapan di kanan
+     (di ponsel: daftar dulu, lalu percakapan). Pesan tersimpan BERSAMA di tab `obrolan`
+     spreadsheet v2 lewat /api/rpc dan ditarik berkala; komentar lama data contoh ikut tampil di
+     ruang task-nya. Aturannya — ruang, sebutan, pertanyaan, siapa boleh mengubah — di Inti. */
+
+  const SARINGAN_KOM = [
+    ['baru', 'Belum dibaca', 'kotakMasuk'],
+    ['sebut', 'Menyebut saya', 'at'],
+    ['tanya', 'Perlu jawaban', 'tanya'],
+    ['semua', 'Semua utas', 'pesan'],
+  ];
+  const PESAN_CEPAT = ['Sudah saya cek ✅', 'Mohon dicek ya 🙏', 'Sedang saya kerjakan', 'Butuh bantuan untuk ini'];
+  const CALON_PERAN = [['semua', 'Semua orang di divisi'], ['lead', 'Semua Lead'], ['staff', 'Semua staff'], ['manager', 'Manager']];
+
+  /* ----- Pesan bersama: susunan, tarik, kirim ----- */
+
+  let memoSusunan = { data: null, versi: -1, isi: null };
+  function susunan() {
+    if (memoSusunan.data !== S.data || memoSusunan.versi !== S.obr.versi) {
+      memoSusunan = { data: S.data, versi: S.obr.versi, isi: I.susunObrolan(S.data, S.obr.peristiwa) };
+    }
+    return memoSusunan.isi;
+  }
+
+  /* penuh = semua dari awal (saat aplikasi dibuka); selain itu hanya yang sejak tarikan terakhir. */
+  async function tarikObrolan(penuh = false) {
+    if (S.obr.menarik || !S.data) return;
+    S.obr.menarik = true;
+    const awal = penuh || !S.obr.diperbarui;
+    const h = await api('muatObrolan', [awal ? 0 : S.obr.sejak]);
+    S.obr.menarik = false;
+    if (!h.success) {
+      S.obr.galat = h.http === 401 ? 'Sesi berakhir; muat ulang halaman lalu masukkan PIN.' : (h.message || 'Pesan gagal dimuat.');
+      S.obr.gagal = Math.min((S.obr.gagal || 0) + 1, 4);
+      perbaruiStatusObrolan();
+      return;
+    }
+    Object.assign(S.obr, { galat: '', gagal: 0, diperbarui: Date.now() });
+    const baru = h.peristiwa || [];
+    let berubah = false;
+    if (awal) {
+      S.obr.peristiwa = [...baru, ...S.obr.peristiwa.filter(e => e.tertunda || e.gagal)];
+      berubah = true;
+    } else {
+      const ada = new Set(S.obr.peristiwa.map(e => e.id));
+      for (const e of baru) if (!ada.has(e.id)) { S.obr.peristiwa.push(e); berubah = true; }
+    }
+    for (const e of baru) if (e.at > S.obr.sejak) S.obr.sejak = e.at;
+    if (berubah) obrolanBerubah(); else perbaruiStatusObrolan();
+  }
+
+  /* Kuota baca Sheets dihitung per service account, jadi jedanya hemat: 20 detik di
+     Komunikasi, semenit di halaman lain, berhenti saat tab tak terlihat, melambat saat gagal. */
+  let jamTarik = null;
+  function jadwalkanTarik() {
+    clearTimeout(jamTarik);
+    const dasar = S.view === 'komunikasi' ? 20000 : 60000;
+    jamTarik = setTimeout(async () => {
+      if (!document.hidden && S.data && !$('#app').hidden) await tarikObrolan();
+      jadwalkanTarik();
+    }, Math.min(dasar * 2 ** (S.obr.gagal || 0), 300000));
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !S.data || $('#app').hidden) return;
+    if (Date.now() - (S.obr.diperbarui || 0) > 10000) tarikObrolan().then(jadwalkanTarik);
+  });
+
+  /* Tampil seketika (tertunda), lalu diganti baris dari server. Pesan yang gagal tetap tampil
+     dengan pilihan kirim ulang; reaksi, ubah, hapus, dan beres yang gagal dibatalkan. */
+  let urutSementara = 0;
+  async function kirimPeristiwa(e) {
+    const sementara = { ...e, id: `tmp${++urutSementara}x${Date.now().toString(36)}`, at: Date.now(), tertunda: true, asli: e };
+    S.obr.peristiwa.push(sementara);
+    obrolanBerubah();
+    const h = await api('kirimObrolan', [e]);
+    const i = S.obr.peristiwa.indexOf(sementara);
+    if (h.success && h.peristiwa) {
+      if (i >= 0) S.obr.peristiwa.splice(i, 1);
+      if (!S.obr.peristiwa.some(x => x.id === h.peristiwa.id)) S.obr.peristiwa.push(h.peristiwa);
+    } else if (e.jenis === 'pesan') {
+      Object.assign(sementara, { tertunda: false, gagal: true });
+      toast(`Pesan belum terkirim: ${h.message || 'server tak terjangkau'}. Kirim ulang dari gelembungnya.`, true);
+    } else {
+      if (i >= 0) S.obr.peristiwa.splice(i, 1);
+      toast(h.message || 'Gagal tersimpan. Coba lagi.', true);
+    }
+    obrolanBerubah();
+  }
+
+  function obrolanBerubah() {
+    S.obr.versi++;
+    perbaruiObrolan();
+  }
+  function perbaruiStatusObrolan() {
+    const el = $('#kom-status');
+    if (el) el.innerHTML = statusObrolan();
+  }
+  /* Digambar ulang sebagian saja: kotak tulis (dengan ketikan dan kursornya) tak disentuh. */
+  function perbaruiObrolan() {
+    if (!S.data || $('#app').hidden) return;
+    tandaiRuangTerbuka();
+    const lencana = lencanaNav();
+    renderSamping(lencana);
+    renderNavBawah(lencana);
+    renderKepala();
+    if (S.view === 'komunikasi') {
+      const kiri = $('#km-saring');
+      if (kiri) kiri.innerHTML = saringKomHtml();
+      const chip = $('#km-saring-hp');
+      if (chip) chip.innerHTML = saringHpHtml();
+      const daftar = $('#hasil');
+      if (daftar) daftar.innerHTML = hasilKomunikasi();
+    }
+    perbaruiPesan('kom');
+    perbaruiPesan('detail');
+    perbaruiStatusObrolan();
+  }
+  function perbaruiPesan(wadah) {
+    const kotak = $('#pesan-' + wadah);
+    if (!kotak) return;
+    const keBawah = S.kom.keBawah || kotak.scrollHeight - kotak.scrollTop - kotak.clientHeight < 80;
+    const atas = kotak.scrollTop;
+    kotak.innerHTML = daftarPesanHtml(kotak.dataset.ruang, wadah);
+    kotak.scrollTop = keBawah ? kotak.scrollHeight : atas;
+    S.kom.keBawah = false;
+    const judul = wadah === 'detail' && $('.diskusi-detail .subjudul');
+    if (judul) {
+      const n = (susunan().perRuang.get(kotak.dataset.ruang) || []).filter(m => !m.dihapus).length;
+      judul.textContent = 'Diskusi' + (n ? ' · ' + n : '');
+    }
+    perbaruiTulis();
+  }
+  /* Ruang yang sedang terbuka dan terlihat dianggap terbaca. */
+  function tandaiRuangTerbuka() {
+    if (document.hidden || !S.data) return;
+    if (S.view === 'komunikasi' && S.kom.pilih) tandaiDibaca(S.kom.pilih);
+    if (S.pilih) tandaiDibaca(I.ruangTask(S.pilih));
+  }
+
+  /* ----- Ruang ----- */
+
+  function judulRuang(ruang) {
+    const { jenis, id } = I.bacaRuang(ruang);
+    if (jenis === 'task') {
+      const t = perIdKini().get(id);
+      if (t) return t.title;
+      const m = (susunan().perRuang.get(ruang) || []).find(x => x.judul);
+      return m ? m.judul : id;
+    }
+    if (jenis === 'proyek') { const p = proyekDari(id); return p ? p.name : id; }
+    return 'Tim ' + ((I.TIM[id] || {}).nama || id);
+  }
+  /* Alamat ruang: #/komunikasi/PRD-12, #/komunikasi/PRJ-3, #/komunikasi/tim-LA. */
+  function alamatRuang(ruang) {
+    const { jenis, id } = I.bacaRuang(ruang);
+    return jenis === 'tim' ? 'tim-' + id : id;
+  }
+  function ruangDariAlamat(x) {
+    if (/^PRD-\d+$/.test(x)) return I.ruangTask(x);
+    if (/^PRJ-\d+$/.test(x)) return I.ruangProyek(x);
+    const m = /^tim-([A-Z]{2})$/.exec(x);
+    return m ? I.ruangTim(m[1]) : '';
+  }
+  /* pesanId: digulir ke pesan itu (dari notifikasi atau kutipan); tanpa itu, ke "Pesan baru". */
+  function bukaRuang(ruang, pesanId = '') {
+    if (!I.bolehRuang(S.me, ruang)) return toast('Ruang itu hanya untuk anggota timnya.', true);
+    Object.assign(S.kom, {
+      pilih: ruang, balas: '', ubah: '', tanya: false, lompat: pesanId || 'baru',
+      batasBaru: { ruang, baca: Number(petaBaca()[ruang]) || 0 },
+    });
+    // Dibuka dengan sengaja: terbaca, walau tab sedang tak terlihat (mis. dibuka dari notifikasi sistem).
+    tandaiDibaca(ruang);
+    S.notif.buka = false;
+    if (S.view !== 'komunikasi' || S.pilih) { S.pilih = null; pindahHalaman('komunikasi'); } else render();
+    if (!hp()) { const ta = $('#tulis-kom'); if (ta) ta.focus({ preventScroll: true }); }
+  }
+  /* Setelah digambar: ke pesan yang dituju, ke batas "Pesan baru", atau ke paling bawah. */
+  function gulirPesan(wadah) {
+    const kotak = $('#pesan-' + wadah);
+    if (!kotak) return;
+    const lompat = wadah === 'kom' ? S.kom.lompat : '';
+    if (wadah === 'kom') S.kom.lompat = '';
+    const tujuan = !lompat ? null : lompat === 'baru' ? $('.km-batas-baru', kotak) : document.getElementById(`psn-${wadah}-${lompat}`);
+    if (!tujuan) { kotak.scrollTop = kotak.scrollHeight; return; }
+    kotak.scrollTop = Math.max(0, tujuan.offsetTop - 48);
+    if (tujuan.classList.contains('km-psn')) sorotPesan(tujuan);
+  }
+  function sorotPesan(el) {
+    el.classList.remove('sorot');
+    void el.offsetWidth;
+    el.classList.add('sorot');
+  }
+  function lompatKePesan(wadah, id) {
+    const el = document.getElementById(`psn-${wadah}-${id}`);
+    if (!el) return toast('Pesan yang dibalas sudah tidak ada di percakapan ini.', true);
+    const kotak = $('#pesan-' + wadah);
+    kotak.scrollTop = Math.max(0, el.offsetTop - 48);
+    sorotPesan(el);
+  }
+
+  /* ----- Halaman ----- */
+
+  function statusObrolan() {
+    if (S.obr.galat) return `<span class="km-status-galat">${ikon('tutup', 14)} ${esc(S.obr.galat)} Dicoba lagi otomatis.</span>`;
+    if (!S.obr.diperbarui) return 'Memuat pesan bersama…';
+    return `${ikon('centang', 14)} Pesan tersimpan bersama di spreadsheet v2, semua orang melihat yang sama · diperbarui ${esc(relatif(S.obr.diperbarui))}`;
+  }
+
+  const utasKom = (saring, q = '') => I.daftarUtas(S.data, S.me, susunan(), { saring, lingkup: S.kom.lingkup, q, sejak: sejakBaca });
+  function hitungKom() {
+    const semua = utasKom('semua');
+    return {
+      baru: semua.filter(x => x.baru).length,
+      sebut: semua.filter(x => x.sebutBaru).length,
+      tanya: semua.reduce((n, x) => n + x.tanya, 0),
+      perRuang: new Map(semua.map(x => [x.ruang, x])),
+    };
+  }
+
+  function saringKomHtml() {
+    const h = hitungKom();
+    const k = S.kom;
+    const n = { baru: h.baru, sebut: h.sebut, tanya: h.tanya, semua: 0 };
+    const item = (aktif, attr, ik, label, jumlah, kelas = '') => `<button type="button" class="km-item ${aktif ? 'aktif' : ''} ${kelas}" ${attr}${aktif ? ' aria-current="true"' : ''}>
+        ${ik}<span class="km-item-label">${label}</span>${jumlah ? `<span class="km-n">${jumlah}</span>` : ''}</button>`;
+    const kotak = SARINGAN_KOM.map(([v, l, ik]) => item(k.saring === v, `data-aksi="kom-saring" data-nilai="${v}"`, ikon(ik, 16), l, n[v], v === 'tanya' && n.tanya ? 'penting' : ''));
+    const tim = I.ruangTimSaya(S.me).map(kode => {
+      const r = I.ruangTim(kode);
+      return item(k.pilih === r, `data-aksi="kom-buka" data-ruang="${r}"`, ikon('orang', 16), esc(I.TIM[kode].nama), (h.perRuang.get(r) || {}).baru);
+    });
+    const proyek = S.data.projects.filter(p => !p.arsip)
+      .map(p => ({ p, x: h.perRuang.get(I.ruangProyek(p.id)) }))
+      .sort((a, b) => ((b.x ? b.x.terakhir.at : 0) - (a.x ? a.x.terakhir.at : 0)) || a.p.name.localeCompare(b.p.name, 'id'));
+    const tampil = (k.proyekSemua ? proyek : proyek.slice(0, 6)).map(({ p, x }) => {
+      const r = I.ruangProyek(p.id);
+      return item(k.pilih === r, `data-aksi="kom-buka" data-ruang="${r}" title="${esc(p.name)}"`, ikon('lapis', 16), esc(p.name), x ? x.baru : 0);
+    });
+    return `<p class="km-judul">Kotak masuk</p>${kotak.join('')}
+      ${tim.length ? `<p class="km-judul">Ruang tim</p>${tim.join('')}` : ''}
+      <p class="km-judul">Ruang proyek</p>${tampil.join('') || '<p class="hint km-item-kosong">Belum ada proyek aktif.</p>'}
+      ${proyek.length > 6 ? `<button type="button" class="km-lagi" data-aksi="kom-proyek-semua">${k.proyekSemua ? 'Lebih sedikit' : `Semua proyek (${proyek.length})`}</button>` : ''}`;
+  }
+
+  /* Di layar sempit kolom kiri menjadi deretan chip di atas daftar. */
+  function saringHpHtml() {
+    const h = hitungKom();
+    const n = { baru: h.baru, sebut: h.sebut, tanya: h.tanya };
+    const chip = (aktif, attr, label, jumlah) => `<button type="button" class="km-chip ${aktif ? 'aktif' : ''}" ${attr}>${label}${jumlah ? ` <b>${jumlah}</b>` : ''}</button>`;
+    return [
+      ...SARINGAN_KOM.map(([v, l]) => chip(S.kom.saring === v, `data-aksi="kom-saring" data-nilai="${v}"`, l, n[v])),
+      ...I.ruangTimSaya(S.me).map(kode => chip(false, `data-aksi="kom-buka" data-ruang="${I.ruangTim(kode)}"`, 'Tim ' + kode, (h.perRuang.get(I.ruangTim(kode)) || {}).baru)),
+      chip(false, 'data-aksi="kom-pilih-proyek"', 'Ruang proyek…', 0),
+    ].join('');
+  }
+  function formPilihRuang() {
+    const daftar = S.data.projects.filter(p => !p.arsip).sort((a, b) => a.name.localeCompare(b.name, 'id'));
+    return `<div class="form-pilih-ruang">
+      <h2>Ruang proyek</h2>
+      <p class="hint">Diskusi untuk seluruh proyek, di luar utas per task. Terbuka untuk semua orang.</p>
+      <div class="pilih-ruang-daftar">${daftar.map(p => `<button type="button" class="km-item" data-aksi="kom-buka" data-ruang="${I.ruangProyek(p.id)}">${ikon('lapis', 16)}<span class="km-item-label">${esc(p.name)}</span><small>${esc(p.id)}</small></button>`).join('')}</div>
+      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">Tutup</button></div>
+    </div>`;
+  }
 
   function viewKomunikasi() {
     const k = S.kom;
-    const t = k.pilih && S.data.tasks.find(x => x.id === k.pilih);
-    const segmen = segmenLingkup('kom', k.lingkup === 'terlibat' ? 'saya' : k.lingkup, 'Lingkup', { ...LABEL_LINGKUP, saya: 'Saya terlibat' });
-    return `<div class="judul-halaman"><div><h1>Komunikasi</h1><p>Diskusi per task. Utas yang belum Anda baca muncul paling atas.</p></div></div>
-      <div class="kom ${t ? 'buka-obrolan' : ''}">
-        <section class="kom-daftar kartu-polos rapat">
-          <div class="kom-alat">
-            ${kotakCari('komunikasi', k.q, 'Cari task untuk didiskusikan…')}
-            ${segmen}
-            <label class="centang"><input type="checkbox" data-aksi="kom-baru" ${k.baru ? 'checked' : ''}> Belum dibaca saja</label>
-          </div>
-          <div id="hasil" class="kom-utas">${hasilKomunikasi()}</div>
+    if (k.pilih && !I.bolehRuang(S.me, k.pilih)) k.pilih = null;
+    const segmen = segmenLingkup('kom', k.lingkup === 'terlibat' ? 'saya' : k.lingkup, 'Lingkup utas task', { ...LABEL_LINGKUP, saya: 'Saya terlibat' });
+    return `<div class="judul-halaman"><div><h1>Komunikasi</h1><p id="kom-status" class="km-status-baris">${statusObrolan()}</p></div></div>
+      <div class="kotak-masuk ${k.pilih ? 'buka-ruang' : ''}">
+        <nav class="km-kiri kartu-polos rapat" id="km-saring" aria-label="Kotak masuk dan ruang">${saringKomHtml()}</nav>
+        <section class="km-tengah kartu-polos rapat" aria-label="Daftar utas">
+          <div class="km-alat">${kotakCari('komunikasi', k.q, 'Cari utas atau isi pesan…')}${segmen}</div>
+          <div class="km-chips" id="km-saring-hp">${saringHpHtml()}</div>
+          <div id="hasil" class="km-utas">${hasilKomunikasi()}</div>
         </section>
-        <section class="kom-obrolan kartu-polos rapat">${t ? panelObrolan(t) : '<div class="kosong-isi tanpa-garis">Pilih utas di kiri untuk membaca dan membalas.</div>'}</section>
+        <section class="km-kanan kartu-polos rapat" aria-label="Percakapan">${k.pilih ? panelRuang(k.pilih, 'kom')
+          : `<div class="km-kosong-kanan">${ikon('obrolan', 32)}<p><strong>Pilih utas atau ruang</strong><br><span class="hint">Pesan tersimpan bersama: semua orang melihat percakapan yang sama.</span></p></div>`}</section>
       </div>`;
   }
 
+  const KOSONG_UTAS = {
+    baru: 'Semua sudah dibaca.',
+    sebut: 'Belum ada yang menyebut Anda.',
+    tanya: 'Tak ada pertanyaan yang menunggu jawaban Anda.',
+    semua: 'Belum ada diskusi di lingkup ini. Cari task untuk memulai, atau buka ruang tim dan proyek.',
+  };
   function hasilKomunikasi() {
-    const k = S.kom;
-    const u = I.utasDiskusi(S.data, S.me, k.lingkup, sejakBaca, k.q).filter(x => !k.baru || x.baru);
-    if (!u.length) return `<p class="hint" style="padding:14px">${k.q ? 'Tidak ada task yang cocok.' : k.baru ? 'Semua sudah dibaca.' : 'Belum ada diskusi di lingkup ini. Cari task untuk memulai.'}</p>`;
-    return u.slice(0, 100).map(x => `<button type="button" class="utas ${k.pilih === x.t.id ? 'dipilih' : ''} ${x.baru ? 'baru' : ''}" data-aksi="kom-pilih" data-id="${esc(x.t.id)}">
-        <span class="utas-atas"><strong>${esc(x.t.title)}</strong>${x.baru ? `<span class="lencana">${x.baru}</span>` : ''}</span>
-        <span class="baris-meta">${chipJalur(x.t)} ${esc(asal(x.t))} · ${nama(x.t.pic)}</span>
-        ${x.terakhir ? `<span class="utas-pesan"><b>${nama(x.terakhir.author)}:</b> ${esc(potong(x.terakhir.text, 90))} <small>· ${esc(relatif(x.terakhir.at))}</small></span>` : '<span class="utas-pesan">Belum ada komentar. Mulai diskusi.</span>'}
-      </button>`).join('') + (u.length > 100 ? `<p class="hint" style="padding:10px 14px">Menampilkan 100 dari ${u.length} utas. Persempit dengan pencarian.</p>` : '');
+    const u = utasKom(S.kom.saring, S.kom.q);
+    if (!u.length) return `<p class="hint km-kosong">${S.kom.q ? 'Tidak ada utas yang cocok.' : KOSONG_UTAS[S.kom.saring] || ''}</p>`;
+    return u.slice(0, 150).map(itemUtas).join('')
+      + (u.length > 150 ? `<p class="hint km-kosong">Menampilkan 150 dari ${u.length} utas. Persempit dengan pencarian.</p>` : '');
+  }
+  function itemUtas(x) {
+    const m = x.terakhir;
+    const tanda = x.jenis === 'task' ? (x.t ? chipJalur(x.t) : '<span class="chip-rutin">Task</span>') : ikon(x.jenis === 'proyek' ? 'lapis' : 'orang', 16);
+    const siapa = m ? (m.oleh === S.me ? 'Anda' : esc(I.orang(m.oleh).pendek)) : '';
+    const cuplik = m ? `<b>${siapa}:</b> ${m.dihapus ? '<i>pesan dihapus</i>' : esc(potong(teksPolos(m.teks), 90))}` : '<i>Belum ada pesan. Mulai diskusi.</i>';
+    const bendera = (x.tanya ? `<span class="km-tanda tanya" title="Menunggu jawaban Anda">${ikon('tanya', 13)}</span>` : '')
+      + (x.sebutBaru ? `<span class="km-tanda sebut" title="Menyebut Anda">${ikon('at', 13)}</span>` : '');
+    const sub = x.jenis === 'task' ? `${esc(x.p ? x.p.name : x.t ? asal(x.t) : 'Task di browser lain')} · ${esc(x.id)}` : x.jenis === 'proyek' ? 'Ruang proyek' : 'Ruang tim';
+    return `<button type="button" class="km-utas-item ${S.kom.pilih === x.ruang ? 'dipilih' : ''} ${x.baru ? 'baru' : ''}" data-aksi="kom-buka" data-ruang="${esc(x.ruang)}">
+        <span class="km-utas-ikon ${x.jenis}">${tanda}</span>
+        <span class="km-utas-isi">
+          <span class="km-utas-atas"><strong>${esc(x.judul)}</strong>${m ? `<small>${esc(waktuPendek(m.at))}</small>` : ''}</span>
+          <span class="km-utas-sub">${sub}</span>
+          <span class="km-utas-pesan">${bendera}<span>${cuplik}</span></span>
+        </span>
+        ${x.baru ? `<span class="lencana">${x.baru}</span>` : ''}
+      </button>`;
   }
 
-  function panelObrolan(t) {
-    return `<div class="obrolan-kepala">
-        <button type="button" class="ikon-tombol kom-kembali" data-aksi="kom-tutup" aria-label="Kembali ke daftar utas">${ikon('kiri', 20)}</button>
-        <div class="obrolan-judul"><p class="detail-asal">${esc(asal(t))} · ${esc(t.id)}</p><h2>${esc(t.title)}</h2>
-          <div class="detail-chip">${pillStatus(t.status)} ${chipTenggat(t)} <span class="hint">PIC ${nama(t.pic)}</span></div></div>
-        <button type="button" class="tombol kecil" data-aksi="buka-task" data-id="${esc(t.id)}">Detail task</button>
-      </div>
-      <div class="obrolan-isi" id="obrolan-isi">${t.comments.length ? t.comments.map(komentarHtml).join('') : '<p class="hint">Belum ada komentar. Tulis yang pertama.</p>'}</div>
-      <div class="obrolan-tulis">${formKomentar(t)}</div>`;
+  function panelRuang(ruang, wadah) {
+    const { jenis, id } = I.bacaRuang(ruang);
+    const t = jenis === 'task' ? perIdKini().get(id) : null;
+    return `<header class="km-kepala">${kepalaRuang(ruang, t)}</header>
+      ${t ? konteksTask(t) : ''}
+      <div class="km-pesan" id="pesan-${wadah}" data-ruang="${esc(ruang)}">${daftarPesanHtml(ruang, wadah)}</div>
+      ${penulis(ruang, wadah)}`;
+  }
+
+  function kepalaRuang(ruang, t) {
+    const { jenis, id } = I.bacaRuang(ruang);
+    const kembali = `<button type="button" class="ikon-tombol km-kembali" data-aksi="kom-tutup" aria-label="Kembali ke daftar utas">${ikon('kiri', 20)}</button>`;
+    const salin = `<button type="button" class="ikon-tombol" data-aksi="salin-tautan" data-alamat="#/komunikasi/${esc(alamatRuang(ruang))}" title="Salin tautan ruang ini" aria-label="Salin tautan ruang">${ikon('tautan', 18)}</button>`;
+    if (jenis === 'task' && !t) {
+      return `${kembali}<div class="km-kepala-isi"><p class="detail-asal">Task di browser lain · ${esc(id)}</p><h2>${esc(judulRuang(ruang))}</h2>
+        <p class="hint">Task ini tak ada di data contoh browser Anda, tetapi percakapannya tetap terbagi.</p></div>`;
+    }
+    if (jenis === 'task') {
+      const tombol = I.aksiUntuk(t, S.me, perIdKini()).map(a => `<button type="button" class="tombol kecil ${a.utama ? 'utama' : ''}" data-aksi="aksi-task" data-id="${esc(t.id)}" data-kunci="${a.kunci}"${a.nonaktif ? ` disabled title="${esc(a.alasan || '')}"` : ''}>${esc(a.label)}</button>`).join('');
+      return `${kembali}<div class="km-kepala-isi">
+          <p class="detail-asal">${esc(asal(t))} · ${esc(t.id)}</p>
+          <h2>${esc(t.title)}</h2>
+          <div class="detail-chip">${chipJalur(t)} ${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} <span class="hint">PIC ${nama(t.pic)}</span></div>
+          ${tombol ? `<div class="km-aksi">${tombol}</div>` : ''}
+        </div>
+        <div class="km-kepala-alat">
+          <button type="button" class="ikon-tombol" data-aksi="kom-konteks" aria-pressed="${!!S.kom.konteks}" title="${S.kom.konteks ? 'Sembunyikan' : 'Tampilkan'} konteks task" aria-label="Konteks task">${ikon('info', 18)}</button>
+          ${salin}
+          <button type="button" class="tombol kecil" data-aksi="buka-task" data-id="${esc(t.id)}">Detail</button>
+        </div>`;
+    }
+    if (jenis === 'proyek') {
+      const p = proyekDari(id);
+      return `${kembali}<div class="km-kepala-isi"><p class="detail-asal">Ruang proyek · ${esc(id)}</p><h2>${esc(judulRuang(ruang))}</h2>
+          ${p ? `<div class="detail-chip">${jalurMini(p, I.siklusTutup(S.data, p))} ${timHtml(p)}</div>` : ''}</div>
+        <div class="km-kepala-alat">${salin}${p ? `<button type="button" class="tombol kecil" data-aksi="buka-proyek" data-id="${esc(p.id)}">Buka proyek</button>` : ''}</div>`;
+    }
+    const anggota = I.anggotaTim(id);
+    return `${kembali}<div class="km-kepala-isi"><p class="detail-asal">Ruang tim · ${esc(id)}</p><h2>${esc(judulRuang(ruang))}</h2>
+        <div class="km-anggota">${anggota.map(o => avatar(o, 'kecil')).join('')}<span class="hint">${anggota.length} anggota, ditambah Manager</span></div></div>
+      <div class="km-kepala-alat">${salin}</div>`;
+  }
+
+  /* Konteks task di atas percakapan: cukup untuk memutuskan tanpa membuka detailnya. */
+  function konteksTask(t) {
+    if (!S.kom.konteks) return '';
+    const perId = perIdKini();
+    const p = t.project ? proyekDari(t.project) : null;
+    const tunggu = I.aktif(t) ? I.alasanTunggu(t, perId) : '';
+    const syarat = t.lane === 'proyek' && I.aktif(t) && t.status !== 'Ditinjau' ? I.syaratAjukan(t, perId) : [];
+    const tinjau = I.peninjau(t);
+    return `<div class="km-konteks">
+        <dl class="km-fakta">
+          ${t.sub ? `<div><dt>Sub-stage</dt><dd>${esc(I.namaSub(t.sub))}</dd></div>` : ''}
+          ${p ? `<div><dt>Proyek</dt><dd><button type="button" class="tautan-kecil" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button></dd></div>` : ''}
+          <div><dt>PIC</dt><dd>${nama(t.pic)}</dd></div>
+          ${tinjau ? `<div><dt>Peninjau</dt><dd>${nama(tinjau)}</dd></div>` : ''}
+          <div><dt>Tenggat</dt><dd>${t.due ? esc(fmtTanggal(t.due)) : '—'}</dd></div>
+          ${t.output ? `<div class="lebar"><dt>Output</dt><dd>${esc(t.output)}</dd></div>` : ''}
+        </dl>
+        ${tunggu ? `<p class="km-konteks-tunggu">${esc(tunggu)}</p>` : ''}
+        ${syarat.length ? `<ul class="km-syarat">${syarat.map(s => `<li class="${s.ok ? 'ok' : ''}">${ikon(s.ok ? 'centang' : 'bulat', 14)}${esc(s.label)}</li>`).join('')}</ul>` : ''}
+      </div>`;
+  }
+
+  /* ----- Pesan ----- */
+
+  const hariDari = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const selisihKalender = ms => Math.round((hariDari(new Date()) - hariDari(new Date(ms))) / 864e5);
+  function waktuPendek(ms) {
+    const n = selisihKalender(ms);
+    if (n === 0) return fmtJam(ms);
+    if (n === 1) return 'Kemarin';
+    if (n < 7) return new Date(ms).toLocaleDateString('id-ID', { weekday: 'short' });
+    return new Date(ms).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  }
+  function labelHari(ms) {
+    const n = selisihKalender(ms);
+    if (n === 0) return 'Hari ini';
+    if (n === 1) return 'Kemarin';
+    const d = new Date(ms);
+    return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
+  }
+
+  /* Pesan & jejak task (diajukan, dikembalikan, …) dalam satu alur waktu, dengan pemisah hari
+     dan batas "Pesan baru". Di laci detail task jejaknya tak diulang (sudah ada Riwayat). */
+  function daftarPesanHtml(ruang, wadah) {
+    const pesan = susunan().perRuang.get(ruang) || [];
+    const { jenis, id } = I.bacaRuang(ruang);
+    const t = jenis === 'task' && wadah === 'kom' ? perIdKini().get(id) : null;
+    const jejak = t ? I.aktivitasTask(S.data, t).map(a => ({ ...a, sistem: true })) : [];
+    if (!pesan.length && !jejak.length) {
+      return `<div class="km-awal">${ikon('obrolan', 28)}<p><strong>Belum ada pesan</strong><br><span class="hint">Tulis yang pertama. Ketik @ untuk menyebut orang.</span></p></div>`;
+    }
+    const semua = [...pesan, ...jejak].sort((a, b) => a.at - b.at);
+    const b = wadah === 'kom' && S.kom.batasBaru && S.kom.batasBaru.ruang === ruang ? S.kom.batasBaru.baca : null;
+    const pertamaBaru = b === null ? null
+      : semua.find(x => !x.sistem && x.oleh !== S.me && !x.dihapus && x.at > Math.max(b, x.bersama ? awalBersama() : S.dimuat || 0));
+    let hari = '', sebelum = null, html = '';
+    for (const x of semua) {
+      const h = labelHari(x.at);
+      if (h !== hari) { html += `<div class="km-hari"><span>${esc(h)}</span></div>`; hari = h; sebelum = null; }
+      if (x === pertamaBaru) { html += '<div class="km-batas-baru"><span>Pesan baru</span></div>'; sebelum = null; }
+      if (x.sistem) { html += barisSistem(x); sebelum = null; continue; }
+      const sambung = !!sebelum && sebelum.oleh === x.oleh && x.at - sebelum.at < 5 * 60000 && !x.balas && !sebelum.tanya.length && !x.tanya.length;
+      html += gelembung(x, wadah, sambung, pesan);
+      sebelum = x;
+    }
+    return html;
+  }
+
+  const KATA_TINJAU = {
+    Diajukan: ['tugas', 'mengajukan untuk ditinjau', ''], Dikembalikan: ['ulang', 'mengembalikan', 'kembali'],
+    Disetujui: ['centang', 'menyetujui', 'setuju'], Ditarik: ['ulang', 'menarik dari tinjauan', ''],
+  };
+  function barisSistem(a) {
+    const [ik, kata, kelas] = a.jenis === 'tinjau' ? KATA_TINJAU[a.aksi] || ['kilat', String(a.aksi).toLowerCase(), ''] : [a.jenis === 'create' ? 'tambah' : 'kilat', '', ''];
+    const isi = a.jenis === 'tinjau'
+      ? `<b>${nama(a.oleh)}</b> ${esc(kata)}${a.teks ? `: “${esc(potong(a.teks, 200))}”` : ''}`
+      : `<b>${nama(a.oleh)}</b> · ${esc(potong(a.teks, 200))}`;
+    return `<div class="km-sistem ${kelas}">${ikon(ik, 14)}<span>${isi}</span><small>${esc(fmtJam(a.at))}</small></div>`;
+  }
+
+  function gelembung(m, wadah, sambung, pesanRuang) {
+    const saya = m.oleh === S.me;
+    const kena = !saya && !m.dihapus && (m.tanya.includes(S.me) || I.menyebut(m.teks, S.me));
+    const lokal = !m.bersama && m.at > (S.dimuat || 0);
+    const kepala = sambung ? '' : `<div class="km-psn-kepala"><strong>${saya ? 'Anda' : esc(I.orang(m.oleh).nama)}</strong>
+        <small>${esc(fmtJam(m.at))}${m.diubah ? ' · diubah' : ''}${lokal ? ' · hanya di browser ini' : ''}</small></div>`;
+    const isi = m.dihapus ? '<i class="km-dihapus">Pesan dihapus</i>' : `<div class="km-teks">${formatPesan(m.teks)}</div>`;
+    const status = m.tertunda ? '<div class="km-status">Mengirim…</div>'
+      : m.gagal ? `<div class="km-status gagal">Belum terkirim. <button type="button" class="tautan-kecil" data-aksi="psn-ulang" data-id="${esc(m.id)}">Kirim ulang</button> · <button type="button" class="tautan-kecil" data-aksi="psn-buang" data-id="${esc(m.id)}">Buang</button></div>` : '';
+    return `<div class="km-psn ${saya ? 'saya' : ''} ${sambung ? 'sambung' : ''} ${kena ? 'kena' : ''}" id="psn-${wadah}-${esc(m.id)}">
+        ${saya ? '' : `<span class="km-av">${sambung ? '' : avatar(m.oleh, 'kecil')}</span>`}
+        <div class="km-psn-badan">
+          ${kepala}
+          <div class="km-gel">${m.balas ? kutipan(m.balas) : ''}${isi}${m.tanya.length && !m.dihapus ? tandaTanya(m, pesanRuang) : ''}</div>
+          ${barisReaksi(m)}${status}
+        </div>
+        ${m.tertunda || m.gagal || m.dihapus ? '' : alatPesan(m, saya)}
+      </div>`;
+  }
+
+  function kutipan(id) {
+    const r = susunan().perId.get(id);
+    if (!r) return '<div class="km-kutip"><span>Pesan yang dibalas tidak ditemukan</span></div>';
+    return `<button type="button" class="km-kutip" data-aksi="psn-ke" data-id="${esc(id)}"><strong>${r.oleh === S.me ? 'Anda' : esc(I.orang(r.oleh).pendek)}</strong>
+      <span>${r.dihapus ? '<i>pesan dihapus</i>' : esc(potong(teksPolos(r.teks), 140))}</span></button>`;
+  }
+
+  function tandaTanya(m, pesanRuang) {
+    const terbuka = I.tanyaTerbuka(m, pesanRuang);
+    const siapa = m.tanya.map(id => (id === S.me ? 'Anda' : I.orang(id).pendek)).join(', ');
+    const bisa = terbuka && (m.tanya.includes(S.me) || m.oleh === S.me);
+    const teks = terbuka ? `Menunggu jawaban ${siapa}`
+      : m.beres ? `Ditandai beres oleh ${m.beres.oleh === S.me ? 'Anda' : I.orang(m.beres.oleh).pendek}` : `Sudah dijawab ${siapa}`;
+    return `<div class="km-tanya ${terbuka ? 'terbuka' : 'selesai'}">${ikon(terbuka ? 'tanya' : 'centang', 14)}<span>${esc(teks)}</span>
+      ${bisa ? `<button type="button" class="tautan-kecil" data-aksi="psn-beres" data-id="${esc(m.id)}">Tandai beres</button>` : ''}</div>`;
+  }
+
+  function barisReaksi(m) {
+    const isi = I.REAKSI.filter(r => (m.reaksi[r.kode] || []).length).map(r => {
+      const siapa = m.reaksi[r.kode];
+      const saya = siapa.includes(S.me);
+      const daftar = siapa.map(id => (id === S.me ? 'Anda' : I.orang(id).pendek)).join(', ');
+      return `<button type="button" class="km-reaksi ${saya ? 'saya' : ''}" data-aksi="psn-reaksi" data-id="${esc(m.id)}" data-kode="${r.kode}" aria-pressed="${saya}" title="${esc(r.nama + ': ' + daftar)}">${r.simbol} ${siapa.length}</button>`;
+    }).join('');
+    return isi ? `<div class="km-reaksi-baris">${isi}</div>` : '';
+  }
+
+  function alatPesan(m, saya) {
+    return `<div class="km-alat-psn" role="group" aria-label="Aksi pesan">
+        ${I.REAKSI.map(r => `<button type="button" class="km-alat-tombol" data-aksi="psn-reaksi" data-id="${esc(m.id)}" data-kode="${r.kode}" title="${esc(r.nama)}" aria-label="Reaksi: ${esc(r.nama)}">${r.simbol}</button>`).join('')}
+        <button type="button" class="km-alat-tombol" data-aksi="psn-balas" data-id="${esc(m.id)}" title="Balas" aria-label="Balas pesan ini">${ikon('balas', 16)}</button>
+        ${saya ? `<button type="button" class="km-alat-tombol" data-aksi="psn-ubah" data-id="${esc(m.id)}" title="Ubah" aria-label="Ubah pesan">${ikon('sunting', 16)}</button>
+        <button type="button" class="km-alat-tombol" data-aksi="psn-hapus" data-id="${esc(m.id)}" title="Hapus" aria-label="Hapus pesan">${ikon('hapus', 16)}</button>` : ''}
+      </div>`;
+  }
+
+  /* Format ringan seperti v1: **tebal**, _miring_, ~~coret~~, `kode`, tautan, dan @sebutan.
+     Yang tersimpan tetap teks biasa (sel spreadsheet tetap terbaca); di sini di-escape dulu,
+     baru diberi tanda, jadi tak ada celah HTML dari isi pesan. */
+  const POLA_FORMAT = /`([^`\n]+)`|\*\*([^*\n]+)\*\*|~~([^~\n]+)~~|(^|[^A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])|(https?:\/\/[^\s<>"']+)|(^|[^A-Za-z0-9_])@([A-Za-z]+)/g;
+  const teksPolos = s => String(s || '').replace(/\*\*|~~|`/g, '').replace(/(^|\s)_([^_\n]+)_/g, '$1$2').replace(/\s+/g, ' ').trim();
+  function tandaSebut(kata) {
+    const k = kata.toLowerCase();
+    const o = I.ORANG.find(x => x.pendek.toLowerCase() === k);
+    if (!o && !['semua', 'lead', 'leader', 'staff', 'manager'].includes(k)) return '@' + esc(kata);
+    const kena = I.menyebut('@' + (o ? o.pendek : k), S.me);
+    return `<span class="km-sebut ${kena ? 'saya' : ''}" title="${esc(o ? o.nama : CALON_PERAN.reduce((t, [a, b]) => (a === k ? b : t), 'Semua ' + k))}">@${esc(o ? o.pendek : k)}</span>`;
+  }
+  const sebutDalam = s => esc(s).replace(/(^|[^A-Za-z0-9_])@([A-Za-z]+)/g, (x, a, b) => a + tandaSebut(b));
+  function formatPesan(teks) {
+    const s = String(teks || '');
+    const pola = new RegExp(POLA_FORMAT.source, 'g');
+    let out = '', i = 0, m;
+    while ((m = pola.exec(s))) {
+      out += esc(s.slice(i, m.index));
+      if (m[1] !== undefined) out += `<code>${esc(m[1])}</code>`;
+      else if (m[2] !== undefined) out += `<strong>${sebutDalam(m[2])}</strong>`;
+      else if (m[3] !== undefined) out += `<s>${sebutDalam(m[3])}</s>`;
+      else if (m[5] !== undefined) out += `${esc(m[4])}<em>${sebutDalam(m[5])}</em>`;
+      else if (m[6] !== undefined) {
+        const u = m[6].replace(/[.,;:!?)\]]+$/, '');
+        out += `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`;
+        i = m.index + u.length;
+        pola.lastIndex = i;
+        continue;
+      } else out += esc(m[7]) + tandaSebut(m[8]);
+      i = pola.lastIndex;
+    }
+    return out + esc(s.slice(i));
+  }
+
+  /* ----- Menulis ----- */
+
+  function penulis(ruang, wadah) {
+    const k = S.kom;
+    const ubah = k.ubah ? susunan().perId.get(k.ubah) : null;
+    const draf = ubah && ubah.ruang === ruang ? ubah.teks : k.draf[ruang] || '';
+    return `<form class="km-tulis" data-form="pesan" data-ruang="${esc(ruang)}" data-wadah="${wadah}" novalidate>
+        <div class="km-tulis-atas" id="tulis-atas-${wadah}">${barTulis(ruang)}</div>
+        ${wadah === 'kom' ? `<div class="km-cepat" aria-label="Pesan cepat">${PESAN_CEPAT.map(p => `<button type="button" class="km-cepat-item" data-aksi="kom-cepat" data-teks="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : ''}
+        <div class="km-tulis-baris">
+          <label class="sr" for="tulis-${wadah}">Tulis pesan</label>
+          <textarea id="tulis-${wadah}" class="km-isian" name="teks" rows="1" maxlength="${I.BATAS_PESAN}" placeholder="${hp() ? 'Tulis pesan… (@ untuk sebut)' : 'Tulis pesan… ketik @ untuk menyebut'}" autocomplete="off">${esc(draf)}</textarea>
+          <button type="button" class="ikon-tombol km-tanya-tombol" data-aksi="kom-tanya" aria-pressed="${!!k.tanya}" title="Tandai perlu jawaban dari orang yang disebut" aria-label="Perlu jawaban">${ikon('tanya', 18)}</button>
+          <button class="tombol utama km-kirim" aria-label="Kirim pesan">${ikon('kirim', 18)}</button>
+        </div>
+        <div class="km-sebut-pilih" id="sebut-${wadah}" role="listbox" aria-label="Sebut orang" hidden></div>
+        <p class="km-bantu">Enter kirim · Shift+Enter baris baru · **tebal** · _miring_ · \`kode\`</p>
+      </form>`;
+  }
+  function barTulis(ruang) {
+    const k = S.kom;
+    const per = susunan().perId;
+    const tutup = label => `<button type="button" class="km-bar-tutup" data-aksi="kom-batal" aria-label="${label}">${ikon('tutup', 14)}</button>`;
+    const bar = [];
+    const ubah = k.ubah && per.get(k.ubah);
+    const balas = k.balas && per.get(k.balas);
+    if (ubah && ubah.ruang === ruang) bar.push(`<div class="km-bar">${ikon('sunting', 14)}<span>Mengubah pesan Anda. Esc untuk batal.</span>${tutup('Batal mengubah')}</div>`);
+    else if (balas && balas.ruang === ruang) {
+      bar.push(`<div class="km-bar">${ikon('balas', 14)}<span>Membalas <b>${balas.oleh === S.me ? 'Anda' : esc(I.orang(balas.oleh).pendek)}</b>: ${esc(potong(teksPolos(balas.teks), 80))}</span>${tutup('Batal membalas')}</div>`);
+    }
+    if (k.tanya && !ubah) bar.push(`<div class="km-bar tanya">${ikon('tanya', 14)}<span>Ditandai perlu jawaban dari orang yang Anda sebut${I.bacaRuang(ruang).jenis === 'task' ? ' (tanpa sebutan: PIC task-nya)' : ''}.</span><button type="button" class="km-bar-tutup" data-aksi="kom-tanya" aria-label="Batalkan tanda perlu jawaban">${ikon('tutup', 14)}</button></div>`);
+    return bar.join('');
+  }
+  function perbaruiTulis() {
+    for (const form of $$('.km-tulis')) {
+      const bar = $('.km-tulis-atas', form);
+      if (bar) bar.innerHTML = barTulis(form.dataset.ruang);
+      const tb = $('.km-tanya-tombol', form);
+      if (tb) tb.setAttribute('aria-pressed', String(!!S.kom.tanya));
+    }
+  }
+  const tumbuhkan = ta => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 168) + 'px'; };
+  function batalTulis() {
+    const k = S.kom;
+    if (k.ubah) {
+      k.ubah = '';
+      for (const ta of $$('.km-isian')) { ta.value = k.draf[ta.closest('form').dataset.ruang] || ''; tumbuhkan(ta); }
+    }
+    k.balas = '';
+    perbaruiTulis();
+  }
+  function sisipkan(ta, teks) {
+    const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? ta.value.length;
+    const pisah = a > 0 && !/\s$/.test(ta.value.slice(0, a)) ? ' ' : '';
+    ta.value = ta.value.slice(0, a) + pisah + teks + ta.value.slice(b);
+    const pos = a + pisah.length + teks.length;
+    ta.focus();
+    ta.setSelectionRange(pos, pos);
+    if (!S.kom.ubah) S.kom.draf[ta.closest('form').dataset.ruang] = ta.value;
+    tumbuhkan(ta);
+  }
+
+  function kirimPesan(form) {
+    const ruang = form.dataset.ruang;
+    const ta = form.elements.teks;
+    const isi = ta.value.replace(/\s+$/, '');
+    if (!isi.trim()) return;
+    if (isi.length > I.BATAS_PESAN) return toast(`Pesan terlalu panjang (maks. ${I.BATAS_PESAN} karakter).`, true);
+    const k = S.kom;
+    if (k.ubah) {
+      const lama = susunan().perId.get(k.ubah);
+      if (lama && lama.teks !== isi) kirimPeristiwa({ jenis: 'ubah', ruang, oleh: S.me, target: k.ubah, teks: isi });
+      k.ubah = '';
+    } else {
+      let tanya = [];
+      if (k.tanya) {
+        tanya = I.sebutan(isi).orang.filter(id => id !== S.me);
+        const { jenis, id } = I.bacaRuang(ruang);
+        const t = jenis === 'task' ? perIdKini().get(id) : null;
+        if (!tanya.length && t && t.pic !== S.me) tanya = [t.pic];
+        if (!tanya.length) return toast('Sebut dulu siapa yang perlu menjawab, mis. @Kiki.', true);
+      }
+      S.kom.keBawah = true;
+      tandaiDibaca(ruang);
+      kirimPeristiwa({ jenis: 'pesan', ruang, oleh: S.me, teks: isi, target: k.balas || '', tanya, judul: judulRuang(ruang) });
+      Object.assign(k, { balas: '', tanya: false });
+    }
+    ta.value = '';
+    delete k.draf[ruang];
+    tumbuhkan(ta);
+    perbaruiTulis();
+    ta.focus();
+  }
+
+  /* @sebutan: daftar pilihan muncul saat mengetik @, dipilih dengan panah dan Enter/Tab. */
+  let sebutAktif = null;
+  function cariSebutan(ta) {
+    const sebelum = ta.value.slice(0, ta.selectionStart);
+    const m = /(^|[^A-Za-z0-9_])@([A-Za-z]*)$/.exec(sebelum);
+    return m ? { awal: ta.selectionStart - m[2].length - 1, kata: m[2] } : null;
+  }
+  function tutupSebutan() {
+    if (sebutAktif) { const kotak = $('#sebut-' + sebutAktif.wadah); if (kotak) kotak.hidden = true; }
+    sebutAktif = null;
+  }
+  function perbaruiSebutan(ta) {
+    const wadah = ta.id.replace('tulis-', '');
+    const c = cariSebutan(ta);
+    if (!c) return tutupSebutan();
+    const kata = c.kata.toLowerCase();
+    const orang = I.ORANG.filter(o => o.id !== S.me && (o.pendek.toLowerCase().startsWith(kata) || o.nama.toLowerCase().split(' ').some(b => b.startsWith(kata))));
+    const peran = CALON_PERAN.filter(([k]) => k.startsWith(kata));
+    const calon = [...orang.map(o => ({ sisip: o.pendek, label: o.nama, ket: o.jabatan, id: o.id })), ...peran.map(([k, l]) => ({ sisip: k, label: '@' + k, ket: l, id: '' }))].slice(0, 8);
+    if (!calon.length) return tutupSebutan();
+    sebutAktif = { wadah, calon, i: 0, awal: c.awal, panjang: c.kata.length };
+    gambarSebutan();
+  }
+  function gambarSebutan() {
+    const s = sebutAktif;
+    const kotak = $('#sebut-' + s.wadah);
+    if (!kotak) return;
+    kotak.innerHTML = s.calon.map((x, i) => `<button type="button" role="option" aria-selected="${i === s.i}" class="km-calon ${i === s.i ? 'aktif' : ''}" data-aksi="sebut-pilih" data-i="${i}">
+        ${x.id ? avatar(x.id, 'kecil') : `<span class="km-calon-ikon">${ikon('orang', 14)}</span>`}<span><b>${esc(x.label)}</b><small>${esc(x.ket)}</small></span></button>`).join('');
+    kotak.hidden = false;
+  }
+  function pakaiSebutan(i) {
+    const s = sebutAktif;
+    const ta = s && $('#tulis-' + s.wadah);
+    const x = s && s.calon[i];
+    if (!ta || !x) return tutupSebutan();
+    const sisip = '@' + x.sisip + ' ';
+    ta.value = ta.value.slice(0, s.awal) + sisip + ta.value.slice(s.awal + 1 + s.panjang);
+    const pos = s.awal + sisip.length;
+    tutupSebutan();
+    ta.focus();
+    ta.setSelectionRange(pos, pos);
+    if (!S.kom.ubah) S.kom.draf[ta.closest('form').dataset.ruang] = ta.value;
+  }
+  /* Diskusi di laci detail task: percakapan yang sama dengan ruang task di Komunikasi. */
+  function diskusiDetail(t) {
+    const ruang = I.ruangTask(t.id);
+    const n = (susunan().perRuang.get(ruang) || []).filter(m => !m.dihapus).length;
+    return `<section class="diskusi-detail">
+        <div class="baris-subjudul"><p class="subjudul">Diskusi${n ? ' · ' + n : ''}</p>
+          <button type="button" class="tombol kecil" data-aksi="kom-buka" data-ruang="${esc(ruang)}">${ikon('obrolan', 16)} Buka di Komunikasi</button></div>
+        <div class="km-pesan ringkas" id="pesan-detail" data-ruang="${esc(ruang)}">${daftarPesanHtml(ruang, 'detail')}</div>
+        ${penulis(ruang, 'detail')}
+      </section>`;
   }
 
   /* ---------- Link Saya ----------
@@ -2567,8 +3239,6 @@
     }
     if (c.dash) Object.assign(S.dash, c.dash);
     simpan('halaman', S.view);
-    const t = c.task && S.data.tasks.find(x => x.id === c.task);
-    if (t) tandaiDibaca(t);
     render();
     window.scrollTo(0, 0);
     const o = I.orang(S.me);
@@ -3048,15 +3718,14 @@
   function bukaTask(id) {
     S.pilih = id;
     S.notif.buka = false;
-    const t = S.data.tasks.find(x => x.id === id);
-    if (t) tandaiDibaca(t);
     render();
   }
 
   function resetData() {
     S.navBuka = false;
-    if (!confirm('Reset ke data contoh awal?\n\nSemua perubahan di browser ini dihapus: task, status, komentar, proyek, paket, link, dan catatan. '
-      + 'Data contoh dimuat lagi dari spreadsheet, persis seperti saat diimpor. Profil lain di browser ini ikut kembali ke awal.')) return render();
+    if (!confirm('Reset ke data contoh awal?\n\nSemua perubahan di browser ini dihapus: task, status, proyek, paket, link, dan catatan. '
+      + 'Data contoh dimuat lagi dari spreadsheet, persis seperti saat diimpor. Profil lain di browser ini ikut kembali ke awal.\n\n'
+      + 'Pesan Komunikasi tersimpan bersama di spreadsheet, jadi tidak ikut terhapus.')) return render();
     hapus('data');
     Object.assign(S, { pilih: null, proyek: null, proyekArsip: false });
     Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
@@ -3074,7 +3743,6 @@
     if (ruang === 'task') S.task.hal = 1;
     if (ruang === 'pnd') S.pnd.buka = '';
     if (ruang === 'lap' && kunci !== 'buka') S.lap.buka = '';
-    if (ruang === 'kom' && kunci === 'lingkup') S.kom.pilih = null;
     if (ruang === 'rwy') S.rwy.batas = 100;
     simpanPref(ruang);
     render();
@@ -3082,8 +3750,16 @@
 
   document.addEventListener('click', e => {
     if (S.notif.buka && !e.target.closest('.notif')) bukaTutupNotif(false);
+    if (sebutAktif && !e.target.closest('.km-sebut-pilih, .km-isian')) tutupSebutan();
     const tautanLink = e.target.closest('a[data-link]');
     if (tautanLink) { hitungKlik(tautanLink.dataset.link); return; }
+    // Di layar sentuh, mengetuk gelembung memunculkan tombol aksinya (reaksi, balas, ubah, hapus).
+    const gel = e.target.closest('.km-gel');
+    if (gel && !e.target.closest('a, button')) {
+      const psn = gel.closest('.km-psn');
+      for (const x of $$('.km-psn.aktif')) if (x !== psn) x.classList.remove('aktif');
+      if (psn) psn.classList.toggle('aktif');
+    }
     const kartu = e.target.closest('.kartu');
     const el = e.target.closest('[data-aksi]') || (kartu ? { dataset: { aksi: 'buka-task', id: kartu.dataset.id } } : null);
     if (!el || el.tagName === 'INPUT' || el.tagName === 'SELECT') return;
@@ -3101,7 +3777,8 @@
       case 'notif': bukaTutupNotif(); break;
       case 'notif-buka':
         S.notif.buka = false;
-        if (d.proyek) bukaProyek(d.proyek);
+        if (d.pesan && d.ruang) bukaRuang(d.ruang, d.pesan);
+        else if (d.proyek) bukaProyek(d.proyek);
         else if (t) bukaTask(t.id);
         else renderKepala();
         break;
@@ -3150,7 +3827,8 @@
         S.dash.lingkup = '';
         S.kom.lingkup = 'terlibat';
         simpanPref('task');
-        Object.assign(S.kom, { pilih: null });
+        // Draf dan balasan milik profil sebelumnya tak ikut terkirim atas nama profil baru.
+        Object.assign(S.kom, { pilih: null, balas: '', ubah: '', tanya: false, draf: {}, saring: 'semua', batasBaru: null });
         Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
         Object.assign(S.ctt, { pilih: null, folder: '' });
         S.notif.buka = false;
@@ -3291,13 +3969,72 @@
       }
       case 'paket-hapus-baris': el.closest('[data-item], [data-tautan]').remove(); S.pkt.kotor = true; break;
       /* Komunikasi */
-      case 'kom-pilih':
-        S.kom.pilih = d.id;
-        if (t) tandaiDibaca(t);
+      case 'kom-saring':
+        S.kom.saring = d.nilai;
+        if (hp()) S.kom.pilih = null;
         render();
+        break;
+      case 'kom-buka':
+        if (S.modal) tutupModal();
+        bukaRuang(d.ruang, d.pesan || '');
         if (hp()) window.scrollTo(0, 0);
         break;
-      case 'kom-tutup': S.kom.pilih = null; render(); break;
+      case 'kom-tutup': Object.assign(S.kom, { pilih: null, balas: '', ubah: '' }); render(); break;
+      case 'kom-konteks': S.kom.konteks = !S.kom.konteks; simpan('kom_konteks', S.kom.konteks); render(); break;
+      case 'kom-proyek-semua': S.kom.proyekSemua = !S.kom.proyekSemua; $('#km-saring').innerHTML = saringKomHtml(); break;
+      case 'kom-pilih-proyek': bukaModal({ jenis: 'pilih-ruang' }, formPilihRuang()); break;
+      case 'kom-cepat': { const ta = $('#tulis-kom'); if (ta) sisipkan(ta, d.teks); break; }
+      case 'kom-tanya': S.kom.tanya = !S.kom.tanya; perbaruiTulis(); break;
+      case 'kom-batal': batalTulis(); break;
+      case 'sebut-pilih': pakaiSebutan(Number(d.i)); break;
+      case 'psn-balas':
+      case 'psn-ubah': {
+        const m = susunan().perId.get(d.id);
+        const form = el.closest('.km-psn') && el.closest('.km-pesan') ? $(`.km-tulis[data-wadah="${el.closest('.km-pesan').id.replace('pesan-', '')}"]`) : null;
+        if (!m || !form) break;
+        const ta = form.elements.teks;
+        if (d.aksi === 'psn-ubah') {
+          if (m.oleh !== S.me) break;
+          Object.assign(S.kom, { ubah: m.id, balas: '' });
+          ta.value = m.teks;
+        } else Object.assign(S.kom, { balas: m.id, ubah: '' });
+        perbaruiTulis();
+        tumbuhkan(ta);
+        ta.focus();
+        break;
+      }
+      case 'psn-reaksi': {
+        const m = susunan().perId.get(d.id);
+        if (!m || m.tertunda || m.gagal) break;
+        const sudah = (m.reaksi[d.kode] || []).includes(S.me);
+        kirimPeristiwa({ jenis: sudah ? 'lepas' : 'reaksi', ruang: m.ruang, oleh: S.me, target: m.id, kode: d.kode });
+        break;
+      }
+      case 'psn-hapus': {
+        const m = susunan().perId.get(d.id);
+        if (!m || m.oleh !== S.me || !confirm('Hapus pesan ini?\n\nSemua orang akan melihat "Pesan dihapus". Teks aslinya masih tersimpan di spreadsheet v2, hanya disembunyikan di aplikasi.')) break;
+        if (S.kom.ubah === m.id) batalTulis();
+        kirimPeristiwa({ jenis: 'hapus', ruang: m.ruang, oleh: S.me, target: m.id });
+        break;
+      }
+      case 'psn-beres': {
+        const m = susunan().perId.get(d.id);
+        if (m) kirimPeristiwa({ jenis: 'beres', ruang: m.ruang, oleh: S.me, target: m.id });
+        break;
+      }
+      case 'psn-ke': {
+        const kotak = el.closest('.km-pesan');
+        if (kotak) lompatKePesan(kotak.id.replace('pesan-', ''), d.id);
+        break;
+      }
+      case 'psn-ulang':
+      case 'psn-buang': {
+        const e2 = S.obr.peristiwa.find(x => x.id === d.id && x.gagal);
+        if (!e2) break;
+        S.obr.peristiwa.splice(S.obr.peristiwa.indexOf(e2), 1);
+        if (d.aksi === 'psn-ulang') kirimPeristiwa(e2.asli); else obrolanBerubah();
+        break;
+      }
       /* Link Saya */
       case 'folder-baru': bukaModal({ jenis: 'folder-baru' }, formFolderBaru()); break;
       case 'link-tambah': bukaModal({ jenis: 'link', id: '' }, formLink(null, d.folder || '')); break;
@@ -3399,9 +4136,6 @@
     } else if (el.dataset.aksi === 'keputusan') {
       const p = proyekDari(el.dataset.id);
       try { I.setKeputusan(S.data, p, el.value, S.me, Date.now()); selesaiUbah(el.value === 'Hold' ? 'Proyek ditahan.' : `Keputusan proyek: ${el.value}.`); } catch (err) { toast(err.message, true); render(); }
-    } else if (el.dataset.aksi === 'kom-baru') {
-      S.kom.baru = el.checked;
-      $('#hasil').innerHTML = hasilKomunikasi();
     } else if (el.closest('.form-elaborasi')) {
       if (el.name === 'item') {
         const baris = el.closest('.pilih-baris');
@@ -3424,6 +4158,7 @@
 
   document.addEventListener('submit', e => {
     const form = e.target;
+    if (form.dataset.form === 'pesan') { e.preventDefault(); kirimPesan(form); return; }
     if (form.id === 'form-kunci') {
       e.preventDefault();
       const tombol = $('#kunci-tombol');
@@ -3493,15 +4228,7 @@
     }
     const t = S.data.tasks.find(x => x.id === form.dataset.id);
     if (!t) return;
-    if (jenis === 'komentar') {
-      const teks = form.teks.value.trim();
-      if (!teks) return;
-      t.comments.push({ id: 'k' + waktu, author: S.me, text: teks, at: waktu });
-      I.catatLog(S.data, 'comment', `${t.id} · ${t.title}`, teks.slice(0, 120), S.me, waktu);
-      selesaiUbah();
-      const isian = $(`#kom-${CSS.escape(t.id)}`);
-      if (isian && S.view === 'komunikasi') isian.focus();
-    } else if (jenis === 'sub-tambah') {
+    if (jenis === 'sub-tambah') {
       const judul = form.judul.value.trim();
       if (!judul) return;
       t.subtasks.push({ id: 's' + waktu, title: judul, pic: form.pic.value || t.pic, due: '', done: false });
@@ -3514,6 +4241,13 @@
   document.addEventListener('input', e => {
     const el = e.target;
     if (el.id === 'palet-q') { S.palet.q = el.value; S.palet.pilih = 0; $('#palet-hasil').innerHTML = hasilPalet(); return; }
+    if (el.classList.contains('km-isian')) {
+      // Draf per ruang; teks yang sedang diubah bukan draf.
+      if (!S.kom.ubah) S.kom.draf[el.closest('form').dataset.ruang] = el.value;
+      tumbuhkan(el);
+      perbaruiSebutan(el);
+      return;
+    }
     if (['catatan-judul', 'catatan-isi', 'catatan-folder'].includes(el.id)) { catatanBerubah(); return; }
     if (el.closest('[data-form="paket"]')) { S.pkt.kotor = true; return; }
     const ruang = el.dataset.cari;
@@ -3542,6 +4276,21 @@
   document.addEventListener('keydown', e => {
     const tombol = String(e.key || '').toLowerCase();
     const aplikasi = !$('#app').hidden && !!S.data;
+    // Kotak tulis Komunikasi: Enter kirim, Shift+Enter baris baru; panah memilih @sebutan.
+    if (e.target.classList && e.target.classList.contains('km-isian')) {
+      const kotak = sebutAktif && $('#sebut-' + sebutAktif.wadah);
+      if (kotak && !kotak.hidden) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          sebutAktif.i = (sebutAktif.i + (e.key === 'ArrowDown' ? 1 : -1) + sebutAktif.calon.length) % sebutAktif.calon.length;
+          return gambarSebutan();
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); return pakaiSebutan(sebutAktif.i); }
+        if (e.key === 'Escape') { e.preventDefault(); return tutupSebutan(); }
+      }
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); return kirimPesan(e.target.form); }
+      if (e.key === 'Escape' && (S.kom.balas || S.kom.ubah || S.kom.tanya)) { e.preventDefault(); S.kom.tanya = false; return batalTulis(); }
+    }
     if ((e.ctrlKey || e.metaKey) && tombol === 'k' && aplikasi) {
       e.preventDefault();
       if (S.modal && S.modal.jenis === 'palet') tutupModal(); else bukaPalet();

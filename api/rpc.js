@@ -8,6 +8,8 @@
      POST /api/rpc  { action: 'status' }             akun, spreadsheet, kepemilikan
      POST /api/rpc  { action: 'siapkan' }            pasang penanda v2 di spreadsheet kosong
      POST /api/rpc  { action: 'muatContoh' }         data contoh untuk prototipe
+     POST /api/rpc  { action: 'muatObrolan', args: [sejak] }   pesan Komunikasi sejak waktu itu
+     POST /api/rpc  { action: 'kirimObrolan', args: [peristiwa] } satu pesan/ubah/hapus/reaksi/beres
 
    Balasan berbentuk { success, message, ... } seperti v1.
 
@@ -18,6 +20,11 @@
 
 const sesi = require('./_sesi');
 const sheet = require('./_sheets');
+// Aturan pesan yang sama dengan browser (public/inti.js), supaya isian diperiksa di dua sisi.
+const Inti = require('../public/inti.js');
+
+/* Isian dari browser yang tak masuk akal: 400, bukan 409 (yang khusus aturan kepemilikan). */
+class GalatIsian extends Error {}
 
 const lingkungan = () => process.env.VERCEL_ENV || 'lokal';
 const lewatHttps = req => req.headers['x-forwarded-proto'] === 'https' || !!process.env.VERCEL;
@@ -74,9 +81,21 @@ const AKSI = {
     const k = await sheet.klien();
     return await sheet.bacaContoh(k, sheet.idSpreadsheet());
   },
+  /* Komunikasi bersama (0.10.0): satu-satunya data yang ditulis aplikasi ke spreadsheet. */
+  async muatObrolan(sejak) {
+    const k = await sheet.klien();
+    return await sheet.bacaObrolan(k, sheet.idSpreadsheet(), sejak);
+  },
+  async kirimObrolan(peristiwa) {
+    let bersih;
+    try { bersih = Inti.periksaPeristiwa(peristiwa); } catch (err) { throw new GalatIsian(err.message); }
+    const k = await sheet.klien();
+    return { peristiwa: await sheet.tulisObrolan(k, sheet.idSpreadsheet(), bersih) };
+  },
 };
 
 function kodeUntuk(err) {
+  if (err instanceof GalatIsian) return 400;
   if (err instanceof sheet.GalatSetelan) return 503;
   if (err instanceof sheet.GalatDitolak) return 409;
   if (err && (err.response || err.config || err.status)) return 502;   // dari Google
@@ -132,6 +151,7 @@ module.exports = async (req, res) => {
     const kode = kodeUntuk(err);
     if (kode === 500 || kode === 502) console.error(`[rpc] aksi=${aksi}`, err);
     const akun = sheet.emailAkun();
-    return kirim(res, kode, { success: false, env: lingkungan(), akun, message: sheet.jelaskanGalat(err, akun) });
+    const message = err instanceof GalatIsian ? err.message : sheet.jelaskanGalat(err, akun);
+    return kirim(res, kode, { success: false, env: lingkungan(), akun, message });
   }
 };

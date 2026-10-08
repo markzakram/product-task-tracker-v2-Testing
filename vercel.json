@@ -1,4 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "functions": {
+    "api/rpc.js": { "includeFiles": "public/inti.js" }
+  }
 }
