@@ -256,6 +256,44 @@ supaya tab tetap kecil; gambar kosong berarti foto dihapus.
 Diuji di `test/rpc.test.js` (aturan foto, tab dibuat berjudul, baris ditimpa, hapus, tarikan
 bertahap, isian tak sah, sheet v1 ditolak, aman dari impor ulang).
 
+### Mode Dev
+
+Sejak 0.13.0, seperti v1: akun teknis untuk perawatan, **bukan anggota tim**. Dev tak bisa jadi
+PIC dan tak muncul di laporan, dashboard, atau @sebut; hak lihatnya setara Manager.
+
+- **Masuk.** Tekan-tahan logo ProductTrack sekitar 2 detik (di sidebar, layar PIN, atau pemilih
+  profil; di ponsel lewat Menu), atau buka `#/dev`, lalu isi **PIN Dev** (env `DEV_PIN`).
+  Dari layar PIN pun bisa: PIN Dev sekaligus membuka aplikasi. Sesudahnya kartu **Dev** muncul
+  di pemilih profil selama sesi Dev masih berlaku.
+- **Aman di server.** Status Dev ada di cookie sesi bertanda tangan, berlaku **12 jam**, dan batal
+  kalau `DEV_PIN` diganti; sesudahnya sesi tetap jalan sebagai sesi biasa. Tak ada PIN bawaan:
+  `DEV_PIN` kosong berarti mode Dev tertutup (v1 memakai 3108 kalau kosong). PIN Dev yang salah
+  diperlambat seperti PIN biasa.
+- **Panel Dev** (`#/dev`):
+  - **Sistem**: lingkungan, versi server dan browser (beda = muat ulang Ctrl+Shift+R), akun
+    service account, kepemilikan spreadsheet, data contoh, isi tiap tab, keadaan browser
+    (penyimpanan, pesan, foto), dan galat terakhir. Tombol periksa ulang, tarik ulang pesan &
+    foto, **Siapkan spreadsheet** (seperti Setup v1), dan **Salin laporan diagnosa**.
+  - **Pengguna**: tambah dan ubah orang (nama, nama panggilan untuk @sebut, jabatan, peran,
+    atasan atau tim yang dipimpin, aktif). Orang tak dihapus, hanya dinonaktifkan, supaya namanya
+    tetap terbaca di riwayat. Disimpan di tab `orang` spreadsheet v2 dan berlaku untuk semua orang
+    saat aplikasi dimuat. Organogram dijaga: satu Manager (Nynda) yang selalu aktif, paling banyak
+    satu Lead per tim (AK, LA, CO, SI; tim tanpa Lead sementara dipegang Manager), atasan staff
+    harus Lead atau Manager yang aktif, dan nama panggilan unik. Tab yang rusak karena diubah
+    manual diabaikan (kembali ke bawaan) dan alasannya tampil di sini.
+  - **Lihat sebagai**: layar persis milik orang itu, dengan spanduk kuning **Kembali jadi Dev**.
+    Tampilan saja: yang terlanjur diubah dibuang saat kembali, dan pesan, foto, serta perubahan
+    orang tidak dikirim.
+  - **Moderasi**: hapus pesan siapa pun (tampil "Pesan dihapus oleh Dev"; isi aslinya tetap di
+    tab `obrolan`) dan foto profil siapa pun. Di Komunikasi, Dev membaca dan memoderasi langsung
+    dari gelembung pesan, tapi tidak menulis.
+- **Keluar**: tombol **Keluar mode Dev** di Panel Dev atau kaki sidebar.
+
+Server: aksi `masukDev`, `keluarDev`, `sistem`, `simpanOrang`, dan peristiwa obrolan
+`moderasi`; tiga yang terakhir khusus sesi Dev (403 untuk sesi biasa). Aturannya di
+`public/inti.js` (`periksaOrang`, `aturOrang`, `salahOrganogram`), diuji di
+`test/orang.test.js`, `test/sesi.test.js`, dan `test/rpc.test.js`.
+
 ### Alamat, pencarian cepat, dan notifikasi
 
 - **Alamat per halaman.** Setiap halaman dan yang sedang terbuka punya alamat sendiri, mis.
@@ -367,6 +405,7 @@ git push -u origin main
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | seluruh isi berkas kunci v2, dalam satu baris |
 | `ACCESS_PIN` | PIN v2, jangan disamakan dengan PIN v1 |
 | `SESSION_SECRET` | hasil `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `DEV_PIN` | (opsional) PIN mode Dev, berbeda dari `ACCESS_PIN`. Kosong = mode Dev tertutup |
 
 Lalu Deploy. Env hanya berlaku untuk deploy baru, jadi setelah mengubahnya selalu **Redeploy**.
 

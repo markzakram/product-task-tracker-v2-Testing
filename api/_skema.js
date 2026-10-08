@@ -56,6 +56,11 @@ const OBROLAN = ['id', 'jenis', 'ruang', 'oleh', 'at', 'teks', 'target', 'kode',
 const TAB_FOTO = 'foto';
 const FOTO = ['orang', 'gambar', 'diperbarui'];
 
+/* Tab orang (kelola orang di mode Dev, 0.13.0), juga BUKAN data contoh. Satu baris per orang
+   yang diubah atau ditambah; organogram bawaan ada di public/inti.js (ORANG_BAWAAN). */
+const TAB_ORANG = 'orang';
+const ORANG_KOLOM = ['id', 'nama', 'pendek', 'peran', 'jabatan', 'lead', 'tim', 'aktif', 'diperbarui'];
+
 const DAFTAR = new Set(['support', 'deps']);
 const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
@@ -122,6 +127,14 @@ const fotoKeBaris = f => [String(f.orang || ''), String(f.gambar || ''), keSel('
 function fotoDariBaris(judul, baris) {
   const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
   return { orang: sel('orang'), gambar: sel('gambar'), diperbarui: dariSel('at', sel('diperbarui')) };
+}
+
+const orangKeBaris = o => ORANG_KOLOM.map(k => (k === 'aktif' ? (o.aktif === false ? 'tidak' : 'ya')
+  : k === 'diperbarui' ? keSel('at', o.diperbarui) : String(o[k] == null ? '' : o[k])));
+function orangDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  const o = Object.fromEntries(ORANG_KOLOM.map(k => [k, sel(k)]));
+  return { ...o, aktif: !/^(tidak|no|false|0)$/i.test(o.aktif.trim()), diperbarui: dariSel('at', o.diperbarui) };
 }
 
 /* Data aplikasi → baris per tab, judul kolom di baris pertama. */
@@ -191,6 +204,7 @@ function nomorTerbesar(daftar, awalan) {
 }
 
 module.exports = {
-  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO,
-  keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, urai, rakit, nomorTerbesar,
+  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM,
+  keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
+  urai, rakit, nomorTerbesar,
 };

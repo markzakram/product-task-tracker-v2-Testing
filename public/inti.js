@@ -38,13 +38,16 @@
   ];
   const PERAN = { manager: 'Manager', lead: 'Lead', staff: 'Staff' };
 
-  /* Organogram Divisi Produk (sama dengan PRD). */
-  const ORANG = [
-    { id: 'nynda', nama: 'Nynda Ramadhanti', pendek: 'Nynda', peran: 'manager', jabatan: 'Manager Produk', lead: null },
-    { id: 'ali', nama: 'Ali', pendek: 'Ali', peran: 'lead', jabatan: 'Data & Automation Engineer', lead: 'nynda' },
-    { id: 'andika', nama: 'Andika', pendek: 'Andika', peran: 'lead', jabatan: 'Riset & Akademik', lead: 'nynda' },
-    { id: 'alya', nama: 'Alya', pendek: 'Alya', peran: 'lead', jabatan: 'Learning Architecture', lead: 'nynda' },
-    { id: 'dhea', nama: 'Dhea', pendek: 'Dhea', peran: 'lead', jabatan: 'Content & Learning Operations', lead: 'nynda' },
+  /* Organogram Divisi Produk (sama dengan PRD). Sejak 0.13.0 mode Dev bisa mengubah dan
+     menambah orang: perubahannya disimpan di tab `orang` spreadsheet v2 dan diterapkan lewat
+     aturOrang (di browser dan di server). ORANG dan ORANG_PER_ID diubah di tempat, jadi semua
+     rujukan ke keduanya ikut berubah. tim = kode tim yang dipimpin (Lead dan Manager). */
+  const ORANG_BAWAAN = [
+    { id: 'nynda', nama: 'Nynda Ramadhanti', pendek: 'Nynda', peran: 'manager', jabatan: 'Manager Produk', lead: null, tim: 'MG' },
+    { id: 'ali', nama: 'Ali', pendek: 'Ali', peran: 'lead', jabatan: 'Data & Automation Engineer', lead: 'nynda', tim: 'SI' },
+    { id: 'andika', nama: 'Andika', pendek: 'Andika', peran: 'lead', jabatan: 'Riset & Akademik', lead: 'nynda', tim: 'AK' },
+    { id: 'alya', nama: 'Alya', pendek: 'Alya', peran: 'lead', jabatan: 'Learning Architecture', lead: 'nynda', tim: 'LA' },
+    { id: 'dhea', nama: 'Dhea', pendek: 'Dhea', peran: 'lead', jabatan: 'Content & Learning Operations', lead: 'nynda', tim: 'CO' },
     { id: 'uma', nama: 'Uma', pendek: 'Uma', peran: 'staff', jabatan: 'Akademik · Rumpun Uma', lead: 'andika' },
     { id: 'tri', nama: 'Tri', pendek: 'Tri', peran: 'staff', jabatan: 'Akademik · Rumpun Tri', lead: 'andika' },
     { id: 'wildan', nama: 'Wildan', pendek: 'Wildan', peran: 'staff', jabatan: 'Akademik · Rumpun Wildan', lead: 'andika' },
@@ -53,18 +56,28 @@
     { id: 'nadya', nama: 'Nadya', pendek: 'Nadya', peran: 'staff', jabatan: 'Guru', lead: 'dhea' },
     { id: 'bagas', nama: 'Bagas', pendek: 'Bagas', peran: 'staff', jabatan: 'Kreatif', lead: 'dhea' },
   ];
+  const ORANG = ORANG_BAWAAN.map(o => ({ ...o, aktif: true }));
   const ORANG_PER_ID = new Map(ORANG.map(o => [o.id, o]));
+  /* Orang yang dinonaktifkan mode Dev: tak bisa dipilih lagi, tapi namanya tetap terbaca di
+     riwayat, task, dan pesan lamanya. */
+  const NONAKTIF = new Map();
+
+  /* Mode Dev (0.13.0): akun teknis, bukan anggota organogram. Tak bisa jadi PIC dan tak muncul
+     di laporan, dashboard, atau @sebut; hak lihatnya setara Manager. */
+  const DEV = 'dev';
+  const ORANG_DEV = Object.freeze({ id: DEV, nama: 'Dev', pendek: 'Dev', peran: 'manager', jabatan: 'Mode Dev', lead: null, dev: true });
 
   /* Nama dari v1 yang tak ada di organogram (mis. Arifah) tetap tampil, sebagai
      staff tanpa tim. Tinjauannya jatuh ke Manager. */
   function orang(id) {
-    const o = ORANG_PER_ID.get(id);
+    if (id === DEV) return ORANG_DEV;
+    const o = ORANG_PER_ID.get(id) || NONAKTIF.get(id);
     if (o) return o;
     const nama = String(id || '').trim() || '—';
     return { id, nama, pendek: nama, peran: 'staff', jabatan: 'Di luar organogram', lead: null, luar: true };
   }
   const timDari = leadId => ORANG.filter(o => o.lead === leadId && o.peran === 'staff').map(o => o.id);
-  const inisial = id => orang(id).pendek.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase() || '?';
+  const inisial = id => (id === DEV ? 'DEV' : orang(id).pendek.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase() || '?');
 
   /* ---------- Tim & sub-stage (PRD v3, daftar resmi 7 Okt 2026) ---------- */
 
@@ -80,6 +93,108 @@
     const lead = o.peran === 'manager' ? o.id : o.peran === 'lead' ? o.id : o.lead;
     return Object.values(TIM).find(x => x.lead === lead) || null;
   };
+
+  /* ---------- Kelola orang (mode Dev, 0.13.0) ----------
+     Satu baris tab `orang` = satu orang lengkap (bawaan yang diubah, atau orang baru):
+     { id, nama, pendek, peran, jabatan, lead (atasan), tim (kode tim untuk Lead), aktif }.
+     Organogram harus tetap utuh: satu Manager (MANAGER, selalu aktif), paling banyak satu Lead
+     per tim, atasan staff adalah Lead atau Manager yang aktif, dan nama panggilan unik karena
+     dipakai untuk @sebut. Tim tanpa Lead sementara dipegang Manager. */
+  const PERAN_ORANG = ['staff', 'lead', 'manager'];
+  const TIM_LEAD = ['AK', 'LA', 'CO', 'SI'];
+  const POLA_ID_ORANG = /^[a-z][a-z0-9]{1,19}$/;
+  const POLA_PENDEK = /^[A-Za-z]{2,20}$/;
+  const PENDEK_TERLARANG = ['dev', 'manager', 'lead', 'leader', 'staff', 'semua'];
+  const ya = v => v === true || /^(ya|true|1|aktif)$/i.test(String(v == null ? '' : v).trim());
+
+  /* Bentuk bersih satu baris; ketat = untuk isian mode Dev (galat bila tak sah), longgar = untuk
+     baris yang dibaca dari tab (yang tak sah dilewati supaya aplikasi tetap jalan). */
+  function bersihOrang(b, ketat) {
+    const x = b && typeof b === 'object' ? b : {};
+    const salah = pesan => { if (ketat) throw new Error(pesan); return null; };
+    const id = String(x.id || '').trim().toLowerCase();
+    if (!POLA_ID_ORANG.test(id) || id === DEV) return salah('ID orang tidak sah (huruf kecil dan angka, 2–20 karakter).');
+    const nama = String(x.nama == null ? '' : x.nama).replace(/\s+/g, ' ').trim();
+    if (nama.length < 2 || nama.length > 60) return salah('Nama lengkap wajib diisi (2–60 karakter).');
+    const pendek = String(x.pendek == null ? '' : x.pendek).trim();
+    if (!POLA_PENDEK.test(pendek)) return salah('Nama panggilan hanya huruf, 2–20 karakter, tanpa spasi (dipakai untuk @sebut).');
+    if (PENDEK_TERLARANG.includes(pendek.toLowerCase())) return salah(`Nama panggilan "${pendek}" sudah dipakai sistem untuk @sebut peran.`);
+    const peran = String(x.peran || '');
+    if (!PERAN_ORANG.includes(peran)) return salah('Peran harus Staff, Lead, atau Manager.');
+    const jabatan = String(x.jabatan == null ? '' : x.jabatan).replace(/\s+/g, ' ').trim();
+    if (jabatan.length > 80) return salah('Jabatan paling panjang 80 karakter.');
+    const tim = peran === 'manager' ? 'MG' : peran === 'lead' ? String(x.tim || '').toUpperCase() : '';
+    if (peran === 'lead' && !TIM_LEAD.includes(tim)) return salah('Lead harus memegang salah satu tim: AK, LA, CO, atau SI.');
+    const lead = peran === 'manager' ? null : peran === 'lead' ? MANAGER : String(x.lead || '').trim().toLowerCase();
+    if (peran === 'staff' && !lead) return salah('Pilih atasan untuk staff.');
+    return { id, nama, pendek, peran, jabatan, lead, ...(tim ? { tim } : {}), aktif: x.aktif === undefined || x.aktif === null || x.aktif === '' ? true : ya(x.aktif) };
+  }
+
+  /* Bawaan + baris tab orang (yang sama id-nya menimpa) → daftar lengkap, urut bawaan dulu. */
+  function susunOrang(baris) {
+    const per = new Map(ORANG_BAWAAN.map(o => [o.id, { ...o, aktif: true }]));
+    for (const b of baris || []) {
+      const x = bersihOrang(b, false);
+      if (x) per.set(x.id, x);
+    }
+    return [...per.values()];
+  }
+
+  /* '' kalau organogram utuh; kalau tidak, kalimat yang menjelaskan apa yang harus dibetulkan. */
+  function salahOrganogram(daftar) {
+    const aktif = daftar.filter(o => o.aktif);
+    const per = new Map(aktif.map(o => [o.id, o]));
+    const m = per.get(MANAGER);
+    if (!m || m.peran !== 'manager') return 'Manager (Nynda) harus tetap aktif dan berperan Manager; tinjauan jatuh kepadanya.';
+    const lain = aktif.find(o => o.peran === 'manager' && o.id !== MANAGER);
+    if (lain) return `Hanya ada satu Manager. Jadikan ${lain.pendek} Lead atau Staff.`;
+    for (const kode of TIM_LEAD) {
+      const lead = aktif.filter(o => o.peran === 'lead' && o.tim === kode);
+      if (lead.length > 1) return `Tim ${kode} punya ${lead.length} Lead (${lead.map(o => o.pendek).join(', ')}). Satu tim satu Lead: ubah dulu salah satunya.`;
+    }
+    for (const o of aktif) {
+      if (o.peran !== 'staff') continue;
+      const atasan = per.get(o.lead);
+      if (atasan && atasan.peran !== 'staff') continue;
+      const dulu = daftar.find(x => x.id === o.lead);
+      return `Atasan ${o.pendek} harus Lead atau Manager yang aktif.${dulu ? ` ${dulu.pendek} ${dulu.aktif ? 'kini Staff' : 'nonaktif'}: pindahkan dulu staff-nya ke atasan lain.` : ''}`;
+    }
+    const pendek = new Map();
+    for (const o of aktif) {
+      const k = o.pendek.toLowerCase();
+      if (pendek.has(k)) return `Nama panggilan "${o.pendek}" dipakai ${pendek.get(k)} dan ${o.nama}. Nama panggilan harus unik karena dipakai untuk @sebut.`;
+      pendek.set(k, o.nama);
+    }
+    return '';
+  }
+
+  /* Isian mode Dev → baris bersih; galat kalau baris itu atau organogram hasilnya tak sah. */
+  function periksaOrang(b, barisLain = []) {
+    const x = bersihOrang(b, true);
+    const salah = salahOrganogram(susunOrang([...(barisLain || []).filter(r => r && String(r.id).toLowerCase() !== x.id), x]));
+    if (salah) throw new Error(salah);
+    return x;
+  }
+
+  /* Terapkan baris tab orang ke daftar hidup (di tempat) dan Lead tiap tim. Organogram yang
+     rusak (mis. tab diubah manual) tak diterapkan: kembali ke bawaan, dan alasannya dikembalikan. */
+  function aturOrang(baris) {
+    const daftar = susunOrang(baris);
+    const salah = salahOrganogram(daftar);
+    const pakai = salah ? susunOrang([]) : daftar;
+    ORANG.length = 0;
+    ORANG_PER_ID.clear();
+    NONAKTIF.clear();
+    for (const o of pakai) {
+      if (o.aktif) { ORANG.push(o); ORANG_PER_ID.set(o.id, o); } else NONAKTIF.set(o.id, o);
+    }
+    for (const kode of TIM_LEAD) {
+      const l = ORANG.find(o => o.peran === 'lead' && o.tim === kode);
+      TIM[kode].lead = l ? l.id : MANAGER;
+    }
+    return salah;
+  }
+  const nonaktif = () => [...NONAKTIF.values()];
 
   /* Kode → tahap ADDIE. DV = Development (id 'V'); R = jalur rutin, di luar ADDIE. */
   const tahapDariKode = kode => (/^DV/.test(kode) ? 'V' : /^[ADIE]/.test(kode) ? kode[0] : /^R/.test(kode) ? 'R' : '');
@@ -835,7 +950,8 @@
      tak sah — mis. mengubah pesan orang lain — diabaikan. Ruang: task:PRD-… (utas per task),
      proyek:PRJ-…, tim:AK. Komentar lama di data contoh ikut tampil di ruang task-nya. */
 
-  const JENIS_PERISTIWA = ['pesan', 'ubah', 'hapus', 'reaksi', 'lepas', 'beres'];
+  /* moderasi = pesan siapa pun disembunyikan mode Dev (0.13.0); server hanya menerimanya dari sesi Dev. */
+  const JENIS_PERISTIWA = ['pesan', 'ubah', 'hapus', 'reaksi', 'lepas', 'beres', 'moderasi'];
   const REAKSI = [
     { kode: 'jempol', simbol: '👍', nama: 'Oke' },
     { kode: 'centang', simbol: '✅', nama: 'Sudah' },
@@ -880,8 +996,9 @@
   function periksaFoto(f) {
     const x = f && typeof f === 'object' ? f : {};
     const orang = String(x.orang || '');
-    if (!ORANG_PER_ID.has(orang)) throw new Error('Profil tidak dikenal.');
     const gambar = x.gambar == null ? '' : String(x.gambar);
+    // Foto orang yang dinonaktifkan masih boleh dihapus (moderasi mode Dev), tak boleh diganti.
+    if (!ORANG_PER_ID.has(orang) && !(gambar === '' && NONAKTIF.has(orang))) throw new Error('Profil tidak dikenal.');
     if (gambar.length > FOTO_MAKS) throw new Error('Foto terlalu besar. Pilih foto lain atau perbesar potongannya.');
     if (gambar && !POLA_FOTO.test(gambar)) throw new Error('Format foto tidak dikenal. Pakai JPG, PNG, atau WebP.');
     return { orang, gambar };
@@ -894,7 +1011,9 @@
     const ruang = String(x.ruang || '');
     if (!POLA_RUANG.test(ruang)) throw new Error('Ruang obrolan tidak dikenal.');
     const oleh = String(x.oleh || '');
-    if (!ORANG_PER_ID.has(oleh)) throw new Error('Pengirim harus profil yang terdaftar.');
+    if (jenis === 'moderasi' ? oleh !== DEV : !ORANG_PER_ID.has(oleh)) {
+      throw new Error(jenis === 'moderasi' ? 'Moderasi hanya dari mode Dev.' : 'Pengirim harus profil yang terdaftar.');
+    }
     const isi = String(x.teks == null ? '' : x.teks).replace(/\r\n?/g, '\n').replace(/\s+$/, '');
     if (isi.length > BATAS_PESAN) throw new Error(`Pesan terlalu panjang (maks. ${BATAS_PESAN} karakter).`);
     const target = String(x.target || '');
@@ -928,7 +1047,7 @@
       if (!perRuang.has(m.ruang)) perRuang.set(m.ruang, []);
       perRuang.get(m.ruang).push(m);
     };
-    const kosong = { balas: '', diubah: 0, dihapus: false, beres: null, judul: '', tertunda: false, gagal: false };
+    const kosong = { balas: '', diubah: 0, dihapus: false, dimoderasi: false, beres: null, judul: '', tertunda: false, gagal: false };
     for (const t of data.tasks) {
       for (const k of t.comments || []) {
         masuk({ ...kosong, id: String(k.id), ruang: ruangTask(t.id), oleh: k.author, at: Number(k.at) || 0, teks: String(k.text || ''), tanya: [], reaksi: {}, bersama: false });
@@ -947,6 +1066,7 @@
       if (!m || m.ruang !== e.ruang) continue;
       if (e.jenis === 'ubah' && m.oleh === e.oleh && !m.dihapus) Object.assign(m, { teks: e.teks, diubah: e.at });
       else if (e.jenis === 'hapus' && m.oleh === e.oleh) Object.assign(m, { teks: '', dihapus: true, reaksi: {} });
+      else if (e.jenis === 'moderasi' && e.oleh === DEV) Object.assign(m, { teks: '', dihapus: true, dimoderasi: true, reaksi: {} });
       else if ((e.jenis === 'reaksi' || e.jenis === 'lepas') && !m.dihapus) {
         const siapa = new Set(m.reaksi[e.kode] || []);
         if (e.jenis === 'reaksi') siapa.add(e.oleh); else siapa.delete(e.oleh);
@@ -1666,6 +1786,7 @@
 
   return {
     MANAGER, KAPASITAS, STATUS, TAHAP, PERAN, ORANG,
+    ORANG_BAWAAN, DEV, PERAN_ORANG, TIM_LEAD, susunOrang, salahOrganogram, periksaOrang, aturOrang, nonaktif,
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
     selesai, aktif, indeks, depsBelum, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,

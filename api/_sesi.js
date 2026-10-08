@@ -21,19 +21,23 @@ const crypto = require('crypto');
 
 const NAMA_COOKIE = 'sesi';
 const UMUR_HARI = 30;
+/* Mode Dev (0.13.0) berumur pendek: sesudahnya sesi tetap jalan sebagai sesi biasa. */
+const UMUR_DEV_JAM = 12;
 const PANJANG_RAHASIA_MIN = 32;
 
 function setelan() {
   return {
     pin: String(process.env.ACCESS_PIN || '').trim(),
     rahasia: String(process.env.SESSION_SECRET || '').trim(),
+    /* Tanpa nilai bawaan (v1 memakai 3108 kalau kosong): DEV_PIN kosong = mode Dev tertutup. */
+    pinDev: String(process.env.DEV_PIN || '').trim(),
   };
 }
 
 /* Untuk pemeriksaan kesehatan: ada atau tidak, tanpa nilainya. */
 function setelanAda() {
-  const { pin, rahasia } = setelan();
-  return { pin: !!pin, rahasiaSesi: rahasia.length >= PANJANG_RAHASIA_MIN };
+  const { pin, rahasia, pinDev } = setelan();
+  return { pin: !!pin, rahasiaSesi: rahasia.length >= PANJANG_RAHASIA_MIN, pinDev: !!pinDev };
 }
 
 /* Apa yang belum lengkap, ditulis sebagai langkah yang bisa langsung dikerjakan.
@@ -58,35 +62,58 @@ function tandai(isi, s) {
 
 /* Dibandingkan lewat hash berpanjang tetap supaya timingSafeEqual bisa dipakai
    tanpa membocorkan panjang PIN. Spasi di tepi diabaikan, seperti ACCESS_PIN-nya. */
-function cocokPin(masukan) {
-  const { pin } = setelan();
+function samaPin(masukan, pin) {
   if (!pin || masukan === undefined || masukan === null) return false;
   const a = crypto.createHash('sha256').update(String(masukan).trim()).digest();
   const b = crypto.createHash('sha256').update(pin).digest();
   return crypto.timingSafeEqual(a, b);
 }
+const cocokPin = masukan => samaPin(masukan, setelan().pin);
+const cocokPinDev = masukan => samaPin(masukan, setelan().pinDev);
 
-function terbitkan(sekarang = Date.now()) {
-  const s = setelan();
-  const isi = Buffer.from(JSON.stringify({ exp: sekarang + UMUR_HARI * 864e5 })).toString('base64url');
-  return isi + '.' + tandai(isi, s).toString('base64url');
+/* Sidik DEV_PIN di dalam sesi: mengganti DEV_PIN di Vercel membatalkan semua sesi Dev lama
+   (sesinya sendiri tetap jalan sebagai sesi biasa). Bukan PIN maupun hash PIN-nya. */
+function sidikDev({ rahasia, pinDev }) {
+  return crypto.createHmac('sha256', rahasia).update('dev-v2|' + pinDev).digest('base64url').slice(0, 22);
 }
 
-function sah(token, sekarang = Date.now()) {
+/* dev = true: sesi mode Dev, berlaku UMUR_DEV_JAM jam. */
+function terbitkan(sekarang = Date.now(), { dev = false } = {}) {
   const s = setelan();
-  if (kurangnya().length) return false;
+  const isi = { exp: sekarang + UMUR_HARI * 864e5 };
+  if (dev && s.pinDev) Object.assign(isi, { dev: sidikDev(s), devExp: sekarang + UMUR_DEV_JAM * 36e5 });
+  const teks = Buffer.from(JSON.stringify(isi)).toString('base64url');
+  return teks + '.' + tandai(teks, s).toString('base64url');
+}
+
+/* Isi sesi yang tanda tangannya sah dan belum kedaluwarsa, atau null. */
+function isiSesi(token, sekarang = Date.now()) {
+  const s = setelan();
+  if (kurangnya().length) return null;
   const bagian = String(token || '').split('.');
-  if (bagian.length !== 2 || !bagian[0] || !bagian[1]) return false;
+  if (bagian.length !== 2 || !bagian[0] || !bagian[1]) return null;
   const [isi, tanda] = bagian;
   const harus = tandai(isi, s);
   const dapat = Buffer.from(tanda, 'base64url');
-  if (dapat.length !== harus.length || !crypto.timingSafeEqual(dapat, harus)) return false;
+  if (dapat.length !== harus.length || !crypto.timingSafeEqual(dapat, harus)) return null;
   try {
     const o = JSON.parse(Buffer.from(isi, 'base64url').toString('utf8'));
-    return typeof o.exp === 'number' && o.exp > sekarang;
+    return typeof o.exp === 'number' && o.exp > sekarang ? o : null;
   } catch (e) {
-    return false;
+    return null;
   }
+}
+const sah = (token, sekarang = Date.now()) => !!isiSesi(token, sekarang);
+
+/* Sesi Dev: sah, belum lewat UMUR_DEV_JAM, dan DEV_PIN-nya masih yang sama. */
+function dev(token, sekarang = Date.now()) {
+  const o = isiSesi(token, sekarang);
+  const s = setelan();
+  return !!(o && s.pinDev && o.dev === sidikDev(s) && typeof o.devExp === 'number' && o.devExp > sekarang);
+}
+/* Kapan mode Dev sesi ini berakhir (ms), atau 0. */
+function akhirDev(token, sekarang = Date.now()) {
+  return dev(token, sekarang) ? isiSesi(token, sekarang).devExp : 0;
 }
 
 function bacaCookie(req, nama = NAMA_COOKIE) {
@@ -111,6 +138,6 @@ function cookieKeluar(aman) {
 }
 
 module.exports = {
-  NAMA_COOKIE, UMUR_HARI, PANJANG_RAHASIA_MIN,
-  setelanAda, kurangnya, cocokPin, terbitkan, sah, bacaCookie, cookieMasuk, cookieKeluar,
+  NAMA_COOKIE, UMUR_HARI, UMUR_DEV_JAM, PANJANG_RAHASIA_MIN,
+  setelanAda, kurangnya, cocokPin, cocokPinDev, terbitkan, isiSesi, sah, dev, akhirDev, bacaCookie, cookieMasuk, cookieKeluar,
 };

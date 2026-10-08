@@ -16,8 +16,8 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO,
-  dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, rakit, nomorTerbesar,
+  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM,
+  dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris, rakit, nomorTerbesar,
 } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
@@ -350,9 +350,12 @@ async function bacaContoh(k, id) {
     throw new GalatDitolak(`Tab data contoh tidak lengkap (tak ada: ${wajibKurang.join(', ')}). Jalankan ulang npm run impor:v1.`);
   }
   const nama = semua.filter(n => keadaan.tab.includes(n));
-  const r = await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges: nama.map(n => rentang(n, 'A:Z')) }));
+  const adaOrang = keadaan.tab.includes(TAB_ORANG);
+  const ranges = [...nama.map(n => rentang(n, 'A:Z')), ...(adaOrang ? [rentang(TAB_ORANG, 'A:I')] : [])];
+  const r = await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges }));
   const tabs = Object.fromEntries(kurang.map(n => [n, []]));
-  (r.data.valueRanges || []).forEach((vr, i) => {
+  const hasil = r.data.valueRanges || [];
+  hasil.slice(0, nama.length).forEach((vr, i) => {
     const [judul = [], ...isi] = vr.values || [];
     tabs[nama[i]] = isi.filter(b => b.some(sel => String(sel).trim())).map(b => dariBaris(nama[i], judul, b));
   });
@@ -361,6 +364,7 @@ async function bacaContoh(k, id) {
     versi: keadaan.contoh.versi,
     sumber: keadaan.contoh.sumber,
     data,
+    orang: adaOrang ? barisOrangDari((hasil[nama.length] || {}).values) : [],
     seq: {
       task: nomorTerbesar(data.tasks, 'PRD'),
       prj: nomorTerbesar(data.projects, 'PRJ'),
@@ -535,6 +539,75 @@ async function tulisFoto(k, id, f) {
   return baris;
 }
 
+/* ---------- Orang (kelola orang di mode Dev, 0.13.0) ---------------------
+   Tab `orang`: satu baris per orang yang diubah atau ditambah mode Dev (organogram bawaan ada
+   di public/inti.js). Seperti foto, baris orang yang sama ditimpa. Server juga memakainya untuk
+   memeriksa pengirim pesan dan pemilik foto, jadi bacaannya disimpan sebentar (1 menit). */
+function barisOrangDari(nilai) {
+  const [judul = [], ...isi] = nilai || [];
+  return isi.filter(b => b.some(sel => String(sel).trim())).map(b => orangDariBaris(judul, b)).filter(o => o.id);
+}
+const UMUR_ORANG = 60 * 1000;
+let orangHangat = null;
+async function bacaOrang(k, id, { segar = false } = {}) {
+  const h = orangHangat;
+  if (!segar && h && h.k === k && h.id === id && Date.now() - h.waktu < UMUR_ORANG) return h.isi;
+  await pastikanV2(k, id);
+  let nilai = [];
+  try {
+    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(TAB_ORANG, 'A:I') }));
+    nilai = r.data.values || [];
+  } catch (err) {
+    if (!tabBelumAda(err)) throw err;
+  }
+  const isi = barisOrangDari(nilai);
+  orangHangat = { k, id, waktu: Date.now(), isi };
+  return isi;
+}
+
+/* o sudah dibersihkan Inti.periksaOrang. Mengembalikan semua baris sesudah ditulis. */
+async function tulisOrang(k, id, o) {
+  await pastikanV2(k, id);
+  const baris = { ...o, diperbarui: Date.now() };
+  let nilai;
+  try {
+    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(TAB_ORANG, 'A:I') }));
+    nilai = r.data.values || [];
+  } catch (err) {
+    if (!tabBelumAda(err)) throw err;
+    await buatTabAplikasi(k, id, TAB_ORANG, ORANG_KOLOM, 100);
+    nilai = [ORANG_KOLOM];
+  }
+  const judul = nilai[0] || ORANG_KOLOM;
+  let n = -1;
+  nilai.forEach((b, i) => { if (i > 0 && orangDariBaris(judul, b).id === o.id) n = i; });
+  if (n > 0) {
+    await panggil(() => k.api.spreadsheets.values.update({
+      spreadsheetId: id, range: rentang(TAB_ORANG, `A${n + 1}:I${n + 1}`), valueInputOption: 'RAW',
+      requestBody: { values: [orangKeBaris(baris)] },
+    }), { tulis: true });
+  } else {
+    await panggil(() => k.api.spreadsheets.values.append({
+      spreadsheetId: id, range: rentang(TAB_ORANG, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [orangKeBaris(baris)] },
+    }), { tulis: true });
+  }
+  orangHangat = null;
+  return bacaOrang(k, id, { segar: true });
+}
+
+/* Panel Sistem mode Dev: isi tiap tab (baris berisi, tanpa judul), dalam satu batchGet. */
+async function hitungTab(k, id) {
+  const keadaan = await bacaKeadaan(k, id);
+  if (!keadaan.tab.length) return [];
+  const r = await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges: keadaan.tab.map(n => rentang(n, 'A:A')) }));
+  return keadaan.tab.map((nama, i) => {
+    const nilai = ((r.data.valueRanges || [])[i] || {}).values || [];
+    const isi = nilai.filter(b => b.some(sel => String(sel).trim())).length;
+    return { nama, baris: nama === PENANDA.tab ? isi : Math.max(0, isi - 1) };
+  });
+}
+
 /* ---------- Pesan galat ------------------------------------------------
    Kegagalan pertama hampir selalu salah satu dari lima ini, dan pesan mentah Google
    tak menyebut langkah perbaikannya. */
@@ -563,5 +636,6 @@ module.exports = {
   PENANDA, GalatSetelan, GalatDitolak,
   setelanAda, idSpreadsheet, kredensial, emailAkun, klien,
   panggil, kenaKuota, gangguanSesaat,
-  periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto, jelaskanGalat,
+  periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto,
+  bacaOrang, tulisOrang, hitungTab, jelaskanGalat,
 };

@@ -1,5 +1,30 @@
 # Changelog — ProductTrack v2
 
+## 0.13.0 — Mode Dev (2026-10-08)
+
+- **Mode Dev seperti v1.** Tekan-tahan logo ProductTrack ±2 detik (atau buka `#/dev`), lalu isi
+  **PIN Dev** (env baru `DEV_PIN`). Bisa juga langsung dari layar PIN. Dev adalah akun teknis,
+  bukan anggota tim: tak jadi PIC, tak ada di laporan, dashboard, atau @sebut; hak lihatnya
+  setara Manager. Tanda **MODE DEV** tampil di kepala.
+  - Sesi Dev dijaga server: cookie bertanda tangan, berlaku **12 jam**, batal kalau `DEV_PIN`
+    diganti. Tanpa PIN bawaan: `DEV_PIN` kosong = mode Dev tertutup.
+- **Panel Dev** dengan tiga bagian:
+  - **Sistem**: diagnosa server, spreadsheet (isi tiap tab), versi server vs browser, keadaan
+    browser, dan galat terakhir; tombol Siapkan spreadsheet, tarik ulang pesan & foto, dan salin
+    laporan diagnosa.
+  - **Pengguna**: tambah, ubah, dan nonaktifkan orang (nama, nama panggilan, jabatan, peran,
+    atasan atau tim). Disimpan di tab baru `orang` spreadsheet v2 dan berlaku untuk semua orang;
+    organogram dijaga tetap utuh (satu Manager, satu Lead per tim, atasan aktif, nama panggilan
+    unik). Ganti jabatan tak perlu lewat kode lagi.
+  - **Lihat sebagai**: pratinjau layar siapa pun dengan spanduk kuning "Kembali jadi Dev";
+    tampilan saja, tak ada yang disimpan atau dikirim.
+  - **Moderasi**: hapus pesan siapa pun ("Pesan dihapus oleh Dev") dan foto profil siapa pun.
+    Di Komunikasi, Dev memoderasi langsung dari gelembung pesan dan tidak menulis pesan.
+- Data contoh kini membawa baris tab `orang` (dalam bacaan yang sama), jadi organogram terkini
+  berlaku sebelum layar pertama. Server memakai organogram yang sama untuk memeriksa pengirim
+  pesan dan pemilik foto.
+- **Perlu disetel:** tambahkan `DEV_PIN` di Vercel (Production dan Preview), lalu Redeploy.
+
 ## 0.12.2 — Jabatan Ali (2026-10-08)
 
 - Jabatan Ali kini **Data & Automation Engineer** (sebelumnya Sistem & Analisis). Tampil di

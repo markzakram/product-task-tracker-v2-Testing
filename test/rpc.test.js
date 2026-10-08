@@ -45,7 +45,7 @@ test.beforeEach(() => {
   process.env.SESSION_SECRET = RAHASIA;
   process.env.SPREADSHEET_ID = ID;
   // Env dari shell pengembang atau CI tidak boleh mengubah hasil tes.
-  for (const k of ['GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_APPLICATION_CREDENTIALS', 'VERCEL', 'VERCEL_ENV']) delete process.env[k];
+  for (const k of ['GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_APPLICATION_CREDENTIALS', 'VERCEL', 'VERCEL_ENV', 'DEV_PIN']) delete process.env[k];
   sheet.klien = klienAsli;
 });
 
@@ -55,7 +55,7 @@ test('GET melaporkan setelan apa saja yang ada, tanpa satu pun nilainya', async 
   assert.equal(r.json.ok, true);
   assert.equal(r.json.app, 'producttrack-v2');
   assert.equal(r.json.env, 'lokal');
-  assert.deepEqual(r.json.setelan, { spreadsheet: true, kredensial: false, pin: true, rahasiaSesi: true });
+  assert.deepEqual(r.json.setelan, { spreadsheet: true, kredensial: false, pin: true, rahasiaSesi: true, pinDev: false });
   for (const rahasia of [PIN, RAHASIA, ID]) assert.ok(!r.teks.includes(rahasia));
   assert.equal(r.headers['cache-control'], 'no-store');
 });
@@ -348,4 +348,113 @@ test('foto: impor ulang data contoh tidak menghapus tab foto', async () => {
   assert.equal(p.tab('foto').values.length, 2, 'judul + satu foto tetap ada');
   const r = await panggil({ body: { action: 'muatFoto', args: [0] }, cookie });
   assert.deepEqual(r.json.foto.map(f => f.orang), ['alya']);
+});
+
+
+/* ---------- Mode Dev (0.13.0) ---------- */
+
+const PIN_DEV = '908172';
+async function masukDev() {
+  const r = await panggil({ body: { action: 'masukDev', args: [PIN_DEV] } });
+  assert.equal(r.status, 200, r.teks);
+  return r.headers['set-cookie'].split(';')[0];
+}
+const sheetV2 = () => sheetPalsu([{ title: '_meta', sheetId: 1, values: [['app', 'producttrack-v2']] }], { email: EMAIL });
+
+test('mode Dev: tanpa DEV_PIN tertutup; PIN salah 401; PIN benar memberi sesi Dev yang terbaca di tiap balasan', async () => {
+  const p = sheetV2();
+  sheet.klien = async () => p.k;
+  const tutup = await panggil({ body: { action: 'masukDev', args: ['3108'] } });
+  assert.equal(tutup.status, 403);
+  assert.equal(tutup.json.kode, 'DEV_MATI');
+  assert.ok(!tutup.headers['set-cookie']);
+  process.env.DEV_PIN = PIN_DEV;
+  const salah = await panggil({ body: { action: 'masukDev', args: [PIN] } });
+  assert.equal(salah.status, 401);
+  assert.equal(salah.json.kode, 'PIN_DEV');
+  const biasa = await masuk();
+  assert.equal((await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie: biasa })).json.dev, false);
+  const dev = await masukDev();
+  const r = await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie: dev });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.dev, true);
+  const keluar = await panggil({ body: { action: 'keluarDev' }, cookie: dev });
+  assert.equal(keluar.json.dev, false);
+  const lagi = keluar.headers['set-cookie'].split(';')[0];
+  assert.equal((await panggil({ body: { action: 'muatObrolan', args: [0] }, cookie: lagi })).json.dev, false, 'kembali ke sesi biasa, tetap masuk');
+});
+
+test('mode Dev: aksi khusus Dev 403 untuk sesi biasa, tanpa tulisan apa pun', async () => {
+  process.env.DEV_PIN = PIN_DEV;
+  const p = sheetV2();
+  sheet.klien = async () => p.k;
+  const biasa = await masuk();
+  for (const [action, args] of [
+    ['sistem', []],
+    ['simpanOrang', [{ id: 'rina', nama: 'Rina', pendek: 'Rina', peran: 'staff', lead: 'alya' }]],
+    ['kirimObrolan', [{ jenis: 'moderasi', ruang: 'task:PRD-1', oleh: 'kiki', target: 'o1abc' }]],
+  ]) {
+    const r = await panggil({ body: { action, args }, cookie: biasa });
+    assert.equal(r.status, 403, action);
+    assert.match(r.json.message, /mode Dev/);
+  }
+  assert.equal(p.tulisan.length, 0);
+});
+
+test('mode Dev: sistem melaporkan akun, kepemilikan, isi tiap tab, dan versi', async () => {
+  process.env.DEV_PIN = PIN_DEV;
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  await sheet.siapkan(p.k, ID);
+  const dev = await masukDev();
+  await panggil({ body: { action: 'kirimObrolan', args: [{ jenis: 'pesan', ruang: 'tim:LA', oleh: 'alya', teks: 'Halo' }] }, cookie: dev });
+  const r = await panggil({ body: { action: 'sistem' }, cookie: dev });
+  assert.equal(r.status, 200, r.teks);
+  assert.equal(r.json.akun, EMAIL);
+  assert.equal(r.json.spreadsheet.kepemilikan, 'v2');
+  assert.equal(r.json.versi, require('../package.json').version);
+  assert.ok(r.json.devSampai > Date.now());
+  assert.deepEqual(r.json.tab.find(t => t.nama === 'obrolan'), { nama: 'obrolan', baris: 1 });
+  for (const rahasia of [PIN, PIN_DEV, RAHASIA]) assert.ok(!r.teks.includes(rahasia));
+});
+
+test('mode Dev: kelola orang — tersimpan di tab orang, ikut data contoh, dan langsung berlaku di server', async () => {
+  const I = require('../public/inti');
+  process.env.DEV_PIN = PIN_DEV;
+  const { urai } = require('../api/_skema');
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  const isi = { projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], log: [] };
+  await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji' });
+  const dev = await masukDev();
+  try {
+    const buruk = await panggil({ body: { action: 'simpanOrang', args: [{ id: 'rina', nama: 'Rina', pendek: 'Kiki', peran: 'staff', lead: 'alya' }] }, cookie: dev });
+    assert.equal(buruk.status, 400);
+    assert.match(buruk.json.message, /unik/);
+    const r = await panggil({ body: { action: 'simpanOrang', args: [{ id: 'rina', nama: 'Rina Putri', pendek: 'Rina', peran: 'staff', lead: 'alya', jabatan: 'Magang' }] }, cookie: dev });
+    assert.equal(r.status, 200, r.teks);
+    assert.deepEqual(p.tab('orang').values[0], ['id', 'nama', 'pendek', 'peran', 'jabatan', 'lead', 'tim', 'aktif', 'diperbarui']);
+    assert.deepEqual(r.json.orang.map(o => [o.id, o.pendek, o.aktif]), [['rina', 'Rina', true]]);
+    // Ganti jabatan: baris yang sama ditimpa.
+    await panggil({ body: { action: 'simpanOrang', args: [{ id: 'rina', nama: 'Rina Putri', pendek: 'Rina', peran: 'staff', lead: 'kiki', jabatan: 'QC' }] }, cookie: dev })
+      .then(x => assert.equal(x.status, 400, 'atasan harus Lead/Manager'));
+    await panggil({ body: { action: 'simpanOrang', args: [{ id: 'rina', nama: 'Rina Putri', pendek: 'Rina', peran: 'staff', lead: 'dhea', jabatan: 'QC' }] }, cookie: dev });
+    assert.equal(p.tab('orang').values.length, 2, 'judul + satu orang');
+    // Orang baru sah sebagai pengirim pesan dan pemilik foto (sesi biasa pun).
+    const biasa = await masuk();
+    const kirim = await panggil({ body: { action: 'kirimObrolan', args: [{ jenis: 'pesan', ruang: 'tim:CO', oleh: 'rina', teks: 'Halo tim' }] }, cookie: biasa });
+    assert.equal(kirim.status, 200, kirim.teks);
+    // Moderasi dari Dev selalu atas nama Dev, apa pun kiriman browser.
+    const mod = await panggil({ body: { action: 'kirimObrolan', args: [{ jenis: 'moderasi', ruang: 'tim:CO', oleh: 'kiki', target: kirim.json.peristiwa.id }] }, cookie: dev });
+    assert.equal(mod.status, 200, mod.teks);
+    assert.equal(mod.json.peristiwa.oleh, I.DEV);
+    // Data contoh membawa baris orang, supaya browser menerapkannya sebelum layar pertama.
+    const contoh = await panggil({ body: { action: 'muatContoh' }, cookie: biasa });
+    assert.deepEqual(contoh.json.orang.map(o => [o.id, o.lead, o.jabatan]), [['rina', 'dhea', 'QC']]);
+    // Impor ulang data contoh tidak menyentuh tab orang.
+    await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji lagi' });
+    assert.equal(p.tab('orang').values.length, 2);
+  } finally {
+    I.aturOrang([]);
+  }
 });

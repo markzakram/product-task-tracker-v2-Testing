@@ -104,3 +104,40 @@ test('cookie masuk: HttpOnly dan SameSite=Strict selalu, Secure hanya lewat HTTP
   assert.doesNotMatch(lokal, /Secure/);
   assert.match(sesi.cookieKeluar(true), /Max-Age=0/);
 });
+
+
+/* ---------- Mode Dev (0.13.0) ---------- */
+
+test('mode Dev: tanpa DEV_PIN tertutup — tak ada PIN, termasuk kosong, yang cocok', () => {
+  delete process.env.DEV_PIN;
+  assert.equal(sesi.setelanAda().pinDev, false);
+  for (const coba of ['', '3108', PIN, null]) assert.equal(sesi.cocokPinDev(coba), false, String(coba));
+  assert.equal(sesi.dev(sesi.terbitkan(Date.now(), { dev: true })), false, 'tanpa DEV_PIN tak ada sesi Dev');
+});
+
+test('mode Dev: sesi Dev berlaku 12 jam, lalu tetap sah sebagai sesi biasa; PIN Dev bukan PIN biasa', () => {
+  process.env.DEV_PIN = '908172';
+  assert.equal(sesi.cocokPinDev(' 908172 '), true);
+  assert.equal(sesi.cocokPin('908172'), false, 'PIN Dev tak membuka sebagai PIN bersama');
+  assert.equal(sesi.cocokPinDev(PIN), false);
+  const t0 = Date.parse('2026-10-08T08:00:00Z');
+  const token = sesi.terbitkan(t0, { dev: true });
+  assert.equal(sesi.dev(token, t0 + 1000), true);
+  assert.equal(sesi.akhirDev(token, t0), t0 + sesi.UMUR_DEV_JAM * 36e5);
+  assert.equal(sesi.dev(token, t0 + 13 * 36e5), false, 'sesudah 12 jam bukan Dev lagi');
+  assert.equal(sesi.sah(token, t0 + 13 * 36e5), true, 'tapi sesinya tetap sah');
+  assert.equal(sesi.dev(sesi.terbitkan(t0), t0 + 1000), false, 'sesi biasa bukan Dev');
+  delete process.env.DEV_PIN;
+});
+
+test('mode Dev: mengganti DEV_PIN membatalkan sesi Dev lama, sesi biasanya tetap jalan', () => {
+  process.env.DEV_PIN = '111222';
+  const token = sesi.terbitkan(Date.now(), { dev: true });
+  assert.equal(sesi.dev(token), true);
+  process.env.DEV_PIN = '333444';
+  assert.equal(sesi.dev(token), false);
+  assert.equal(sesi.sah(token), true);
+  const isi = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString('utf8'));
+  assert.ok(!JSON.stringify(isi).includes('111222'), 'PIN Dev tak tertulis di cookie');
+  delete process.env.DEV_PIN;
+});

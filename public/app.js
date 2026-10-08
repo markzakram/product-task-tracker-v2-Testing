@@ -61,6 +61,7 @@
     { grup: 'Ruang Saya', id: 'catatan', judul: 'Catatan Saya', ikon: 'catatan' },
     { grup: 'Manajer', id: 'riwayat', judul: 'Riwayat Aktivitas', ikon: 'riwayat', peran: ['manager'] },
     { grup: 'Bantuan', id: 'panduan', judul: 'Panduan', ikon: 'buku' },
+    { grup: 'Dev', id: 'dev', judul: 'Panel Dev', ikon: 'kode', dev: true },
   ];
   const NAV_BAWAH = ['hari', 'task', 'proyek', 'komunikasi'];
   /* Tampilan halaman Task. Sampai 0.7.0 masing-masing menjadi halaman sendiri di sidebar. */
@@ -85,9 +86,11 @@
   }
   function halamanBoleh(id) {
     const h = HALAMAN.find(x => x.id === id);
-    return !!h && (!h.peran || h.peran.includes(I.orang(S.me).peran));
+    if (!h) return false;
+    if (h.dev) return modeDev();
+    return !h.peran || h.peran.includes(I.orang(S.me).peran);
   }
-  const halamanAwal = () => (I.orang(S.me).peran === 'manager' ? 'proyek' : 'hari');
+  const halamanAwal = () => (S.me === I.DEV ? 'dev' : I.orang(S.me).peran === 'manager' ? 'proyek' : 'hari');
   /* Saringan task bersama semua tampilan Task (PRD: per tahap, sub-stage, tim, rumpun). */
   const SARING_KOSONG = { jalur: '', tahap: '', sub: '', tim: '', rumpun: '', platform: '' };
   /* Preferensi Task tersimpan. lk 2 = lingkup per peran (0.9.0); lingkup tersimpan sebelum itu
@@ -142,6 +145,10 @@
     navBuka: false,
     modal: null,
     seret: null,
+    /* Mode Dev (0.13.0): dev = sesi Dev dari server; devSampai = kapan berakhir; pratinjau =
+       sedang "Lihat sebagai" (S.me sementara orang itu); orangBaris = baris tab orang dari
+       server (organogram terkini), orangSalah = alasan tab itu diabaikan. */
+    dev: false, devSampai: 0, devSistem: null, devTab: 'sistem', pratinjau: null, orangBaris: [], orangSalah: '',
   };
   {
     const KE_TAMPILAN = { kanban: 'kanban', daftar: 'daftar', timeline: 'timeline', kalender: 'kalender' };
@@ -150,7 +157,8 @@
     if (!ID_TAMPILAN.includes(S.task.tampilan)) S.task.tampilan = 'daftar';
   }
 
-  function simpanData() { simpan('data', { versi: S.versi, dimuat: S.dimuat, data: S.data }); }
+  /* Selama "Lihat sebagai" (mode Dev) tak ada yang disimpan: perubahannya dibuang saat kembali. */
+  function simpanData() { if (!S.pratinjau) simpan('data', { versi: S.versi, dimuat: S.dimuat, data: S.data }); }
   function simpanPref(ruang) {
     if (ruang === 'task') { const { q, hal, saringBuka, ...sisa } = S.task; simpan('task', { ...sisa, lk: 2 }); }
     if (ruang === 'pnd') simpan('pnd_tab', S.pnd.tab);
@@ -253,6 +261,7 @@
     mata: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
     bintang: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
     semat: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+    kode: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
     kamera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
     kurang: '<path d="M5 12h14"/>',
     lainnya: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
@@ -267,6 +276,7 @@
 
   const WARNA = ['#0068B4', '#004F94', '#003078', '#0E7490', '#3D4654', '#7A3E9D', '#067647', '#8A4B00', '#B42318', '#9F1239', '#5B6470', '#00214F'];
   function warnaOrang(id) {
+    if (id === I.DEV) return '#1C2430';
     let h = 0;
     for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
     return WARNA[h % WARNA.length];
@@ -522,6 +532,10 @@
 
   /* batasMs: tanpa batas waktu, layar "Memuat data…" menunggu selamanya kalau server tak menjawab. */
   async function api(action, args = [], batasMs = 30000) {
+    // "Lihat sebagai" hanya tampilan: tak ada pesan, foto, atau perubahan orang yang terkirim.
+    if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang'].includes(action)) {
+      return { http: 0, success: false, message: 'Mode Lihat sebagai: tampilan saja, tidak ada yang dikirim. Kembali jadi Dev dulu.' };
+    }
     const henti = new AbortController();
     const jam = setTimeout(() => henti.abort(), batasMs);
     const habis = `Server tidak menjawab dalam ${Math.round(batasMs / 1000)} detik. Coba lagi sebentar lagi.`;
@@ -529,6 +543,8 @@
       const r = await fetch('/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, args }), signal: henti.signal });
       const d = await r.json().catch(() => null);
       if (!d) return { http: r.status, success: false, message: henti.signal.aborted ? habis : `Balasan server tak terbaca (HTTP ${r.status}).` };
+      // Sesi Dev lewat 12 jam (atau DEV_PIN diganti): server tak lagi menganggapnya Dev.
+      if (S.dev && (d.dev === false || r.status === 403) && !['keluarDev', 'masukDev'].includes(action)) setTimeout(devBerakhir, 0);
       return { http: r.status, ...d };
     } catch (e) {
       return { http: 0, success: false, message: henti.signal.aborted ? habis : 'Server tak terjangkau. Periksa koneksi, lalu muat ulang halaman.' };
@@ -603,15 +619,39 @@
       <div class="pilih-profil">${I.ORANG.filter(o => o.peran === peran).map(o => `
         <button type="button" data-aksi="pilih-profil" data-id="${o.id}">${avatar(o.id, 'besar')}<span>${esc(o.nama)}<span>${esc(o.jabatan)}</span></span></button>`).join('')}
       </div>`).join('');
+    const kartuDev = S.dev ? `<p class="subjudul">Mode Dev</p>
+      <div class="pilih-profil"><button type="button" data-aksi="pilih-profil" data-id="${I.DEV}">${avatar(I.DEV, 'besar')}<span>Dev<span>Akun teknis${S.devSampai ? ' · sampai ' + esc(jamDev()) : ''}</span></span></button></div>` : '';
     $('#profil').innerHTML = `<div class="kartu-layar lebar">
       <span class="merek">${LOGO}ProductTrack</span>
       <div><h1 style="margin:0;font-size:22px;color:var(--navy)">Masuk sebagai siapa?</h1>
       <p class="pesan-info" style="margin-top:6px">PIN dipakai bersama, jadi pilih profil Anda sendiri. Tampilan menyesuaikan peran: Staff dan Lead mulai di Hari Ini, Manager di Proyek.</p></div>
-      ${kelompok}
+      ${kartuDev}${kelompok}
     </div>`;
     $('#kunci').hidden = true;
     $('#app').hidden = true;
     $('#profil').hidden = false;
+  }
+
+  /* Berganti profil (pilih profil, akun Dev, Lihat sebagai): keadaan milik profil sebelumnya tak
+     boleh terbawa — draf dan balasan pesan, catatan yang terbuka, saringan, lingkup.
+     ingat = false untuk "Lihat sebagai": profil yang tersimpan di browser tetap Dev. */
+  function gantiIdentitas(id, { ingat = true } = {}) {
+    simpanCatatanTertunda();
+    S.me = id;
+    if (ingat) simpan('me', S.me);
+    S.view = halamanAwal();
+    S.pilih = null;
+    S.proyek = null;
+    Object.assign(S.task, { lingkup: I.lingkupAwal(S.me), fokus: '' });
+    S.dash.lingkup = '';
+    S.kom.lingkup = 'terlibat';
+    simpanPref('task');
+    // Draf dan balasan milik profil sebelumnya tak ikut terkirim atas nama profil baru.
+    Object.assign(S.kom, { pilih: null, balas: '', ubah: '', tanya: false, draf: {}, saring: 'semua', batasBaru: null });
+    Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
+    Object.assign(S.ctt, { pilih: null, mode: 'sunting', warna: '', folderBaru: '', versiSesi: '' });
+    S.lnk.penuh = new Set();
+    S.notif.buka = false;
   }
 
   /* Alamat yang dibuka orang (mis. tautan task yang dikirim lewat chat) dipakai sekali,
@@ -637,13 +677,25 @@
   async function muat(reset = false) {
     tampilKunci(reset ? 'Mengembalikan data contoh…' : 'Memuat data…', true);
     const h = await api('muatContoh', [], 45000);
-    if (h.http === 401) return tampilKunci('Masukkan PIN untuk melanjutkan.', false);
+    if (h.http === 401) {
+      tampilKunci('Masukkan PIN untuk melanjutkan.', false);
+      // #/dev dari layar PIN: langsung tawarkan PIN Dev.
+      if (/^#\/?dev\b/.test(location.hash)) bukaMasukDev();
+      return;
+    }
     if (!h.success) {
       const pesan = h.message || `Gagal memuat data (HTTP ${h.http}).`;
       return tampilKunci(h.kode === 'SETELAN' || !h.http ? pesan : `PIN diterima, tetapi data gagal dimuat. ${pesan}`, true, true);
     }
     let pesan = '';
+    const mintaDev = /^#\/?dev\b/.test(alamatAwal || location.hash);
     try {
+      // Organogram terkini (tab orang, diubah mode Dev) diterapkan sebelum layar pertama.
+      S.dev = !!h.dev;
+      S.devSampai = Number(h.devSampai) || 0;
+      S.orangBaris = Array.isArray(h.orang) ? h.orang : [];
+      S.orangSalah = I.aturOrang(S.orangBaris);
+      if (S.orangSalah) catatGalat('Tab orang diabaikan: ' + S.orangSalah, 'organogram');
       const lokal = ambil('data', null);
       if (h.data && lokal && lokal.versi === h.versi && lokal.data) {
         S.data = rapikan(lokal.data);
@@ -662,8 +714,10 @@
       S.versi = h.versi || '';
       S.sumber = h.sumber || '';
       simpanData();
-      if (!S.me || !I.ORANG.some(o => o.id === S.me)) tampilProfil();
+      if (S.me === I.DEV && !S.dev) S.me = null;
+      if (!S.me || !(S.me === I.DEV || I.ORANG.some(o => o.id === S.me))) tampilProfil();
       else masukApp();
+      if (mintaDev && !modeDev()) bukaMasukDev();
     } catch (e) {
       return galatMuat(e);
     }
@@ -677,6 +731,7 @@
      layar "Memuat data…" selamanya. Data lokal yang rusak bisa dikosongkan dari sini. */
   function galatMuat(e) {
     console.error(e);
+    catatGalat(e && e.message ? e.message : e, 'memuat');
     tampilKunci(`Aplikasi gagal disiapkan di browser ini (${e && e.message ? e.message : e}). Muat ulang halaman dengan Ctrl+Shift+R; kalau masih gagal, kirim pesan ini ke tim.`, true, true);
     $('#kunci-reset').hidden = false;
   }
@@ -754,11 +809,14 @@
     if (!S.data || $('#app').hidden) return;
     tutupModal(false);
     S.notif.buka = false;
+    const mintaDev = /^#\/?dev\b/.test(location.hash);
     const r = terapkanAlamat(location.hash);
     if (!r.ok) S.view = halamanAwal();
     alamatGanti = true;
     render();
     bukaEditorDariAlamat();
+    // #/dev tanpa sesi Dev: tawarkan PIN Dev, jangan diam-diam ke beranda.
+    if (mintaDev && !modeDev()) bukaMasukDev();
     if (r.ditolak) toast(r.ditolak, true);
     else if (r.hilang) toast(`${r.hilang} tidak ada di data browser ini.`, true);
   });
@@ -793,10 +851,11 @@
       }).join('')}</nav>
       <div class="samping-kaki">
         <div class="kotak-profil">
-          <div class="kotak-profil-atas"><button type="button" class="ganti-foto" data-aksi="foto-profil" title="Ganti foto profil" aria-label="Ganti foto profil">${avatar(S.me, 'besar')}<span class="ganti-foto-tanda">${ikon('kamera', 12)}</span></button><span><strong>${esc(o.nama)}</strong><small>${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}</small></span></div>
+          <div class="kotak-profil-atas">${S.me === I.DEV ? avatar(S.me, 'besar') : `<button type="button" class="ganti-foto" data-aksi="foto-profil" title="Ganti foto profil" aria-label="Ganti foto profil">${avatar(S.me, 'besar')}<span class="ganti-foto-tanda">${ikon('kamera', 12)}</span></button>`}<span><strong>${esc(o.nama)}</strong><small>${S.me === I.DEV ? `Akun teknis${S.devSampai ? ` · sampai ${esc(jamDev())}` : ''}` : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
           <div class="kotak-profil-aksi">
             <button type="button" class="tombol kecil" data-aksi="ganti-profil">${ikon('orang', 16)} Ganti profil</button>
-            <button type="button" class="ikon-tombol" data-aksi="keluar" title="Keluar" aria-label="Keluar">${ikon('keluar')}</button>
+            ${S.me === I.DEV ? `<button type="button" class="ikon-tombol" data-aksi="dev-keluar" title="Keluar mode Dev" aria-label="Keluar mode Dev">${ikon('keluar')}</button>`
+    : `<button type="button" class="ikon-tombol" data-aksi="keluar" title="Keluar" aria-label="Keluar">${ikon('keluar')}</button>`}
           </div>
         </div>
         <div class="kotak-data">
@@ -815,6 +874,7 @@
     $('#kepala').innerHTML = `<div class="kepala-dalam">
       <button type="button" class="ikon-tombol nav-buka" data-aksi="buka-nav" aria-label="Buka menu" aria-expanded="${S.navBuka}">${ikon('menu', 22)}</button>
       <p class="kepala-judul">${esc(h ? h.judul : 'ProductTrack')}</p>
+      ${S.dev && (S.me === I.DEV || S.pratinjau) ? `<button type="button" class="chip-dev" data-aksi="${S.pratinjau ? 'pratinjau-akhiri' : 'ke'}" data-view="dev" title="${S.pratinjau ? 'Kembali jadi Dev' : 'Panel Dev'}">${ikon('kode', 14)} MODE DEV</button>` : ''}
       <button type="button" class="cari" data-aksi="palet">${ikon('cari', 16)}<span>Cari task, proyek, paket, atau halaman…</span><kbd>${PINTASAN}</kbd></button>
       <button type="button" class="ikon-tombol cari-hp" data-aksi="palet" aria-label="Cari atau lompat">${ikon('cari', 20)}</button>
       <div class="notif">
@@ -822,7 +882,7 @@
         ${S.notif.buka ? panelNotif() : ''}
       </div>
       ${I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama tombol-tambah" data-aksi="tambah-task">${ikon('tambah', 16)} Tambah task</button>` : ''}
-    </div>`;
+    </div>${spandukPratinjau()}`;
   }
 
   function renderNavBawah(lencana) {
@@ -839,6 +899,7 @@
     hari: () => viewHari(), dashboard: () => viewDashboard(), laporan: () => viewLaporan(), task: () => viewTask(),
     proyek: () => viewProyek(), paket: () => viewPaket(), komunikasi: () => viewKomunikasi(),
     link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(), panduan: () => viewPanduan(),
+    dev: () => viewDev(),
   };
   /* Bagian halaman yang digambar ulang saat orang mengetik di kotak cari halaman,
      supaya kotaknya tidak kehilangan fokus. */
@@ -2251,6 +2312,8 @@
      dengan pilihan kirim ulang; reaksi, ubah, hapus, dan beres yang gagal dibatalkan. */
   let urutSementara = 0;
   async function kirimPeristiwa(e) {
+    // Lihat sebagai (mode Dev): tak ada pesan, reaksi, atau tanda yang dikirim atas nama orang itu.
+    if (S.pratinjau) return toast('Mode Lihat sebagai: tampilan saja, pesan tidak dikirim.', true);
     const sementara = { ...e, id: `tmp${++urutSementara}x${Date.now().toString(36)}`, at: Date.now(), tertunda: true, asli: e };
     S.obr.peristiwa.push(sementara);
     obrolanBerubah();
@@ -2621,7 +2684,7 @@
     const lokal = !m.bersama && m.at > (S.dimuat || 0);
     const kepala = sambung ? '' : `<div class="km-psn-kepala"><strong>${saya ? 'Anda' : esc(I.orang(m.oleh).nama)}</strong>
         <small>${esc(fmtJam(m.at))}${m.diubah ? ' · diubah' : ''}${lokal ? ' · hanya di browser ini' : ''}</small></div>`;
-    const isi = m.dihapus ? '<i class="km-dihapus">Pesan dihapus</i>' : `<div class="km-teks">${formatPesan(m.teks)}</div>`;
+    const isi = m.dihapus ? `<i class="km-dihapus">${m.dimoderasi ? 'Pesan dihapus oleh Dev' : 'Pesan dihapus'}</i>` : `<div class="km-teks">${formatPesan(m.teks)}</div>`;
     const status = m.tertunda ? '<div class="km-status">Mengirim…</div>'
       : m.gagal ? `<div class="km-status gagal">Belum terkirim. <button type="button" class="tautan-kecil" data-aksi="psn-ulang" data-id="${esc(m.id)}">Kirim ulang</button> · <button type="button" class="tautan-kecil" data-aksi="psn-buang" data-id="${esc(m.id)}">Buang</button></div>` : '';
     return `<div class="km-psn ${saya ? 'saya' : ''} ${sambung ? 'sambung' : ''} ${kena ? 'kena' : ''}" id="psn-${wadah}-${esc(m.id)}">
@@ -2663,6 +2726,11 @@
   }
 
   function alatPesan(m, saya) {
+    if (modeDev()) {
+      return `<div class="km-alat-psn" role="group" aria-label="Moderasi pesan">
+        <button type="button" class="km-alat-tombol bahaya" data-aksi="psn-moderasi" data-id="${esc(m.id)}" title="Hapus untuk semua orang (moderasi)" aria-label="Hapus pesan ini (moderasi)">${ikon('hapus', 16)}</button>
+      </div>`;
+    }
     return `<div class="km-alat-psn" role="group" aria-label="Aksi pesan">
         ${I.REAKSI.map(r => `<button type="button" class="km-alat-tombol" data-aksi="psn-reaksi" data-id="${esc(m.id)}" data-kode="${r.kode}" title="${esc(r.nama)}" aria-label="Reaksi: ${esc(r.nama)}">${r.simbol}</button>`).join('')}
         <button type="button" class="km-alat-tombol" data-aksi="psn-balas" data-id="${esc(m.id)}" title="Balas" aria-label="Balas pesan ini">${ikon('balas', 16)}</button>
@@ -2712,6 +2780,9 @@
   /* ----- Menulis ----- */
 
   function penulis(ruang, wadah) {
+    if (S.me === I.DEV) {
+      return `<div class="km-tulis km-tulis-dev">${ikon('kode', 16)}<span>Mode Dev membaca dan memoderasi, tidak menulis pesan. Untuk ikut berdiskusi, pilih profil Anda sendiri.</span></div>`;
+    }
     const k = S.kom;
     const ubah = k.ubah ? susunan().perId.get(k.ubah) : null;
     const draf = ubah && ubah.ruang === ruang ? ubah.teks : k.draf[ruang] || '';
@@ -3837,6 +3908,369 @@
   }, { passive: false });
 
 
+  /* ---------- Mode Dev (0.13.0) ----------
+     Seperti v1: tekan-tahan logo ProductTrack (±2 detik) atau buka #/dev, lalu isi PIN Dev
+     (env DEV_PIN di Vercel; kosong = mode Dev tertutup). Sesinya dijaga server: cookie bertanda
+     tangan yang berlaku 12 jam dan batal kalau DEV_PIN diganti. Dev adalah akun teknis (I.DEV):
+     hak lihatnya setara Manager, tapi bukan anggota organogram. Alatnya di halaman Panel Dev:
+     Sistem (diagnosa), Pengguna (kelola orang, Lihat sebagai), dan Moderasi. */
+
+  const modeDev = () => S.dev && S.me === I.DEV;
+  const jamDev = () => (S.devSampai ? new Date(S.devSampai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '');
+
+  /* Galat di browser ini (paling baru 20), untuk tab Sistem dan laporan diagnosa. */
+  const GALAT = [];
+  function catatGalat(pesan, sumber = '') {
+    GALAT.unshift({ at: Date.now(), pesan: String(pesan || 'Galat tanpa pesan').slice(0, 300), sumber: String(sumber || '').slice(0, 120) });
+    if (GALAT.length > 20) GALAT.length = 20;
+  }
+  window.addEventListener('error', e => catatGalat(e.message, e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno}` : ''));
+  window.addEventListener('unhandledrejection', e => catatGalat(e.reason && e.reason.message ? e.reason.message : e.reason, 'promise'));
+
+  /* ----- Masuk: tekan-tahan logo (di sidebar, layar PIN, atau pemilih profil) ----- */
+  let tahanLogo = null, tahanAwal = null;
+  let logoDitahan = false;   // klik yang menyusul tekan-tahan tak ikut menjalankan logo (ke beranda)
+  document.addEventListener('pointerdown', e => {
+    const logo = e.target.closest && e.target.closest('.merek');
+    if (!logo || e.button > 0) return;
+    clearTimeout(tahanLogo);
+    logoDitahan = false;
+    tahanAwal = { x: e.clientX, y: e.clientY };
+    logo.classList.add('ditahan');
+    tahanLogo = setTimeout(() => {
+      tahanLogo = null;
+      logoDitahan = true;
+      logo.classList.remove('ditahan');
+      bukaMasukDev();
+    }, 1800);
+  });
+  function lepasLogo() {
+    if (tahanLogo) { clearTimeout(tahanLogo); tahanLogo = null; }
+    $$('.merek.ditahan').forEach(x => x.classList.remove('ditahan'));
+  }
+  document.addEventListener('pointerup', lepasLogo);
+  document.addEventListener('pointercancel', lepasLogo);
+  document.addEventListener('pointermove', e => {
+    if (tahanLogo && tahanAwal && Math.hypot(e.clientX - tahanAwal.x, e.clientY - tahanAwal.y) > 12) lepasLogo();
+  });
+  // Tekan lama di ponsel memunculkan menu bawaan; di logo itu bukan yang dimaksud.
+  document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.merek')) e.preventDefault(); });
+
+  function bukaMasukDev() {
+    if (modeDev()) return toast('Sudah dalam mode Dev.');
+    if (S.dev && S.data) return jadiDev();   // sesi masih Dev (mis. sesudah Ganti profil): tak perlu PIN lagi
+    bukaModal({ jenis: 'masuk-dev', atas: true }, `<form class="form-dev" data-form="masuk-dev" novalidate>
+        <h2 class="judul-ikon">${ikon('kode', 20)} Mode Dev</h2>
+        <p class="hint">Untuk perawatan aplikasi: diagnosa, kelola orang, Lihat sebagai, dan moderasi. Sesi Dev berlaku 12 jam.</p>
+        <label class="isian">PIN Dev<input id="pin-dev" type="password" inputmode="numeric" autocomplete="off" maxlength="64" required></label>
+        ${kakiModal('Masuk')}
+      </form>`);
+  }
+  async function kirimMasukDev(form) {
+    const tombol = form.querySelector('.tombol.utama');
+    tombol.disabled = true;
+    const h = await api('masukDev', [$('#pin-dev').value]);
+    tombol.disabled = false;
+    if (!h.success) {
+      const isian = $('#pin-dev');
+      if (isian) { isian.value = ''; isian.focus(); }
+      return galatModal(h.message || 'PIN Dev salah.');
+    }
+    S.dev = true;
+    S.devSampai = Number(h.devSampai) || 0;
+    tutupModal();
+    // Dari layar PIN (data belum dimuat): muat dulu, langsung sebagai Dev di Panel Dev.
+    if (!S.data) {
+      S.me = I.DEV;
+      simpan('me', I.DEV);
+      alamatAwal = '#/dev';
+      return muat();
+    }
+    jadiDev();
+  }
+  function jadiDev() {
+    if (S.pratinjau) akhiriPratinjau(false);
+    gantiIdentitas(I.DEV);
+    masukApp();
+    toast(`Mode Dev aktif${S.devSampai ? ' sampai ' + jamDev() : ''}.`);
+  }
+  async function keluarDev() {
+    const h = await api('keluarDev');
+    if (!h.success) return toast(h.message || 'Gagal keluar dari mode Dev.', true);
+    devSelesai();
+    tampilProfil();
+    toast('Keluar dari mode Dev. Pilih profil Anda.');
+  }
+  /* Sesi bukan Dev lagi (keluar, atau lewat 12 jam): akun Dev tak bisa dipakai. */
+  function devSelesai() {
+    Object.assign(S, { dev: false, devSampai: 0, devSistem: null });
+    if (S.pratinjau) akhiriPratinjau(false);
+    if (S.me === I.DEV) { S.me = null; hapus('me'); }
+  }
+  function devBerakhir() {
+    const tadinya = S.me === I.DEV || !!S.pratinjau;
+    devSelesai();
+    if (tadinya && S.data) {
+      tampilProfil();
+      toast('Sesi Dev berakhir (12 jam). Masuk lagi lewat tekan-tahan logo.', true);
+    }
+  }
+
+  /* ----- Lihat sebagai: layar persis milik orang itu, tanpa keluar dari mode Dev. Tampilan
+     saja: yang terlanjur diubah tak disimpan (dibuang saat kembali), dan pesan, foto, serta
+     perubahan orang tidak dikirim. ----- */
+  function mulaiPratinjau(id) {
+    if (!modeDev() || !I.ORANG.some(o => o.id === id)) return;
+    if (S.modal) tutupModal();
+    S.pratinjau = { orang: id };
+    gantiIdentitas(id, { ingat: false });
+    masukApp();
+    toast(`Melihat sebagai ${I.orang(id).pendek}. Tampilan saja: perubahan tidak disimpan.`);
+  }
+  function akhiriPratinjau(kembali = true) {
+    if (!S.pratinjau) return;
+    S.pratinjau = null;
+    S.obr.peristiwa = S.obr.peristiwa.filter(e => !e.tertunda && !e.gagal);
+    const lokal = ambil('data', null);
+    if (lokal && lokal.data) { S.data = rapikan(lokal.data); I.segarkanTahap(S.data); }
+    gantiIdentitas(I.DEV, { ingat: false });
+    if (!kembali) return;
+    S.devTab = 'pengguna';
+    masukApp();
+    toast('Kembali jadi Dev.');
+  }
+  const spandukPratinjau = () => (S.pratinjau ? `<div class="spanduk-pratinjau" role="status">${ikon('mata', 18)}
+      <span>Melihat sebagai <b>${esc(I.orang(S.me).nama)}</b> · ${esc(I.PERAN[I.orang(S.me).peran])} — tampilan saja; perubahan tidak disimpan dan tak ada yang dikirim.</span>
+      <button type="button" class="tombol kecil" data-aksi="pratinjau-akhiri">Kembali jadi Dev</button></div>` : '');
+
+  /* ----- Panel Dev ----- */
+  const TAB_DEV = [['sistem', 'Sistem', 'jendela'], ['pengguna', 'Pengguna', 'orang'], ['moderasi', 'Moderasi', 'obrolan']];
+  function viewDev() {
+    const tab = TAB_DEV.some(([id]) => id === S.devTab) ? S.devTab : 'sistem';
+    return `<div class="judul-halaman"><div><h1>Panel Dev</h1><p>Mode Dev aktif${S.devSampai ? ' sampai ' + esc(jamDev()) : ''} · akun teknis untuk perawatan, bukan anggota tim</p></div>
+        <button type="button" class="tombol" data-aksi="dev-keluar">${ikon('keluar', 16)} Keluar mode Dev</button></div>
+      <div class="segmen dev-tab" role="group" aria-label="Bagian Panel Dev">${TAB_DEV.map(([id, l, ik]) => `<button type="button" data-aksi="dev-tab" data-nilai="${id}" aria-pressed="${tab === id}">${ikon(ik, 16)}<span>${l}</span></button>`).join('')}</div>
+      <div id="dev-isi">${isiTabDev(tab)}</div>`;
+  }
+  const isiTabDev = (tab = S.devTab) => ({ pengguna: devPengguna, moderasi: devModerasi }[tab] || devSistem)();
+  function segarkanDev() {
+    const el = $('#dev-isi');
+    if (el && S.view === 'dev') el.innerHTML = isiTabDev();
+  }
+
+  /* --- Sistem --- */
+  async function tarikSistem() {
+    S.devSistem = { memuat: true };
+    const h = await api('sistem');
+    S.devSistem = h.success ? { isi: h, waktu: Date.now() } : { galat: h.message || 'Gagal memeriksa server.' };
+    if (h.success && h.devSampai) S.devSampai = h.devSampai;
+    segarkanDev();
+  }
+  function devSistem() {
+    const st = S.devSistem;
+    if (!st) setTimeout(tarikSistem, 0);
+    const server = !st || st.memuat ? '<p class="hint">Memeriksa server…</p>'
+      : st.galat ? `<p class="pesan-galat">${esc(st.galat)}</p>` : kartuServer(st.isi);
+    return `<div class="dev-grid">
+        <section class="kartu-polos dev-kartu"><h2 class="judul-ikon">${ikon('jendela', 18)} Server & spreadsheet</h2>${server}</section>
+        <section class="kartu-polos dev-kartu"><h2 class="judul-ikon">${ikon('lapis', 18)} Browser ini</h2>${kartuBrowser()}</section>
+        <section class="kartu-polos dev-kartu dev-lebar"><h2 class="judul-ikon">${ikon('info', 18)} Galat terakhir di browser ini</h2>${daftarGalat()}</section>
+      </div>
+      <div class="dev-aksi">
+        <button type="button" class="tombol" data-aksi="dev-sistem-segarkan">${ikon('ulang', 16)} Periksa ulang</button>
+        <button type="button" class="tombol" data-aksi="dev-tarik-ulang">${ikon('obrolan', 16)} Tarik ulang pesan & foto</button>
+        <button type="button" class="tombol" data-aksi="dev-siapkan">${ikon('centang', 16)} Siapkan spreadsheet</button>
+        <button type="button" class="tombol" data-aksi="dev-salin">${ikon('salin', 16)} Salin laporan diagnosa</button>
+      </div>`;
+  }
+  function versiBerkas() {
+    const s = document.querySelector('script[src*="app.js"]');
+    const m = s && /[?&]v=([^&]+)/.exec(s.getAttribute('src') || '');
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function kartuServer(x) {
+    const vb = versiBerkas();
+    const sama = !x.versi || !vb || x.versi === vb;
+    const sp = x.spreadsheet || {};
+    const tab = (x.tab || []).slice().sort((a, b) => a.nama.localeCompare(b.nama));
+    const milikApp = ['obrolan', 'foto', 'orang'];
+    return `<dl class="dev-daftar">
+        <dt>Lingkungan</dt><dd>${esc(x.lingkungan || '—')}${x.wilayah ? ' · ' + esc(x.wilayah) : ''}</dd>
+        <dt>Versi</dt><dd>server ${esc(x.versi || '?')} · browser ${esc(vb || '?')} ${sama ? '<span class="chip-ok">sama</span>' : '<span class="chip-beda">beda: muat ulang dengan Ctrl+Shift+R</span>'}</dd>
+        <dt>Akun</dt><dd class="putus">${esc(x.akun || '—')}</dd>
+        <dt>Spreadsheet</dt><dd>${esc(sp.judul || '—')} · ${sp.kepemilikan === 'v2' ? 'milik v2' : esc(sp.kepemilikan || '?')}${sp.url ? ` · <a href="${esc(sp.url)}" target="_blank" rel="noopener noreferrer">buka</a>` : ''}</dd>
+        <dt>Data contoh</dt><dd>${sp.contoh ? esc(fmtWaktu(Date.parse(sp.contoh.versi)) || sp.contoh.versi) + (sp.contoh.sumber ? ' · ' + esc(sp.contoh.sumber) : '') : 'belum diimpor'}</dd>
+        <dt>Diperiksa</dt><dd>${esc(relatif(S.devSistem.waktu))}</dd>
+      </dl>
+      <table class="tabel dev-tabel-tab"><thead><tr><th>Tab</th><th class="angka">Baris</th></tr></thead><tbody>
+        ${tab.map(t => `<tr><td>${esc(t.nama)}${milikApp.includes(t.nama) ? ' <small class="hint">ditulis aplikasi</small>' : ''}</td><td class="angka">${fmtAngka(t.baris)}</td></tr>`).join('')}
+      </tbody></table>`;
+  }
+  function ukuranPenyimpanan() {
+    const daftar = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('pt2_')) daftar.push([k.slice(4), (localStorage.getItem(k) || '').length * 2]);
+      }
+    } catch (e) { /* penyimpanan diblokir */ }
+    return daftar.sort((a, b) => b[1] - a[1]);
+  }
+  const fmtUkuran = b => (b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
+  function namaPeramban() {
+    const ua = navigator.userAgent;
+    const m = /(Edg|OPR|Firefox|Chrome|Version)\/(\d+)/.exec(ua);
+    const nama = m ? ({ Edg: 'Edge', OPR: 'Opera', Version: 'Safari' }[m[1]] || m[1]) + ' ' + m[2] : 'Peramban';
+    return nama + (/Android|iPhone|iPad/.test(ua) ? ' (ponsel)' : '');
+  }
+  function kartuBrowser() {
+    const simpanan = ukuranPenyimpanan();
+    const total = simpanan.reduce((n, [, b]) => n + b, 0);
+    const foto = Object.values(S.foto.isi || {}).filter(f => f && I.fotoSah(f.gambar)).length;
+    return `<dl class="dev-daftar">
+        <dt>Versi berkas</dt><dd>${esc(versiBerkas() || '—')}</dd>
+        <dt>Data contoh</dt><dd>${S.versi ? esc(fmtWaktu(Date.parse(S.versi)) || S.versi) : '—'} · dimuat ${esc(relatif(S.dimuat))} · ${fmtAngka(S.data.tasks.length)} task</dd>
+        <dt>Pesan</dt><dd>${fmtAngka(S.obr.peristiwa.length)} peristiwa · ditarik ${S.obr.diperbarui ? esc(relatif(S.obr.diperbarui)) : 'belum'}${S.obr.gagal ? ` · <b class="teks-merah">${S.obr.gagal}× gagal</b>` : ''}</dd>
+        <dt>Foto</dt><dd>${foto} foto tersimpan di browser</dd>
+        <dt>Penyimpanan</dt><dd>${fmtUkuran(total)}${simpanan.length ? ` (${simpanan.slice(0, 4).map(([k, b]) => `${esc(k)} ${fmtUkuran(b)}`).join(', ')})` : ''}</dd>
+        <dt>Peramban</dt><dd>${esc(namaPeramban())} · ${window.innerWidth}×${window.innerHeight}</dd>
+      </dl>`;
+  }
+  const daftarGalat = () => (GALAT.length
+    ? `<ul class="dev-galat">${GALAT.map(g => `<li><time>${esc(fmtJam(g.at))}</time><span>${esc(g.pesan)}${g.sumber ? ` <small>${esc(g.sumber)}</small>` : ''}</span></li>`).join('')}</ul>`
+    : '<p class="hint">Tidak ada galat sejak halaman ini dibuka.</p>');
+  function laporanDiagnosa() {
+    const st = S.devSistem && S.devSistem.isi;
+    return JSON.stringify({
+      waktu: new Date().toISOString(), versiBerkas: versiBerkas(), peramban: namaPeramban(), layar: `${window.innerWidth}x${window.innerHeight}`,
+      server: st ? {
+        versi: st.versi, lingkungan: st.lingkungan, wilayah: st.wilayah, tab: st.tab,
+        spreadsheet: st.spreadsheet && { judul: st.spreadsheet.judul, kepemilikan: st.spreadsheet.kepemilikan, contoh: st.spreadsheet.contoh },
+      } : null,
+      browser: { dataContoh: S.versi, task: S.data.tasks.length, peristiwa: S.obr.peristiwa.length, gagalTarik: S.obr.gagal, penyimpanan: ukuranPenyimpanan().slice(0, 8) },
+      organogram: S.orangSalah || 'utuh',
+      galat: GALAT,
+    }, null, 2);
+  }
+  function tarikUlangBersama() {
+    Object.assign(S.obr, { peristiwa: [], sejak: 0 });
+    S.obr.versi++;
+    tarikObrolan(true);
+    Object.assign(S.foto, { sejak: 0, isi: {} });
+    simpanCacheFoto();
+    pasangGayaFoto();
+    tarikFoto();
+    toast('Menarik ulang semua pesan dan foto dari spreadsheet…');
+  }
+
+  /* --- Pengguna (kelola orang) --- */
+  function devPengguna() {
+    const semua = [...I.ORANG, ...I.nonaktif()];
+    const ket = o => (o.peran === 'lead' ? `Lead · tim ${esc(o.tim || '?')}` : o.peran === 'staff' ? `Staff · atasan ${esc(I.orang(o.lead).pendek)}` : 'Manager');
+    const baris = o => `<tr class="${o.aktif === false ? 'nonaktif' : ''}">
+        <td><span class="dev-orang">${avatar(o.id)}<span><strong>${esc(o.nama)}</strong><small>@${esc(o.pendek)} · ${esc(o.id)}</small></span></span></td>
+        <td>${ket(o)}</td>
+        <td>${esc(o.jabatan || '—')}</td>
+        <td>${o.aktif === false ? '<span class="chip-status mati">Nonaktif</span>' : '<span class="chip-status hidup">Aktif</span>'}</td>
+        <td><span class="dev-aksi-baris">
+          <button type="button" class="tombol kecil" data-aksi="dev-orang-ubah" data-id="${esc(o.id)}">${ikon('sunting', 14)} Ubah</button>
+          ${o.aktif === false ? '' : `<button type="button" class="tombol kecil" data-aksi="dev-lihat" data-id="${esc(o.id)}">${ikon('mata', 14)} Lihat sebagai</button>`}
+        </span></td></tr>`;
+    return `${S.orangSalah ? `<p class="banner kuning">Tab orang di spreadsheet diabaikan karena organogramnya rusak: ${esc(S.orangSalah)} Simpan ulang orang yang bersangkutan dari sini untuk membetulkannya.</p>` : ''}
+      <div class="dev-alat"><p class="hint">Perubahan tersimpan di tab <b>orang</b> spreadsheet v2 dan berlaku untuk semua orang saat aplikasi dimuat ulang. Orang tak dihapus, hanya dinonaktifkan, supaya namanya tetap terbaca di riwayat.</p>
+        <button type="button" class="tombol utama" data-aksi="dev-orang-baru">${ikon('tambah', 16)} Tambah orang</button></div>
+      <div class="tabel-gulir"><table class="tabel dev-tabel"><thead><tr><th>Orang</th><th>Peran</th><th>Jabatan</th><th>Status</th><th></th></tr></thead>
+        <tbody>${['manager', 'lead', 'staff'].map(p => semua.filter(o => o.peran === p).map(baris).join('')).join('')}</tbody></table></div>`;
+  }
+  function formOrang(o) {
+    const x = o || { id: '', nama: '', pendek: '', peran: 'staff', jabatan: '', lead: '', tim: '', aktif: true };
+    const manager = x.id === I.MANAGER;
+    const atasan = I.ORANG.filter(p => p.peran !== 'staff' && p.id !== x.id);
+    return `<form data-form="orang" novalidate>
+      <h2>${o ? `Ubah ${esc(x.pendek)}` : 'Tambah orang'}</h2>
+      <div class="dua-isian">
+        <label class="isian">Nama lengkap<input name="nama" value="${esc(x.nama)}" maxlength="60" required></label>
+        <label class="isian">Nama panggilan<input name="pendek" value="${esc(x.pendek)}" maxlength="20" required autocomplete="off"><small>Untuk @sebut: huruf saja, tanpa spasi.</small></label>
+      </div>
+      <label class="isian">Jabatan<input name="jabatan" value="${esc(x.jabatan || '')}" maxlength="80"></label>
+      <div class="dua-isian">
+        <label class="isian">Peran<select name="peran" ${manager ? 'disabled' : ''}>${opsiHtml(manager ? [['manager', 'Manager']] : [['staff', 'Staff'], ['lead', 'Lead']], x.peran)}</select></label>
+        <label class="isian" data-bagian-orang="staff" ${x.peran === 'staff' ? '' : 'hidden'}>Atasan<select name="lead">${opsiHtml([['', '— pilih atasan —'], ...atasan.map(p => [p.id, `${p.nama} · ${I.PERAN[p.peran]}${p.peran === 'lead' ? ' ' + (p.tim || '') : ''}`])], x.lead || '')}</select></label>
+        <label class="isian" data-bagian-orang="lead" ${x.peran === 'lead' ? '' : 'hidden'}>Tim yang dipimpin<select name="tim">${opsiHtml(I.TIM_LEAD.map(k => [k, `${k} · ${I.TIM[k].nama}`]), x.tim || 'AK')}</select></label>
+      </div>
+      ${manager ? '<p class="hint">Manager tetap Manager dan aktif: tinjauan dan keputusan proyek jatuh kepadanya.</p>'
+        : `<label class="dev-cek"><input type="checkbox" name="aktif" ${x.aktif === false ? '' : 'checked'}> Aktif — bisa dipilih sebagai profil dan PIC</label>`}
+      <p class="hint">${o ? `ID <code>${esc(x.id)}</code> tetap.` : 'ID dibuat dari nama panggilan dan tak bisa diubah sesudahnya.'} Lead baru menggantikan Lead lama timnya? Ubah dulu Lead lama (jadikan Staff), baru jadikan yang baru Lead.</p>
+      ${kakiModal(o ? 'Simpan' : 'Tambah')}
+    </form>`;
+  }
+  function idOrangBaru(pendek) {
+    const dasar = String(pendek || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 17);
+    const awal = /^[a-z]/.test(dasar) ? dasar : 'o' + dasar;
+    const dipakai = new Set([...I.ORANG_BAWAAN, ...I.ORANG, ...I.nonaktif()].map(o => o.id).concat(I.DEV));
+    if (awal.length >= 2 && !dipakai.has(awal)) return awal;
+    for (let n = 2; n < 100; n++) if (!dipakai.has(awal + n)) return awal + n;
+    return 'o' + Date.now().toString(36);
+  }
+  async function kirimOrang(form) {
+    const f = Object.fromEntries(new FormData(form).entries());
+    const lama = S.modal && S.modal.id ? I.orang(S.modal.id) : null;
+    const manager = !!lama && lama.id === I.MANAGER;
+    const aktif = form.querySelector('[name="aktif"]');
+    const baris = {
+      id: lama ? lama.id : idOrangBaru(f.pendek), nama: f.nama, pendek: String(f.pendek || '').trim(), jabatan: f.jabatan,
+      peran: manager ? 'manager' : f.peran, lead: f.lead, tim: f.tim, aktif: manager ? true : !!(aktif && aktif.checked),
+    };
+    try { I.periksaOrang(baris, S.orangBaris); } catch (err) { return galatModal(err.message); }
+    const tombol = form.querySelector('.tombol.utama');
+    tombol.disabled = true;
+    const h = await api('simpanOrang', [baris]);
+    tombol.disabled = false;
+    if (!h.success || !Array.isArray(h.orang)) return galatModal(h.message || 'Gagal menyimpan.');
+    S.orangBaris = h.orang;
+    S.orangSalah = I.aturOrang(S.orangBaris);
+    tutupModal();
+    render();
+    toast(`${baris.pendek} ${lama ? 'disimpan' : 'ditambahkan'}. Orang lain melihat perubahannya saat membuka aplikasi lagi.`);
+  }
+
+  /* --- Moderasi --- */
+  function devModerasi() {
+    const pesan = [...susunan().perId.values()].filter(m => m.bersama && !m.dihapus).sort((a, b) => b.at - a.at).slice(0, 40);
+    const foto = [...I.ORANG, ...I.nonaktif()].filter(o => punyaFoto(o.id));
+    return `<section class="kartu-polos dev-kartu"><h2 class="judul-ikon">${ikon('obrolan', 18)} Pesan terbaru</h2>
+        <p class="hint">Pesan yang dihapus mode Dev tampil "Pesan dihapus oleh Dev" untuk semua orang; isi aslinya tetap tercatat di tab obrolan. Moderasi juga bisa langsung dari gelembung pesan di Komunikasi.</p>
+        ${pesan.length ? `<ul class="dev-pesan">${pesan.map(m => `<li>${avatar(m.oleh, 'kecil')}
+            <div><p><b>${esc(I.orang(m.oleh).pendek)}</b> · ${esc(potong(judulRuang(m.ruang), 60))} · <small>${esc(relatif(m.at))}</small></p>
+              <p class="dev-pesan-isi">${esc(potong(teksPolos(m.teks), 220))}</p></div>
+            <span class="dev-aksi-baris"><button type="button" class="tombol kecil" data-aksi="kom-buka" data-ruang="${esc(m.ruang)}" data-pesan="${esc(m.id)}">Buka</button>
+              <button type="button" class="tombol kecil bahaya" data-aksi="psn-moderasi" data-id="${esc(m.id)}">Hapus</button></span></li>`).join('')}</ul>`
+          : '<p class="kosong-isi">Belum ada pesan bersama.</p>'}
+      </section>
+      <section class="kartu-polos dev-kartu"><h2 class="judul-ikon">${ikon('kamera', 18)} Foto profil</h2>
+        ${foto.length ? `<div class="dev-foto">${foto.map(o => `<div class="dev-foto-item">${avatar(o.id, 'besar')}<span>${esc(o.pendek)}</span>
+            <button type="button" class="tombol kecil bahaya" data-aksi="dev-foto-hapus" data-id="${esc(o.id)}">Hapus</button></div>`).join('')}</div>`
+          : '<p class="kosong-isi">Belum ada yang memasang foto.</p>'}
+      </section>`;
+  }
+  function moderasiPesan(id) {
+    const m = susunan().perId.get(id);
+    if (!modeDev() || !m || m.dihapus) return;
+    if (!confirm(`Hapus pesan ${I.orang(m.oleh).pendek} untuk semua orang?\n\n"${potong(teksPolos(m.teks), 140)}"\n\nTampil sebagai "Pesan dihapus oleh Dev". Isi aslinya tetap tercatat di tab obrolan spreadsheet.`)) return;
+    kirimPeristiwa({ jenis: 'moderasi', ruang: m.ruang, oleh: I.DEV, target: m.id }).then(segarkanDev);
+  }
+  async function hapusFotoOrang(id) {
+    if (!confirm(`Hapus foto profil ${I.orang(id).pendek}? Avatarnya kembali ke inisial, untuk semua orang.`)) return;
+    const h = await api('simpanFoto', [{ orang: id, gambar: '' }]);
+    if (!h.success || !h.foto) return toast(h.message || 'Foto gagal dihapus.', true);
+    S.foto.isi[id] = { gambar: '', diperbarui: h.foto.diperbarui };
+    S.foto.sejak = Math.max(Number(S.foto.sejak) || 0, h.foto.diperbarui);
+    simpanCacheFoto();
+    pasangGayaFoto();
+    segarkanDev();
+    toast(`Foto ${I.orang(id).pendek} dihapus.`);
+  }
+
   /* ---------- Riwayat Aktivitas ---------- */
 
   function viewRiwayat() {
@@ -4032,6 +4466,7 @@
 
   function bukaModal(konteks, html) {
     S.modal = konteks;
+    $('#modal').classList.toggle('atas', !!konteks.atas);
     $('#modal-panel').className = 'modal-panel';
     $('#modal-panel').innerHTML = html;
     $('#modal').hidden = false;
@@ -4464,6 +4899,7 @@
     simpanData();
     render();
     const tahap = pindah.map(p => `${p.name} kini di tahap ${I.namaTahap(p.stage)}.`).join(' ');
+    if (S.pratinjau) return toast('Mode Lihat sebagai: perubahan ini hanya tampilan dan hilang saat kembali jadi Dev.');
     if (pesan || tahap) toast([pesan, tahap].filter(Boolean).join(' '));
   }
 
@@ -4504,6 +4940,7 @@
 
   function resetData() {
     S.navBuka = false;
+    if (S.pratinjau) return toast('Tidak tersedia saat Lihat sebagai. Kembali jadi Dev dulu.', true);
     if (!confirm('Reset ke data contoh awal?\n\nSemua perubahan di browser ini dihapus: task, status, proyek, paket, link, dan catatan. '
       + 'Data contoh dimuat lagi dari spreadsheet, persis seperti saat diimpor. Profil lain di browser ini ikut kembali ke awal.\n\n'
       + 'Pesan Komunikasi tersimpan bersama di spreadsheet, jadi tidak ikut terhapus.')) return render();
@@ -4530,6 +4967,8 @@
   }
 
   document.addEventListener('click', e => {
+    // Klik yang menyusul tekan-tahan logo (masuk mode Dev) tak ikut membuka beranda.
+    if (logoDitahan && e.target.closest('.merek')) { e.preventDefault(); logoDitahan = false; return; }
     if (S.notif.buka && !e.target.closest('.notif')) bukaTutupNotif(false);
     if (sebutAktif && !e.target.closest('.km-sebut-pilih, .km-isian')) tutupSebutan();
     for (const m of $$('details.menu-lagi[open]')) if (!m.contains(e.target) || e.target.closest('.menu-lagi-isi [data-aksi]')) m.open = false;
@@ -4619,25 +5058,33 @@
       case 'foto-hapus':
         if (confirm('Hapus foto profil Anda? Avatar kembali ke inisial, untuk semua orang.')) kirimFoto('');
         break;
-      case 'ganti-profil': if (!bolehTinggalkanPaket()) return; S.navBuka = false; tampilProfil(); break;
+      case 'ganti-profil':
+        if (!bolehTinggalkanPaket()) return;
+        S.navBuka = false;
+        if (S.pratinjau) akhiriPratinjau(false);
+        tampilProfil();
+        break;
+      /* Mode Dev */
+      case 'dev-keluar': keluarDev(); break;
+      case 'dev-tab': S.devTab = d.nilai; render(); break;
+      case 'dev-sistem-segarkan': S.devSistem = null; segarkanDev(); break;
+      case 'dev-tarik-ulang': tarikUlangBersama(); break;
+      case 'dev-siapkan':
+        api('siapkan').then(h => toast(h.message || (h.success ? 'Spreadsheet siap.' : 'Gagal menyiapkan spreadsheet.'), !h.success));
+        break;
+      case 'dev-salin': salinKeKlip(laporanDiagnosa(), '', 'Laporan diagnosa disalin. Tempel di chat untuk developer.'); break;
+      case 'dev-orang-baru': bukaModal({ jenis: 'orang', id: '' }, formOrang(null)); break;
+      case 'dev-orang-ubah': bukaModal({ jenis: 'orang', id: d.id }, formOrang(I.orang(d.id))); break;
+      case 'dev-lihat': mulaiPratinjau(d.id); break;
+      case 'pratinjau-akhiri': akhiriPratinjau(); break;
+      case 'dev-foto-hapus': hapusFotoOrang(d.id); break;
+      case 'psn-moderasi': moderasiPesan(d.id); break;
       case 'pilih-profil':
-        S.me = d.id;
-        simpan('me', S.me);
-        S.view = halamanAwal();
-        S.pilih = null;
-        S.proyek = null;
-        Object.assign(S.task, { lingkup: I.lingkupAwal(S.me), fokus: '' });
-        S.dash.lingkup = '';
-        S.kom.lingkup = 'terlibat';
-        simpanPref('task');
-        // Draf dan balasan milik profil sebelumnya tak ikut terkirim atas nama profil baru.
-        Object.assign(S.kom, { pilih: null, balas: '', ubah: '', tanya: false, draf: {}, saring: 'semua', batasBaru: null });
-        Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
-        Object.assign(S.ctt, { pilih: null, mode: 'sunting', warna: '', folderBaru: '', versiSesi: '' });
-        S.lnk.penuh = new Set();
-        S.notif.buka = false;
+        if (d.id === I.DEV && !S.dev) { bukaMasukDev(); break; }
+        if (S.pratinjau) S.pratinjau = null;
+        gantiIdentitas(d.id);
         masukApp();
-        toast(`Masuk sebagai ${I.orang(S.me).pendek} (${I.PERAN[I.orang(S.me).peran]}).`);
+        toast(d.id === I.DEV ? `Mode Dev${S.devSampai ? ' sampai ' + jamDev() : ''}.` : `Masuk sebagai ${I.orang(S.me).pendek} (${I.PERAN[I.orang(S.me).peran]}).`);
         break;
       case 'reset-data': resetData(); break;
       case 'keluar':
@@ -5015,6 +5462,10 @@
 
   document.addEventListener('change', e => {
     const el = e.target;
+    if (el.name === 'peran' && el.closest('form[data-form="orang"]')) {
+      el.closest('form').querySelectorAll('[data-bagian-orang]').forEach(b => { b.hidden = b.dataset.bagianOrang !== el.value; });
+      return;
+    }
     if (el.id === 'foto-berkas') {
       mulaiPotong(el.files && el.files[0]);
       el.value = '';
@@ -5070,6 +5521,8 @@
       });
       return;
     }
+    if (form.dataset.form === 'masuk-dev') { e.preventDefault(); kirimMasukDev(form); return; }
+    if (form.dataset.form === 'orang') { e.preventDefault(); kirimOrang(form); return; }
     const jenis = form.dataset.form;
     if (!jenis) return;
     e.preventDefault();

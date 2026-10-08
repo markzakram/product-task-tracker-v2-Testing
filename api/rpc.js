@@ -12,6 +12,11 @@
      POST /api/rpc  { action: 'kirimObrolan', args: [peristiwa] } satu pesan/ubah/hapus/reaksi/beres
      POST /api/rpc  { action: 'muatFoto', args: [sejak] }      foto profil yang berubah sejak waktu itu
      POST /api/rpc  { action: 'simpanFoto', args: [{ orang, gambar }] }  ganti atau hapus (gambar '')
+     POST /api/rpc  { action: 'masukDev', args: [pinDev] }     sesi mode Dev (12 jam), tanpa sesi pun boleh
+     POST /api/rpc  { action: 'keluarDev' }                    kembali ke sesi biasa
+     POST /api/rpc  { action: 'sistem' }                       [Dev] diagnosa server & spreadsheet
+     POST /api/rpc  { action: 'simpanOrang', args: [orang] }   [Dev] ubah/tambah orang di tab orang
+     kirimObrolan dengan jenis 'moderasi'                      [Dev] sembunyikan pesan siapa pun
 
    Balasan berbentuk { success, message, ... } seperti v1.
 
@@ -27,6 +32,16 @@ const Inti = require('../public/inti.js');
 
 /* Isian dari browser yang tak masuk akal: 400, bukan 409 (yang khusus aturan kepemilikan). */
 class GalatIsian extends Error {}
+/* Aksi khusus mode Dev dari sesi biasa: 403. */
+class GalatIzin extends Error {}
+const hanyaDev = konteks => { if (!konteks.dev) throw new GalatIzin('Hanya mode Dev. Masuk lewat tekan-tahan logo ProductTrack, lalu isi PIN Dev.'); };
+
+/* Pengirim pesan dan pemilik foto diperiksa dengan organogram terkini (bawaan + tab orang). */
+async function terapkanOrang(k) {
+  Inti.aturOrang(await sheet.bacaOrang(k, sheet.idSpreadsheet()));
+}
+let versiPaket = '';
+try { versiPaket = require('../package.json').version; } catch (e) { /* tak terbawa ke fungsi: biarkan kosong */ }
 
 const lingkungan = () => process.env.VERCEL_ENV || 'lokal';
 const lewatHttps = req => req.headers['x-forwarded-proto'] === 'https' || !!process.env.VERCEL;
@@ -89,9 +104,13 @@ const AKSI = {
     return await sheet.bacaObrolan(k, sheet.idSpreadsheet(), sejak);
   },
   async kirimObrolan(peristiwa) {
-    let bersih;
-    try { bersih = Inti.periksaPeristiwa(peristiwa); } catch (err) { throw new GalatIsian(err.message); }
     const k = await sheet.klien();
+    // Moderasi hanya dari sesi Dev, dan selalu atas nama Dev (apa pun yang dikirim browser).
+    const moderasi = peristiwa && typeof peristiwa === 'object' && peristiwa.jenis === 'moderasi';
+    if (moderasi) hanyaDev(this);
+    else await terapkanOrang(k);
+    let bersih;
+    try { bersih = Inti.periksaPeristiwa(moderasi ? { ...peristiwa, oleh: Inti.DEV } : peristiwa); } catch (err) { throw new GalatIsian(err.message); }
     return { peristiwa: await sheet.tulisObrolan(k, sheet.idSpreadsheet(), bersih) };
   },
   /* Foto profil (0.12.0): tab foto di spreadsheet v2, satu baris per orang. */
@@ -100,15 +119,37 @@ const AKSI = {
     return await sheet.bacaFoto(k, sheet.idSpreadsheet(), sejak);
   },
   async simpanFoto(foto) {
+    const k = await sheet.klien();
+    await terapkanOrang(k);
     let bersih;
     try { bersih = Inti.periksaFoto(foto); } catch (err) { throw new GalatIsian(err.message); }
-    const k = await sheet.klien();
     return { foto: await sheet.tulisFoto(k, sheet.idSpreadsheet(), bersih) };
+  },
+  /* ----- Mode Dev (0.13.0) ----- */
+  async sistem() {
+    hanyaDev(this);
+    const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
+    const [spreadsheet, tab] = await Promise.all([sheet.periksa(k, id), sheet.hitungTab(k, id)]);
+    return {
+      akun: k.email, spreadsheet, tab, versi: versiPaket, lingkungan: lingkungan(),
+      wilayah: process.env.VERCEL_REGION || '', waktuServer: Date.now(), devSampai: this.devSampai,
+    };
+  },
+  async simpanOrang(baris) {
+    hanyaDev(this);
+    const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
+    const lain = await sheet.bacaOrang(k, id, { segar: true });
+    let bersih;
+    try { bersih = Inti.periksaOrang(baris, lain); } catch (err) { throw new GalatIsian(err.message); }
+    return { orang: await sheet.tulisOrang(k, id, bersih) };
   },
 };
 
 function kodeUntuk(err) {
   if (err instanceof GalatIsian) return 400;
+  if (err instanceof GalatIzin) return 403;
   if (err instanceof sheet.GalatSetelan) return 503;
   if (err instanceof sheet.GalatDitolak) return 409;
   if (err && (err.response || err.config || err.status)) return 502;   // dari Google
@@ -150,16 +191,36 @@ module.exports = async (req, res) => {
   if (aksi === 'keluar') {
     return kirim(res, 200, { success: true, message: 'Sudah keluar.' }, sesi.cookieKeluar(lewatHttps(req)));
   }
+  /* Mode Dev: PIN Dev sendiri (env DEV_PIN). Boleh dari layar PIN, tanpa sesi biasa. */
+  if (aksi === 'masukDev') {
+    if (!sesi.setelanAda().pinDev) {
+      return kirim(res, 403, { success: false, kode: 'DEV_MATI', message: 'Mode Dev belum diaktifkan. Isi DEV_PIN di Vercel (Settings → Environment Variables), lalu Redeploy.' });
+    }
+    if (!sesi.cocokPinDev(args[0])) {
+      await tidur(jedaPinSalah());
+      return kirim(res, 401, { success: false, kode: 'PIN_DEV', message: 'PIN Dev salah.' });
+    }
+    const token = sesi.terbitkan(Date.now(), { dev: true });
+    return kirim(res, 200, { success: true, dev: true, devSampai: sesi.akhirDev(token), message: 'Mode Dev aktif.' },
+      sesi.cookieMasuk(token, lewatHttps(req)));
+  }
 
-  if (!sesi.sah(sesi.bacaCookie(req))) {
+  const cookie = sesi.bacaCookie(req);
+  if (!sesi.sah(cookie)) {
     return kirim(res, 401, { success: false, kode: 'MASUK', message: 'Perlu PIN.' });
+  }
+  const dev = sesi.dev(cookie);
+  if (aksi === 'keluarDev') {
+    return kirim(res, 200, { success: true, dev: false, message: 'Keluar dari mode Dev.' },
+      sesi.cookieMasuk(sesi.terbitkan(), lewatHttps(req)));
   }
 
   const fungsi = Object.prototype.hasOwnProperty.call(AKSI, aksi) ? AKSI[aksi] : null;
   if (!fungsi) return kirim(res, 400, { success: false, message: `Aksi tidak dikenal: ${aksi || '(kosong)'}` });
 
   try {
-    return kirim(res, 200, { success: true, env: lingkungan(), ...(await fungsi(...args)) });
+    const konteks = { dev, devSampai: dev ? sesi.akhirDev(cookie) : 0 };
+    return kirim(res, 200, { success: true, env: lingkungan(), dev, ...(dev ? { devSampai: konteks.devSampai } : {}), ...(await fungsi.apply(konteks, args)) });
   } catch (err) {
     const kode = kodeUntuk(err);
     if (kode === 500 || kode === 502) console.error(`[rpc] aksi=${aksi}`, err);
