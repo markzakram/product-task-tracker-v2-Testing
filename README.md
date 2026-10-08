@@ -448,6 +448,10 @@ npm test
 Google Sheets ditiru di dalam tes, jadi tak butuh kredensial maupun jaringan. Tes yang paling
 penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
+**Setiap rilis:** naikkan versi di `package.json` **dan** `?v=` di `public/index.html` (tes
+`berkas` menolak kalau berbeda). Dengan begitu browser atau proxy kantor tak mencampur `inti.js`
+lama dengan `app.js` baru.
+
 ## Batasan yang disadari
 
 - **Suntingan belum tersimpan ke spreadsheet.** Data contoh dimuat dari server, tetapi yang

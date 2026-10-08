@@ -513,17 +513,34 @@
 
   /* ---------- Server ---------- */
 
-  async function api(action, args = []) {
+  /* batasMs: tanpa batas waktu, layar "Memuat data…" menunggu selamanya kalau server tak menjawab. */
+  async function api(action, args = [], batasMs = 30000) {
+    const henti = new AbortController();
+    const jam = setTimeout(() => henti.abort(), batasMs);
+    const habis = `Server tidak menjawab dalam ${Math.round(batasMs / 1000)} detik. Coba lagi sebentar lagi.`;
     try {
-      const r = await fetch('/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, args }) });
-      const d = await r.json().catch(() => ({ success: false, message: `Balasan server tak terbaca (HTTP ${r.status}).` }));
+      const r = await fetch('/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, args }), signal: henti.signal });
+      const d = await r.json().catch(() => null);
+      if (!d) return { http: r.status, success: false, message: henti.signal.aborted ? habis : `Balasan server tak terbaca (HTTP ${r.status}).` };
       return { http: r.status, ...d };
     } catch (e) {
-      return { http: 0, success: false, message: 'Server tak terjangkau. Periksa koneksi, lalu muat ulang halaman.' };
+      return { http: 0, success: false, message: henti.signal.aborted ? habis : 'Server tak terjangkau. Periksa koneksi, lalu muat ulang halaman.' };
+    } finally {
+      clearTimeout(jam);
     }
   }
+  /* true = server v2 menjawab; 'habis' = tak menjawab dalam 15 detik; false = tak ada server. */
   async function adaServer() {
-    try { const d = await (await fetch('/api/rpc', { cache: 'no-store' })).json(); return !!d && d.app === 'producttrack-v2'; } catch (e) { return false; }
+    const henti = new AbortController();
+    const jam = setTimeout(() => henti.abort(), 15000);
+    try {
+      const d = await (await fetch('/api/rpc', { cache: 'no-store', signal: henti.signal })).json();
+      return !!d && d.app === 'producttrack-v2';
+    } catch (e) {
+      return henti.signal.aborted ? 'habis' : false;
+    } finally {
+      clearTimeout(jam);
+    }
   }
 
   function rapikan(d) {
@@ -560,6 +577,7 @@
     $('#kunci-isian').hidden = !!sibuk;
     $('#kunci-tombol').hidden = !!sibuk;
     $('#kunci-ulang').hidden = !ulang;
+    $('#kunci-reset').hidden = true;
     $('#kunci-galat').hidden = true;
     if (!sibuk) setTimeout(() => $('#kunci-pin').focus(), 30);
   }
@@ -611,43 +629,55 @@
      data contoh dari spreadsheet (spreadsheet tak pernah diubah aplikasi). */
   async function muat(reset = false) {
     tampilKunci(reset ? 'Mengembalikan data contoh…' : 'Memuat data…', true);
-    const h = await api('muatContoh');
+    const h = await api('muatContoh', [], 45000);
     if (h.http === 401) return tampilKunci('Masukkan PIN untuk melanjutkan.', false);
     if (!h.success) {
       const pesan = h.message || `Gagal memuat data (HTTP ${h.http}).`;
-      return tampilKunci(h.kode === 'SETELAN' ? pesan : `PIN diterima, tetapi data gagal dimuat. ${pesan}`, true, true);
+      return tampilKunci(h.kode === 'SETELAN' || !h.http ? pesan : `PIN diterima, tetapi data gagal dimuat. ${pesan}`, true, true);
     }
-    const lokal = ambil('data', null);
     let pesan = '';
-    if (h.data && lokal && lokal.versi === h.versi && lokal.data) {
-      S.data = rapikan(lokal.data);
-      S.dimuat = Number(lokal.dimuat) || Date.now();
-    } else if (h.data) {
-      S.data = rapikan(h.data);
-      S.dimuat = Date.now();
-      pesan = `${reset ? 'Data contoh kembali ke awal' : 'Data contoh dimuat'}: ${S.data.tasks.length} task, ${S.data.projects.length} proyek, ${S.data.packages.length} paket.`;
-    } else {
-      S.data = rapikan({});
-      S.dimuat = Date.now();
-      pesan = 'Data contoh belum diimpor ke spreadsheet v2.';
+    try {
+      const lokal = ambil('data', null);
+      if (h.data && lokal && lokal.versi === h.versi && lokal.data) {
+        S.data = rapikan(lokal.data);
+        S.dimuat = Number(lokal.dimuat) || Date.now();
+      } else if (h.data) {
+        S.data = rapikan(h.data);
+        S.dimuat = Date.now();
+        pesan = `${reset ? 'Data contoh kembali ke awal' : 'Data contoh dimuat'}: ${S.data.tasks.length} task, ${S.data.projects.length} proyek, ${S.data.packages.length} paket.`;
+      } else {
+        S.data = rapikan({});
+        S.dimuat = Date.now();
+        pesan = 'Data contoh belum diimpor ke spreadsheet v2.';
+      }
+      // Tahap proyek dihitung dari task-nya; samakan dulu tanpa menulis riwayat.
+      I.segarkanTahap(S.data);
+      S.versi = h.versi || '';
+      S.sumber = h.sumber || '';
+      simpanData();
+      if (!S.me || !I.ORANG.some(o => o.id === S.me)) tampilProfil();
+      else masukApp();
+    } catch (e) {
+      return galatMuat(e);
     }
-    // Tahap proyek dihitung dari task-nya; samakan dulu tanpa menulis riwayat.
-    I.segarkanTahap(S.data);
-    S.versi = h.versi || '';
-    S.sumber = h.sumber || '';
-    simpanData();
-    if (!S.me || !I.ORANG.some(o => o.id === S.me)) tampilProfil();
-    else masukApp();
     if (pesan) toast(pesan);
     // Pesan Komunikasi tersimpan bersama di spreadsheet, terpisah dari data contoh.
     tarikObrolan(true).then(jadwalkanTarik);
   }
 
+  /* Galat saat menyiapkan data atau menggambar layar pertama: pesannya ditampilkan, bukan
+     layar "Memuat data…" selamanya. Data lokal yang rusak bisa dikosongkan dari sini. */
+  function galatMuat(e) {
+    console.error(e);
+    tampilKunci(`Aplikasi gagal disiapkan di browser ini (${e && e.message ? e.message : e}). Muat ulang halaman dengan Ctrl+Shift+R; kalau masih gagal, kirim pesan ini ke tim.`, true, true);
+    $('#kunci-reset').hidden = false;
+  }
+
   async function mulai() {
     tampilKunci('Memeriksa sesi…', true);
-    if (!await adaServer()) {
-      return tampilKunci('Aplikasi ini perlu server. Jalankan npm run dev, atau buka lewat alamat Vercel.', true);
-    }
+    const ada = await adaServer();
+    if (ada === 'habis') return tampilKunci('Server tidak menjawab. Periksa koneksi, lalu coba lagi.', true, true);
+    if (!ada) return tampilKunci('Aplikasi ini perlu server. Jalankan npm run dev, atau buka lewat alamat Vercel.', true);
     await muat();
   }
 
@@ -4329,7 +4359,12 @@
         S.navBuka = false;
         api('keluar').then(() => tampilKunci('Anda sudah keluar. Masukkan PIN untuk masuk lagi.', false));
         break;
-      case 'coba-muat': muat(); break;
+      case 'coba-muat': muat().catch(galatMuat); break;
+      case 'reset-lokal':
+        if (!confirm('Kosongkan data contoh yang tersimpan di browser ini?\n\nPerubahan Anda di browser ini hilang; data contoh dimuat lagi dari spreadsheet. Pesan Komunikasi tidak ikut terhapus.')) return;
+        hapus('data');
+        muat(true).catch(galatMuat);
+        break;
       case 'atur': aturNilai(d.ruang, d.kunci, d.nilai); break;
       /* Halaman Task */
       case 'fokus-papan':
@@ -4990,5 +5025,5 @@
     if (S.data && !$('#app').hidden && !S.pkt.sunting) render();
   });
 
-  mulai();
+  mulai().catch(galatMuat);
 }());

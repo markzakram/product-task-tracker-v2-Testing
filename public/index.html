@@ -9,7 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/app.css">
+  <!-- ?v= = versi package.json (dijaga tes berkas): browser atau proxy tak bisa mencampur berkas lama dan baru. -->
+  <link rel="stylesheet" href="/app.css?v=0.11.1">
 </head>
 <body>
 
@@ -30,6 +31,8 @@
       <!-- PIN sudah benar tapi data gagal dimuat: jangan tampilkan isian PIN lagi, supaya
            tak terbaca sebagai "PIN salah". -->
       <button id="kunci-ulang" type="button" class="tombol utama lebar" data-aksi="coba-muat" hidden>Coba lagi</button>
+      <!-- Hanya saat data di browser ini gagal disiapkan: jalan keluar tanpa membuka DevTools. -->
+      <button id="kunci-reset" type="button" class="tombol lebar" data-aksi="reset-lokal" hidden>Reset data contoh di browser ini</button>
     </form>
   </div>
 
@@ -66,8 +69,8 @@
 
   <div id="toast" class="toast-wadah" aria-live="polite"></div>
 
-  <script src="/inti.js"></script>
-  <script src="/panduan.js"></script>
-  <script src="/app.js"></script>
+  <script src="/inti.js?v=0.11.1"></script>
+  <script src="/panduan.js?v=0.11.1"></script>
+  <script src="/app.js?v=0.11.1"></script>
 </body>
 </html>

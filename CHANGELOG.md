@@ -1,5 +1,17 @@
 # Changelog — ProductTrack v2
 
+## 0.11.1 — Aplikasi tak lagi tertahan di "Memuat data…" (2026-10-08)
+
+- Sesudah 0.11.0 dirilis, aplikasi bisa berhenti di **Memuat data…** tanpa pesan apa pun.
+  Penyebab yang paling mungkin: browser atau proxy memakai `inti.js` lama bersama `app.js` baru.
+  - `index.html` kini memuat CSS & JS dengan `?v=<versi>`, jadi berkas lama dan baru tak bisa
+    tercampur. Tes `berkas` memastikan `?v=` selalu sama dengan versi `package.json`.
+  - Galat saat menyiapkan data atau menggambar layar pertama kini **ditampilkan** di layar itu,
+    dengan tombol **Coba lagi** dan **Reset data contoh di browser ini** (jalan keluar kalau
+    data lokal rusak).
+  - Permintaan ke server punya **batas waktu** (memuat data 45 detik, lainnya 30 detik; cek
+    sesi 15 detik). Kalau server tak menjawab, muncul pesan dan tombol Coba lagi.
+
 ## 0.11.0 — Link Saya yang ringkas, Catatan Saya yang lebih kaya (2026-10-08)
 
 - **Link Saya tetap rapi walau link dan foldernya banyak:**
