@@ -1,5 +1,11 @@
 # Changelog — ProductTrack v2
 
+## 0.12.2 — Jabatan Ali (2026-10-08)
+
+- Jabatan Ali kini **Data & Automation Engineer** (sebelumnya Sistem & Analisis). Tampil di
+  pemilih profil, sidebar, tampilan Per orang, dan daftar @sebut. Peran (Lead) dan timnya
+  (SI · Sistem) tidak berubah.
+
 ## 0.12.1 — Avatar lebih besar (2026-10-08)
 
 - Supaya foto profil terlihat jelas, semua avatar diperbesar:

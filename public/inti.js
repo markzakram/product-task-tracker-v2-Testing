@@ -41,7 +41,7 @@
   /* Organogram Divisi Produk (sama dengan PRD). */
   const ORANG = [
     { id: 'nynda', nama: 'Nynda Ramadhanti', pendek: 'Nynda', peran: 'manager', jabatan: 'Manager Produk', lead: null },
-    { id: 'ali', nama: 'Ali', pendek: 'Ali', peran: 'lead', jabatan: 'Sistem & Analisis', lead: 'nynda' },
+    { id: 'ali', nama: 'Ali', pendek: 'Ali', peran: 'lead', jabatan: 'Data & Automation Engineer', lead: 'nynda' },
     { id: 'andika', nama: 'Andika', pendek: 'Andika', peran: 'lead', jabatan: 'Riset & Akademik', lead: 'nynda' },
     { id: 'alya', nama: 'Alya', pendek: 'Alya', peran: 'lead', jabatan: 'Learning Architecture', lead: 'nynda' },
     { id: 'dhea', nama: 'Dhea', pendek: 'Dhea', peran: 'lead', jabatan: 'Content & Learning Operations', lead: 'nynda' },
