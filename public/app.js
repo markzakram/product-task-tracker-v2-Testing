@@ -1504,7 +1504,7 @@
         <section class="kartu-polos"><p class="subjudul">Selesai per minggu</p>
           <div class="grafik-minggu">${r.mingguan.map(m => `<div><b>${m.jumlah}</b><span class="tiang" style="height:${Math.round(m.jumlah / maks * 130)}px"></span><small>${esc(fmtTanggalPendek(m.awal))}</small></div>`).join('')}</div>
         </section>
-        <section class="kartu-polos"><p class="subjudul">Task aktif per tahap</p>
+        <section class="kartu-polos wadah-tahap"><p class="subjudul">Task aktif per tahap</p>
           <div class="tahap-hitung enam">${r.perTahap.map(x => `<div><span class="huruf-tahap ${x.id === 'R' ? 'rutin' : ''}">${x.id}</span><b>${x.jumlah}</b><small>${esc(x.nama)}</small></div>`).join('')}</div>
           <p class="hint" style="margin-top:10px">Tahap mengikuti kode sub-stage task. R = rutin dan pekerjaan lepas di luar proyek.</p>
         </section>

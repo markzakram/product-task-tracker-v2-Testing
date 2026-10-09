@@ -1,5 +1,17 @@
 # Changelog — ProductTrack v2
 
+## 0.14.2 — Daftar proyek dan Dashboard lebih rapi (2026-10-09)
+
+- **Proyek:** jalur ADDIE di tiap baris kini lurus satu kolom, begitu juga progres dan label
+  keadaannya (Berisiko, Siklus selesai, …), berapa pun panjang nama proyek dan labelnya. Kalau
+  daftarnya sempit (mis. layar laptop), progres turun ke bawah nama; di ponsel semuanya bertumpuk.
+- **Proyek:** batang progres task di tiap baris kini tampil (sebelumnya tingginya 0).
+- **Proyek → Menunggu tinjauan Anda:** judul task tak lagi terpecah satu kata per baris; status,
+  tenggat, dan PIC pindah ke bawah judul seperti di ponsel.
+- **Dashboard → Task aktif per tahap:** enam kotak (A D V I E R) sama besar, 3 × 2 di kartu yang
+  sempit dan sebaris kalau kartunya lebar; nama tahap yang panjang tak lagi melebarkan kotaknya.
+  Kotak tahap ADDIE di bawah (Proyek · tahap ADDIE) juga dijaga sama lebar.
+
 ## 0.14.1 — PIN profil hanya untuk mode Dev (2026-10-09)
 
 - Bagian **PIN profil** di halaman Master kini hanya tampil di **mode Dev**; Manager (juga "Lihat
