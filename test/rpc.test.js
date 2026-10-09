@@ -45,8 +45,15 @@ test.beforeEach(() => {
   process.env.SESSION_SECRET = RAHASIA;
   process.env.SPREADSHEET_ID = ID;
   // Env dari shell pengembang atau CI tidak boleh mengubah hasil tes.
-  for (const k of ['GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_APPLICATION_CREDENTIALS', 'VERCEL', 'VERCEL_ENV', 'DEV_PIN']) delete process.env[k];
+  for (const k of ['GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_APPLICATION_CREDENTIALS', 'VERCEL', 'VERCEL_ENV', 'APP_ENV', 'DEV_PIN']) delete process.env[k];
   sheet.klien = klienAsli;
+});
+
+test('di Cloud Run nama lingkungan dari APP_ENV (diisi CI GitLab); di Vercel VERCEL_ENV tetap menang', async () => {
+  process.env.APP_ENV = 'production';
+  assert.equal((await panggil({ method: 'GET' })).json.env, 'production');
+  process.env.VERCEL_ENV = 'preview';
+  assert.equal((await panggil({ method: 'GET' })).json.env, 'preview');
 });
 
 test('GET melaporkan setelan apa saja yang ada, tanpa satu pun nilainya', async () => {

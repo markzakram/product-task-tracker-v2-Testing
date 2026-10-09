@@ -1,15 +1,17 @@
 # ProductTrack v2 — sandbox
 
 ProductTrack v2 (siklus ADDIE) yang dibangun **terpisah penuh** dari v1 yang sedang dipakai tim.
-Data tetap di Google Spreadsheet dan deploy tetap di Vercel, tetapi semuanya milik v2 sendiri.
+Data tetap di Google Spreadsheet khusus v2. Sejak 0.15.2 repo ini juga menjadi isi repo GitLab
+`produk-cerebrum/product-task-tracker` dan jalan di Cloud Run, di domain yang semula disiapkan
+untuk v1 dan belum dipakai tim (lihat *Deploy ke Cloud Run*). v1 tetap di Vercel dengan
+Spreadsheet sampai digantikan.
 
 | | v1 (sedang dipakai) | v2 (repo ini) |
 |---|---|---|
-| Repo | `product-task-tracker` | `product-tracker-v2` |
-| Vercel | project v1, produksi dari `master` | project baru, produksi dari `main` |
+| Repo | GitHub `product-task-tracker` | GitLab `produk-cerebrum/product-task-tracker` (riwayat v1 tetap tersimpan di sana) |
+| Deploy | Vercel, produksi dari `master` | Cloud Run `product-task-tracker-service` → `product-task-tracker.cerehub.id`, rilis lewat tag git; sandbox Vercel (GitHub `product-task-tracker-v2-Testing`) tetap ada untuk demo |
 | Spreadsheet | produksi + staging v1 | spreadsheet baru, khusus v2 |
 | Service account | `task-tracker@data-intelligence-500306…` | akun baru, hanya di-share ke sheet v2 |
-| GitLab | sudah | nanti, setelah v2 matang |
 
 ## Dua pengaman supaya v2 tak pernah menulis ke data v1
 
@@ -419,6 +421,7 @@ api/_skema.js         bentuk tab spreadsheet v2, baris ↔ objek prototipe
 scripts/impor-v1.js   npm run impor:v1 — tarikan v1 → data contoh di spreadsheet v2
 scripts/_v1ke2.js     semua aturan pemetaan v1 → v2 (tabel yang bisa diubah)
 scripts/dev.js        server lokal yang meniru Vercel (tanpa Vercel CLI)
+server.js             server Node untuk Cloud Run (npm start); Dockerfile + .gitlab-ci.yml membangunnya
 test/                 npm test — Google Sheets ditiru, tanpa koneksi
 ```
 
@@ -495,6 +498,43 @@ baru, dan kepemilikan harus "Siap dipakai v2". Setelah impor (bagian berikut), b
 **Data contoh** menunjukkan versi dan sumbernya.
 
 Label **Production** di project ini hanya berarti branch `main` milik v2. Tidak menyentuh v1 sama sekali.
+
+---
+
+## Deploy ke Cloud Run (GitLab)
+
+Sejak 0.15.2 isi repo GitLab `produk-cerebrum/product-task-tracker` adalah v2. Domainnya,
+`product-task-tracker.cerehub.id`, semula disiapkan tim IT untuk v1 tetapi belum dipakai tim;
+v1 tetap di Vercel. `.gitlab-ci.yml`, `Dockerfile`, dan `server.js` disalin dari yang dibuat
+tim IT untuk v1, dengan Node 22 dan tanpa penjaga `gas/Index.html` milik v1.
+
+| Pemicu | Tes | Build | Deploy | `APP_ENV` |
+|---|---|---|---|---|
+| tag git | otomatis | manual | manual | `production` |
+
+Push ke branch tidak menjalankan apa pun. Rilis = buat tag, misalnya `v2-0.15.2`, push tag-nya,
+lalu jalankan **build-app-prod** dan **deploy-prod** dari halaman pipeline di GitLab.
+Awalan `v2-` membedakannya dari tag v1 (`v1.0.0`, `v1.0.1`) yang sudah ada di repo itu.
+
+**Env di service Cloud Run** `product-task-tracker-service` diisi sekali (Edit & Deploy New
+Revision → Variables). Deploy dari CI hanya mengubah `APP_ENV`; env lain dipertahankan.
+
+| Nama | Isi |
+|---|---|
+| `SPREADSHEET_ID` | ID spreadsheet v2 — **bukan** milik v1 |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | seluruh isi berkas kunci service account v2, satu baris |
+| `ACCESS_PIN` | PIN v2, jangan disamakan dengan PIN v1 |
+| `SESSION_SECRET` | acak, minimal 32 karakter |
+| `DEV_PIN` | (opsional) PIN mode Dev, berbeda dari `ACCESS_PIN` |
+
+Service itu sebelumnya menjalankan v1, jadi env lamanya masih berisi spreadsheet dan kunci v1.
+**Ganti dulu sebelum tag v2 pertama.** Kalau terlanjur, tak ada yang tertulis ke sheet v1: setiap
+baca-tulis v2 memeriksa penanda `_meta` lebih dulu (lihat *Dua pengaman*), jadi aplikasinya
+hanya menampilkan galat. Variabel khusus v1 (`MAGANG_PIN`, `VIEW_PIN`, `DATA_SOURCE`, `MYSQL_*`,
+`METRICS_*`, `OKR_*`, dst.) tak dibaca v2 dan sebaiknya dihapus dari service itu.
+
+Untuk mencoba server yang sama dengan Cloud Run di komputer sendiri: isi env di shell, lalu
+`npm start` → <http://localhost:8080>. Kerja sehari-hari tetap `npm run dev`, yang memuat `.env`.
 
 ---
 
@@ -658,11 +698,13 @@ lama dengan `app.js` baru.
 
 ## Langkah berikutnya
 
-1. Simpan suntingan task, proyek, dan paket ke spreadsheet, menggantikan localStorage. Komunikasi
-   (0.10.0) sudah memakai pola peristiwa yang hanya bertambah; pola yang sama bisa dipakai untuk
-   status dan tinjauan task. Aturan alurnya sudah ada di `public/inti.js` dan bisa dipakai juga
-   di server.
+1. Simpan suntingan task, proyek, dan paket di server, menggantikan localStorage — langsung ke
+   MySQL (schema sendiri, mis. `produk_v2`, diminta ke tim IT dengan nama persis), bukan ke
+   spreadsheet dulu. Komunikasi (0.10.0) sudah memakai pola peristiwa yang hanya bertambah; pola
+   yang sama bisa dipakai untuk status dan tinjauan task. Aturan alurnya sudah ada di
+   `public/inti.js` dan bisa dipakai juga di server. MySQL hanya terjangkau dari jaringan
+   kantor dan Cloud Run, tidak dari Vercel.
 2. Login per orang, supaya profil berasal dari login, data bisa disaring per peran, dan Link
    Saya kembali pribadi.
-3. Dropdown Master.
-4. Setelah matang: pindah ke GitLab (salin isi CI ke `.gitlab-ci.yml`).
+3. Sebelum menggantikan v1: endpoint metrics dan MCP (dipakai sistem OKR manager), lalu migrasi
+   sekali dari Spreadsheet v1 lewat pemetaan `scripts/_v1ke2.js`.

@@ -1,5 +1,24 @@
 # Changelog — ProductTrack v2
 
+## 0.15.2 — Siap jalan di Cloud Run lewat GitLab (2026-10-09)
+
+Keputusan user: v2 menggantikan isi repo GitLab `produk-cerebrum/product-task-tracker` dan
+domain `product-task-tracker.cerehub.id`, yang disiapkan tim IT untuk v1 tetapi belum dipakai
+tim. v1 tetap di Vercel dengan Spreadsheet sampai digantikan. Tampilan dan aturan tak berubah.
+
+- `server.js`, `Dockerfile`, `.dockerignore`, dan `.gitlab-ci.yml` mengikuti pola yang dibuat tim
+  IT untuk v1: pipeline hanya terpicu tag git, build dan deploy produksi manual, service Cloud
+  Run `product-task-tracker-service`. Bedanya Node 22 (sesuai `engines`) dan tanpa penjaga
+  `gas/Index.html` milik v1.
+- `server.js` meneruskan body kosong sebagai `{}`. Dengan pola server v1 (`undefined`), POST
+  tanpa isi ke `api/rpc.js` v2 menggantung karena pembacanya menunggu stream yang sudah habis.
+- Nama lingkungan di `/cek` dan Panel Sistem kini juga dibaca dari `APP_ENV`, yang diisi CI saat
+  deploy ke Cloud Run. Sebelumnya di luar Vercel selalu "lokal".
+- `npm start` menjalankan server yang sama dengan Cloud Run.
+- README: bagian *Deploy ke Cloud Run (GitLab)* — env yang harus diganti di service itu sebelum tag
+  pertama, dan langkah berikutnya: penyimpanan langsung ke MySQL.
+- Tes baru: `test/server.test.js` dan `APP_ENV`. 197 tes.
+
 ## 0.15.1 — Hasil QC menyeluruh (2026-10-09)
 
 Dari QC menyeluruh: simulasi acak di data v1 sungguhan, smoke test 11 profil × 4 lebar layar,

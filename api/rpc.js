@@ -79,7 +79,8 @@ const hashPin = (pin, garam) => crypto.scryptSync(String(pin), garam, 32).toStri
 let versiPaket = '';
 try { versiPaket = require('../package.json').version; } catch (e) { /* tak terbawa ke fungsi: biarkan kosong */ }
 
-const lingkungan = () => process.env.VERCEL_ENV || 'lokal';
+/* Vercel mengisi VERCEL_ENV sendiri; di Cloud Run, CI GitLab mengisi APP_ENV saat deploy. */
+const lingkungan = () => process.env.VERCEL_ENV || process.env.APP_ENV || 'lokal';
 const lewatHttps = req => req.headers['x-forwarded-proto'] === 'https' || !!process.env.VERCEL;
 const tidur = ms => new Promise(r => setTimeout(r, ms));
 

@@ -1,0 +1,261 @@
+# =============================================================================
+#  GitLab CI — gerbang tes, lalu build + deploy ke GCP Cloud Run
+#
+#  Repo GitLab produk-cerebrum/product-task-tracker kini berisi v2 (sejak 0.15.2).
+#  v1 tetap di GitHub + Vercel dengan Spreadsheet sampai digantikan v2; riwayat v1
+#  masih tersimpan di repo ini (commit sebelum v2, tag v1.0.0 dan v1.0.1).
+#
+#  Build/deploy disalin dari pipeline yang dibuat tim IT untuk v1 (pola backend-vitri):
+#    branch dev     → build manual → deploy dev     (APP_ENV=development)
+#    branch staging → build manual → deploy staging (APP_ENV=preview)
+#    tag git        → build manual → deploy prod manual (APP_ENV=production)
+#  (dev & staging sementara dinonaktifkan — lihat BUILD PHASE)
+#
+#  Beda dengan versi v1:
+#    - image node:22 — package.json v2 menuntut Node >= 22 (`node --test "test/*.test.js"`
+#      memakai pola berkas yang baru ada sejak Node 21);
+#    - tanpa penjaga gas/Index.html milik v1: v2 tak punya salinan Apps Script.
+#
+#  Variabel CI yang perlu diset ada di README bagian "Deploy ke Cloud Run (GitLab)".
+# =============================================================================
+
+# Semua job butuh executor Docker (image node, docker:dind, cloud-sdk).
+# Instance runner tanpa tag (#11 self-shell-runner) memakai executor SHELL dan
+# mengabaikan `image:` — job di sana gagal "npm: command not found". Karena itu
+# semua job dipaksa ke runner ber-tag `self-runner` (#9).
+default:
+  tags:
+    - self-runner
+
+# Hanya GCP_PROJECT, GCP_PROJECT_DEV, GCP_REGISTRY_URL, dan SERVICE_ACCOUNT_KEY
+# yang diambil dari variabel group; sisanya ditulis di sini.
+# Image ditaruh di repository Artifact Registry `cerebrum-internal-project`
+# bersama tool internal lain, dengan akhiran -dev / -stg / -prod.
+# Host ditulis langsung, bukan dari GCP_REGISTRY_URL: isinya berawalan https://
+# (cukup untuk docker login, tapi nama image tak boleh punya skema).
+variables:
+  IMAGE_BASE: "asia-southeast1-docker.pkg.dev/${GCP_PROJECT}/cerebrum-internal-project/product-task-tracker"
+
+image: node:22
+
+# Pipeline HANYA berjalan untuk tag git (rilis produksi). Push ke branch mana
+# pun dan merge request tidak memicu pipeline sama sekali — tes ikut jalan di
+# pipeline tag, sebelum build.
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+
+  # Unduhan npm disimpan antar-jalan, dikunci pada package.json: selama
+  # dependensinya tak berubah, pemasangan berikutnya tak perlu mengunduh ulang.
+  cache:
+    key:
+      files:
+        - package.json
+    paths:
+      - .npm/
+
+  script:
+    # `npm install`, BUKAN `npm ci`: package-lock.json sengaja tidak di-commit
+    # (lihat .gitignore — pelajaran dari v1, commit 73de6f0).
+    - npm install --cache .npm --prefer-offline --no-audit --no-fund
+
+    # Seluruh tes lulus. Google Sheets ditiru di dalam tes, jadi tak butuh kredensial.
+    - npm test
+
+### RULES TEMPLATES
+.dev-rules:
+  only:
+    - dev
+  when: manual
+
+.stg-rules:
+  only:
+    - staging
+  when: manual
+
+.prod-rules:
+  only:
+    - tags
+  when: manual
+
+### BUILD APP TEMPLATES
+.build-app-template:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+  needs:
+    - test
+  before_script:
+    - echo "$SERVICE_ACCOUNT_KEY" | docker login -u _json_key --password-stdin $GCP_REGISTRY_URL
+  script:
+    - docker pull ${DOCKER_IMAGE_TAG}:latest || true
+    - docker build -f Dockerfile --cache-from ${DOCKER_IMAGE_TAG}:latest -t ${DOCKER_IMAGE_TAG}:latest -t ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} .
+    - docker push ${DOCKER_IMAGE_TAG}:${IMAGE_TAG}
+    - docker push ${DOCKER_IMAGE_TAG}:latest
+
+### DEPLOY TEMPLATES
+# Secret aplikasi (SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_JSON, ACCESS_PIN, SESSION_SECRET,
+# DEV_PIN) diset SEKALI di service Cloud Run; `gcloud run deploy` mempertahankannya.
+# Yang diatur dari sini hanya APP_ENV (nama lingkungan di /cek dan Panel Sistem v2).
+.deploy-template:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  before_script:
+    - gcloud auth activate-service-account --key-file <(echo "$SERVICE_ACCOUNT_KEY")
+  script:
+    - gcloud config set project ${GCP_PROJECT_ID}
+    - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --max-instances 2 --port 8080 --allow-unauthenticated --ingress ${INGRESS} --update-env-vars APP_ENV=${APP_ENV}
+  after_script:
+    - |
+      if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+        echo "[SKIP] DISCORD_WEBHOOK_URL belum di-set — notifikasi dilewati."
+        exit 0
+      fi
+    - apk add --no-cache curl jq >/dev/null 2>&1
+    - |
+      case "${CI_JOB_STATUS}" in
+        success)
+          STATUS_ICON="✅"
+          STATUS_TEXT="SUCCESS BOSS"
+          COLOR=14177041
+          ;;
+        failed)
+          STATUS_ICON="❌"
+          STATUS_TEXT="FAILED BOSS"
+          COLOR=15158332
+          ;;
+        canceled)
+          STATUS_ICON="⚠️"
+          STATUS_TEXT="CANCELED BOSS"
+          COLOR=15844367
+          ;;
+        *)
+          STATUS_ICON="ℹ️"
+          STATUS_TEXT="$(echo ${CI_JOB_STATUS} | tr '[:lower:]' '[:upper:]')"
+          COLOR=8421504
+          ;;
+      esac
+
+      TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+
+      PAYLOAD=$(jq -n \
+        --arg icon "$STATUS_ICON" \
+        --arg status "$STATUS_TEXT" \
+        --arg project "$CI_PROJECT_NAME" \
+        --arg service "$DEPLOYMENT_NAME" \
+        --arg image_tag "$IMAGE_TAG" \
+        --arg triggered_by "$GITLAB_USER_LOGIN" \
+        --arg pipeline_url "$CI_PIPELINE_URL" \
+        --argjson color "$COLOR" \
+        --arg ts "$TIMESTAMP" \
+        '{
+          embeds: [{
+            title: "\($icon) DEPLOYMENT \($status)",
+            color: $color,
+            url: $pipeline_url,
+            fields: [
+              { name: "Project", value: $project, inline: true },
+              { name: "Status", value: $status, inline: true },
+              { name: "Service", value: $service, inline: false },
+              { name: "Image Tag", value: "`\($image_tag)`", inline: true },
+              { name: "Triggered By", value: $triggered_by, inline: true }
+            ],
+            footer: { text: "Cerebrum Deployment" },
+            timestamp: $ts
+          }]
+        }')
+
+      curl -X POST "$DISCORD_WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        --max-time 10 --retry 3 --retry-delay 2 --retry-connrefused \
+        -d "${PAYLOAD}" \
+        -w "\nWebhook HTTP Status: %{http_code}\n" \
+        || echo "[WARN] Webhook delivery failed for ${DEPLOYMENT_NAME} — not blocking pipeline"
+
+### BUILD PHASE
+# Dev & staging DINONAKTIFKAN sementara: job berawalan titik tak dijalankan GitLab.
+# Hapus titiknya untuk mengaktifkan lagi. Untuk sekarang hanya prod (dari tag git).
+.build-app-dev:
+  extends:
+    - .build-app-template
+    - .dev-rules
+  variables:
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-dev"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+
+.build-app-stg:
+  extends:
+    - .build-app-template
+    - .stg-rules
+  variables:
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-stg"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+
+build-app-prod:
+  extends:
+    - .build-app-template
+    - .prod-rules
+  variables:
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
+    IMAGE_TAG: "$CI_COMMIT_TAG"
+
+### DEPLOY PHASE
+.deploy-dev:
+  extends:
+    - .deploy-template
+  variables:
+    GCP_PROJECT_ID: "${GCP_PROJECT_DEV}"
+    CLOUD_RUN_REGION: "asia-southeast2"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-dev"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+    DEPLOYMENT_NAME: "dev-product-task-tracker-service"
+    INGRESS: "all"
+    APP_ENV: "development"
+  only:
+    - dev
+  when: on_success
+  needs:
+    - build-app-dev
+
+.deploy-stg:
+  extends:
+    - .deploy-template
+  variables:
+    GCP_PROJECT_ID: "${GCP_PROJECT}"
+    CLOUD_RUN_REGION: "asia-southeast2"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-stg"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+    DEPLOYMENT_NAME: "stg-product-task-tracker-service"
+    INGRESS: "all"
+    APP_ENV: "preview"
+  only:
+    - staging
+  when: on_success
+  needs:
+    - build-app-stg
+
+deploy-prod:
+  extends:
+    - .deploy-template
+    - .prod-rules
+  environment:
+    name: production
+  variables:
+    GCP_PROJECT_ID: "${GCP_PROJECT}"
+    CLOUD_RUN_REGION: "asia-southeast2"
+    DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
+    IMAGE_TAG: "$CI_COMMIT_TAG"
+    DEPLOYMENT_NAME: "product-task-tracker-service"
+    INGRESS: "all"
+    APP_ENV: "production"
+  needs:
+    - build-app-prod
