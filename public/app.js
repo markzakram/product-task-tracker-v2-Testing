@@ -674,7 +674,7 @@
         <div class="pin-profil-kepala">${avatar(id, 'besar')}<div><h2>${esc(o.nama)}</h2><p class="hint">${esc(I.PERAN[o.peran])}${o.jabatan ? ' · ' + esc(o.jabatan) : ''}</p></div></div>
         ${lagi ? '<p class="banner kuning">Masukkan PIN Anda lagi untuk melanjutkan; PIN-nya mungkin baru diganti.</p>' : ''}
         <label class="isian">PIN profil<input id="pin-profil" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required></label>
-        <p class="hint">Lupa PIN? Manager atau Dev bisa memasang PIN baru di halaman Master.</p>
+        <p class="hint">Lupa PIN? Minta Dev memasang PIN baru untuk profil ini.</p>
         ${kakiModal('Masuk')}
       </form>`);
   }
@@ -5017,8 +5017,9 @@
           ${o.aktif === false ? '' : `<button type="button" class="tombol kecil" data-aksi="dev-lihat" data-id="${esc(o.id)}">${ikon('mata', 14)} Lihat sebagai</button>`}
         </span></td></tr>`;
     return `${S.orangSalah ? `<p class="banner kuning">Tab orang di spreadsheet diabaikan karena organogramnya rusak: ${esc(S.orangSalah)} Simpan ulang orang yang bersangkutan dari sini untuk membetulkannya.</p>` : ''}
-      <div class="dev-alat"><p class="hint">Perubahan tersimpan di tab <b>orang</b> spreadsheet v2 dan berlaku untuk semua orang saat aplikasi dimuat ulang. Orang tak dihapus, hanya dinonaktifkan, supaya namanya tetap terbaca di riwayat.</p>
-        <button type="button" class="tombol utama" data-aksi="dev-orang-baru">${ikon('tambah', 16)} Tambah orang</button></div>
+      <div class="dev-alat"><p class="hint">Perubahan tersimpan di tab <b>orang</b> spreadsheet v2 dan berlaku untuk semua orang saat aplikasi dimuat ulang. Orang tak dihapus, hanya dinonaktifkan, supaya namanya tetap terbaca di riwayat. PIN tiap orang diatur di Master → PIN profil.</p>
+        <span class="dev-aksi-baris"><button type="button" class="tombol" data-aksi="dev-ke-pin">${ikon('gembok', 16)} PIN profil</button>
+          <button type="button" class="tombol utama" data-aksi="dev-orang-baru">${ikon('tambah', 16)} Tambah orang</button></span></div>
       <div class="tabel-gulir"><table class="tabel dev-tabel"><thead><tr><th>Orang</th><th>Peran</th><th>Jabatan</th><th>Status</th><th></th></tr></thead>
         <tbody>${['manager', 'lead', 'staff'].map(p => semua.filter(o => o.peran === p).map(baris).join('')).join('')}</tbody></table></div>`;
   }
@@ -5113,8 +5114,9 @@
 
   /* ---------- Master (0.14.0) ----------
      Daftar pilihan bersama — sub-stage, kategori paket & alurnya, platform, satuan, label
-     prioritas, capaian, nama tim — dan PIN tiap profil. Hanya Manager dan Dev. Tersimpan di tab
-     master dan tab pin spreadsheet v2 dan berlaku bagi semua orang saat aplikasi dimuat ulang;
+     prioritas, capaian, nama tim — dan PIN tiap profil. Hanya Manager dan Dev; bagian PIN profil
+     hanya tampil di mode Dev (0.14.1). Tersimpan di tab master dan tab pin spreadsheet v2 dan
+     berlaku bagi semua orang saat aplikasi dimuat ulang;
      aturannya (apa yang sah) di Inti. Yang sudah dipakai data tak dihapus, hanya dinonaktifkan:
      tak ditawarkan lagi, tapi data lamanya tetap terbaca. */
 
@@ -5123,14 +5125,17 @@
   const NAMA_MASTER = { substage: 'Sub-stage', kategori: 'Kategori paket', platform: 'Platform', satuan: 'Satuan', prioritas: 'Prioritas', capaian: 'Capaian', tim: 'Nama tim' };
   const managerBerpin = () => I.ORANG.some(o => o.peran === 'manager' && S.berpin.has(o.id));
   const awalanKode = tahap => (tahap === 'V' ? 'DV' : tahap);
+  /* PIN profil hanya untuk mode Dev; Manager (juga "Lihat sebagai" Manager) tak melihatnya. */
+  const tabMaster = () => TAB_MASTER.filter(([id]) => id !== 'pin' || modeDev());
 
   function viewMaster() {
-    const tab = TAB_MASTER.some(([id]) => id === S.mst.tab) ? S.mst.tab : 'substage';
+    const daftar = tabMaster();
+    const tab = daftar.some(([id]) => id === S.mst.tab) ? S.mst.tab : 'substage';
     const isi = { substage: mstSub, kategori: mstKategori, pilihan: mstPilihan, label: mstLabel, pin: mstPin }[tab];
     return `<div class="judul-halaman"><div><h1>Master</h1><p>Daftar pilihan yang dipakai semua orang · tersimpan di spreadsheet v2, berlaku saat aplikasi dimuat ulang</p></div></div>
-      ${managerBerpin() ? '' : `<p class="banner kuning mst-banner">${ikon('gembok', 16)}<span>Master dan PIN masih terbuka: siapa pun yang memilih profil Manager bisa mengubahnya. Pasang PIN Manager di bagian <b>PIN profil</b>.</span></p>`}
+      ${modeDev() && !managerBerpin() ? `<p class="banner kuning mst-banner">${ikon('gembok', 16)}<span>Master masih terbuka: siapa pun yang memilih profil Manager bisa mengubahnya, karena Manager belum ber-PIN. Pasang PIN Manager di bagian <b>PIN profil</b>.</span></p>` : ''}
       ${Object.entries(S.masterSalah || {}).map(([j, alasan]) => `<p class="banner kuning mst-banner"><span>${esc(NAMA_MASTER[j] || j)} di tab master diabaikan, kembali ke bawaan: ${esc(alasan)} Simpan ulang isiannya dari sini untuk membetulkannya.</span></p>`).join('')}
-      <div class="segmen dev-tab mst-tab" role="group" aria-label="Bagian Master">${TAB_MASTER.map(([id, l, ik]) => `<button type="button" data-aksi="mst-tab" data-nilai="${id}" aria-pressed="${tab === id}">${ikon(ik, 16)}<span>${l}</span></button>`).join('')}</div>
+      <div class="segmen dev-tab mst-tab" role="group" aria-label="Bagian Master">${daftar.map(([id, l, ik]) => `<button type="button" data-aksi="mst-tab" data-nilai="${id}" aria-pressed="${tab === id}">${ikon(ik, 16)}<span>${l}</span></button>`).join('')}</div>
       <div id="mst-isi">${isi()}</div>`;
   }
 
@@ -5363,7 +5368,7 @@
           ${ada ? `<button type="button" class="tombol kecil bahaya" data-aksi="mst-pin-hapus" data-id="${esc(o.id)}">Hapus</button>` : ''}
         </span></td></tr>`;
     };
-    return `<div class="dev-alat"><p class="hint">PIN profil (4–8 angka) diminta saat memilih profil itu. Orang lain yang tahu PIN aplikasi tak bisa masuk sebagai dia, menulis pesan atas namanya, atau mengganti fotonya. PIN disimpan sebagai sidik (hash) di tab <b>pin</b>; tak ada yang bisa membacanya, termasuk Dev. Lupa PIN? Pasang PIN baru di sini.</p></div>
+    return `<div class="dev-alat"><p class="hint">Bagian ini hanya tampil di mode Dev. PIN profil (4–8 angka) diminta saat memilih profil itu. Orang lain yang tahu PIN aplikasi tak bisa masuk sebagai dia, menulis pesan atas namanya, atau mengganti fotonya. PIN disimpan sebagai sidik (hash) di tab <b>pin</b>; tak ada yang bisa membacanya, termasuk Dev. Lupa PIN? Pasang PIN baru di sini.</p></div>
       <div class="tabel-gulir"><table class="tabel dev-tabel"><thead><tr><th>Profil</th><th>PIN</th><th></th></tr></thead>
         <tbody>${['manager', 'lead', 'staff'].map(p => I.ORANG.filter(o => o.peran === p).map(baris).join('')).join('')}</tbody></table></div>`;
   }
@@ -5371,24 +5376,20 @@
     const o = I.orang(id);
     return `<form data-form="mst-pin" novalidate>
       <h2 class="judul-ikon">${ikon('gembok', 20)} PIN ${esc(o.pendek)}</h2>
-      <p class="hint">${id === S.me ? 'Ini profil Anda sendiri: sesi ini langsung memakai PIN barunya.' : `Sampaikan PIN barunya langsung ke ${esc(o.pendek)}, jangan lewat pesan di aplikasi.`}</p>
+      <p class="hint">Sampaikan PIN barunya langsung ke ${esc(o.pendek)}, jangan lewat pesan di aplikasi.</p>
       <div class="dua-isian">
         <label class="isian">PIN baru<input name="pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" required></label>
         <label class="isian">Ulangi PIN<input name="ulang" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" required></label>
       </div>
-      <p class="hint">4–8 angka.${o.peran === 'manager' && !managerBerpin() ? ' Begitu PIN Manager terpasang, Master dan PIN hanya bisa diubah Manager (dengan PIN-nya) dan Dev.' : ''}</p>
+      <p class="hint">4–8 angka.${o.peran === 'manager' && !managerBerpin() ? ' Begitu PIN Manager terpasang, Master hanya bisa diubah Manager (dengan PIN-nya) dan Dev.' : ''}</p>
       ${kakiModal('Simpan PIN')}
     </form>`;
   }
-  /* pin '' = hapus. PIN profil sendiri berganti: sesi ini dibuktikan ulang dengan PIN barunya. */
+  /* pin '' = hapus. Hanya mode Dev (server menolak sesi lain). */
   async function aturPin(id, pin, form) {
     const h = await api('aturPin', [id, pin]);
     if (!h.success || !Array.isArray(h.berpin)) return gagalMaster(h.message || 'PIN gagal disimpan.', form);
     S.berpin = new Set(h.berpin);
-    if (id === S.me) {
-      const m = await api('masukProfil', [id, pin]);
-      if (m.success) S.meSesi = m.me || id;
-    }
     return true;
   }
   async function kirimFormPin(form) {
@@ -5408,7 +5409,7 @@
   async function hapusPin(id) {
     const o = I.orang(id);
     const manager = o.peran === 'manager';
-    if (!confirm(`Hapus PIN ${o.pendek}? Profilnya bisa dipilih tanpa PIN lagi.${manager ? '\n\nIni PIN Manager: Master dan PIN jadi terbuka lagi bagi siapa pun yang memilih profil Manager.' : ''}`)) return;
+    if (!confirm(`Hapus PIN ${o.pendek}? Profilnya bisa dipilih tanpa PIN lagi.${manager ? '\n\nIni PIN Manager: Master jadi terbuka lagi bagi siapa pun yang memilih profil Manager.' : ''}`)) return;
     if (!await aturPin(id, '', null)) return;
     render();
     toast(`PIN ${o.pendek} dihapus.`);
@@ -6210,6 +6211,7 @@
       case 'dev-orang-baru': bukaModal({ jenis: 'orang', id: '' }, formOrang(null)); break;
       case 'dev-orang-ubah': bukaModal({ jenis: 'orang', id: d.id }, formOrang(I.orang(d.id))); break;
       case 'dev-lihat': mulaiPratinjau(d.id); break;
+      case 'dev-ke-pin': S.mst.tab = 'pin'; pindahHalaman('master'); break;
       case 'pratinjau-akhiri': akhiriPratinjau(); break;
       case 'dev-foto-hapus': hapusFotoOrang(d.id); break;
       case 'psn-moderasi': moderasiPesan(d.id); break;

@@ -19,7 +19,7 @@
      kirimObrolan dengan jenis 'moderasi'                      [Dev] sembunyikan pesan siapa pun
      POST /api/rpc  { action: 'masukProfil', args: [orang, pin] }  pilih profil (PIN kalau profil itu ber-PIN)
      POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Manager/Dev] daftar pilihan (halaman Master)
-     POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Manager/Dev] atur atau hapus (pin '') PIN profil
+     POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
 
    Balasan berbentuk { success, message, ... } seperti v1.
 
@@ -60,8 +60,9 @@ async function wajibProfil(konteks, k, orang) {
   if (await meSah(konteks, k) === orang) return;
   throw perluPin(orang);
 }
-/* Halaman Master & PIN: Dev, atau Manager yang terbukti lewat PIN. Selama belum ada Manager
-   yang ber-PIN, siapa pun yang memilih profil Manager boleh (seperti data prototipe lainnya). */
+/* Halaman Master: Dev, atau Manager yang terbukti lewat PIN. Selama belum ada Manager yang
+   ber-PIN, siapa pun yang memilih profil Manager boleh (seperti data prototipe lainnya).
+   PIN profil sendiri hanya diatur mode Dev (0.14.1). */
 async function bolehMaster(konteks, k) {
   if (konteks.dev) return;
   const me = await meSah(konteks, k);
@@ -183,8 +184,8 @@ const AKSI = {
     return { master: await sheet.tulisMaster(k, id, bersih) };
   },
   async aturPin(orang, pin) {
+    hanyaDev(this);
     const k = await sheet.klien();
-    await bolehMaster(this, k);
     await terapkanOrang(k);
     const siapa = String(orang || '');
     if (!Inti.ORANG.some(o => o.id === siapa)) throw new GalatIsian('Profil tidak dikenal.');
@@ -320,7 +321,8 @@ module.exports = async (req, res) => {
     const kode = kodeUntuk(err);
     if (kode === 500 || kode === 502) console.error(`[rpc] aksi=${aksi}`, err);
     const akun = sheet.emailAkun();
-    const message = err instanceof GalatIsian ? err.message : sheet.jelaskanGalat(err, akun);
+    // Isian dan izin yang ditolak sudah berupa kalimat untuk orang; selain itu dijelaskan dari galat Google.
+    const message = err instanceof GalatIsian || err instanceof GalatIzin ? err.message : sheet.jelaskanGalat(err, akun);
     return kirim(res, kode, { success: false, env: lingkungan(), akun, dev, message, ...(err && err.kode ? { kode: err.kode } : {}) });
   }
 };

@@ -49,7 +49,7 @@
       id: 'mulai-profil', peran: 'mulai', judul: 'Masuk sebagai siapa', tujuan: 'Melihat aplikasi dari sisi Staff, Lead, atau Manager.',
       langkah: [
         'Setelah PIN, pilih profil Anda sendiri. Tampilan menyesuaikan peran: Staff dan Lead mulai di **Hari Ini**, Manager di **Proyek**.',
-        'Profil **bergembok** memakai **PIN pribadi**: masukkan PIN-nya saat memilih profil itu. PIN dipasang Manager di halaman **Master**, jadi orang lain tak bisa menulis pesan atau mengganti foto atas nama Anda.',
+        'Profil **bergembok** memakai **PIN pribadi**: masukkan PIN-nya saat memilih profil itu. PIN-nya dipasang lewat mode Dev, jadi orang lain tak bisa menulis pesan atau mengganti foto atas nama Anda.',
         'Untuk melihat sisi peran lain, tekan **Ganti profil** di kaki sidebar.',
         'Pasang **foto profil**: klik foto atau inisial Anda di kaki sidebar (di ponsel: **Menu**), pilih foto, geser dan perbesar di bingkai bulat, lalu **Simpan foto**. Fotonya terlihat semua orang.',
         'Tombol **Coba sekarang** di panduan ini pindah ke profil yang cocok dengan sendirinya. Kotak **langkah panduan** di pojok bawah menemani selama Anda mencoba.',
@@ -63,7 +63,7 @@
         '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
-        '**Manajer** (hanya Manager): **Riwayat Aktivitas** dan **Master**, tempat daftar pilihan bersama dan PIN profil diatur.',
+        '**Manajer** (hanya Manager): **Riwayat Aktivitas** dan **Master**, tempat daftar pilihan bersama diatur.',
       ],
     },
     {
@@ -290,12 +290,12 @@
       ],
     },
     {
-      id: 'manager-master', peran: 'manager', judul: 'Mengatur Master dan PIN profil', tujuan: 'Mengubah daftar pilihan bersama dan mengunci profil dengan PIN.', coba: true,
+      id: 'manager-master', peran: 'manager', judul: 'Mengatur Master', tujuan: 'Mengubah daftar pilihan yang dipakai semua orang.', coba: true,
       langkah: [
         'Buka **Master** di grup Manajer. Isinya daftar pilihan yang dipakai semua orang: **sub-stage**, **kategori paket** dan alurnya, **platform**, **satuan**, label prioritas, capaian dan bobotnya, serta nama tim.',
         'Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi, tapi task dan paket lamanya tetap terbaca. Panah atas-bawah mengatur urutan platform, satuan, dan kategori.',
         '**Kategori paket**: susun alur langkahnya dan tandai capaiannya berurutan (konten, input, QC, tayang). Kategori baru langsung muncul di form rancangan paket dan di salinan sheet Marsel.',
-        '**PIN profil**: pasang PIN 4–8 angka untuk tiap orang. Pasang **PIN Manager** lebih dulu; sebelum itu siapa pun yang memilih profil Manager bisa mengubah Master.',
+
         'Perubahan tersimpan di spreadsheet v2 dan berlaku bagi semua orang saat aplikasi dimuat ulang.',
       ],
     },
@@ -322,8 +322,8 @@
     ['Data contoh', 'Data latihan di aplikasi ini. **Reset data contoh** di kaki sidebar mengembalikannya ke awal. Pesan Komunikasi tidak ikut di-reset.'],
     ['Ruang', 'Tempat obrolan di Komunikasi: utas per task, ruang proyek (terbuka untuk semua), dan ruang tim (anggota tim dan Manager).'],
     ['Blok', 'Satu bagian catatan: paragraf, judul, daftar, checklist, tabel, kutipan, atau garis pemisah. Ketik / di catatan untuk memilihnya.'],
-    ['Master', 'Halaman Manager (dan Dev) untuk daftar pilihan bersama — sub-stage, kategori paket, platform, satuan, prioritas, capaian, nama tim — dan PIN profil.'],
-    ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu. Berbeda dari PIN aplikasi yang dipakai bersama.'],
+    ['Master', 'Halaman Manager (dan Dev) untuk daftar pilihan bersama: sub-stage, kategori paket, platform, satuan, prioritas, capaian, dan nama tim.'],
+    ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu dan dipasang lewat mode Dev. Berbeda dari PIN aplikasi yang dipakai bersama.'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];
 

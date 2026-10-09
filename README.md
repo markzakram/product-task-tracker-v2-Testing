@@ -315,7 +315,8 @@ Server: aksi `masukDev`, `keluarDev`, `sistem`, `simpanOrang`, dan peristiwa obr
 ### Master & PIN profil
 
 Sejak 0.14.0, seperti tab Master di v1: halaman **Master** (grup Manajer; Manager dan Dev)
-mengatur daftar pilihan yang dipakai semua orang, dan **PIN pribadi** tiap profil.
+mengatur daftar pilihan yang dipakai semua orang. Bagian **PIN profil** (PIN pribadi tiap
+profil) hanya tampil dan berlaku di mode Dev (0.14.1).
 
 - **Sub-stage**: tambah kode baru (nomor berikutnya terisi sendiri, mis. DV10 atau R5), ubah
   nama, tim pemilik, dan "direview Manager", atau nonaktifkan.
@@ -325,7 +326,8 @@ mengatur daftar pilihan yang dipakai semua orang, dan **PIN pribadi** tiap profi
 - **Platform & satuan**: tambah, urutkan, nonaktifkan.
 - **Label & bobot**: label prioritas, nama tim, serta nama dan bobot capaian (naik berurutan,
   tayang 100%).
-- **PIN profil**: pasang, ganti, atau hapus PIN (4–8 angka) tiap orang.
+- **PIN profil** (mode Dev saja): pasang, ganti, atau hapus PIN (4–8 angka) tiap orang. Dari
+  Panel Dev → Pengguna ada pintasan **PIN profil** ke bagian ini.
 
 Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi di form,
 tapi task dan paket lamanya tetap terbaca. Perubahan berlaku untuk semua orang saat aplikasi
@@ -337,9 +339,11 @@ diganti membatalkan sesi lama), dan **menolak menulis atas nama profil ber-PIN**
 pesan Komunikasi dan foto profil. Browser lalu meminta PIN itu lagi. PIN disimpan sebagai hash
 scrypt bergaram di tab `pin` dan tak pernah dikirim ke browser.
 
-**Siapa yang boleh.** Dev, atau Manager yang terbukti lewat PIN-nya. Selama belum ada Manager
-yang ber-PIN, Master dan PIN masih terbuka bagi siapa pun yang memilih profil Manager (seperti
-data prototipe lainnya), dan halamannya menampilkan peringatan. **Pasang PIN Manager lebih dulu.**
+**Siapa yang boleh.** Master: Dev, atau Manager yang terbukti lewat PIN-nya. Selama belum ada
+Manager yang ber-PIN, Master masih terbuka bagi siapa pun yang memilih profil Manager (seperti
+data prototipe lainnya); peringatannya hanya tampil di mode Dev. PIN profil: **hanya Dev**
+(`aturPin` menolak sesi lain, termasuk Manager). **Dev sebaiknya memasang PIN Manager lebih
+dulu.**
 
 **Cara kerjanya.** Tab `master` berisi satu baris per isian yang diubah (`jenis`, `kunci`,
 `data` JSON, `aktif`, `urutan`); bawaannya tetap di kode (`public/inti.js`). Isian diperiksa di
@@ -588,23 +592,24 @@ lama dengan `app.js` baru.
   mengikuti data task di browser masing-masing, dan **tautan ke
   task yang dibuat di browser lain tidak ditemukan** (aplikasi memberi tahu "tidak ada di data
   browser ini"). Tautan ke apa pun yang sudah ada di data contoh selalu jalan.
-- **Foto profil bisa diganti siapa pun yang memilih profil itu.** PIN-nya bersama dan profil
-  dipilih sendiri, sama seperti data lain di prototipe. Dengan login per orang nanti, hanya
-  pemiliknya yang bisa mengganti.
+- **Profil tanpa PIN pribadi masih bisa dipakai siapa pun.** Foto profil dan pesan atas nama
+  profil ber-PIN terlindungi sejak 0.14.0 (lihat *Master & PIN profil*); profil tanpa PIN tetap
+  dipilih bebas, sama seperti data lain di prototipe. Login per orang sungguhan belum ada.
 - **Notifikasi hanya di dalam aplikasi.** Pesan Komunikasi terbagi untuk semua orang; aktivitas
   task lainnya dari data di browser itu. Belum ada email atau push.
 - **Pesan yang diubah atau dihapus tetap ada di spreadsheet.** Aplikasi hanya menampilkan
   versi terakhir atau "Pesan dihapus"; teks aslinya masih terbaca di tab `obrolan`. Pengirim
-  pesan juga belum bisa dibuktikan selama PIN dipakai bersama.
-- **Profil dipilih sendiri** karena PIN dipakai bersama. Siapa pun bisa masuk sebagai Manager.
+  pesan hanya terbukti untuk profil ber-PIN.
+- **Profil dipilih sendiri** karena PIN aplikasi dipakai bersama. Selama Manager belum ber-PIN,
+  siapa pun bisa masuk sebagai Manager.
 - **Lingkup per peran baru di tampilan.** Staff, Lead, dan Manager melihat lingkup berbeda,
   tetapi seluruh data contoh tetap dikirim ke browser dan profil dipilih sendiri. v1 menyaring
   data di server untuk magang dan Lintas Divisi; v2 belum. Siapa pun yang tahu PIN v2 bisa
   melihat seluruh data contoh, jadi jangan bagikan PIN v2 ke magang atau Lintas Divisi.
-- Task belum bisa dihapus. Dropdown Master v1 belum ada: pilihan platform & kategori masih tetap
-  di kode.
+- Task belum bisa dihapus.
 - Satu task hanya menyetor saat task-nya Selesai; setoran per sub-task belum ada.
-- Bobot capaian (40/60/85/100) serta alur Dibimbing dan Live Class masih usulan.
+- Bobot capaian bawaan (40/60/85/100) serta alur Dibimbing dan Live Class masih usulan PRD;
+  sejak 0.14.0 bisa diubah di Master.
 - Dari PRD v3 yang ditunda: fase bertenggat bertingkat, template task rutin berulang, heatmap,
   dan modul Issue & Evaluasi.
 - Pemetaan sub-stage task v1 berbasis kata kunci di judul, jadi sebagian kecil bisa meleset.

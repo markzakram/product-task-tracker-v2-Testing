@@ -495,11 +495,17 @@ test('master: tersimpan di tab master, ikut data contoh, dan berlaku saat dimuat
   } finally { I.aturMaster([]); }
 });
 
-test('PIN profil: hash tak pernah keluar; PIN salah 401; menulis atas nama profil ber-PIN perlu PIN-nya', async () => {
+test('PIN profil: hanya mode Dev yang mengatur; hash tak pernah keluar; PIN salah 401; menulis atas nama profil ber-PIN perlu PIN-nya', async () => {
   const { p } = await sheetContoh();
   const cookie = await masuk();
-  // Selama Manager belum ber-PIN, Master & PIN terbuka (seperti data prototipe lainnya).
-  const atur = await panggil({ body: { action: 'aturPin', args: ['kiki', '2468'] }, cookie });
+  process.env.DEV_PIN = PIN_DEV;
+  const dev = await masukDev();
+  // Sesi biasa, juga Manager, tak mengatur PIN (0.14.1: bagian PIN profil hanya untuk mode Dev).
+  assert.equal((await panggil({ body: { action: 'aturPin', args: ['kiki', '2468'] }, cookie })).status, 403);
+  const manager = pakai(await panggil({ body: { action: 'masukProfil', args: ['nynda', ''] }, cookie }));
+  assert.equal((await panggil({ body: { action: 'aturPin', args: ['kiki', '2468'] }, cookie: manager })).status, 403);
+  assert.equal(p.tab('pin'), undefined, 'penolakan tak menulis apa pun');
+  const atur = await panggil({ body: { action: 'aturPin', args: ['kiki', '2468'] }, cookie: dev });
   assert.equal(atur.status, 200, atur.teks);
   assert.deepEqual(atur.json.berpin, ['kiki']);
   const baris = p.tab('pin').values[1];
@@ -508,7 +514,7 @@ test('PIN profil: hash tak pernah keluar; PIN salah 401; menulis atas nama profi
   const contoh = await panggil({ body: { action: 'muatContoh' }, cookie });
   assert.deepEqual(contoh.json.berpin, ['kiki']);
   assert.ok(!contoh.teks.includes(baris[1]), 'hash tak dikirim ke browser');
-  assert.equal((await panggil({ body: { action: 'aturPin', args: ['kiki', '12'] }, cookie })).status, 400, 'PIN 4–8 angka');
+  assert.equal((await panggil({ body: { action: 'aturPin', args: ['kiki', '12'] }, cookie: dev })).status, 400, 'PIN 4–8 angka');
 
   const pesan = { jenis: 'pesan', ruang: 'tim:LA', oleh: 'kiki', teks: 'Halo' };
   const tolak = await panggil({ body: { action: 'kirimObrolan', args: [pesan] }, cookie });
@@ -529,44 +535,45 @@ test('PIN profil: hash tak pernah keluar; PIN salah 401; menulis atas nama profi
   assert.equal((await panggil({ body: { action: 'muatContoh' }, cookie: kiki })).json.me, 'kiki');
   assert.equal((await panggil({ body: { action: 'kirimObrolan', args: [pesan] }, cookie: kiki })).status, 200);
   // Sesi Kiki tak bisa menulis atas nama profil ber-PIN lain.
-  await panggil({ body: { action: 'aturPin', args: ['alya', '1357'] }, cookie });
+  await panggil({ body: { action: 'aturPin', args: ['alya', '1357'] }, cookie: dev });
   assert.equal((await panggil({ body: { action: 'kirimObrolan', args: [{ ...pesan, oleh: 'alya' }] }, cookie: kiki })).status, 403);
   // PIN Kiki diganti: sesi lama tak lagi terbukti sebagai Kiki.
-  await panggil({ body: { action: 'aturPin', args: ['kiki', '9999'] }, cookie });
+  await panggil({ body: { action: 'aturPin', args: ['kiki', '9999'] }, cookie: dev });
   assert.equal((await panggil({ body: { action: 'kirimObrolan', args: [pesan] }, cookie: kiki })).status, 403);
   assert.equal((await panggil({ body: { action: 'muatContoh' }, cookie: kiki })).json.me, '');
   // Hapus PIN: profil bebas lagi.
-  const hapus = await panggil({ body: { action: 'aturPin', args: ['kiki', ''] }, cookie });
+  const hapus = await panggil({ body: { action: 'aturPin', args: ['kiki', ''] }, cookie: dev });
   assert.deepEqual(hapus.json.berpin, ['alya']);
   assert.equal((await panggil({ body: { action: 'kirimObrolan', args: [pesan] }, cookie })).status, 200);
 });
 
-test('Master & PIN: begitu Manager ber-PIN, hanya Manager (lewat PIN) atau Dev yang bisa mengubahnya', async () => {
+test('Master: begitu Manager ber-PIN, hanya Manager (lewat PIN) atau Dev yang bisa mengubahnya', async () => {
   const I = require('../public/inti');
   await sheetContoh();
   const cookie = await masuk();
+  process.env.DEV_PIN = PIN_DEV;
+  const dev = await masukDev();
   try {
-    assert.equal((await panggil({ body: { action: 'aturPin', args: ['nynda', '8642'] }, cookie })).status, 200);
+    assert.equal((await panggil({ body: { action: 'aturPin', args: ['nynda', '8642'] }, cookie: dev })).status, 200);
     const isian = ['platform', { baru: true, kunci: 'SNBT' }];
     const tolak = await panggil({ body: { action: 'simpanMaster', args: isian }, cookie });
     assert.equal(tolak.status, 403);
     assert.match(tolak.json.message, /Manager/);
-    assert.equal((await panggil({ body: { action: 'aturPin', args: ['kiki', '2468'] }, cookie })).status, 403);
     // Staff yang terbukti lewat PIN-nya pun tak bisa.
     const kiki = pakai(await panggil({ body: { action: 'masukProfil', args: ['kiki', ''] }, cookie }));
     assert.equal((await panggil({ body: { action: 'simpanMaster', args: isian }, cookie: kiki })).status, 403);
     const nynda = pakai(await panggil({ body: { action: 'masukProfil', args: ['nynda', '8642'] }, cookie }));
     assert.equal((await panggil({ body: { action: 'simpanMaster', args: isian }, cookie: nynda })).status, 200);
-    // PIN Manager diganti (dari sesinya sendiri): sesi lama diminta PIN lagi, bukan ditolak begitu saja.
-    assert.equal((await panggil({ body: { action: 'aturPin', args: ['nynda', '7531'] }, cookie: nynda })).status, 200);
+    // Manager yang terbukti pun tak mengatur PIN: hanya mode Dev.
+    assert.equal((await panggil({ body: { action: 'aturPin', args: ['kiki', '2468'] }, cookie: nynda })).status, 403);
+    // PIN Manager diganti Dev: sesi lama Manager diminta PIN lagi, bukan ditolak begitu saja.
+    assert.equal((await panggil({ body: { action: 'aturPin', args: ['nynda', '7531'] }, cookie: dev })).status, 200);
     const lagi = await panggil({ body: { action: 'simpanMaster', args: ['platform', { kunci: 'SNBT', urutan: 0.5 }] }, cookie: nynda });
     assert.equal(lagi.status, 403);
     assert.equal(lagi.json.kode, 'PERLU_PIN');
     assert.equal(tolak.json.kode, undefined, 'tanpa klaim Manager: ditolak biasa');
     const nynda2 = pakai(await panggil({ body: { action: 'masukProfil', args: ['nynda', '7531'] }, cookie }));
     assert.equal((await panggil({ body: { action: 'simpanMaster', args: ['platform', { kunci: 'SNBT', urutan: 0.5 }] }, cookie: nynda2 })).status, 200);
-    process.env.DEV_PIN = PIN_DEV;
-    const dev = await masukDev();
     assert.equal((await panggil({ body: { action: 'simpanMaster', args: ['platform', { kunci: 'SNBT', aktif: false }] }, cookie: dev })).status, 200);
     // Dev boleh menghapus foto profil ber-PIN (moderasi), tapi tidak menggantinya.
     assert.equal((await panggil({ body: { action: 'simpanFoto', args: [{ orang: 'nynda', gambar: '' }] }, cookie: dev })).status, 200);

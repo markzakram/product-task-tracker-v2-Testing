@@ -1,5 +1,20 @@
 # Changelog — ProductTrack v2
 
+## 0.14.1 — PIN profil hanya untuk mode Dev (2026-10-09)
+
+- Bagian **PIN profil** di halaman Master kini hanya tampil di **mode Dev**; Manager (juga "Lihat
+  sebagai" Manager) melihat Master tanpa bagian itu. Peringatan "Master masih terbuka" juga hanya
+  tampil di mode Dev.
+- Server ikut: `aturPin` hanya menerima sesi Dev, jadi Manager tak bisa memasang atau menghapus
+  PIN lewat API. Aturan Master tidak berubah (Dev, atau Manager yang terbukti lewat PIN-nya).
+- Panel Dev → Pengguna punya tombol pintasan **PIN profil**. Jendela PIN profil menyebut "minta
+  Dev" untuk PIN yang lupa.
+- Penolakan izin (mis. "Hanya mode Dev", "Profil … memakai PIN") tak lagi diawali "Kesalahan tak
+  terduga".
+- Panduan, README (termasuk batasan yang sudah tak berlaku sejak 0.14.0), dan tes diperbarui.
+- **Perlu dilakukan:** masuk mode Dev, buka Master → PIN profil (atau Panel Dev → Pengguna →
+  PIN profil), pasang PIN Manager dulu, lalu PIN anggota lain.
+
 ## 0.14.0 — Master, PIN profil, dan catatan ala Notion (2026-10-09)
 
 - **Rumpun dihapus.** Saringan rumpun di Task, kolom rumpun di ekspor CSV, dan bagian "Task aktif
