@@ -279,10 +279,13 @@ bertahap, isian tak sah, sheet v1 ditolak, aman dari impor ulang).
 Sejak 0.13.0, seperti v1: akun teknis untuk perawatan, **bukan anggota tim**. Dev tak bisa jadi
 PIC dan tak muncul di laporan, dashboard, atau @sebut; hak lihatnya setara Manager.
 
-- **Masuk.** Tekan-tahan logo ProductTrack sekitar 2 detik (di sidebar, layar PIN, atau pemilih
-  profil; di ponsel lewat Menu), atau buka `#/dev`, lalu isi **PIN Dev** (env `DEV_PIN`).
-  Dari layar PIN pun bisa: PIN Dev sekaligus membuka aplikasi. Sesudahnya kartu **Dev** muncul
-  di pemilih profil selama sesi Dev masih berlaku.
+- **Masuk.** Tekan-tahan logo ProductTrack **3 detik** (di sidebar, layar PIN, atau pemilih
+  profil; di ponsel lewat Menu), lalu isi **PIN Dev** (env `DEV_PIN`). Dari layar PIN pun bisa:
+  PIN Dev sekaligus membuka aplikasi. Sejak 0.14.3 itulah **satu-satunya pintu masuk**: tak ada
+  kartu Dev di pemilih profil, dan `#/dev` hanya membuka Panel Dev kalau sesi Dev sudah aktif
+  (tanpa sesi Dev, alamat itu jatuh ke beranda seperti halaman lain yang tak boleh dibuka).
+  Selama sesi Dev berlaku, tekan-tahan logo lagi (mis. sesudah Ganti profil) langsung kembali
+  jadi Dev tanpa PIN.
 - **Aman di server.** Status Dev ada di cookie sesi bertanda tangan, berlaku **12 jam**, dan batal
   kalau `DEV_PIN` diganti; sesudahnya sesi tetap jalan sebagai sesi biasa. Tak ada PIN bawaan:
   `DEV_PIN` kosong berarti mode Dev tertutup (v1 memakai 3108 kalau kosong). PIN Dev yang salah

@@ -288,7 +288,8 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 
 /* Tekan-tahan logo ±2 detik = masuk mode Dev: logonya tak boleh terblok sebagai teks. */
 .merek { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.merek-ikon { transition: box-shadow 1.8s linear; }
+/* Cincin yang tumbuh selama logo ditahan; lamanya sama dengan TAHAN_LOGO_MS di app.js. */
+.merek-ikon { transition: box-shadow 3s linear; }
 .merek.ditahan .merek-ikon { box-shadow: 0 0 0 5px rgba(92, 198, 247, .55); }
 /* Isian PIN Dev bisa dibuka dari layar PIN, yang lapisannya di atas jendela biasa. */
 .modal.atas { z-index: 95; }

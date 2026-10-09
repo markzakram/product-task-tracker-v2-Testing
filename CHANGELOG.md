@@ -1,5 +1,14 @@
 # Changelog — ProductTrack v2
 
+## 0.14.3 — Mode Dev tersembunyi (2026-10-09)
+
+- Kartu **Dev** tak lagi tampil di pemilih profil ("Masuk sebagai siapa?"), juga saat sesi Dev
+  masih berlaku.
+- Mode Dev hanya dimasuki lewat **tekan-tahan logo ProductTrack 3 detik** (sebelumnya ±2 detik).
+  Selama sesi Dev berlaku, tekan-tahan logo langsung kembali jadi Dev tanpa PIN.
+- Membuka `#/dev` tanpa sesi Dev tak lagi memunculkan isian PIN Dev; alamat itu jatuh ke beranda.
+  Dengan sesi Dev aktif, `#/dev` tetap membuka Panel Dev.
+
 ## 0.14.2 — Daftar proyek dan Dashboard lebih rapi (2026-10-09)
 
 - **Proyek:** jalur ADDIE di tiap baris kini lurus satu kolom, begitu juga progres dan label

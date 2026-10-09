@@ -633,13 +633,12 @@
       <div class="pilih-profil">${I.ORANG.filter(o => o.peran === peran).map(o => `
         <button type="button" data-aksi="pilih-profil" data-id="${o.id}">${avatar(o.id, 'besar')}<span>${esc(o.nama)}<span>${esc(o.jabatan)}</span></span>${S.berpin.has(o.id) ? `<span class="profil-gembok" title="Memakai PIN pribadi">${ikon('gembok', 16)}<span class="sr">memakai PIN</span></span>` : ''}</button>`).join('')}
       </div>`).join('');
-    const kartuDev = S.dev ? `<p class="subjudul">Mode Dev</p>
-      <div class="pilih-profil"><button type="button" data-aksi="pilih-profil" data-id="${I.DEV}">${avatar(I.DEV, 'besar')}<span>Dev<span>Akun teknis${S.devSampai ? ' · sampai ' + esc(jamDev()) : ''}</span></span></button></div>` : '';
+    // Mode Dev sengaja tak tampil di sini (0.14.3): masuknya hanya lewat tekan-tahan logo.
     $('#profil').innerHTML = `<div class="kartu-layar lebar">
       <span class="merek">${LOGO}ProductTrack</span>
       <div><h1 style="margin:0;font-size:22px;color:var(--navy)">Masuk sebagai siapa?</h1>
       <p class="pesan-info" style="margin-top:6px">PIN aplikasi dipakai bersama, jadi pilih profil Anda sendiri${S.berpin.size ? '; profil bergembok meminta PIN pribadinya' : ''}. Tampilan menyesuaikan peran: Staff dan Lead mulai di Hari Ini, Manager di Proyek.</p></div>
-      ${kartuDev}${kelompok}
+      ${kelompok}
     </div>`;
     $('#kunci').hidden = true;
     $('#app').hidden = true;
@@ -750,18 +749,12 @@
   async function muat(reset = false) {
     tampilKunci(reset ? 'Mengembalikan data contoh…' : 'Memuat data…', true);
     const h = await api('muatContoh', [], 45000);
-    if (h.http === 401) {
-      tampilKunci('Masukkan PIN untuk melanjutkan.', false);
-      // #/dev dari layar PIN: langsung tawarkan PIN Dev.
-      if (/^#\/?dev\b/.test(location.hash)) bukaMasukDev();
-      return;
-    }
+    if (h.http === 401) return tampilKunci('Masukkan PIN untuk melanjutkan.', false);
     if (!h.success) {
       const pesan = h.message || `Gagal memuat data (HTTP ${h.http}).`;
       return tampilKunci(h.kode === 'SETELAN' || !h.http ? pesan : `PIN diterima, tetapi data gagal dimuat. ${pesan}`, true, true);
     }
     let pesan = '';
-    const mintaDev = /^#\/?dev\b/.test(alamatAwal || location.hash);
     try {
       // Organogram terkini (tab orang, diubah mode Dev) diterapkan sebelum layar pertama.
       S.dev = !!h.dev;
@@ -799,9 +792,8 @@
       const perluPin = dikenal && S.me !== I.DEV && S.berpin.has(S.me) && S.meSesi !== S.me;
       if (!dikenal || perluPin) {
         tampilProfil();
-        if (perluPin && !mintaDev) bukaPinProfil(S.me);
+        if (perluPin) bukaPinProfil(S.me);
       } else masukApp();
-      if (mintaDev && !modeDev()) bukaMasukDev();
     } catch (e) {
       return galatMuat(e);
     }
@@ -893,14 +885,13 @@
     if (!S.data || $('#app').hidden) return;
     tutupModal(false);
     S.notif.buka = false;
-    const mintaDev = /^#\/?dev\b/.test(location.hash);
+    // #/dev tanpa sesi Dev (0.14.3) jatuh ke beranda seperti halaman lain yang tak boleh dibuka:
+    // mode Dev hanya dimasuki lewat tekan-tahan logo.
     const r = terapkanAlamat(location.hash);
     if (!r.ok) S.view = halamanAwal();
     alamatGanti = true;
     render();
     bukaEditorDariAlamat();
-    // #/dev tanpa sesi Dev: tawarkan PIN Dev, jangan diam-diam ke beranda.
-    if (mintaDev && !modeDev()) bukaMasukDev();
     if (r.ditolak) toast(r.ditolak, true);
     else if (r.hilang) toast(`${r.hilang} tidak ada di data browser ini.`, true);
   });
@@ -4765,7 +4756,9 @@
   window.addEventListener('error', e => catatGalat(e.message, e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno}` : ''));
   window.addEventListener('unhandledrejection', e => catatGalat(e.reason && e.reason.message ? e.reason.message : e.reason, 'promise'));
 
-  /* ----- Masuk: tekan-tahan logo (di sidebar, layar PIN, atau pemilih profil) ----- */
+  /* ----- Masuk: tekan-tahan logo 3 detik (di sidebar, layar PIN, atau pemilih profil). Satu-satunya
+     pintu masuk mode Dev; tak ada kartu Dev di pemilih profil. ----- */
+  const TAHAN_LOGO_MS = 3000;
   let tahanLogo = null, tahanAwal = null;
   let logoDitahan = false;   // klik yang menyusul tekan-tahan tak ikut menjalankan logo (ke beranda)
   document.addEventListener('pointerdown', e => {
@@ -4780,7 +4773,7 @@
       logoDitahan = true;
       logo.classList.remove('ditahan');
       bukaMasukDev();
-    }, 1800);
+    }, TAHAN_LOGO_MS);
   });
   function lepasLogo() {
     if (tahanLogo) { clearTimeout(tahanLogo); tahanLogo = null; }
