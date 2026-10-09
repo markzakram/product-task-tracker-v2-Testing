@@ -141,6 +141,8 @@ CREATE TABLE IF NOT EXISTS `v2_packages` (
   `benefit`    TEXT         NULL,
   `tanggal`    VARCHAR(100) NOT NULL DEFAULT '',
   `tujuan`     TEXT         NULL,
+  `daftarBuka` DATE         NULL,
+  `daftarTutup` DATE        NULL,
   `updatedBy`  VARCHAR(64)  NOT NULL DEFAULT '',
   `updatedAt`  DATETIME(3)  NULL,
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),

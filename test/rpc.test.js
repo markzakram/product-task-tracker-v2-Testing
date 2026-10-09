@@ -62,7 +62,7 @@ test('GET melaporkan setelan apa saja yang ada, tanpa satu pun nilainya', async 
   assert.equal(r.json.ok, true);
   assert.equal(r.json.app, 'producttrack-v2');
   assert.equal(r.json.env, 'lokal');
-  assert.deepEqual(r.json.setelan, { spreadsheet: true, kredensial: false, pin: true, rahasiaSesi: true, pinDev: false });
+  assert.deepEqual(r.json.setelan, { spreadsheet: true, kredensial: false, pin: true, rahasiaSesi: true, pinDev: false, agen: false });
   for (const rahasia of [PIN, RAHASIA, ID]) assert.ok(!r.teks.includes(rahasia));
   assert.equal(r.headers['cache-control'], 'no-store');
 });

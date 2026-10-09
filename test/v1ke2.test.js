@@ -214,7 +214,7 @@ test('rancangan paket dibawa utuh: identitas, produk, area marketing, target uru
   assert.deepEqual(p, {
     id: 'PKG-002', platform: 'BUMN', program: 'Rekrutmen BUMN', namaPaket: 'PT.KAI_BUMN', produkPic: 'andika',
     dibimbing: '', latsol: '3 September', materi: '', tryout: '', drilling: '', liveClass: '', catatan: 'DL 23 Sept', mirror: true,
-    marselPic: 'alya', tagline: 'Lolos KAI', benefit: '', tanggal: '2026-09-01', tujuan: 'Naikkan konversi',
+    marselPic: 'alya', tagline: 'Lolos KAI', benefit: '', tanggal: '2026-09-01', tujuan: 'Naikkan konversi', daftarBuka: '', daftarTutup: '',
     updatedBy: 'nynda', updatedAt: Date.UTC(2026, 9, 2, 4, 35, 0),
   });
   assert.deepEqual(items, [

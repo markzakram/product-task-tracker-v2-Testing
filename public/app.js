@@ -135,7 +135,7 @@
     kom: { lingkup: 'terlibat', q: '', saring: 'semua', pilih: null, balas: '', ubah: '', tanya: false, draf: {}, konteks: ambil('kom_konteks', !hp()), proyekSemua: false, lompat: '', batasBaru: null, keBawah: false },
     /* Pesan bersama dari tab obrolan spreadsheet v2 (lihat tarikObrolan). */
     obr: { peristiwa: [], sejak: 0, versi: 0, diperbarui: 0, galat: '', gagal: 0, menarik: false },
-    pkt: { q: '', platform: '', pilih: null, sunting: false, kotor: false },
+    pkt: { q: '', platform: [], dari: '', sampai: '', atur: false, pilih: null, sunting: false, kotor: false },
     /* penuh = kartu folder yang sedang menampilkan semua link-nya (selama sesi ini). */
     lnk: { q: '', penuh: new Set() },
     /* pilih = catatan yang terbuka di editor: id, '__baru' (belum tersimpan), atau null.
@@ -533,6 +533,8 @@
      (pasangGayaFoto), jadi ratusan avatar tak membawa salinan gambar dan langsung berganti. */
   const avatar = (id, kelas = '') => `<span class="avatar ${kelas} av-${esc(id)}" style="background:${warnaOrang(id)}" title="${esc(I.orang(id).nama)}">${esc(I.inisial(id))}</span>`;
   const nama = id => esc(I.orang(id).pendek);
+  /* Tanda agen AI (2.17.0): pesan, aktivitas, dan tinjauan yang dikerjakan agen atas nama orang itu. */
+  const tandaAi = ai => (ai ? '<span class="chip-ai" title="Dikerjakan agen AI atas nama orang ini">AI</span>' : '');
 
   const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   const keDate = iso => new Date(iso + 'T00:00:00');
@@ -1359,7 +1361,7 @@
 
   function kalimatNotif(n) {
     const t = n.task ? perIdKini().get(n.task) : null;
-    const siapa = n.oleh ? `<strong>${nama(n.oleh)}</strong> ` : '';
+    const siapa = n.oleh ? `<strong>${nama(n.oleh)}</strong>${tandaAi(n.ai)} ` : '';
     const judul = t ? `<b>${esc(t.id)}</b> ${esc(potong(t.title, 64))}` : n.ruang ? `<b>${esc(judulRuang(n.ruang))}</b>` : esc(n.task || '');
     const kutip = s => (s ? ` “${esc(potong(teksPolos(s), 90))}”` : '');
     switch (n.jenis) {
@@ -1766,11 +1768,11 @@
       ${bagianSetoran(t, p)}
       ${t.detail || t.notes ? `<section><p class="subjudul">Keterangan</p>${t.detail ? `<p class="teks-panjang">${teksBertaut(t.detail)}</p>` : ''}${t.notes ? `<p class="teks-panjang">${teksBertaut(t.notes)}</p>` : ''}</section>` : ''}
       ${t.tinjauan.length ? `<section><p class="subjudul">Riwayat tinjauan</p><ul class="riwayat">${t.tinjauan.slice().sort((a, b) => b.at - a.at).map(r => `
-        <li><strong>${esc(r.action)}</strong> oleh ${nama(r.by)} <small>· ${esc(relatif(r.at))}</small>${r.note ? `<br>${esc(r.note)}` : ''}</li>`).join('')}</ul></section>` : ''}
+        <li><strong>${esc(r.action)}</strong> oleh ${nama(r.by)}${tandaAi(r.ai)} <small>· ${esc(relatif(r.at))}</small>${r.note ? `<br>${esc(r.note)}` : ''}</li>`).join('')}</ul></section>` : ''}
 
       ${diskusiDetail(t)}
 
-      ${log.length ? `<section><p class="subjudul">Aktivitas</p><ul class="riwayat">${log.map(l => `<li>${nama(l.by)}: ${esc(l.detail)} <small>· ${esc(relatif(l.at))}</small></li>`).join('')}</ul></section>` : ''}
+      ${log.length ? `<section><p class="subjudul">Aktivitas</p><ul class="riwayat">${log.map(l => `<li>${nama(l.by)}${tandaAi(l.ai)}: ${esc(l.detail)} <small>· ${esc(relatif(l.at))}</small></li>`).join('')}</ul></section>` : ''}
     </div>`;
   }
 
@@ -2408,43 +2410,220 @@
   const legendaPaket = '<span class="legenda"><span><i class="lg-tayang"></i>Tayang</span><span><i class="lg-sebagian"></i>Sebagian jalan</span><span><i class="lg-garap"></i>Sedang digarap</span></span>';
   const bolehElaborasi = () => ['lead', 'manager'].includes(I.orang(S.me).peran);
 
+  /* ---------- Saringan, slicer, dan urutan Rancangan Paket (2.18.0) ----------
+     Platform boleh dipilih lebih dari satu: paket cocok bila salah satu platformnya terpilih.
+     Slicer jadwal pendaftaran dari–sampai: paket yang masa pendaftarannya bersinggungan dengan
+     rentang itu (Inti.daftarBeririsan); selama slicer dipakai, paket tanpa jadwal tak tampil.
+     Urutan kartu diatur sendiri dengan diseret (atau tombol naik/turun di "Atur urutan"),
+     tersimpan di browser ini per sumber data. */
+  const slicerAktif = () => !!(S.pkt.dari || S.pkt.sampai);
   function paketTersaring() {
     const kata = S.pkt.q.trim().toLowerCase();
-    return S.data.packages.filter(p => (!S.pkt.platform || p.platform === S.pkt.platform)
+    const pilihP = S.pkt.platform;
+    return urutkanPaket(S.data.packages).filter(p => (!pilihP.length || I.platformPaket(p).some(x => pilihP.includes(x)))
+      && (!slicerAktif() || I.daftarBeririsan(p, S.pkt.dari, S.pkt.sampai))
       && (!kata || [p.id, p.namaPaket, p.program, p.platform].join(' ').toLowerCase().includes(kata)));
+  }
+  const kunciUrutPaket = () => `pkt_urut_${S.mode}`;
+  function urutkanPaket(daftar) {
+    const urut = ambil(kunciUrutPaket(), []);
+    if (!Array.isArray(urut) || !urut.length) return daftar.slice();
+    const pos = new Map(urut.map((id, i) => [id, i]));
+    // Paket yang belum ada di urutan tersimpan (mis. baru dibuat) tampil paling atas.
+    return daftar.map((p, i) => [p, pos.has(p.id) ? pos.get(p.id) : -1, i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(x => x[0]);
+  }
+  /* Pindahkan paket id ke depan (atau ke belakang, sesudah = true) paket keId. */
+  function pindahUrutanPaket(id, keId, sesudah) {
+    if (!id || !keId || id === keId) return;
+    const semua = urutkanPaket(S.data.packages).map(p => p.id).filter(x => x !== id);
+    const i = semua.indexOf(keId);
+    if (i < 0) return;
+    semua.splice(sesudah ? i + 1 : i, 0, id);
+    simpan(kunciUrutPaket(), semua);
+    segarkanHasilPaket();
+  }
+  /* Naik/turun satu tempat di antara kartu yang sedang tampil. */
+  function geserPaket(id, arah) {
+    const tampil = paketTersaring().map(p => p.id);
+    const i = tampil.indexOf(id);
+    if (i < 0 || !tampil[i + arah]) return;
+    pindahUrutanPaket(id, tampil[i + arah], arah > 0);
+  }
+  function segarkanHasilPaket() {
+    const wadah = $('#hasil');
+    if (wadah && S.view === 'paket' && !S.pkt.pilih) wadah.innerHTML = hasilPaket();
+  }
+
+  const keIso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const selisihHari = (a, b) => Math.round((keDate(b) - keDate(a)) / 864e5);
+  /* Tanggal pendek; tahunnya ditulis bila perlu, mis. "1 Okt – 20 Okt 2026". */
+  function rentangTgl(a, b) {
+    const f = (iso, tahun) => keDate(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', ...(tahun ? { year: 'numeric' } : {}) });
+    return a === b ? f(a, true) : `${f(a, a.slice(0, 4) !== b.slice(0, 4))} – ${f(b, true)}`;
+  }
+  /* Jadwal pendaftaran sebuah paket, dengan keadaannya hari ini. */
+  function jadwalPaketHtml(p) {
+    const j = I.jadwalDaftar(p);
+    if (!j) return '';
+    const h = hariIni();
+    const [kelas, ket] = h < j.buka ? ['akan', `dibuka ${selisihHari(h, j.buka)} hari lagi`]
+      : h <= j.tutup ? ['buka', j.tutup === h ? 'ditutup hari ini' : `dibuka · tutup ${selisihHari(h, j.tutup)} hari lagi`]
+        : ['tutup', 'sudah ditutup'];
+    return `<span class="jadwal-daftar ${kelas}">${ikon('kalender', 14)} Pendaftaran ${esc(rentangTgl(j.buka, j.tutup))} <b>${esc(ket)}</b></span>`;
+  }
+
+  /* Slicer: rentangnya dari awal bulan jadwal paling awal sampai akhir bulan jadwal paling akhir.
+     Pegangan di ujung berarti tanpa batas di sisi itu; keduanya di ujung = slicer tak dipakai. */
+  function rentangSlicer() {
+    const j = S.data.packages.map(I.jadwalDaftar).filter(Boolean);
+    if (!j.length) return null;
+    const awal = keDate(j.reduce((m, x) => (x.buka < m ? x.buka : m), j[0].buka));
+    const akhir = keDate(j.reduce((m, x) => (x.tutup > m ? x.tutup : m), j[0].tutup));
+    const dari = keIso(new Date(awal.getFullYear(), awal.getMonth(), 1));
+    const sampai = keIso(new Date(akhir.getFullYear(), akhir.getMonth() + 1, 0));
+    return { dari, sampai, hari: selisihHari(dari, sampai) };
+  }
+  const posSlicer = (r, iso) => Math.max(0, Math.min(r.hari, selisihHari(r.dari, iso)));
+  function ketSlicer() {
+    if (!slicerAktif()) return 'Geser pegangan untuk menyaring paket menurut masa pendaftarannya.';
+    const tanpa = S.data.packages.filter(p => !I.jadwalDaftar(p)).length;
+    const rentang = S.pkt.dari && S.pkt.sampai ? rentangTgl(S.pkt.dari, S.pkt.sampai)
+      : S.pkt.dari ? `mulai ${rentangTgl(S.pkt.dari, S.pkt.dari)}` : `sampai ${rentangTgl(S.pkt.sampai, S.pkt.sampai)}`;
+    return `Masa pendaftaran bersinggungan dengan ${rentang}${tanpa ? ` · ${tanpa} paket tanpa jadwal tidak ditampilkan` : ''}.`;
+  }
+  function slicerDaftar() {
+    const r = rentangSlicer();
+    const label = `<span class="label-kecil">${ikon('kalender', 15)} Jadwal pendaftaran</span>`;
+    if (!r) return `<div class="slicer kosong">${label}<small class="hint">Belum ada paket yang berjadwal pendaftaran. Isi lewat Ubah rancangan.</small></div>`;
+    const a = S.pkt.dari ? posSlicer(r, S.pkt.dari) : 0;
+    const b = S.pkt.sampai ? posSlicer(r, S.pkt.sampai) : r.hari;
+    // Posisi sebagai pecahan 0–1; CSS menghitung letaknya di antara titik tengah pegangan di kedua ujung.
+    const pecahan = n => (r.hari ? n / r.hari : 0).toFixed(4);
+    const bulan = [];
+    for (let d = keDate(r.dari); keIso(d) <= r.sampai; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) bulan.push(keIso(d));
+    const langkah = Math.ceil(bulan.length / 12);
+    const tanda = bulan.map((iso, i) => (i % langkah ? '' : `<span style="--x:${pecahan(posSlicer(r, iso))}">${esc(keDate(iso).toLocaleDateString('id-ID', { month: 'short', ...(i === 0 || iso.endsWith('-01-01') ? { year: '2-digit' } : {}) }))}</span>`)).join('');
+    return `<div class="slicer" data-slicer-dari="${r.dari}" data-slicer-hari="${r.hari}">
+        <div class="slicer-kepala">${label}
+          <input type="date" class="input" data-slicer="dari" value="${esc(S.pkt.dari)}" aria-label="Pendaftaran dari tanggal">
+          <span aria-hidden="true">–</span>
+          <input type="date" class="input" data-slicer="sampai" value="${esc(S.pkt.sampai)}" aria-label="Pendaftaran sampai tanggal">
+          <button type="button" class="tautan-kecil" data-aksi="pkt-slicer-hapus" ${slicerAktif() ? '' : 'hidden'}>Semua jadwal</button>
+        </div>
+        <div class="slicer-rel" style="--a:${pecahan(a)};--b:${pecahan(b)}">
+          <span class="slicer-isi"></span>
+          <input type="range" min="0" max="${r.hari}" step="1" value="${a}" data-slicer-geser="dari" aria-label="Awal rentang pendaftaran">
+          <input type="range" min="0" max="${r.hari}" step="1" value="${b}" data-slicer-geser="sampai" aria-label="Akhir rentang pendaftaran">
+        </div>
+        <div class="slicer-bulan" aria-hidden="true">${tanda}</div>
+        <small class="hint slicer-ket">${esc(ketSlicer())}</small>
+      </div>`;
+  }
+  /* Pegangan slicer digeser: tanggal, isian, dan kartu ikut diperbarui tanpa menggambar ulang halaman. */
+  function geserSlicer(el) {
+    const w = el.closest('.slicer');
+    const dari = w.dataset.slicerDari;
+    const n = Number(w.dataset.slicerHari);
+    const [ga, gb] = $$('[data-slicer-geser]', w);
+    let a = Number(ga.value);
+    let b = Number(gb.value);
+    if (a > b) { if (el === ga) a = b; else b = a; ga.value = a; gb.value = b; }
+    S.pkt.dari = a > 0 ? I.tambahHari(dari, a) : '';
+    S.pkt.sampai = b < n ? I.tambahHari(dari, b) : '';
+    $('[data-slicer="dari"]', w).value = S.pkt.dari;
+    $('[data-slicer="sampai"]', w).value = S.pkt.sampai;
+    const rel = $('.slicer-rel', w);
+    rel.style.setProperty('--a', String(n ? a / n : 0));
+    rel.style.setProperty('--b', String(n ? b / n : 0));
+    $('[data-aksi="pkt-slicer-hapus"]', w).hidden = !slicerAktif();
+    $('.slicer-ket', w).textContent = ketSlicer();
+    segarkanHasilPaket();
   }
 
   function viewPaket() {
     const p = S.pkt.pilih && S.data.packages.find(x => x.id === S.pkt.pilih);
     if (p) return S.pkt.sunting ? viewPaketSunting(p) : viewPaketDetail(p);
     const bolehBuat = ['lead', 'manager'].includes(I.orang(S.me).peran);
-    const platform = [...new Set(S.data.packages.map(x => x.platform).filter(Boolean))].sort();
+    const hitung = new Map();
+    for (const x of S.data.packages) for (const pl of I.platformPaket(x)) hitung.set(pl, (hitung.get(pl) || 0) + 1);
+    const platform = I.rapikanPlatform([...hitung.keys(), ...S.pkt.platform]).split(', ').filter(Boolean);
+    const chip = (nilai, teks, aktif, n) => `<button type="button" class="chip-pilih" data-aksi="pkt-platform" data-nilai="${esc(nilai)}" aria-pressed="${aktif}">${esc(teks)}${n ? ` <small>${n}</small>` : ''}</button>`;
+    const adaUrutan = (ambil(kunciUrutPaket(), []) || []).length > 0;
     return `<div class="judul-halaman"><div><h1>Rancangan Paket</h1><p>Isi produk tiap paket dan target per kategori · ${S.data.packages.length} paket</p></div>
         <button type="button" class="tombol" data-aksi="paket-salin" ${S.data.packages.length ? '' : 'disabled'}>${ikon('salin', 16)} Salin ke sheet Marsel</button>
         ${bolehBuat ? `<button type="button" class="tombol utama" data-aksi="paket-baru">${ikon('tambah', 16)} Paket baru</button>` : ''}
       </div>
       <div class="alat">
         ${kotakCari('paket', S.pkt.q, 'Cari nama paket atau platform…')}
-        ${pilihan('pkt', 'platform', S.pkt.platform, [['', 'Semua'], ...platform.map(x => [x, x])], 'Platform')}
+        <span class="spasi"></span>
+        <button type="button" class="tombol kecil" data-aksi="pkt-atur" aria-pressed="${S.pkt.atur}">${ikon(S.pkt.atur ? 'centang' : 'naik', 16)} ${S.pkt.atur ? 'Selesai mengatur' : 'Atur urutan'}</button>
+        ${adaUrutan ? '<button type="button" class="tautan-kecil" data-aksi="pkt-urut-bawaan">Urutan bawaan</button>' : ''}
       </div>
+      ${platform.length ? `<div class="chip-saring" role="group" aria-label="Saring platform"><span class="label-kecil">Platform</span>
+        ${chip('', 'Semua', !S.pkt.platform.length, 0)}${platform.map(x => chip(x, x, S.pkt.platform.includes(x), hitung.get(x) || 0)).join('')}</div>` : ''}
+      ${slicerDaftar()}
+      ${S.pkt.atur ? `<p class="hint petunjuk-urut">${hp() ? 'Pakai tombol panah di tiap kartu.' : 'Seret kartu ke tempatnya, atau pakai tombol panah.'} Urutannya tersimpan di browser ini.</p>` : ''}
       <div id="hasil">${hasilPaket()}</div>`;
   }
 
   function hasilPaket() {
     const daftar = paketTersaring();
     if (!daftar.length) return `<div class="kosong-isi">${S.data.packages.length ? 'Tidak ada paket yang cocok.' : 'Belum ada rancangan paket.'}</div>`;
-    return `<div class="grid-paket">${daftar.map(p => {
+    const seret = !hp();
+    return `<div class="grid-paket${S.pkt.atur ? ' mengatur' : ''}">${daftar.map((p, i) => {
       const r = ringkasP(p);
-      const perKat = I.KATEGORI_SEMUA.map(([l]) => [l, p.items.filter(i => i.kategori === l).length]).filter(([, n]) => n);
+      const perKat = I.KATEGORI_SEMUA.map(([l]) => [l, p.items.filter(it => it.kategori === l).length]).filter(([, n]) => n);
       const nProyek = I.proyekPengisi(S.data, p.id).filter(x => !x.arsip).length;
-      return `<button type="button" class="kartu-paket" data-aksi="paket-buka" data-id="${esc(p.id)}">
-        <span class="kartu-paket-atas"><span class="chip-platform">${esc(p.platform || '—')}</span>${p.mirror ? '<span class="pill kd-aman">Dibagikan</span>' : ''}<small>${esc(p.id)}</small></span>
-        <strong>${esc(judulPaket(p))}</strong>
+      const plat = I.platformPaket(p);
+      const boleh = I.bolehUbahPaket(p, S.me);
+      const buka = S.pkt.atur ? '' : `data-aksi="paket-buka" role="link" tabindex="0"`;
+      return `<div class="kartu-paket" ${buka} data-id="${esc(p.id)}" data-paket="${esc(p.id)}" draggable="${seret}">
+        <span class="kartu-paket-atas">${(plat.length ? plat : ['—']).map(x => `<span class="chip-platform">${esc(x)}</span>`).join('')}${p.mirror ? '<span class="pill kd-aman">Dibagikan</span>' : ''}<small>${esc(p.id)}</small></span>
+        <strong class="kartu-paket-judul" ${boleh ? `data-sunting-judul="${esc(p.id)}" title="Klik dua kali untuk mengganti nama"` : ''}>${esc(judulPaket(p))}</strong>
+        ${jadwalPaketHtml(p)}
         <span class="kartu-paket-maju">${batangPaket(r)}<small>${r.target ? `Progres ${r.persen}% · ${fmtAngka(r.terpenuhi)}/${fmtAngka(r.target)} tayang${r.digarap ? ` · ${fmtAngka(r.digarap)} digarap` : ''}` : 'Belum ada target'}${nProyek ? ` · ${nProyek} proyek` : ''}</small></span>
         ${perKat.length ? `<span class="kartu-paket-kat">${perKat.map(([l, n]) => `<span>${esc(l)} <b>${n}</b></span>`).join('')}</span>` : ''}
         ${p.updatedAt ? `<span class="kartu-paket-bawah"><small>Diperbarui ${esc(relatif(p.updatedAt))}</small></span>` : ''}
-      </button>`;
+        ${S.pkt.atur ? `<span class="kartu-paket-urut">
+          <button type="button" class="ikon-tombol" data-aksi="pkt-naik" data-id="${esc(p.id)}" aria-label="Naikkan ${esc(judulPaket(p))}" ${i ? '' : 'disabled'}>${ikon('atas', 18)}</button>
+          <button type="button" class="ikon-tombol" data-aksi="pkt-turun" data-id="${esc(p.id)}" aria-label="Turunkan ${esc(judulPaket(p))}" ${i < daftar.length - 1 ? '' : 'disabled'}>${ikon('bawah', 18)}</button></span>` : ''}
+      </div>`;
     }).join('')}</div>`;
+  }
+
+  /* Nama paket diganti di tempat: klik dua kali judulnya, di kartu atau di halaman paket.
+     Enter menyimpan, Esc membatalkan, pindah fokus juga menyimpan. */
+  let tundaBukaPaket = null;
+  function mulaiSuntingJudul(el) {
+    const p = paketDari(el.dataset.suntingJudul);
+    if (!p || el.querySelector('input')) return;
+    const kartu = el.closest('.kartu-paket');
+    if (kartu) kartu.draggable = false;
+    el.innerHTML = `<input class="input sunting-judul" maxlength="200" value="${esc(p.namaPaket || judulPaket(p))}" aria-label="Nama paket" data-id="${esc(p.id)}">`;
+    const isian = $('input', el);
+    isian.focus();
+    isian.select();
+  }
+  function selesaiSuntingJudul(isian, simpanKah) {
+    if (isian.dataset.selesai) return;
+    isian.dataset.selesai = '1';
+    const p = paketDari(isian.dataset.id);
+    const nama = isian.value.trim();
+    if (!simpanKah || !p || !nama || nama === (p.namaPaket || '')) {
+      if (simpanKah && !nama) toast('Nama paket wajib diisi.', true);
+      const wadah = isian.parentElement;
+      const kartu = wadah && wadah.closest('.kartu-paket');
+      if (wadah) wadah.textContent = p ? judulPaket(p) : '';
+      if (kartu) kartu.draggable = !hp();
+      return;
+    }
+    try {
+      ubahData('ubahNamaPaket', { paket: p.id, nama });
+      selesaiUbah(`Nama paket diganti menjadi ${nama}.`);
+    } catch (err) {
+      toast(err.message, true);
+      render();
+    }
   }
 
   /* Satu chip per batch (rangkaian langkah satu elaborasi): jumlahnya dan capaian tertinggi
@@ -2506,8 +2685,9 @@
     return `<div class="baris-kembali"><button type="button" class="kembali" data-aksi="paket-tutup">${ikon('kiri', 18)} Semua paket</button>
         <button type="button" class="tombol kecil" data-aksi="salin-tautan" data-alamat="#/paket/${esc(p.id)}">${ikon('tautan', 16)} Salin tautan</button></div>
       <div class="kepala-proyek kartu-polos" style="margin-top:8px">
-        <div><p class="detail-asal">${esc(p.platform || 'Tanpa platform')} · ${esc(p.id)}${p.mirror ? ' · <span class="pill kd-aman">Dibagikan ke Lintas Divisi</span>' : ''}</p>
-          <h1 class="judul-besar">${esc(judulPaket(p))}</h1>
+        <div><p class="detail-asal">${esc(I.platformPaket(p).join(', ') || 'Tanpa platform')} · ${esc(p.id)}${p.mirror ? ' · <span class="pill kd-aman">Dibagikan ke Lintas Divisi</span>' : ''}</p>
+          <h1 class="judul-besar" ${boleh ? `data-sunting-judul="${esc(p.id)}" title="Klik dua kali untuk mengganti nama"` : ''}>${esc(judulPaket(p))}</h1>
+          ${I.jadwalDaftar(p) ? `<p class="detail-jadwal">${jadwalPaketHtml(p)}</p>` : ''}
           ${p.updatedAt ? `<p class="detail-orang" style="margin-top:8px">Diperbarui ${esc(relatif(p.updatedAt))}${p.updatedBy ? ' oleh ' + nama(p.updatedBy) : ''}</p>` : ''}</div>
         <div class="detail-aksi tanpa-regang">
           ${bolehElaborasi() ? `<button type="button" class="tombol utama" data-aksi="paket-elaborasi" ${r.terbuka ? '' : 'disabled'} title="${r.terbuka ? `${r.terbuka} target belum ditangani` : 'Semua target sudah terpenuhi atau sedang digarap'}">${ikon('lapis', 16)} Elaborasi jadi proyek</button>` : ''}
@@ -2572,7 +2752,8 @@
 
   function viewPaketSunting(p) {
     const bolehBagi = ['lead', 'manager'].includes(I.orang(S.me).peran);
-    const platform = [...new Set([...I.PLATFORM, ...(p.platform ? [p.platform] : [])])];
+    const terpilih = I.platformPaket(p);
+    const platform = [...new Set([...I.PLATFORM, ...terpilih])];
     const blok = kategoriUntuk(p).map(([label, kunci]) => `<section class="kartu-polos blok-kategori" data-kategori="${esc(label)}">
         <div class="blok-kepala"><h2>${esc(label)}</h2></div>
         <label class="isian">Catatan ${esc(label)} <small>Teks bebas untuk kategori ini, mis. bonus angkatan lama.</small><textarea name="${kunci}" maxlength="4000">${esc(p[kunci] || '')}</textarea></label>
@@ -2587,8 +2768,10 @@
         <button type="button" class="tombol" data-aksi="paket-batal">Batal</button><button class="tombol utama">Simpan</button></div>
       <section class="kartu-polos isian-grid">
         <label class="isian">Nama paket <input name="namaPaket" required maxlength="200" value="${esc(p.namaPaket || '')}"></label>
-        <label class="isian">Platform <select name="platform">${opsiHtml([['', '—'], ...platform.map(x => [x, x])], p.platform || '')}</select></label>
-        ${bolehBagi ? `<label class="centang"><input type="checkbox" name="mirror" ${p.mirror ? 'checked' : ''}> Bagikan ke Lintas Divisi</label>` : ''}
+        ${bolehBagi ? `<label class="centang"><input type="checkbox" name="mirror" ${p.mirror ? 'checked' : ''}> Bagikan ke Lintas Divisi</label>` : '<span></span>'}
+        ${pilihPlatformHtml(platform, terpilih)}
+        <label class="isian">Pendaftaran dibuka <input type="date" name="daftarBuka" value="${esc(p.daftarBuka || '')}"></label>
+        <label class="isian">Pendaftaran ditutup <input type="date" name="daftarTutup" value="${esc(p.daftarTutup || '')}"><small>Boleh salah satu saja; kosongkan keduanya kalau belum ada jadwal.</small></label>
       </section>
       ${blok}
       <section class="kartu-polos blok-kategori"><label class="isian">Catatan produk <textarea name="catatan" maxlength="4000">${esc(p.catatan || '')}</textarea></label></section>
@@ -2601,9 +2784,17 @@
     </form>`;
   }
 
+  /* Platform paket: centang lebih dari satu (2.18.0). */
+  const pilihPlatformHtml = (daftar, terpilih) => `<fieldset class="pilih-platform"><legend>Platform <small>Boleh lebih dari satu.</small></legend>
+      <div>${daftar.map(x => `<label class="chip-cek"><input type="checkbox" name="platform" value="${esc(x)}" ${terpilih.includes(x) ? 'checked' : ''}><span>${esc(x)}</span></label>`).join('')}</div>
+    </fieldset>`;
+
   function bacaFormPaket(form) {
     const el = n => form.elements.namedItem(n);
-    const f = { namaPaket: el('namaPaket').value, platform: el('platform').value, catatan: el('catatan').value };
+    const f = {
+      namaPaket: el('namaPaket').value, platform: $$('[name="platform"]:checked', form).map(x => x.value), catatan: el('catatan').value,
+      daftarBuka: el('daftarBuka').value, daftarTutup: el('daftarTutup').value,
+    };
     if (el('mirror')) f.mirror = el('mirror').checked;
     for (const [, kunci] of I.KATEGORI_SEMUA) if (el(kunci)) f[kunci] = el(kunci).value;
     const nilai = (baris, n) => $(`[name="${n}"]`, baris).value;
@@ -2949,7 +3140,7 @@
   function itemUtas(x) {
     const m = x.terakhir;
     const tanda = x.jenis === 'task' ? (x.t ? chipJalur(x.t) : '<span class="chip-rutin">Task</span>') : ikon(x.jenis === 'proyek' ? 'lapis' : 'orang', 16);
-    const siapa = m ? (m.oleh === S.me ? 'Anda' : esc(I.orang(m.oleh).pendek)) : '';
+    const siapa = m ? (m.oleh === S.me ? 'Anda' : esc(I.orang(m.oleh).pendek)) + (m.ai ? ' (AI)' : '') : '';
     const cuplik = m ? `<b>${siapa}:</b> ${m.dihapus ? '<i>pesan dihapus</i>' : esc(potong(teksPolos(m.teks), 90))}` : '<i>Belum ada pesan. Mulai diskusi.</i>';
     const bendera = (x.tanya ? `<span class="km-tanda tanya" title="Menunggu jawaban Anda">${ikon('tanya', 13)}</span>` : '')
       + (x.sebutBaru ? `<span class="km-tanda sebut" title="Menyebut Anda">${ikon('at', 13)}</span>` : '');
@@ -3069,7 +3260,7 @@
       if (h !== hari) { html += `<div class="km-hari"><span>${esc(h)}</span></div>`; hari = h; sebelum = null; }
       if (x === pertamaBaru) { html += '<div class="km-batas-baru"><span>Pesan baru</span></div>'; sebelum = null; }
       if (x.sistem) { html += barisSistem(x); sebelum = null; continue; }
-      const sambung = !!sebelum && sebelum.oleh === x.oleh && x.at - sebelum.at < 5 * 60000 && !x.balas && !sebelum.tanya.length && !x.tanya.length;
+      const sambung = !!sebelum && sebelum.oleh === x.oleh && !!sebelum.ai === !!x.ai && x.at - sebelum.at < 5 * 60000 && !x.balas && !sebelum.tanya.length && !x.tanya.length;
       html += gelembung(x, wadah, sambung, pesan);
       sebelum = x;
     }
@@ -3083,8 +3274,8 @@
   function barisSistem(a) {
     const [ik, kata, kelas] = a.jenis === 'tinjau' ? KATA_TINJAU[a.aksi] || ['kilat', String(a.aksi).toLowerCase(), ''] : [a.jenis === 'create' ? 'tambah' : 'kilat', '', ''];
     const isi = a.jenis === 'tinjau'
-      ? `<b>${nama(a.oleh)}</b> ${esc(kata)}${a.teks ? `: “${esc(potong(a.teks, 200))}”` : ''}`
-      : `<b>${nama(a.oleh)}</b> · ${esc(potong(a.teks, 200))}`;
+      ? `<b>${nama(a.oleh)}</b>${tandaAi(a.ai)} ${esc(kata)}${a.teks ? `: “${esc(potong(a.teks, 200))}”` : ''}`
+      : `<b>${nama(a.oleh)}</b>${tandaAi(a.ai)} · ${esc(potong(a.teks, 200))}`;
     return `<div class="km-sistem ${kelas}">${ikon(ik, 14)}<span>${isi}</span><small>${esc(fmtJam(a.at))}</small></div>`;
   }
 
@@ -3092,7 +3283,7 @@
     const saya = m.oleh === S.me;
     const kena = !saya && !m.dihapus && (m.tanya.includes(S.me) || I.menyebut(m.teks, S.me));
     const lokal = !m.bersama && m.at > (S.dimuat || 0);
-    const kepala = sambung ? '' : `<div class="km-psn-kepala"><strong>${saya ? 'Anda' : esc(I.orang(m.oleh).nama)}</strong>
+    const kepala = sambung ? '' : `<div class="km-psn-kepala"><strong>${saya ? 'Anda' : esc(I.orang(m.oleh).nama)}</strong>${tandaAi(m.ai)}
         <small>${esc(fmtJam(m.at))}${m.diubah ? ' · diubah' : ''}${lokal ? ' · hanya di browser ini' : ''}</small></div>`;
     const isi = m.dihapus ? `<i class="km-dihapus">${m.dimoderasi ? 'Pesan dihapus oleh Dev' : 'Pesan dihapus'}</i>` : `<div class="km-teks">${formatPesan(m.teks)}</div>`;
     const status = m.tertunda ? '<div class="km-status">Mengirim…</div>'
@@ -5293,13 +5484,15 @@
     const sama = !x.versi || !vb || x.versi === vb;
     const sp = x.spreadsheet || {};
     const tab = (x.tab || []).slice().sort((a, b) => a.nama.localeCompare(b.nama));
-    const milikApp = ['obrolan', 'foto', 'orang', 'master', 'pin'];
+    const milikApp = ['obrolan', 'foto', 'orang', 'master', 'pin', 'setelan', 'data_real', 'obrolan_real'];
+    const ag = x.agen || null;
     return `<dl class="dev-daftar">
         <dt>Lingkungan</dt><dd>${esc(x.lingkungan || '—')}${x.wilayah ? ' · ' + esc(x.wilayah) : ''}</dd>
         <dt>Versi</dt><dd>server ${esc(x.versi || '?')} · browser ${esc(vb || '?')} ${sama ? '<span class="chip-ok">sama</span>' : '<span class="chip-beda">beda: muat ulang dengan Ctrl+Shift+R</span>'}</dd>
         <dt>Akun</dt><dd class="putus">${esc(x.akun || '—')}</dd>
         <dt>Spreadsheet</dt><dd>${esc(sp.judul || '—')} · ${sp.kepemilikan === 'v2' ? 'milik v2' : esc(sp.kepemilikan || '?')}${sp.url ? ` · <a href="${esc(sp.url)}" target="_blank" rel="noopener noreferrer">buka</a>` : ''}</dd>
         <dt>Data contoh</dt><dd>${sp.contoh ? esc(fmtWaktu(Date.parse(sp.contoh.versi)) || sp.contoh.versi) + (sp.contoh.sumber ? ' · ' + esc(sp.contoh.sumber) : '') : 'belum diimpor'}</dd>
+        <dt>Agen AI</dt><dd>${!ag ? '—' : ag.aktif ? `aktif · masuk sebagai ${esc(I.orang(ag.profil).pendek)}` : ag.pendek ? 'mati: AGEN_KUNCI kurang dari 32 karakter' : 'mati (AGEN_KUNCI kosong)'}</dd>
         <dt>Diperiksa</dt><dd>${esc(relatif(S.devSistem.waktu))}</dd>
       </dl>
       <table class="tabel dev-tabel-tab"><thead><tr><th>Tab</th><th class="angka">Baris</th></tr></thead><tbody>
@@ -5809,7 +6002,7 @@
           const m = /^(PRD-\d+)/.exec(String(l.task));
           const t = m && perId.get(m[1]);
           return `<li class="log-baris"><time>${l.at ? esc(fmtJam(l.at)) : ''}</time>${avatar(l.by || '?', 'kecil')}
-            <div><p><strong>${nama(l.by)}</strong> <span class="chip-jenis jenis-${esc(l.type)}">${esc(I.JENIS_LOG[l.type] || l.type)}</span>
+            <div><p><strong>${nama(l.by)}</strong>${tandaAi(l.ai)} <span class="chip-jenis jenis-${esc(l.type)}">${esc(I.JENIS_LOG[l.type] || l.type)}</span>
               ${t ? `<button type="button" class="tautan-task" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(l.task)}</button>` : `<span>${esc(l.task)}</span>`}</p>
               ${l.detail ? `<p class="hint">${esc(l.detail)}</p>` : ''}</div></li>`;
         }).join('')}</ul></section>`).join('')
@@ -6204,6 +6397,7 @@
   function formElaborasi(p) {
     const kontrib = kontribPaket(p);
     const proyekAktif = S.data.projects.filter(x => !x.arsip);
+    const platformP = I.platformPaket(p);
     const pengisi = I.proyekPengisi(S.data, p.id).filter(x => !x.arsip);
     const tujuan = pengisi.length ? pengisi[0].id : '';
     const terbuka = new Set();
@@ -6252,6 +6446,8 @@
         <label class="isian">Proyek tujuan <select name="proyek">${opsiHtml([['', '+ Proyek baru'], ...proyekAktif.map(x => [x.id, `${x.name} (${x.id})`])], tujuan)}</select></label>
         <label class="isian" data-bagian-elab="baru" ${tujuan ? 'hidden' : ''}>Nama proyek baru <input name="name" maxlength="200" value="Produksi ${esc(judulPaket(p))}"></label>
       </div>
+      ${platformP.length > 1 ? `<label class="isian">Platform proyek & task <select name="platform">${opsiHtml(platformP.map(x => [x, x]), platformP[0])}</select>
+        <small>Paket ini untuk beberapa platform; proyek dan task-nya memakai satu.</small></label>` : ''}
       <label class="isian">Tenggat semua langkah <input type="date" name="due"><small>Bisa diubah per task sesudahnya.</small></label>
       ${kakiModal('Buat task')}
     </form>`;
@@ -6281,7 +6477,11 @@
     return `<form data-form="modal" novalidate>
       <h2>Rancangan paket baru</h2>
       <label class="isian">Nama paket <input name="namaPaket" required maxlength="200" placeholder="mis. PCPM Tahap III"></label>
-      <label class="isian">Platform <select name="platform">${opsiHtml([['', '—'], ...I.PLATFORM.map(x => [x, x])], '')}</select></label>
+      ${pilihPlatformHtml(I.PLATFORM, [])}
+      <div class="dua-isian">
+        <label class="isian">Pendaftaran dibuka <input type="date" name="daftarBuka"></label>
+        <label class="isian">Pendaftaran ditutup <input type="date" name="daftarTutup"></label>
+      </div>
       <p class="hint">Isi produk dan target per kategori diisi setelah paket dibuat.</p>
       ${kakiModal('Buat paket')}
     </form>`;
@@ -6401,7 +6601,7 @@
           // Semua jenis yang tampil ikut dikirim, juga yang dicoret habis: aturannya menolak batch tanpa langkah.
           const langkah = Object.fromEntries($$('[data-alur]', form).map(fs => [fs.dataset.alur, $$('[name="langkah"]:checked', fs).map(el => el.value.split('|')[1])]));
           const ada = !!f.proyek;
-          const { project, tasks } = ubahData('elaborasiPaket', { paket: p.id, f: { proyek: f.proyek, name: f.name, mode: f.mode, langkah, items, jumlah, due: f.due } });
+          const { project, tasks } = ubahData('elaborasiPaket', { paket: p.id, f: { proyek: f.proyek, name: f.name, mode: f.mode, langkah, items, jumlah, due: f.due, platform: f.platform || '' } });
           tutupModal();
           Object.assign(S.pkt, { pilih: null, sunting: false });
           Object.assign(S, { view: 'proyek', proyek: project.id, pilih: null });
@@ -6409,7 +6609,7 @@
           return selesaiUbah(`${tasks.length} task untuk ${items.length} target ${ada ? 'ditambahkan ke' : 'dibuat di'} ${project.id}. Langkahnya menunggu di antrean Lead tim pemiliknya dan dikerjakan per tahap ADDIE; progres ${judulPaket(p)} naik per capaian.`);
         }
         case 'paket-baru': {
-          const p = ubahData('paketBaru', { f });
+          const p = ubahData('paketBaru', { f: { ...f, platform: new FormData(form).getAll('platform') } });
           tutupModal();
           Object.assign(S.pkt, { pilih: p.id, sunting: true });
           return selesaiUbah(`${p.namaPaket} dibuat. Isi produk dan targetnya.`);
@@ -6543,6 +6743,15 @@
     // Tautan di blok catatan yang tak sedang diketik: dibuka di tab baru (bukan menaruh kursor).
     const tautanBlok = e.target.closest('.ne-teks a[href]');
     if (tautanBlok) { e.preventDefault(); window.open(tautanBlok.href, '_blank', 'noopener'); return; }
+    // Rancangan Paket: mengetik nama di tempat tak membuka paketnya; klik judul kartu menunggu
+    // sebentar, karena klik kedua (klik dua kali) berarti mengganti nama.
+    if (e.target.closest('.sunting-judul')) return;
+    const judulKartu = e.target.closest('.kartu-paket[data-aksi] [data-sunting-judul]');
+    if (judulKartu) {
+      clearTimeout(tundaBukaPaket);
+      if (e.detail <= 1) { const id = judulKartu.dataset.suntingJudul; tundaBukaPaket = setTimeout(() => bukaPaket(id), 280); }
+      return;
+    }
     const kartu = e.target.closest('.kartu');
     const el = e.target.closest('[data-aksi]') || (kartu ? { dataset: { aksi: 'buka-task', id: kartu.dataset.id } } : null);
     if (!el || el.tagName === 'INPUT' || el.tagName === 'SELECT') return;
@@ -6811,6 +7020,17 @@
         try { ubahData('hapusSetoran', { setoran: d.id }); selesaiUbah('Setoran dihapus.'); } catch (err) { toast(err.message, true); }
         break;
       case 'paket-tutup': Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false }); render(); break;
+      case 'pkt-platform': {
+        const pl = d.nilai;
+        S.pkt.platform = !pl ? [] : S.pkt.platform.includes(pl) ? S.pkt.platform.filter(x => x !== pl) : [...S.pkt.platform, pl];
+        render();
+        break;
+      }
+      case 'pkt-slicer-hapus': Object.assign(S.pkt, { dari: '', sampai: '' }); render(); break;
+      case 'pkt-atur': S.pkt.atur = !S.pkt.atur; render(); break;
+      case 'pkt-urut-bawaan': hapus(kunciUrutPaket()); render(); toast('Urutan paket kembali ke bawaan.'); break;
+      case 'pkt-naik': geserPaket(d.id, -1); break;
+      case 'pkt-turun': geserPaket(d.id, 1); break;
       case 'paket-baru': bukaModal({ jenis: 'paket-baru' }, formPaketBaru()); break;
       case 'paket-ubah': Object.assign(S.pkt, { sunting: true, kotor: false }); render(); window.scrollTo(0, 0); break;
       case 'paket-batal':
@@ -7095,6 +7315,11 @@
     }
     if (el.dataset.aksi === 'centang-sub') {
       try { ubahData('centangSubtask', { task: el.dataset.id, sub: el.dataset.sub, done: el.checked }); selesaiUbah(); } catch (err) { toast(err.message, true); render(); }
+    } else if (el.dataset.slicer) {
+      // Isian tanggal slicer; dari yang lebih besar dari sampai ditukar.
+      S.pkt[el.dataset.slicer] = el.value || '';
+      if (S.pkt.dari && S.pkt.sampai && S.pkt.dari > S.pkt.sampai) [S.pkt.dari, S.pkt.sampai] = [S.pkt.sampai, S.pkt.dari];
+      render();
     } else if (el.dataset.aksi === 'saring') {
       aturNilai(el.dataset.ruang, el.dataset.kunci, el.value);
     } else if (el.dataset.aksi === 'tautkan-paket') {
@@ -7222,6 +7447,7 @@
     }
     if (['catatan-judul', 'catatan-isi', 'catatan-folder'].includes(el.id)) { catatanBerubah(); return; }
     if (el.closest('[data-form="paket"]')) { S.pkt.kotor = true; return; }
+    if (el.dataset && el.dataset.slicerGeser) { geserSlicer(el); return; }
     const ruang = el.dataset.cari;
     if (!ruang) return;
     const kunci = { task: 'task', paket: 'pkt', komunikasi: 'kom', link: 'lnk', catatan: 'ctt', riwayat: 'rwy' }[ruang];
@@ -7261,6 +7487,13 @@
     if (e.target.closest && e.target.closest('.ne[data-ne]') && tombolEditor(e)) return;
     // Judul catatan: Enter atau panah bawah turun ke blok pertama.
     if (e.target.id === 'catatan-judul' && (e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); fokusKe({ i: 0 }); return; }
+    // Rancangan Paket: nama yang sedang disunting (Enter simpan, Esc batal); Enter di kartu membukanya.
+    if (e.target.classList && e.target.classList.contains('sunting-judul') && !e.isComposing) {
+      if (e.key === 'Enter') { e.preventDefault(); selesaiSuntingJudul(e.target, true); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); selesaiSuntingJudul(e.target, false); }
+      return;
+    }
+    if (e.key === 'Enter' && e.target.matches && e.target.matches('.kartu-paket[data-aksi="paket-buka"]')) { e.preventDefault(); bukaPaket(e.target.dataset.id); return; }
     // Panggung potong foto: panah menggeser, + dan − memperbesar, Enter menyimpan.
     if (e.target.id === 'foto-panggung' && kerat) {
       const d = e.shiftKey ? 30 : 8;
@@ -7371,7 +7604,28 @@
   /* Seret kartu antar kolom kanban (aturannya sama dengan tombol di detail), dan seret link
      ke kartu folder lain di Link Saya. */
   let seretLink = null;
+  let seretPaket = null;
+  document.addEventListener('dblclick', e => {
+    const el = e.target.closest && e.target.closest('[data-sunting-judul]');
+    if (!el || e.target.closest('.sunting-judul')) return;
+    clearTimeout(tundaBukaPaket);
+    e.preventDefault();
+    mulaiSuntingJudul(el);
+  });
+  document.addEventListener('focusout', e => {
+    if (e.target.classList && e.target.classList.contains('sunting-judul')) selesaiSuntingJudul(e.target, true);
+  });
+  /* Kartu Rancangan Paket diseret ke depan atau belakang kartu lain (sisi kiri/kanan kartu tujuan). */
+  const sisiSeret = (e, kartu) => { const r = kartu.getBoundingClientRect(); return e.clientX > r.left + r.width / 2; };
   document.addEventListener('dragstart', e => {
+    const kp = e.target.closest && e.target.closest('.kartu-paket[draggable="true"]');
+    if (kp) {
+      seretPaket = kp.dataset.paket;
+      kp.classList.add('diseret');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', seretPaket);
+      return;
+    }
     const l = e.target.closest && e.target.closest('.baris-link[data-link-id]');
     if (l) {
       seretLink = l.dataset.linkId;
@@ -7391,6 +7645,8 @@
   document.addEventListener('dragend', () => {
     S.seret = null;
     seretLink = null;
+    seretPaket = null;
+    document.querySelectorAll('.sisip-kiri, .sisip-kanan').forEach(x => x.classList.remove('sisip-kiri', 'sisip-kanan'));
     document.body.classList.remove('menyeret-link');
     document.querySelectorAll('.diseret, .kolom.sasaran, .kartu-folder.tujuan').forEach(x => x.classList.remove('diseret', 'sasaran', 'tujuan'));
   });
@@ -7405,6 +7661,17 @@
   const adaBerkas = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files'));
   document.addEventListener('dragover', e => {
     if (S.modal && S.modal.jenis === 'foto' && adaBerkas(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; return; }
+    if (seretPaket) {
+      const k = e.target.closest && e.target.closest('.kartu-paket[data-paket]');
+      document.querySelectorAll('.sisip-kiri, .sisip-kanan').forEach(x => x !== k && x.classList.remove('sisip-kiri', 'sisip-kanan'));
+      if (!k || k.dataset.paket === seretPaket) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const kanan = sisiSeret(e, k);
+      k.classList.toggle('sisip-kanan', kanan);
+      k.classList.toggle('sisip-kiri', !kanan);
+      return;
+    }
     if (seretLink) {
       const f = folderTujuan(e);
       document.querySelectorAll('.kartu-folder.tujuan').forEach(x => x !== f && x.classList.remove('tujuan'));
@@ -7422,6 +7689,15 @@
   });
   document.addEventListener('drop', e => {
     if (S.modal && S.modal.jenis === 'foto' && adaBerkas(e)) { e.preventDefault(); return mulaiPotong(e.dataTransfer.files[0]); }
+    if (seretPaket) {
+      const k = e.target.closest && e.target.closest('.kartu-paket[data-paket]');
+      if (!k || k.dataset.paket === seretPaket) return;
+      e.preventDefault();
+      const id = seretPaket;
+      seretPaket = null;
+      pindahUrutanPaket(id, k.dataset.paket, sisiSeret(e, k));
+      return;
+    }
     if (seretLink) {
       const f = folderTujuan(e);
       if (!f) return;

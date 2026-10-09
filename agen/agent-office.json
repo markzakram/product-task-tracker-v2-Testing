@@ -1,0 +1,32 @@
+{
+  "_keterangan": "Pekerjaan tanpa token agen AI Ali untuk Agent Office (G:\\Ali\\code\\Agent AI). Karyawan operator yang memegang folder agen/ ini menjalankannya; tugas yang butuh AI (jawab pesan, perbarui task) berjalan di folder ini dengan alat dari .mcp.json. Format: README Agent Office bagian agent-office.json.",
+  "nama": "ProductTrack · agen Ali",
+  "pekerjaan": [
+    {
+      "id": "ringkasan",
+      "judul": "Ringkasan pagi untuk Ali",
+      "singkat": "Ringkasan pagi",
+      "kata_kunci": ["ringkasan", "rangkum", "pagi", "pekerjaan", "tugas", "hari ini", "productrack", "producttrack"],
+      "wajib_salah_satu": ["ringkasan", "rangkum", "pagi"],
+      "perintah": ["ringkasan.js"],
+      "hasil": "^RINGKAS: (.+)$",
+      "ringkasan": "Ringkasan ProductTrack",
+      "batas_menit": 2
+    },
+    {
+      "id": "pengingat",
+      "judul": "Pengingat tenggat & tinjauan",
+      "singkat": "Pengingat",
+      "kata_kunci": ["pengingat", "ingatkan", "tenggat", "deadline", "tinjauan", "dikembalikan"],
+      "wajib_salah_satu": ["pengingat", "ingatkan", "tenggat", "deadline"],
+      "perintah": ["pengingat.js", "{semua?--semua}"],
+      "parameter": {
+        "semua": { "jenis": "tanda", "jika_disebut": ["semua", "ulang"], "label": "Tampilkan lagi semua", "bantuan": "Tanpa jejak: semua tenggat yang berlaku dan kabar 24 jam terakhir" }
+      },
+      "hasil": "^RINGKAS: (.+)$",
+      "ringkasan": "Pengingat ProductTrack",
+      "senyap": "tidak ada pengingat baru",
+      "batas_menit": 2
+    }
+  ]
+}

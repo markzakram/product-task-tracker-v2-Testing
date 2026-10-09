@@ -52,10 +52,23 @@ function keadaan(k, id, r) {
   return susunan;
 }
 
+/* Perubahan dari agen AI (2.17.0): aktivitas dan tinjauan baru atas nama pelakunya ditandai
+   ai: true, supaya semua orang melihat bahwa yang bertindak adalah agen. Ditandai di sini, di
+   server, sebelum disimpan; browser tak bisa menandai atau menghapus tandanya. */
+function tandaiAi(ubah, dasar, oleh) {
+  for (const l of ubah.log || []) if (l.by === oleh) l.ai = true;
+  const lama = new Map((dasar.tasks || []).map(t => [t.id, new Set((t.tinjauan || []).map(r => r.id))]));
+  for (const t of (ubah.tasks && ubah.tasks.pasang) || []) {
+    const ada = lama.get(t.id) || new Set();
+    for (const r of t.tinjauan || []) if (!ada.has(r.id) && r.by === oleh) r.ai = true;
+  }
+}
+
 let antrean = Promise.resolve();
-/* perintah sudah dibersihkan Inti.periksaPerintah; oleh = profil yang terbukti di sesi ini.
-   Mengembalikan perubahan yang tersimpan beserta nomor urutnya (seq) dan hasil ringkasnya. */
-function simpan(k, id, perintah, oleh, sekarang = Date.now()) {
+/* perintah sudah dibersihkan Inti.periksaPerintah; oleh = profil yang terbukti di sesi ini;
+   opsi.ai = sesi agen AI. Mengembalikan perubahan yang tersimpan beserta nomor urutnya (seq)
+   dan hasil ringkasnya. */
+function simpan(k, id, perintah, oleh, { sekarang = Date.now(), ai = false } = {}) {
   const kerja = antrean.then(async () => {
     const at = Math.abs((perintah.at || 0) - sekarang) <= MELESET_MAKS ? perintah.at : sekarang;
     const p = { ...perintah, oleh, at };
@@ -69,6 +82,7 @@ function simpan(k, id, perintah, oleh, sekarang = Date.now()) {
       const h = Inti.jalankanPerintah(salinan, p);
       if (!h.ok) throw new GalatAturan(h.galat);
       const ubah = Inti.bedaData(s.data, salinan);
+      if (ai) tandaiAi(ubah, s.data, oleh);
       const hasil = Inti.ringkasHasil(h.hasil);
       // Tak ada yang berubah: tak perlu baris baru.
       if (!Object.keys(ubah).length) return { ...p, ubah, seq: r.peristiwa.length, generasi: r.generasi, kosong: true, hasil };

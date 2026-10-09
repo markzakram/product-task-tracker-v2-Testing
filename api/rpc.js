@@ -24,6 +24,11 @@
      POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
      POST /api/rpc  { action: 'sinkron', args: [{ obrolanSejak, realSejak, generasi }] }
                                                    sumber data aktif + obrolan & perubahan data real terbaru
+     POST /api/rpc  { action: 'masukAgen', args: [kunci] }  sesi agen AI (env AGEN_KUNCI), terkunci pada AGEN_PROFIL
+
+   Agen AI (2.17.0): sesi agen hanya boleh membaca (muatContoh, sinkron, muatObrolan, muatFoto),
+   menulis pesan atas nama profilnya (Inti.PESAN_AGEN), dan perubahan data real yang ada di
+   Inti.AKSI_AGEN. Pesan, aktivitas, dan tinjauannya ditandai AI oleh server.
 
    Sejak 2.16.0 aplikasi punya dua sumber data, dipilih mode Dev untuk semua pengguna (tab
    setelan): data CONTOH (tab-tab hasil impor v1, suntingannya hanya di browser) dan data REAL
@@ -49,13 +54,17 @@ class GalatIsian extends Error {}
 /* Aksi khusus mode Dev dari sesi biasa: 403. */
 class GalatIzin extends Error {}
 const hanyaDev = konteks => { if (!konteks.dev) throw new GalatIzin('Hanya mode Dev. Masuk lewat tekan-tahan logo ProductTrack, lalu isi PIN Dev.'); };
+/* Aksi /api/rpc yang boleh dipakai sesi agen AI. */
+const AKSI_SESI_AGEN = new Set(['muatContoh', 'sinkron', 'muatObrolan', 'kirimObrolan', 'simpanReal', 'muatFoto']);
 
 /* Pengirim pesan dan pemilik foto diperiksa dengan organogram terkini (bawaan + tab orang). */
 async function terapkanOrang(k) {
   Inti.aturOrang(await sheet.bacaOrang(k, sheet.idSpreadsheet()));
 }
-/* Profil yang terbukti di sesi ini (lewat PIN-nya, atau tak ber-PIN), atau ''. */
+/* Profil yang terbukti di sesi ini (lewat PIN-nya, atau tak ber-PIN), atau ''. Sesi agen AI
+   terbukti lewat kuncinya, untuk profil agen saja. */
 async function meSah(konteks, k) {
+  if (konteks.agen) return konteks.agen;
   if (!konteks.meKlaim) return '';
   const pin = await sheet.bacaPin(k, sheet.idSpreadsheet());
   const p = pin.get(konteks.meKlaim);
@@ -65,6 +74,10 @@ async function meSah(konteks, k) {
 const perluPin = orang => Object.assign(new GalatIzin(`Profil ${Inti.orang(orang).pendek} memakai PIN. Pilih profil itu lagi dan masukkan PIN-nya.`), { kode: 'PERLU_PIN' });
 /* Menulis atas nama profil ber-PIN hanya dari sesi yang sudah memasukkan PIN profil itu. */
 async function wajibProfil(konteks, k, orang) {
+  if (konteks.agen) {
+    if (orang === konteks.agen) return;
+    throw new GalatIzin(`Agen AI hanya bertindak atas nama ${Inti.orang(konteks.agen).pendek}.`);
+  }
   const pin = await sheet.bacaPin(k, sheet.idSpreadsheet());
   if (!pin.has(orang)) return;
   if (await meSah(konteks, k) === orang) return;
@@ -194,8 +207,11 @@ const AKSI = {
     Inti.aturMaster(await sheet.bacaMaster(k, id));
     let bersih;
     try { bersih = Inti.periksaPerintah(perintah); } catch (err) { throw new GalatIsian(err.message); }
+    if (this.agen && !Inti.AKSI_AGEN.includes(bersih.aksi)) {
+      throw new GalatIzin(`Agen AI tidak boleh melakukan "${bersih.aksi}". Itu dikerjakan ${Inti.orang(me).pendek} sendiri di aplikasi.`);
+    }
     try {
-      return { peristiwa: await dataReal.simpan(k, id, bersih, me) };
+      return { peristiwa: await dataReal.simpan(k, id, bersih, me, { ai: !!this.agen }) };
     } catch (err) {
       if (err instanceof dataReal.GalatAturan) throw new GalatIsian(err.message);
       throw err;
@@ -219,8 +235,11 @@ const AKSI = {
       await terapkanOrang(k);
       if (peristiwa && typeof peristiwa === 'object') await wajibProfil(this, k, String(peristiwa.oleh || ''));
     }
+    if (this.agen && !(peristiwa && Inti.PESAN_AGEN.includes(peristiwa.jenis))) throw new GalatIzin('Agen AI tidak boleh mengirim peristiwa itu.');
     let bersih;
     try { bersih = Inti.periksaPeristiwa(moderasi ? { ...peristiwa, oleh: Inti.DEV } : peristiwa); } catch (err) { throw new GalatIsian(err.message); }
+    // Pesan dan suntingan dari agen ditandai AI (kolom kode hanya dipakai reaksi).
+    if (this.agen && (bersih.jenis === 'pesan' || bersih.jenis === 'ubah')) bersih = { ...bersih, kode: Inti.KODE_AI };
     const id = sheet.idSpreadsheet();
     return { peristiwa: await sheet.tulisObrolan(k, id, bersih, await sheet.sumberData(k, id)) };
   },
@@ -271,7 +290,7 @@ const AKSI = {
     return {
       akun: k.email, spreadsheet, tab, versi: versiPaket, lingkungan: lingkungan(),
       wilayah: process.env.VERCEL_REGION || '', waktuServer: Date.now(), devSampai: this.devSampai,
-      sumber, real,
+      sumber, real, agen: sesi.setelanAgen(),
     };
   },
   async simpanOrang(baris) {
@@ -344,12 +363,44 @@ module.exports = async (req, res) => {
       sesi.cookieMasuk(token, lewatHttps(req)));
   }
 
+  /* Agen AI: kunci sendiri (env AGEN_KUNCI), sesinya terkunci pada profil AGEN_PROFIL. */
+  if (aksi === 'masukAgen') {
+    const agen = sesi.setelanAgen();
+    if (!agen.aktif) {
+      return kirim(res, 403, { success: false, kode: 'AGEN_MATI', message: agen.pendek ? 'AGEN_KUNCI terlalu pendek: minimal 32 karakter acak.' : 'Agen AI belum diaktifkan. Isi AGEN_KUNCI di server.' });
+    }
+    if (!sesi.cocokKunciAgen(args[0])) {
+      await tidur(jedaPinSalah());
+      return kirim(res, 401, { success: false, kode: 'KUNCI_AGEN', message: 'Kunci agen salah.' });
+    }
+    try {
+      const k = await sheet.klien();
+      await terapkanOrang(k);
+      const o = Inti.ORANG.find(x => x.id === agen.profil);
+      if (!o || o.aktif === false) return kirim(res, 403, { success: false, kode: 'AGEN_PROFIL', message: `Profil agen "${agen.profil}" tidak dikenal atau nonaktif.` });
+    } catch (err) {
+      const kode = kodeUntuk(err);
+      if (kode === 500 || kode === 502) console.error('[rpc] aksi=masukAgen', err);
+      return kirim(res, kode, { success: false, message: sheet.jelaskanGalat(err, sheet.emailAkun()) });
+    }
+    return kirim(res, 200, { success: true, me: agen.profil, agen: true, message: `Agen AI masuk sebagai ${Inti.orang(agen.profil).pendek}.` },
+      sesi.cookieMasuk(sesi.terbitkan(Date.now(), { agen: true }), lewatHttps(req)));
+  }
+
   const cookie = sesi.bacaCookie(req);
   if (!sesi.sah(cookie)) {
     return kirim(res, 401, { success: false, kode: 'MASUK', message: 'Perlu PIN.' });
   }
   const dev = sesi.dev(cookie);
   const isi = sesi.isiSesi(cookie) || {};
+  // Sesi agen yang kuncinya sudah diganti tak pernah turun jadi sesi biasa: ditolak seluruhnya.
+  const agen = isi.agen ? sesi.agen(cookie) : '';
+  if (isi.agen && !agen) {
+    return kirim(res, 401, { success: false, kode: 'AGEN', message: 'Sesi agen tidak berlaku lagi (kunci agen diganti atau dimatikan). Masuk ulang dengan kunci agen.' });
+  }
+  if (agen && !AKSI_SESI_AGEN.has(aksi)) {
+    return kirim(res, 403, { success: false, kode: 'AGEN', message: `Sesi agen AI tidak boleh memakai "${aksi || '(kosong)'}".` });
+  }
   if (aksi === 'keluarDev') {
     return kirim(res, 200, { success: true, dev: false, message: 'Keluar dari mode Dev.' },
       sesi.cookieMasuk(sesi.terbitkan(Date.now(), { me: isi.me, meSidik: isi.meSidik }), lewatHttps(req)));
@@ -383,7 +434,7 @@ module.exports = async (req, res) => {
   if (!fungsi) return kirim(res, 400, { success: false, message: `Aksi tidak dikenal: ${aksi || '(kosong)'}` });
 
   try {
-    const konteks = { dev, devSampai: dev ? sesi.akhirDev(cookie) : 0, meKlaim: isi.me || '', meSidik: isi.meSidik || '' };
+    const konteks = { dev, devSampai: dev ? sesi.akhirDev(cookie) : 0, meKlaim: isi.me || '', meSidik: isi.meSidik || '', agen };
     return kirim(res, 200, { success: true, env: lingkungan(), dev, ...(dev ? { devSampai: konteks.devSampai } : {}), ...(await fungsi.apply(konteks, args)) });
   } catch (err) {
     const kode = kodeUntuk(err);

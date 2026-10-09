@@ -15,6 +15,12 @@
    Kunci tanda tangan diturunkan dari SESSION_SECRET + ACCESS_PIN. Mengganti PIN di
    Vercel otomatis membatalkan semua sesi lama, tanpa ada daftar sesi yang perlu
    dihapus. Cookie-nya tidak memuat PIN maupun hash PIN.
+
+   3. Agen AI (2.17.0) masuk dengan kuncinya sendiri (env AGEN_KUNCI), bukan PIN aplikasi,
+      dan sesinya terkunci pada satu profil (env AGEN_PROFIL, bawaannya ali). Sesi agen
+      membawa sidik kunci itu: kunci diganti atau dikosongkan = semua sesi agen batal, dan
+      sesi bertanda agen yang sidiknya tak cocok ditolak seluruhnya (tak pernah turun
+      menjadi sesi biasa yang bisa memilih profil lain).
    ========================================================================== */
 
 const crypto = require('crypto');
@@ -23,6 +29,8 @@ const NAMA_COOKIE = 'sesi';
 const UMUR_HARI = 30;
 /* Mode Dev (0.13.0) berumur pendek: sesudahnya sesi tetap jalan sebagai sesi biasa. */
 const UMUR_DEV_JAM = 12;
+/* Sesi agen AI juga pendek; agen cukup masuk lagi dengan kuncinya. */
+const UMUR_AGEN_JAM = 12;
 const PANJANG_RAHASIA_MIN = 32;
 
 function setelan() {
@@ -31,13 +39,22 @@ function setelan() {
     rahasia: String(process.env.SESSION_SECRET || '').trim(),
     /* Tanpa nilai bawaan (v1 memakai 3108 kalau kosong): DEV_PIN kosong = mode Dev tertutup. */
     pinDev: String(process.env.DEV_PIN || '').trim(),
+    /* Kunci agen AI: kosong atau kurang dari 32 karakter = agen tertutup. */
+    kunciAgen: String(process.env.AGEN_KUNCI || '').trim(),
+    profilAgen: String(process.env.AGEN_PROFIL || 'ali').trim(),
   };
 }
+const agenAktif = s => s.kunciAgen.length >= PANJANG_RAHASIA_MIN && !!s.profilAgen;
 
 /* Untuk pemeriksaan kesehatan: ada atau tidak, tanpa nilainya. */
 function setelanAda() {
-  const { pin, rahasia, pinDev } = setelan();
-  return { pin: !!pin, rahasiaSesi: rahasia.length >= PANJANG_RAHASIA_MIN, pinDev: !!pinDev };
+  const s = setelan();
+  return { pin: !!s.pin, rahasiaSesi: s.rahasia.length >= PANJANG_RAHASIA_MIN, pinDev: !!s.pinDev, agen: agenAktif(s) };
+}
+/* Agen AI: aktif atau tidak, dan profil yang dipakainya (bukan kuncinya). */
+function setelanAgen() {
+  const s = setelan();
+  return { aktif: agenAktif(s), profil: s.profilAgen, pendek: s.kunciAgen.length > 0 && !agenAktif(s) };
 }
 
 /* Apa yang belum lengkap, ditulis sebagai langkah yang bisa langsung dikerjakan.
@@ -70,11 +87,17 @@ function samaPin(masukan, pin) {
 }
 const cocokPin = masukan => samaPin(masukan, setelan().pin);
 const cocokPinDev = masukan => samaPin(masukan, setelan().pinDev);
+const cocokKunciAgen = masukan => { const s = setelan(); return agenAktif(s) && samaPin(masukan, s.kunciAgen); };
 
 /* Sidik DEV_PIN di dalam sesi: mengganti DEV_PIN di Vercel membatalkan semua sesi Dev lama
    (sesinya sendiri tetap jalan sebagai sesi biasa). Bukan PIN maupun hash PIN-nya. */
 function sidikDev({ rahasia, pinDev }) {
   return crypto.createHmac('sha256', rahasia).update('dev-v2|' + pinDev).digest('base64url').slice(0, 22);
+}
+
+/* Sidik kunci agen dan profilnya: mengganti AGEN_KUNCI atau AGEN_PROFIL membatalkan sesi agen lama. */
+function sidikAgen({ rahasia, kunciAgen, profilAgen }) {
+  return crypto.createHmac('sha256', rahasia).update(`agen-v2|${profilAgen}|${kunciAgen}`).digest('base64url').slice(0, 22);
 }
 
 /* Sidik profil (0.14.0): profil yang dipilih lewat PIN-nya (atau yang tak ber-PIN). hashPin =
@@ -86,9 +109,16 @@ function sidikMe(orang, hashPin) {
 }
 
 /* dev = true: sesi mode Dev, berlaku UMUR_DEV_JAM jam (devExp = lanjutkan masa yang ada).
-   me + meSidik = profil yang terbukti (lihat sidikMe). */
-function terbitkan(sekarang = Date.now(), { dev = false, devExp = 0, me = '', meSidik = '' } = {}) {
+   me + meSidik = profil yang terbukti (lihat sidikMe). agen = true: sesi agen AI, hanya profil
+   AGEN_PROFIL, tanpa mode Dev. */
+function terbitkan(sekarang = Date.now(), { dev = false, devExp = 0, me = '', meSidik = '', agen = false } = {}) {
   const s = setelan();
+  if (agen) {
+    if (!agenAktif(s)) throw new Error('Agen AI belum diaktifkan.');
+    const isi = { exp: sekarang + UMUR_AGEN_JAM * 36e5, agen: sidikAgen(s), me: s.profilAgen };
+    const teks = Buffer.from(JSON.stringify(isi)).toString('base64url');
+    return teks + '.' + tandai(teks, s).toString('base64url');
+  }
   const isi = { exp: sekarang + UMUR_HARI * 864e5 };
   if (dev && s.pinDev) Object.assign(isi, { dev: sidikDev(s), devExp: devExp > sekarang ? devExp : sekarang + UMUR_DEV_JAM * 36e5 });
   if (me && meSidik) Object.assign(isi, { me: String(me), meSidik: String(meSidik) });
@@ -125,6 +155,12 @@ function dev(token, sekarang = Date.now()) {
 function akhirDev(token, sekarang = Date.now()) {
   return dev(token, sekarang) ? isiSesi(token, sekarang).devExp : 0;
 }
+/* Sesi agen AI yang masih berlaku: profilnya, atau ''. */
+function agen(token, sekarang = Date.now()) {
+  const o = isiSesi(token, sekarang);
+  const s = setelan();
+  return o && o.agen && agenAktif(s) && o.agen === sidikAgen(s) && o.me === s.profilAgen ? s.profilAgen : '';
+}
 
 function bacaCookie(req, nama = NAMA_COOKIE) {
   const mentah = String((req.headers && req.headers.cookie) || '');
@@ -148,6 +184,7 @@ function cookieKeluar(aman) {
 }
 
 module.exports = {
-  NAMA_COOKIE, UMUR_HARI, UMUR_DEV_JAM, PANJANG_RAHASIA_MIN,
-  setelanAda, kurangnya, cocokPin, cocokPinDev, terbitkan, isiSesi, sah, dev, akhirDev, sidikMe, bacaCookie, cookieMasuk, cookieKeluar,
+  NAMA_COOKIE, UMUR_HARI, UMUR_DEV_JAM, UMUR_AGEN_JAM, PANJANG_RAHASIA_MIN,
+  setelanAda, setelanAgen, kurangnya, cocokPin, cocokPinDev, cocokKunciAgen, terbitkan, isiSesi, sah, dev, akhirDev, agen, sidikMe,
+  bacaCookie, cookieMasuk, cookieKeluar,
 };

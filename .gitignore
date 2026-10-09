@@ -23,3 +23,6 @@ package-lock.json
 *.log
 .DS_Store
 Thumbs.db
+
+# Salinan cepat dan jejak agen AI (agen/.data); setelannya di agen/.env (pola .env di atas)
+agen/.data/

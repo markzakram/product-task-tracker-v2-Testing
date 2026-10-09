@@ -266,7 +266,7 @@ const contoh = () => ({
   packages: [{
     id: 'PKG-002', platform: 'BUMN', program: 'Rekrutmen BUMN', namaPaket: 'PT.KAI_BUMN', produkPic: 'andika',
     dibimbing: '', latsol: '3 September', materi: '', tryout: '2 TO', drilling: '', liveClass: '', catatan: 'DL 23 Sept', mirror: true,
-    marselPic: 'alya', tagline: '', benefit: '', tanggal: '2026-09-01', tujuan: '', updatedBy: 'nynda', updatedAt: Date.parse('2026-10-02T04:35:00Z'),
+    marselPic: 'alya', tagline: '', benefit: '', tanggal: '2026-09-01', tujuan: '', daftarBuka: '2026-10-01', daftarTutup: '2026-10-20', updatedBy: 'nynda', updatedAt: Date.parse('2026-10-02T04:35:00Z'),
     items: [
       { id: 'ITM-1', urutan: 1, kategori: 'Tryout', grup: 'Psikologi', nama: 'TO Akbar', target: 2, satuan: 'Paket', awal: 0, catatan: '' },
       { id: 'ITM-2', urutan: 2, kategori: 'Dibimbing', grup: '', nama: 'Kelas TPA', target: 4.5, satuan: 'Sesi', awal: 1, catatan: 'dua sesi daring' },

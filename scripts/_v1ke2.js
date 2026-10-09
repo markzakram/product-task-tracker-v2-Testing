@@ -320,6 +320,7 @@ function paketDariV1(p, items, links) {
     drilling: teks(p.drilling), liveClass: teks(p.live_class), catatan: teks(p.catatan),
     mirror: Number(p.mirror) === 1 || /^(true|ya)$/i.test(teks(p.mirror)),
     marselPic: idOrang(p.marsel_pic), tagline: teks(p.tagline), benefit: teks(p.benefit), tanggal: tanggal(p.tanggal), tujuan: teks(p.tujuan),
+    daftarBuka: '', daftarTutup: '',
     updatedBy: idOrang(p.updated_by), updatedAt: waktu(p.updated_at),
     items: items.map(i => ({
       id: teks(i.item_id) || 'i' + i.__baris, urutan: angka(i.urutan), kategori: teks(i.kategori), grup: teks(i.grup),

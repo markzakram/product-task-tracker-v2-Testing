@@ -1,5 +1,80 @@
 # Changelog — ProductTrack v2
 
+## 2.18.0 — Rancangan Paket: platform ganda, jadwal pendaftaran, urutan seret, nama di tempat (2026-10-09)
+
+Permintaan user, semuanya di Rancangan Paket. Pilihan user: urutan disimpan per browser, dan
+slicer menyaring paket yang masa pendaftarannya bersinggungan dengan rentang yang dipilih.
+
+- **Platform lebih dari satu.**
+  - Form paket (baru dan ubah) memakai centang platform.
+  - Isiannya tetap satu kolom teks dipisah koma, urut mengikuti Master (`Inti.platformPaket`,
+    `Inti.rapikanPlatform`).
+  - Saringan Platform di daftar kini chip yang bisa dipilih beberapa sekaligus.
+  - Menyimpan form tanpa isian platform tak lagi mengosongkan platform.
+- **Elaborasi paket berplatform banyak:** proyek dan task memakai platform yang dipilih di form
+  elaborasi, bawaannya yang pertama.
+- **Jadwal pendaftaran paket.**
+  - Isian baru `daftarBuka` dan `daftarTutup` di form. Tanggal diperiksa, dan tutup tak boleh
+    sebelum buka. Kalau hanya satu yang diisi, jadwalnya satu hari itu.
+  - Tampil di kartu dan halaman paket dengan keadaannya.
+  - Kolom baru di tab `packages` (hanya menambah) dan di `v2_packages` (`db/produk_base_v2.sql`).
+- **Slicer jadwal pendaftaran:**
+  - dua pegangan di atas rentang bulan jadwal yang ada, ditambah isian tanggal dari–sampai;
+  - menyaring paket yang masa pendaftarannya bersinggungan dengan rentang itu
+    (`Inti.daftarBeririsan`);
+  - keterangannya menyebut berapa paket tanpa jadwal yang disembunyikan.
+- **Urutan kartu paket:**
+  - diseret di desktop, atau tombol panah di mode *Atur urutan* (juga di ponsel);
+  - tersimpan di browser per sumber data;
+  - *Urutan bawaan* menghapus urutan tersimpan.
+- **Ganti nama di tempat:**
+  - klik dua kali judul paket di kartu atau halaman paket;
+  - aturannya `ubahNamaPaket`: hanya yang boleh menyunting paket itu, tercatat di aktivitas, dan
+    juga berlaku di data real;
+  - Enter atau pindah fokus menyimpan, Esc membatalkan.
+- Tes baru `test/paket.test.js`. 225 tes.
+
+## 2.17.0 — Agen AI Ali (2026-10-09)
+
+Permintaan user: profil Ali dijalankan oleh agen AI dari Agent Office (`G:\Ali\code\Agent AI`),
+dengan batasan Ali sendiri. Pilihan user: agen boleh menulis, tapi selalu dengan persetujuan;
+tim melihat tanda AI; dan empat pekerjaan pertama (ringkasan pagi, jawab Komunikasi, perbarui
+task dari hasil kerja, pengingat tenggat & tinjauan).
+
+- **Kunci agen.** Aksi `masukAgen` dengan env `AGEN_KUNCI` (minimal 32 karakter) membuka sesi
+  yang terkunci pada profil `AGEN_PROFIL` (bawaannya `ali`). Sesi itu hanya boleh:
+  - membaca;
+  - mengirim pesan atas nama Ali;
+  - melakukan perubahan data real dalam `Inti.AKSI_AGEN`: aksi status, output, bukti, sub-task.
+
+  Memilih profil lain, mode Dev, Master, PIN, foto, dan sumber data ditolak (403). Kunci yang
+  diganti atau dikosongkan membatalkan sesi agen seluruhnya (401). GET `/api/rpc` dan Panel Dev
+  hanya menunjukkan apakah agen aktif, tanpa kuncinya.
+- **Tanda AI dari server.**
+  - Pesan agen diberi `kode` `ai`; kolom itu hanya dipakai reaksi, jadi tab obrolan tak perlu
+    kolom baru.
+  - Aktivitas dan tinjauan agen diberi `ai: true` di perubahan data real.
+  - Label **AI** tampil di Komunikasi (gelembung dan daftar utas), jejak dan detail task,
+    Riwayat Aktivitas, dan notifikasi.
+  - Isian browser tak bisa memalsukan atau menghapus tandanya.
+- **Folder `agen/`** (tak ikut image Docker):
+  - klien ProductTrack yang menyusun data real seperti browser;
+  - ringkasan pagi dan pengingat sebagai pekerjaan tanpa token (`agent-office.json`). Pengingat
+    tak mengulang yang sudah diingatkan, dan tak mengingatkan task yang masih menunggu tahap
+    sebelumnya;
+  - server MCP `producttrack` dengan 13 alat untuk sesi AI. Alat baca langsung jalan; alat tulis
+    selalu menunggu persetujuan;
+  - `CLAUDE.md` berisi aturan kerja agen;
+  - panduan di `agen/README.md`.
+- Panel Dev → Sistem: baris *Agen AI*. Tab `setelan`, `data_real`, dan `obrolan_real` kini
+  ditandai "ditulis aplikasi".
+- Agent Office ikut diubah (repo terpisah):
+  - karyawan **Ali** memegang folder `agen/`;
+  - pekerjaan bisa `senyap` (hasil tanpa kabar baru tidak dikirim sebagai notifikasi);
+  - kartu izin alat MCP menampilkan isiannya utuh.
+- README: bagian *Agen AI Ali*. Tes baru `test/agen.test.js`: kunci, batasan sesi, tanda AI,
+  klien, ringkasan & pengingat, dan alat MCP lewat stdio. 220 tes.
+
 ## 2.16.1 — Jabatan bawaan tanpa "Rumpun" (2026-10-09)
 
 - Jabatan bawaan Uma, Tri, dan Wildan kini "Akademik". Saat rumpun dihapus di 0.14.0, yang

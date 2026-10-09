@@ -151,7 +151,28 @@ Halaman pendukung, setara v1:
   sheet Master Marsel; kategori dari Master ikut jadi kolom). Kategori yang dinonaktifkan tetap
   tampil di paket yang masih berisi item kategori itu. Lead & Manager membuat paket; PIC Produk
   dari data v1 boleh menyunting paketnya; membagikan ke Lintas Divisi hanya Lead/Manager;
-  menghapus hanya Manager.
+  menghapus hanya Manager. Sejak 2.18.0:
+  - **Platform boleh lebih dari satu.** Di form, platform dicentang. Isiannya tetap satu
+    kolom teks dipisah koma ("ASN, BUMN"), jadi data lama dan sheet Marsel tak berubah.
+    Saringan Platform di daftar juga bisa memilih beberapa platform: paket tampil bila salah
+    satu platformnya terpilih.
+  - **Elaborasi paket berplatform banyak.** Proyek dan task tetap satu platform, karena
+    saringan dan Dashboard menghitung per platform. Form elaborasi menanyakan platform yang
+    dipakai; bawaannya yang pertama.
+  - **Jadwal pendaftaran** (buka–tutup) diisi di form paket. Jadwalnya tampil di kartu dan di
+    halaman paket beserta keadaannya: akan dibuka, sedang dibuka, atau sudah ditutup.
+  - **Slicer jadwal pendaftaran** di atas daftar paket, berupa dua pegangan dan isian tanggal.
+    - Menampilkan paket yang masa pendaftarannya bersinggungan dengan rentang yang dipilih.
+    - Pegangan di ujung berarti tanpa batas di sisi itu.
+    - Selama slicer dipakai, paket tanpa jadwal tidak tampil.
+  - **Urutan kartu diatur sendiri.** Di desktop kartu diseret; di ponsel lewat **Atur urutan**
+    (tombol panah). Urutannya tersimpan di browser masing-masing, per sumber data; paket baru
+    tampil paling atas, dan **Urutan bawaan** mengembalikannya.
+  - **Klik dua kali judul paket** (di kartu atau di halaman paket) untuk mengganti nama di
+    tempat. Enter atau pindah fokus menyimpan, Esc membatalkan.
+    - Hanya untuk yang boleh menyunting paket itu, dan tercatat di Riwayat Aktivitas.
+    - Klik sekali pada judul kartu tetap membuka paketnya, setelah jeda singkat untuk
+      menunggu klik kedua.
 - **Task**: satu halaman dengan lima tampilan yang diganti lewat deretan ikon di atas daftar:
   **Daftar** (bisa diurutkan dan diekspor ke CSV, ikut sub-stage, tim, dan keadaannya),
   **Kanban** (seret-lepas di desktop), **Per orang**, **Timeline** (5 minggu), dan **Kalender**
@@ -415,6 +436,55 @@ Aturannya di `public/inti.js` (`AKSI_DATA`, `jalankanPerintah`, `periksaPerintah
 `terapkanUbah`), `api/_real.js`, dan `api/_sheets.js` (`bacaReal`, `tulisReal`, `bacaSetelan`),
 diuji di `test/real.test.js` dan `test/real-rpc.test.js`.
 
+### Agen AI Ali
+
+Sejak 2.17.0 profil **Ali** bisa dijalankan oleh agen AI dari Agent Office
+(`G:\Ali\code\Agent AI`). Agen bekerja atas nama Ali, dengan batasan Ali sendiri, dan semua
+yang ditulisnya bertanda **AI**. Cara menyiapkan dan memakainya ada di `agen/README.md`.
+
+- **Masuk dengan kuncinya sendiri.**
+  - Server memakai env `AGEN_KUNCI` (minimal 32 karakter acak); `AGEN_PROFIL` (bawaannya
+    `ali`) menentukan profilnya. Aksinya `masukAgen`.
+  - Agen tak memegang PIN aplikasi. Ia tak bisa memilih profil lain, masuk mode Dev, mengganti
+    sumber data, atau membuka Panel Sistem.
+  - Kunci diganti atau dikosongkan = semua sesi agen batal seluruhnya. Sesi lama tak pernah
+    turun menjadi sesi biasa.
+  - Panel Dev → Sistem menunjukkan apakah agen aktif.
+- **Yang boleh dilakukan agen** (`Inti.AKSI_AGEN`, `Inti.PESAN_AGEN`), dengan aturan yang sama
+  dengan Ali:
+  - membaca data dan obrolan;
+  - pesan: kirim, ubah atau hapus pesan sendiri, reaksi, tandai beres;
+  - di data real: isi output, tambah bukti, tambah atau ubah atau centang sub-task, dan aksi
+    status (mulai, ajukan, selesai, tarik, tahan, lanjutkan, setujui, kembalikan, buka).
+
+  Membuat task atau proyek, paket, Master, PIN, dan foto tetap dikerjakan Ali sendiri di
+  aplikasi.
+- **Tanda AI.** Server menandai pesan agen: kolom `kode` diisi `ai`, padahal untuk pesan biasa
+  kolom itu selalu kosong. Aktivitas dan tinjauannya diberi `ai: true` di perubahan data real.
+  Label **AI** tampil di:
+  - Komunikasi (gelembung dan daftar utas);
+  - jejak dan detail task;
+  - Riwayat Aktivitas;
+  - notifikasi.
+
+  Isian dari browser tak bisa memasang maupun menghapus tanda ini.
+- **Folder `agen/`.**
+  - `klien.js`: masuk, menyusun data real seperti browser, dan menulis.
+  - `laporan.js`: ringkasan pagi dan pengingat.
+  - `ringkasan.js` dan `pengingat.js`: pekerjaan tanpa token untuk Agent Office.
+  - `mcp.js` dan `.mcp.json`: alat untuk sesi AI.
+  - `.claude/settings.json`: alat baca langsung jalan; alat tulis selalu minta persetujuan.
+  - `CLAUDE.md`: aturan kerja agen.
+  - Setelannya ada di `agen/.env`, salinan cepatnya di `agen/.data/`. Keduanya tak ikut git, dan
+    folder `agen/` tak ikut image Docker.
+- **Di Agent Office** karyawan operator **Ali** memegang folder `agen/`:
+  - **Ringkasan pagi** dan **Pengingat** (tenggat, tinjauan, pertanyaan) berjalan tanpa token
+    dan terjadwal. Pengingat yang tak menemukan hal baru tidak memberi notifikasi.
+  - Tugas AI ("@Ali jawab pesan yang menunggu", "@Ali PRD-123 sudah selesai, …") memakai kredit
+    API. Setiap tulisan muncul dulu sebagai kartu Izinkan/Tolak berisi isinya.
+
+Diuji di `test/agen.test.js`, termasuk alat MCP yang dijalankan lewat stdio sungguhan.
+
 ### Master & PIN profil
 
 Sejak 0.14.0, seperti tab Master di v1: halaman **Master** (grup Manajer; Manager dan Dev)
@@ -497,6 +567,7 @@ public/panduan.js     isi halaman Panduan + pencari contoh untuk "Coba sekarang"
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
 api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh, sinkron, data real, obrolan, foto, mode Dev, Master, PIN profil
 api/_real.js          data real: perintah diperiksa berurutan, keadaan dari tab data_real
+agen/                 agen AI Ali: klien, ringkasan & pengingat, alat MCP (lihat agen/README.md)
 api/_sesi.js          gerbang PIN + cookie sesi (mode Dev, profil terbukti)
 api/_sheets.js        Google Sheets + aturan kepemilikan + data contoh + tab obrolan, foto, orang, master, pin, setelan, data_real
 api/_skema.js         bentuk tab spreadsheet v2, baris ↔ objek prototipe
@@ -576,6 +647,7 @@ git push -u origin main
 | `ACCESS_PIN` | PIN v2, jangan disamakan dengan PIN v1 |
 | `SESSION_SECRET` | hasil `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `DEV_PIN` | (opsional) PIN mode Dev, berbeda dari `ACCESS_PIN`. Kosong = mode Dev tertutup |
+| `AGEN_KUNCI` | (opsional) kunci agen AI Ali, minimal 32 karakter acak (lihat `agen/README.md`). Kosong = agen tertutup |
 
 Lalu Deploy. Env hanya berlaku untuk deploy baru, jadi setelah mengubahnya selalu **Redeploy**.
 
@@ -616,6 +688,7 @@ Revision → Variables). Deploy dari CI hanya mengubah `APP_ENV`; env lain diper
 | `ACCESS_PIN` | PIN v2, jangan disamakan dengan PIN v1 |
 | `SESSION_SECRET` | acak, minimal 32 karakter |
 | `DEV_PIN` | (opsional) PIN mode Dev, berbeda dari `ACCESS_PIN` |
+| `AGEN_KUNCI` | (opsional) kunci agen AI Ali, minimal 32 karakter acak; nilai yang sama di `agen/.env` |
 
 Service itu sebelumnya menjalankan v1, jadi env lamanya masih berisi spreadsheet dan kunci v1.
 **Ganti dulu sebelum tag v2 pertama.** Kalau terlanjur, tak ada yang tertulis ke sheet v1: setiap
@@ -762,6 +835,9 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
   data*).
 - **Link Saya dan Catatan Saya tetap di browser itu**, di data contoh maupun data real, jadi
   belum terbagi antarperangkat.
+- **Agen AI Ali hanya berjalan selama Agent Office menyala** di komputer Ali: jadwal yang
+  terlewat tidak dijalankan susulan. Tugas AI-nya memakai kredit API, dan perubahan task hanya
+  tersimpan di data real.
 - **Data real tiba di browser lain paling lambat 20–30 detik kemudian**, dan tarikannya berhenti
   selama tab tak terlihat. Riwayat `data_real` hanya bertambah dan dibaca utuh setiap kali
   instance server menyala dan setiap kali browser baru pertama membukanya (lihat *Nanti di

@@ -1191,6 +1191,16 @@
     return { ...hasil, target };
   }
 
+  /* ---------- Agen AI (2.17.0) ----------
+     Sesi agen (api/_sesi.js) terkunci pada satu profil dan hanya boleh memakai perubahan data
+     dan jenis pesan di bawah ini; selebihnya (proyek, paket, Master, PIN, ...) tetap pekerjaan
+     orangnya sendiri. Pesan dari agen ditandai server dengan kode KODE_AI (kolom kode hanya
+     dipakai reaksi, jadi untuk pesan dan ubah selalu kosong), aktivitas dan tinjauannya dengan
+     ai: true. */
+  const KODE_AI = 'ai';
+  const AKSI_AGEN = ['terapkanAksi', 'isiOutput', 'tambahBukti', 'tambahSubtask', 'ubahSubtask', 'centangSubtask'];
+  const PESAN_AGEN = ['pesan', 'ubah', 'hapus', 'reaksi', 'lepas', 'beres'];
+
   /* Komentar data contoh + peristiwa bersama → pesan per ruang, terurut waktu.
      Pesan: { id, ruang, oleh, at, teks, balas, tanya, diubah, dihapus, reaksi {kode: [orang]},
      beres {oleh, at}, bersama, judul, tertunda, gagal }. */
@@ -1202,7 +1212,7 @@
       if (!perRuang.has(m.ruang)) perRuang.set(m.ruang, []);
       perRuang.get(m.ruang).push(m);
     };
-    const kosong = { balas: '', diubah: 0, dihapus: false, dimoderasi: false, beres: null, judul: '', tertunda: false, gagal: false };
+    const kosong = { balas: '', diubah: 0, dihapus: false, dimoderasi: false, beres: null, judul: '', tertunda: false, gagal: false, ai: false };
     for (const t of data.tasks) {
       for (const k of t.comments || []) {
         masuk({ ...kosong, id: String(k.id), ruang: ruangTask(t.id), oleh: k.author, at: Number(k.at) || 0, teks: String(k.text || ''), tanya: [], reaksi: {}, bersama: false });
@@ -1213,13 +1223,13 @@
       if (e.jenis === 'pesan') {
         if (!perId.has(e.id)) {
           masuk({ ...kosong, id: e.id, ruang: e.ruang, oleh: e.oleh, at: e.at, teks: e.teks, balas: e.target || '', tanya: e.tanya || [],
-            reaksi: {}, bersama: true, judul: e.judul || '', tertunda: !!e.tertunda, gagal: !!e.gagal });
+            reaksi: {}, bersama: true, judul: e.judul || '', tertunda: !!e.tertunda, gagal: !!e.gagal, ai: e.kode === KODE_AI });
         }
         continue;
       }
       const m = perId.get(e.target);
       if (!m || m.ruang !== e.ruang) continue;
-      if (e.jenis === 'ubah' && m.oleh === e.oleh && !m.dihapus) Object.assign(m, { teks: e.teks, diubah: e.at });
+      if (e.jenis === 'ubah' && m.oleh === e.oleh && !m.dihapus) Object.assign(m, { teks: e.teks, diubah: e.at }, e.kode === KODE_AI ? { ai: true } : {});
       else if (e.jenis === 'hapus' && m.oleh === e.oleh) Object.assign(m, { teks: '', dihapus: true, reaksi: {} });
       else if (e.jenis === 'moderasi' && e.oleh === DEV) Object.assign(m, { teks: '', dihapus: true, dimoderasi: true, reaksi: {} });
       else if ((e.jenis === 'reaksi' || e.jenis === 'lepas') && !m.dihapus) {
@@ -1270,10 +1280,10 @@
   /* Jejak task yang ikut tampil di percakapannya: dibuat, diubah/diserahkan, mulai, tertahan,
      pengajuan dan hasil tinjauan (beserta catatannya), dibuka kembali. */
   function aktivitasTask(data, t) {
-    const out = (t.tinjauan || []).map(r => ({ id: 'tj-' + r.id, at: Number(r.at) || 0, oleh: r.by, jenis: 'tinjau', aksi: r.action, teks: r.note || '' }));
+    const out = (t.tinjauan || []).map(r => ({ id: 'tj-' + r.id, at: Number(r.at) || 0, oleh: r.by, jenis: 'tinjau', aksi: r.action, teks: r.note || '', ...(r.ai ? { ai: true } : {}) }));
     for (const l of data.log) {
       if (l.type === 'comment' || l.type === 'tinjau' || String(l.task).split(' ')[0] !== t.id) continue;
-      out.push({ id: 'lg-' + l.id, at: Number(l.at) || 0, oleh: l.by, jenis: l.type, aksi: '', teks: String(l.detail || '') });
+      out.push({ id: 'lg-' + l.id, at: Number(l.at) || 0, oleh: l.by, jenis: l.type, aksi: '', teks: String(l.detail || ''), ...(l.ai ? { ai: true } : {}) });
     }
     return out.filter(x => x.at).sort((a, b) => a.at - b.at);
   }
@@ -1352,7 +1362,7 @@
     const perId = indeks(data);
     const pendek = orang(me).pendek.toLowerCase();
     const out = [];
-    const tambah = (jenis, t, at, oleh, isi = '') => { if (at) out.push({ id: `${jenis}-${t.id}-${at}`, jenis, task: t.id, at, oleh, teks: isi }); };
+    const tambah = (jenis, t, at, oleh, isi = '', ai = false) => { if (at) out.push({ id: `${jenis}-${t.id}-${at}`, jenis, task: t.id, at, oleh, teks: isi, ...(ai ? { ai: true } : {}) }); };
     for (const t of data.tasks) {
       if (t.pic === me && t.status === 'Antre' && tungguTahap(t)) {
         // Tahap sebelumnya baru tuntas: task ini siap dimulai (kecuali sudah siap sejak dibuat).
@@ -1365,9 +1375,9 @@
       }
       for (const r of t.tinjauan || []) {
         if (r.by === me) continue;
-        if (r.action === 'Diajukan' && t.status === 'Ditinjau' && peninjau(t) === me) tambah('tinjau', t, r.at, r.by);
-        if (t.pic === me && r.action === 'Dikembalikan') tambah('kembali', t, r.at, r.by, r.note);
-        if (t.pic === me && r.action === 'Disetujui') tambah('setuju', t, r.at, r.by);
+        if (r.action === 'Diajukan' && t.status === 'Ditinjau' && peninjau(t) === me) tambah('tinjau', t, r.at, r.by, '', r.ai);
+        if (t.pic === me && r.action === 'Dikembalikan') tambah('kembali', t, r.at, r.by, r.note, r.ai);
+        if (t.pic === me && r.action === 'Disetujui') tambah('setuju', t, r.at, r.by, '', r.ai);
       }
     }
     // Pesan: pertanyaan untuk saya > sebutan > pesan di task yang melibatkan saya. Ruang tim dan
@@ -1380,7 +1390,7 @@
       for (const m of pesan) {
         if (m.oleh === me || m.dihapus || !m.at || m.tertunda || m.gagal) continue;
         const j = m.tanya.includes(me) ? 'tanya' : menyebut(m.teks, me) ? 'sebut' : ikut ? 'komentar' : '';
-        if (j) out.push({ id: `${j}-${m.id}`, jenis: j, ruang, pesan: m.id, task: t ? t.id : '', proyek: jenis === 'proyek' ? id : '', at: m.at, oleh: m.oleh, teks: m.teks });
+        if (j) out.push({ id: `${j}-${m.id}`, jenis: j, ruang, pesan: m.id, task: t ? t.id : '', proyek: jenis === 'proyek' ? id : '', at: m.at, oleh: m.oleh, teks: m.teks, ...(m.ai ? { ai: true } : {}) });
       }
     }
     // Task baru dan delegasi hanya tercatat di log: "Dibuat untuk Kiki · E4", "Diubah: diserahkan ke Kiki".
@@ -1389,13 +1399,13 @@
       const t = perId.get(String(l.task).split(' ')[0]);
       if (!t) continue;
       // Lead diberi tahu saat staff-nya menambah task untuk dirinya sendiri.
-      if (l.type === 'create' && t.pic === l.by && orang(l.by).peran === 'staff' && orang(l.by).lead === me) { tambah('tambah', t, l.at, l.by); continue; }
+      if (l.type === 'create' && t.pic === l.by && orang(l.by).peran === 'staff' && orang(l.by).lead === me) { tambah('tambah', t, l.at, l.by, '', l.ai); continue; }
       if (t.pic !== me) continue;
       const d = String(l.detail || '');
       const dibuat = /^Dibuat untuk (.+?)(?: · |$)/.exec(d);
       const serah = /(?:diserahkan|didelegasikan) ke ([^,.;]+)/i.exec(d);
-      if (l.type === 'create' && dibuat && dibuat[1].trim().toLowerCase() === pendek) tambah('baru', t, l.at, l.by);
-      else if (serah && serah[1].trim().toLowerCase() === pendek) tambah('serah', t, l.at, l.by);
+      if (l.type === 'create' && dibuat && dibuat[1].trim().toLowerCase() === pendek) tambah('baru', t, l.at, l.by, '', l.ai);
+      else if (serah && serah[1].trim().toLowerCase() === pendek) tambah('serah', t, l.at, l.by, '', l.ai);
     }
     if (orang(me).peran === 'manager') {
       for (const p of data.projects) {
@@ -1558,8 +1568,8 @@
     if (!String(f.namaPaket || '').trim()) throw new Error('Nama paket wajib diisi.');
     const p = {
       id: 'PKG-' + String(nomorBerikut(data.packages, 'PKG')).padStart(3, '0'),
-      platform: f.platform || '', marselPic: '', program: String(f.program || '').trim(), namaPaket: String(f.namaPaket).trim(),
-      tagline: '', benefit: '', tanggal: '', tujuan: '', produkPic: f.produkPic || '',
+      platform: rapikanPlatform(f.platform), marselPic: '', program: String(f.program || '').trim(), namaPaket: String(f.namaPaket).trim(),
+      tagline: '', benefit: '', tanggal: '', tujuan: '', produkPic: f.produkPic || '', ...aturJadwalDaftar(f, {}),
       dibimbing: '', latsol: '', materi: '', tryout: '', drilling: '', liveClass: '', catatan: '',
       updatedBy: me, updatedAt: waktu, mirror: false, items: [], links: [],
     };
@@ -1570,6 +1580,55 @@
 
   const angkaPositif = v => { const n = Number(String(v == null ? '' : v).replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : 0; };
   const teks = v => String(v == null ? '' : v).trim();
+
+  /* ---------- Platform dan jadwal pendaftaran paket (2.18.0) ----------
+     Satu paket boleh beberapa platform. Tetap satu isian teks dipisah koma ("ASN, BUMN"), supaya
+     data lama, tab packages, sheet Marsel, dan pencarian tak berubah; urutannya mengikuti
+     daftar Platform di Master. */
+  const platformPaket = p => [...new Set(String((p && p.platform) || '').split(',').map(x => x.trim()).filter(Boolean))];
+  function rapikanPlatform(nilai) {
+    const daftar = [...new Set((Array.isArray(nilai) ? nilai : String(nilai == null ? '' : nilai).split(',')).map(x => String(x).trim()).filter(Boolean))];
+    const urut = x => { const i = PLATFORM.indexOf(x); return i < 0 ? PLATFORM.length : i; };
+    return daftar.sort((a, b) => urut(a) - urut(b)).join(', ');
+  }
+  /* Jadwal pendaftaran: daftarBuka dan daftarTutup, 'YYYY-MM-DD' atau kosong. Kalau hanya salah
+     satu yang diisi, jadwalnya satu hari itu. */
+  function tanggalSah(v, label) {
+    const s = teks(v);
+    if (!s) return '';
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    const d = m && new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (!d || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) throw new Error(`${label} bukan tanggal yang benar.`);
+    return s;
+  }
+  function aturJadwalDaftar(f, lama) {
+    const buka = f.daftarBuka === undefined ? lama.daftarBuka || '' : tanggalSah(f.daftarBuka, 'Tanggal pendaftaran dibuka');
+    const tutup = f.daftarTutup === undefined ? lama.daftarTutup || '' : tanggalSah(f.daftarTutup, 'Tanggal pendaftaran ditutup');
+    if (buka && tutup && tutup < buka) throw new Error('Pendaftaran tidak bisa ditutup sebelum dibuka.');
+    return { daftarBuka: buka, daftarTutup: tutup };
+  }
+  function jadwalDaftar(p) {
+    const buka = (p && p.daftarBuka) || '';
+    const tutup = (p && p.daftarTutup) || '';
+    return buka || tutup ? { buka: buka || tutup, tutup: tutup || buka } : null;
+  }
+  /* Masa pendaftaran paket bersinggungan dengan rentang dari–sampai (salah satunya boleh
+     kosong). Paket tanpa jadwal tak pernah masuk. */
+  function daftarBeririsan(p, dari, sampai) {
+    const j = jadwalDaftar(p);
+    return !!j && (!sampai || j.buka <= sampai) && (!dari || j.tutup >= dari);
+  }
+  /* Nama paket saja: klik dua kali di judulnya (2.18.0). */
+  function ubahNamaPaket(data, p, nama, me, waktu) {
+    if (!bolehUbahPaket(p, me)) throw new Error('Anda tidak bisa menyunting paket ini.');
+    const baru = teks(nama).slice(0, 200);
+    if (!baru) throw new Error('Nama paket wajib diisi.');
+    if (baru === p.namaPaket) return p;
+    const lama = p.namaPaket;
+    Object.assign(p, { namaPaket: baru, updatedBy: me, updatedAt: waktu });
+    catatLog(data, 'update', `${p.id} · ${baru}`, `Nama paket diubah dari "${lama}"`, me, waktu);
+    return p;
+  }
 
   /* Simpan suntingan rancangan paket: identitas, teks per kategori, target, tautan.
      Membagikan (mirror) hanya boleh Lead/Manager, seperti di v1. */
@@ -1590,8 +1649,10 @@
       if (!url) throw new Error(`Tautan "${teks(l.label) || teks(l.url)}" bukan alamat web (http/https).`);
       return { id: teks(l.id) || `pl${waktu}-${i}`, urutan: i + 1, label: teks(l.label) || judulTautan(url), url };
     });
+    const jadwal = aturJadwalDaftar(f, p);
     Object.assign(p, {
-      platform: teks(f.platform), namaPaket, items, links, mirror, updatedBy: me, updatedAt: waktu,
+      platform: f.platform === undefined ? p.platform : rapikanPlatform(f.platform), ...jadwal,
+      namaPaket, items, links, mirror, updatedBy: me, updatedAt: waktu,
       // Program dan PIC produk tak lagi diisi (0.14.0); nilai lama hasil impor v1 dibiarkan.
       ...(f.program === undefined ? {} : { program: teks(f.program) }), ...(f.produkPic === undefined ? {} : { produkPic: teks(f.produkPic) }),
     });
@@ -1696,10 +1757,13 @@
       return { it, jumlah, langkah };
     });
 
+    // Paket boleh beberapa platform (2.18.0); proyek dan task tetap satu: yang dipilih di form, atau yang pertama.
+    const platformP = platformPaket(p);
+    const platform = platformP.includes(teks(f.platform)) ? teks(f.platform) : platformP[0] || '';
     if (!proj) {
       const judul = p.namaPaket || p.program || p.id;
       proj = {
-        id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ'), name: teks(f.name) || `Produksi ${judul}`, platform: p.platform || 'All Platform',
+        id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ'), name: teks(f.name) || `Produksi ${judul}`, platform: platform || 'All Platform',
         stage: 'A', cycle: 1, decision: 'Build', goal: teks(f.goal) || `Memenuhi target rancangan paket ${p.id} · ${judul}.`,
         lead: '', arsip: false, paket: p.id, history: [],
       };
@@ -1719,7 +1783,7 @@
         const sub = subTahap(l.kode);
         const t = taskBaru(data, {
           title: `${l.kode} · ${batch}`, project: proj.id, sub: l.kode, pic: leadSub(l.kode) || me, due: teks(f.due),
-          priority: 'Normal', platform: p.platform || proj.platform, deps: sebelumnya ? [sebelumnya] : [],
+          priority: 'Normal', platform: platform || proj.platform, deps: sebelumnya ? [sebelumnya] : [],
           detail: [`Langkah ${i + 1} dari ${langkah.length}: ${sub.kode} · ${sub.nama}.`,
             `Target paket ${p.id} · ${it.kategori}${it.grup ? ' / ' + it.grup : ''} · ${it.nama}: ${fmtJumlah(jumlah)} ${satuan}.`,
             l.capaian ? `Saat langkah ini disetujui, batch ini menjadi "${namaCapaian(l.capaian)}" di progres paket.` : '',
@@ -2102,7 +2166,7 @@
   /* Kunci kategori juga nama kolom catatannya di paket (p.latsol, …), jadi tak boleh sama dengan
      isian paket lain. */
   const KUNCI_PAKET = new Set(['id', 'name', 'program', 'namapaket', 'platform', 'marselpic', 'tagline', 'benefit', 'tanggal', 'tujuan',
-    'produkpic', 'catatan', 'updatedby', 'updatedat', 'createdby', 'createdat', 'mirror', 'items', 'links', 'rumpun', 'arsip',
+    'produkpic', 'catatan', 'updatedby', 'updatedat', 'createdby', 'createdat', 'mirror', 'items', 'links', 'rumpun', 'arsip', 'daftarbuka', 'daftartutup',
     'constructor', 'prototype', 'tostring', 'valueof', 'hasownproperty']);
   /* Kunci kategori baru dari labelnya: huruf kecil dan angka saja. */
   function kunciKategori(label, dipakai) {
@@ -2372,6 +2436,7 @@
     paketBaru: (d, x, me, w) => paketBaru(d, x.f || {}, me, w),
     simpanPaket: (d, x, me, w) => simpanPaket(d, paketX(d, x), x.f || {}, me, w),
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
+    ubahNamaPaket: (d, x, me, w) => ubahNamaPaket(d, paketX(d, x), x.nama, me, w),
     elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
     simpanDashboard: (d, x, me, w) => simpanDashboard(d, me, x.f || {}, x.id || '', w),
     hapusDashboard: (d, x, me, w) => hapusDashboard(d, me, x.id, w),
@@ -2492,5 +2557,7 @@
     FOTO_MAKS, fotoSah, periksaFoto,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
     centangSubtask, dataKosong, AKSI_DATA, jalankanPerintah, periksaPerintah, ringkasHasil, KOLEKSI_REAL, bedaData, terapkanUbah,
+    KODE_AI, AKSI_AGEN, PESAN_AGEN,
+    platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
   };
 }));

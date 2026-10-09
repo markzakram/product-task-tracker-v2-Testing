@@ -9,7 +9,7 @@ function dataDemo() {
   const item = (id, kategori, nama, target, awal) => ({ id, urutan: 1, kategori, grup: '', nama, target, satuan: 'Paket', awal, catatan: '' });
   const paket = (id, namaPaket, items = []) => ({
     id, platform: 'Cerebrum', program: '', namaPaket, produkPic: '', mirror: false, dibimbing: '', latsol: '', materi: '', tryout: '',
-    drilling: '', liveClass: '', catatan: '', marselPic: '', tagline: '', benefit: '', tanggal: '', tujuan: '', updatedBy: '', updatedAt: 0,
+    drilling: '', liveClass: '', catatan: '', marselPic: '', tagline: '', benefit: '', tanggal: '', tujuan: '', daftarBuka: '', daftarTutup: '', updatedBy: '', updatedAt: 0,
     items, links: [],
   });
   return {

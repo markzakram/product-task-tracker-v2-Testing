@@ -27,7 +27,7 @@ const TAB = {
   tinjauan: ['id', 'task', 'by', 'action', 'note', 'at'],
   evidence: ['id', 'task', 'label', 'url'],
   packages: ['id', 'platform', 'program', 'namaPaket', 'produkPic', 'dibimbing', 'latsol', 'materi', 'tryout',
-    'drilling', 'liveClass', 'catatan', 'mirror', 'marselPic', 'tagline', 'benefit', 'tanggal', 'tujuan',
+    'drilling', 'liveClass', 'catatan', 'mirror', 'marselPic', 'tagline', 'benefit', 'tanggal', 'tujuan', 'daftarBuka', 'daftarTutup',
     'updatedBy', 'updatedAt'],
   package_items: ['id', 'paket', 'urutan', 'kategori', 'grup', 'nama', 'target', 'satuan', 'awal', 'catatan'],
   package_links: ['id', 'paket', 'urutan', 'label', 'url'],

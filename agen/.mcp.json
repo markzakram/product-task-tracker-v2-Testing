@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "producttrack": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp.js"]
+    }
+  }
+}

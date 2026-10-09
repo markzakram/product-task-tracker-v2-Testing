@@ -1,0 +1,14 @@
+{
+  "enabledMcpjsonServers": ["producttrack"],
+  "permissions": {
+    "allow": [
+      "mcp__producttrack__pekerjaan_saya",
+      "mcp__producttrack__ringkasan_pagi",
+      "mcp__producttrack__detail_task",
+      "mcp__producttrack__pesan_menunggu",
+      "mcp__producttrack__baca_ruang",
+      "mcp__producttrack__cari_task"
+    ],
+    "deny": ["Bash", "PowerShell", "Write", "Edit", "MultiEdit", "NotebookEdit"]
+  }
+}
