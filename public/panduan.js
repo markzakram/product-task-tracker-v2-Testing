@@ -49,6 +49,7 @@
       id: 'mulai-profil', peran: 'mulai', judul: 'Masuk sebagai siapa', tujuan: 'Melihat aplikasi dari sisi Staff, Lead, atau Manager.',
       langkah: [
         'Setelah PIN, pilih profil Anda sendiri. Tampilan menyesuaikan peran: Staff dan Lead mulai di **Hari Ini**, Manager di **Proyek**.',
+        'Profil **bergembok** memakai **PIN pribadi**: masukkan PIN-nya saat memilih profil itu. PIN dipasang Manager di halaman **Master**, jadi orang lain tak bisa menulis pesan atau mengganti foto atas nama Anda.',
         'Untuk melihat sisi peran lain, tekan **Ganti profil** di kaki sidebar.',
         'Pasang **foto profil**: klik foto atau inisial Anda di kaki sidebar (di ponsel: **Menu**), pilih foto, geser dan perbesar di bingkai bulat, lalu **Simpan foto**. Fotonya terlihat semua orang.',
         'Tombol **Coba sekarang** di panduan ini pindah ke profil yang cocok dengan sendirinya. Kotak **langkah panduan** di pojok bawah menemani selama Anda mencoba.',
@@ -62,6 +63,7 @@
         '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
+        '**Manajer** (hanya Manager): **Riwayat Aktivitas** dan **Master**, tempat daftar pilihan bersama dan PIN profil diatur.',
       ],
     },
     {
@@ -87,9 +89,11 @@
       id: 'mulai-catatan', peran: 'mulai', judul: 'Catatan Saya', tujuan: 'Mencatat, mencentang, dan mengubah catatan jadi task.', coba: true,
       langkah: [
         'Pilih tampilan **dua panel** (daftar + editor) atau **kartu** (editor terbuka di jendela). Catatan dikelompokkan per folder yang bisa diciutkan; yang disematkan selalu di atas.',
-        'Catatan **tersimpan sendiri** saat Anda menulis; **Ctrl+S** menyimpan seketika. Mulai dari **Templat** bila perlu: notulen rapat, rencana minggu, checklist QC, atau 1-on-1.',
-        'Mode **Baca** menampilkan format dan checklist yang bisa **dicentang**. Klik teksnya (atau **Ctrl+E**) untuk kembali ke **Sunting**, yang punya toolbar judul, tebal, miring, daftar, checklist, dan tautan.',
-        '**Jadikan task** membuat task dari satu baris catatan; nomor task-nya ditempel di ujung baris itu dan bisa diklik.',
+        'Catatan **tersimpan sendiri** saat Anda menulis; **Ctrl+S** menyimpan seketika. Mulai dari **Templat** bila perlu: notulen rapat, rencana minggu, checklist QC, 1-on-1, atau tabel rencana produksi.',
+        'Tulis langsung, seperti di Notion: tak ada mode Baca atau Sunting. Ketik **/** untuk memilih blok: judul, checklist, daftar, **tabel**, kutipan, atau garis pemisah. Toolbar di atas isi berisi pilihan yang sama.',
+        'Pintasan: **#** lalu spasi untuk judul, **-** untuk daftar, **[]** untuk checklist, **1.** untuk daftar bernomor. **Enter** di checklist membuat butir berikutnya; Enter di butir kosong keluar dari daftar. **Tab** menjorokkan butir.',
+        'Centang checklist langsung dengan mengekliknya. Di tabel, **Tab** pindah ke sel berikutnya; tombol di bawah tabel menambah atau menghapus baris dan kolom. Tempel sel dari Google Sheets untuk mengisi tabel sekaligus.',
+        '**Jadikan task** membuat task dari satu blok catatan; nomor task-nya ditempel di ujung blok itu dan bisa diklik. **Ctrl+Z** mengurungkan perubahan.',
         'Beri **warna** untuk menandai catatan dan saring menurut warnanya. **Riwayat versi** menyimpan isi lama, jadi suntingan yang keliru bisa dipulihkan.',
         'Catatan pribadi dan hanya ada di **browser ini**; tidak terkirim ke spreadsheet. Unduh sebagai .txt bila perlu disimpan di tempat lain.',
       ],
@@ -106,9 +110,10 @@
     {
       id: 'konsep-kode', peran: 'konsep', judul: 'Sub-stage dan tim pemilik', tujuan: 'Memahami kode seperti DV8 atau E1 di setiap task.', ilustrasi: 'kode', coba: true,
       langkah: [
-        'Setiap task berkode **sub-stage**. Awalannya menunjukkan tahap: **A** Analysis, **D** Design, **DV** Development, **I** Implementation, **E** Evaluation. **R1–R4** untuk pekerjaan rutin di luar proyek.',
+        'Setiap task berkode **sub-stage**. Awalannya menunjukkan tahap: **A** Analysis, **D** Design, **DV** Development, **I** Implementation, **E** Evaluation. Kode **R** (R1–R4) untuk pekerjaan rutin di luar proyek.',
         'Kode menentukan **tim pemilik**: MG Manager, AK Akademik, LA Learning Architecture, CO Content Ops, SI Sistem. Arahkan kursor ke kode untuk melihat nama lengkapnya.',
         'Peninjau: task staff ditinjau Lead-nya, task Lead ditinjau Manager. Kode **A1, A6, D1, I8, dan E12** selalu ditinjau Manager.',
+        'Daftar sub-stage diatur Manager di halaman **Master**: kode baru bisa ditambah, nama, tim pemilik, dan tinjauannya diubah, dan yang tak dipakai lagi dinonaktifkan.',
         'Kode berwarna biru muda menandai pekerjaan **lepas** warisan v1: pekerjaan produk yang tidak masuk proyek mana pun.',
       ],
     },
@@ -126,7 +131,7 @@
       id: 'konsep-progres', peran: 'konsep', judul: 'Progres rancangan paket', tujuan: 'Membaca angka progres paket.', ilustrasi: 'progres', coba: true,
       langkah: [
         'Setiap target paket yang dielaborasi menjadi satu **batch**: rangkaian langkah kerja. Contoh Latsol: DV1 → E1 → DV8 → I1 → E4 → E5 → E6 → I4.',
-        'Progres naik per **capaian**, saat langkahnya disetujui: konten siap **40%**, ter-input **60%**, lolos QC **85%**, tayang **100%**. Bobot ini masih usulan PRD.',
+        'Progres naik per **capaian**, saat langkahnya disetujui: konten siap **40%**, ter-input **60%**, lolos QC **85%**, tayang **100%** (bawaan PRD; nama dan bobotnya diatur Manager di **Master**).',
         'Batang progres: biru = sudah tayang, biru muda = sebagian jalan, arsir ungu = sedang digarap.',
         'Di tabel target, satu chip = satu batch. Klik chip untuk membuka langkah bercapaian berikutnya.',
       ],
@@ -168,7 +173,7 @@
       ],
     },
     {
-      id: 'staff-rutin', peran: 'staff', judul: 'Pekerjaan rutin (R1–R4)', tujuan: 'Mengerjakan task di luar proyek.', coba: true,
+      id: 'staff-rutin', peran: 'staff', judul: 'Pekerjaan rutin (kode R)', tujuan: 'Mengerjakan task di luar proyek.', coba: true,
       langkah: [
         'Task rutin berkode **R1** Rekap & administrasi, **R2** Report berkala, **R3** Show/hide harian, atau **R4** Pemeliharaan data.',
         'Tidak perlu ditinjau: tekan **Mulai kerjakan**, lalu **Tandai selesai** begitu beres.',
@@ -178,7 +183,7 @@
       id: 'staff-tambah', peran: 'staff', judul: 'Menambah task sendiri', tujuan: 'Mencatat pekerjaan Anda yang belum ada di daftar.', coba: true,
       langkah: [
         'Tekan **Tambah task** di kanan atas (di ponsel: tombol **+**).',
-        'Pilih jalur: **Rutin** (R1–R4) untuk pekerjaan harian, atau **Proyek** bila pekerjaannya bagian dari proyek. Sub-stage proyek yang tersedia hanya milik tim Anda.',
+        'Pilih jalur: **Rutin** (kode R) untuk pekerjaan harian, atau **Proyek** bila pekerjaannya bagian dari proyek. Pilih sendiri jenis rutin atau **sub-stage**-nya; tidak ada pilihan bawaan. Sub-stage proyek yang tersedia hanya milik tim Anda.',
         'PIC-nya otomatis Anda sendiri. Menyerahkan task ke orang lain tetap lewat Lead.',
         'Lead Anda mendapat notifikasi. Task proyek tetap diajukan ke Lead untuk ditinjau; task rutin langsung ditandai selesai.',
         'Salah ketik? Task buatan sendiri bisa diperbaiki lewat **Ubah** di detail task.',
@@ -217,7 +222,7 @@
       id: 'lead-buat', peran: 'lead', judul: 'Membuat task', tujuan: 'Menambah pekerjaan dengan kode dan PIC yang tepat.', ilustrasi: 'formtask', coba: true,
       langkah: [
         'Tekan **Tambah task** (di halaman proyek: **Tambah task di …**), lalu pilih jalur **Proyek** atau **Rutin**.',
-        'Pilih proyek dan **sub-stage**-nya. Keterangan di bawahnya menyebut tahap dan tim pemiliknya.',
+        'Pilih proyek dan **sub-stage**-nya (wajib; tidak ada pilihan bawaan). Keterangan di bawahnya menyebut tahap dan tim pemiliknya.',
         'Pilih **PIC**: anggota tim Anda, atau Lead tim pemilik kalau sub-stage itu milik tim lain (mis. DV8 Input diserahkan ke Lead LA).',
         'Isi tenggat dan keterangan, lalu tekan **Tambah task**.',
       ],
@@ -272,7 +277,7 @@
       id: 'manager-dashboard', peran: 'manager', judul: 'Membaca Dashboard', tujuan: 'Melihat beban dan hambatan divisi.', ilustrasi: 'bottleneck', coba: true,
       langkah: [
         'Ubin atas: task aktif, terlambat, tertahan, menunggu tinjauan, dan selesai 30 hari. Ubin Terlambat dan Tertahan bisa diklik untuk membuka Task yang tersaring.',
-        'Task aktif dibagi per tahap, tim pemilik, rumpun, dan platform.',
+        'Task aktif dibagi per tahap, tim pemilik, dan platform.',
         'Tabel per orang menampilkan **skor bottleneck**. Kuning mulai 3 dan merah mulai 6: orang itu perlu dibantu, atau pekerjaannya dibagi.',
       ],
     },
@@ -281,7 +286,17 @@
       langkah: [
         'Di **Rancangan Paket**, kartu tiap paket menampilkan progres berbobot dan jumlah yang sudah tayang.',
         'Di dalam paket ada kolom **Tayang**, **Progres**, dan **Digarap** per target. Chip per batch menunjukkan capaiannya.',
-        '**Salin ke sheet Marsel** menyalin isi paket sesuai susunan kolom sheet Master.',
+        '**Salin ke sheet Marsel** menyalin isi paket sesuai susunan kolom sheet Master Marsel.',
+      ],
+    },
+    {
+      id: 'manager-master', peran: 'manager', judul: 'Mengatur Master dan PIN profil', tujuan: 'Mengubah daftar pilihan bersama dan mengunci profil dengan PIN.', coba: true,
+      langkah: [
+        'Buka **Master** di grup Manajer. Isinya daftar pilihan yang dipakai semua orang: **sub-stage**, **kategori paket** dan alurnya, **platform**, **satuan**, label prioritas, capaian dan bobotnya, serta nama tim.',
+        'Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi, tapi task dan paket lamanya tetap terbaca. Panah atas-bawah mengatur urutan platform, satuan, dan kategori.',
+        '**Kategori paket**: susun alur langkahnya dan tandai capaiannya berurutan (konten, input, QC, tayang). Kategori baru langsung muncul di form rancangan paket dan di salinan sheet Marsel.',
+        '**PIN profil**: pasang PIN 4–8 angka untuk tiap orang. Pasang **PIN Manager** lebih dulu; sebelum itu siapa pun yang memilih profil Manager bisa mengubah Master.',
+        'Perubahan tersimpan di spreadsheet v2 dan berlaku bagi semua orang saat aplikasi dimuat ulang.',
       ],
     },
   ];
@@ -289,25 +304,26 @@
   const ISTILAH = [
     ['Status', 'Antre, Dikerjakan, Ditinjau, atau Selesai. Hanya empat ini.'],
     ['Label', 'Keadaan yang dihitung dari status: **Siap**, **Menunggu**, **Revisi**, dan **Tertahan**.'],
-    ['Sub-stage', 'Kode langkah kerja: A1–A6, D1–D7, DV1–DV9, I1–I8, E1–E12 di dalam proyek; R1–R4 untuk rutin.'],
+    ['Sub-stage', 'Kode langkah kerja: A, D, DV, I, dan E di dalam proyek; R untuk rutin. Daftarnya diatur Manager di Master.'],
     ['Tim pemilik', 'Tim yang memegang sebuah sub-stage: MG, AK, LA, CO, atau SI.'],
     ['Antrean tim', 'Langkah yang sudah siap di Hari Ini Lead tim pemilik, menunggu diserahkan ke staff.'],
     ['Syarat ajukan', 'Lima syarat sebelum task proyek diajukan: output, tautan bukti, sub-task, task yang ditunggu, dan tidak tertahan.'],
     ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya, Manager untuk task Lead dan kode bertanda Manager.'],
-    ['Jalur', '**Proyek** (bertahap ADDIE), **rutin** (R1–R4), atau **lepas** (kode ADDIE di luar proyek, warisan v1).'],
+    ['Jalur', '**Proyek** (bertahap ADDIE), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1).'],
     ['Tahap', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation.'],
     ['Siklus', 'Satu putaran ADDIE. Ditutup task E12 yang disetujui; siklus berikutnya opsional.'],
     ['Keputusan proyek', 'Build, Improve, Maintain, atau Hold (ditahan).'],
-    ['Rancangan paket', 'Isi produk dan target per kategori sebuah paket (Latsol, Tryout, Materi, dan lainnya).'],
+    ['Rancangan paket', 'Isi produk dan target per kategori sebuah paket (Latsol, Tryout, Materi, dan lainnya; kategorinya diatur di Master).'],
     ['Elaborasi', 'Mengubah target paket menjadi batch langkah kerja di sebuah proyek.'],
     ['Batch', 'Rangkaian langkah untuk satu target dari satu kali elaborasi.'],
-    ['Capaian', 'Titik progres batch: konten siap 40%, ter-input 60%, lolos QC 85%, tayang 100%.'],
+    ['Capaian', 'Titik progres batch: konten siap, ter-input, lolos QC, dan tayang (100%). Bobotnya diatur di Master.'],
     ['Setoran', 'Catatan bahwa sebuah langkah membawa target paket sampai capaian tertentu.'],
-    ['Rumpun', 'Kelompok platform, mis. BUMN & Keuangan atau Kedinasan & TNI/Polri.'],
     ['Bottleneck', 'Skor orang yang paling banyak ditunggu: task orang lain × 2 + tinjauan × 2 + task telat.'],
     ['Data contoh', 'Data latihan di aplikasi ini. **Reset data contoh** di kaki sidebar mengembalikannya ke awal. Pesan Komunikasi tidak ikut di-reset.'],
     ['Ruang', 'Tempat obrolan di Komunikasi: utas per task, ruang proyek (terbuka untuk semua), dan ruang tim (anggota tim dan Manager).'],
-    ['Mode Baca', 'Tampilan catatan berformat: checklist bisa dicentang dan tiap baris bisa dijadikan task. Lawannya **Sunting** (Ctrl+E berganti).'],
+    ['Blok', 'Satu bagian catatan: paragraf, judul, daftar, checklist, tabel, kutipan, atau garis pemisah. Ketik / di catatan untuk memilihnya.'],
+    ['Master', 'Halaman Manager (dan Dev) untuk daftar pilihan bersama — sub-stage, kategori paket, platform, satuan, prioritas, capaian, nama tim — dan PIN profil.'],
+    ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu. Berbeda dari PIN aplikasi yang dipakai bersama.'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];
 
@@ -392,6 +408,7 @@
       case 'manager-baru': return { profil: I.MANAGER, view: 'proyek', ket: 'Halaman Proyek' };
       case 'manager-dashboard': return { profil: I.MANAGER, view: 'dashboard', dash: { lingkup: 'semua' }, ket: 'Dashboard divisi' };
       case 'manager-paket': return kePaket(paketContoh(), I.MANAGER);
+      case 'manager-master': return { profil: I.MANAGER, view: 'master', ket: 'Halaman Master' };
       default: return null;
     }
   }

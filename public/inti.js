@@ -10,11 +10,12 @@
      "Tertahan" adalah tanda, bukan status: task tetap di statusnya, dengan alasan.
      Keadaan lain dari PRD (Siap, Menunggu, Revisi) dihitung, bukan diklik.
    - Setiap task punya SUB-STAGE berkode (A1–A6, D1–D7, DV1–DV9, I1–I8, E1–E12,
-     R1–R4). Kodenya menentukan tahap ADDIE, tim pemilik, dan peninjaunya.
+     R1–R4; sejak 0.14.0 daftarnya diatur di Master). Kodenya menentukan tahap ADDIE, tim
+     pemilik, dan peninjaunya.
    - Jalur PROYEK: task-nya ditinjau sebelum selesai (staff oleh Lead-nya, Lead oleh
      Manager; sub-stage bertanda Manager selalu oleh Manager), dan baru bisa diajukan
      bila syaratnya lengkap: output, tautan bukti, sub-task, dependency. Jalur RUTIN
-     (R1–R4, di luar proyek) tanpa tinjauan.
+     (kode R, di luar proyek) tanpa tinjauan.
    - Proyek tak punya Lead tetap: tanggung jawabnya mengikuti tim pemilik sub-stage.
      Tahap proyek dihitung dari task terbuka paling awal; siklus ditutup oleh task
      E12 yang disetujui, lalu Manager memulai siklus berikutnya.
@@ -216,22 +217,13 @@
     ['E6', 'QC Android', 'LA'], ['E7', 'QC iOS', 'LA'], ['E8', 'QC akun dan sistem penilaian', 'SI'], ['E9', 'Monitoring dan evaluasi guru', 'CO'],
     ['E10', 'Analisis report/feedback', 'CO'], ['E11', 'Revisi dan validasi ulang', ''], ['E12', 'Final approval dan penutupan', 'MG', true],
     ['R1', 'Rekap & administrasi', 'CO'], ['R2', 'Report berkala', 'CO'], ['R3', 'Show/hide harian', 'LA'], ['R4', 'Pemeliharaan data', 'LA'],
-  ].map(([kode, nama, tim, manager]) => ({ kode, nama, tim, reviewManager: !!manager, tahap: tahapDariKode(kode) }));
+  ].map(([kode, nama, tim, manager]) => ({ kode, nama, tim, reviewManager: !!manager, tahap: tahapDariKode(kode), aktif: true }));
   const SUB_PER_KODE = new Map(SUB_TAHAP.map(s => [s.kode, s]));
   const subTahap = kode => SUB_PER_KODE.get(kode) || null;
   /* Lead yang mendelegasikan task di sub-stage itu (tim pemiliknya). */
   const leadSub = kode => { const s = subTahap(kode); return s && TIM[s.tim] ? TIM[s.tim].lead : ''; };
   const namaSub = kode => { const s = subTahap(kode); return s ? `${s.kode} · ${s.nama}` : ''; };
 
-  /* Rumpun platform: pengelompokan untuk saringan & laporan, tanpa pemilik (PRD). */
-  const RUMPUN = [
-    ['Kedinasan & TNI/Polri', ['Sekdin', 'Polisi', 'Prajurit']],
-    ['ASN & Pendidikan', ['ASN', 'PPPK', 'PPG', 'TPA']],
-    ['BUMN & Keuangan', ['BUMN', 'OJK', 'PCPM', 'Psikotes Kerja']],
-    ['Bahasa & Beasiswa', ['TOEFL', 'Beasiswa']],
-    ['Lainnya', ['Cerebrum', 'All Platform']],
-  ];
-  const rumpunDari = platform => (RUMPUN.find(([, daftar]) => daftar.includes(platform)) || ['Lainnya'])[0];
 
   /* ---------- Tanggal (YYYY-MM-DD, zona lokal) ---------- */
 
@@ -471,7 +463,7 @@
     if (!String(f.title || '').trim()) throw new Error('Judul task wajib diisi.');
     const s = subTahap(f.sub);
     if (p && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
-    if (!p && s && s.tahap !== 'R') throw new Error('Task di luar proyek memakai sub-stage rutin (R1–R4).');
+    if (!p && s && s.tahap !== 'R') throw new Error('Task di luar proyek memakai sub-stage rutin (kode R).');
     if (!bolehBuatTask(me)) throw new Error('Pilih profil dulu.');
     if (orang(me).peran === 'staff') {
       if (f.pic !== me) throw new Error('Staff menambah task untuk dirinya sendiri. Penyerahan ke orang lain lewat Lead.');
@@ -535,7 +527,7 @@
     if (kode && !s) throw new Error('Sub-stage tidak dikenal.');
     if (kode !== t.sub && s && !subBolehBagi(me, kode)) throw new Error(`${kode} dipegang tim lain atau direview Manager. Staff memakai sub-stage milik timnya sendiri.`);
     if (t.lane === 'proyek' && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
-    if (t.lane !== 'proyek' && s && s.tahap !== 'R' && kode !== t.sub) throw new Error('Task di luar proyek memakai sub-stage rutin (R1–R4).');
+    if (t.lane !== 'proyek' && s && s.tahap !== 'R' && kode !== t.sub) throw new Error('Task di luar proyek memakai sub-stage rutin (kode R).');
     const pic = teks(ambil('pic', t.pic));
     if (pic !== t.pic && !picSah(me, pic, kode)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
     const ubah = [];
@@ -762,7 +754,6 @@
       && (!f.proyek || t.project === f.proyek)
       && (!f.jalur || jenisJalur(t) === f.jalur)
       && (!f.platform || t.platform === f.platform)
-      && (!f.rumpun || rumpunDari(t.platform) === f.rumpun)
       && (!f.tim || timTask(t) === f.tim)
       && (!f.tahap || (f.tahap === 'R' ? jenisJalur(t) === 'rutin' : t.stage === f.tahap))
       && (!f.sub || t.sub === f.sub)
@@ -837,7 +828,6 @@
         ...x, jumlah: aktifSemua.filter(t => (x.id === 'R' ? t.lane !== 'proyek' : t.lane === 'proyek' && t.stage === x.id)).length,
       })),
       perTim: Object.values(TIM).map(x => ({ kode: x.kode, nama: x.nama, jumlah: aktifSemua.filter(t => timTask(t) === x.kode).length })),
-      perRumpun: RUMPUN.map(([nama]) => ({ nama, jumlah: aktifSemua.filter(t => rumpunDari(t.platform) === nama).length })),
       mingguan,
       perOrang: (ids ? ids.map(orang) : ORANG).map(o => {
         const nTelat = aktifSemua.filter(t => t.pic === o.id && telat(t, hariIni) && !t.tertahan).length;
@@ -1266,6 +1256,12 @@
     ['Drilling', 'drilling'], ['Live Class', 'liveClass']];
   const PAKET_PRODUK = [...KATEGORI_PAKET.map(([label, kunci]) => [kunci, label]), ['catatan', 'Catatan produk']];
   const SATUAN_PAKET = ['Paket', 'BAB', 'Sesi', 'Video', 'Ebook', 'Video + Ebook'];
+  /* Semua kategori, termasuk yang dinonaktifkan di Master: item paket lama tetap punya rumahnya.
+     KATEGORI_PAKET = yang aktif (ditawarkan untuk item baru). */
+  const KATEGORI_SEMUA = KATEGORI_PAKET.slice();
+  const PLATFORM = ['ASN', 'Sekdin', 'TPA', 'PPPK', 'PPG', 'BUMN', 'OJK', 'PCPM', 'Psikotes Kerja', 'Cerebrum', 'Polisi', 'Prajurit', 'TOEFL', 'Beasiswa', 'All Platform'];
+  /* [nilai, label]. Nilainya tetap (dipakai mengurutkan); labelnya bisa diubah di Master. */
+  const PRIORITAS = [['Normal', 'Normal'], ['High', 'Penting'], ['Urgent', 'Mendesak'], ['Low', 'Rendah']];
 
   /* Capaian sebuah batch di alur langkahnya (PRD v3; bobotnya usulan PRD yang masih menunggu
      keputusan Manager — cukup ubah tabel ini): konten siap 40%, ter-input 60%, lolos QC
@@ -1413,7 +1409,7 @@
     if (!namaPaket) throw new Error('Nama paket wajib diisi.');
     const mirror = f.mirror === undefined ? !!p.mirror : !!f.mirror;
     if (mirror !== !!p.mirror && !['manager', 'lead'].includes(orang(me).peran)) throw new Error('Hanya Lead atau Manager yang bisa membagikan paket.');
-    const kategori = new Set(KATEGORI_PAKET.map(([l]) => l));
+    const kategori = new Set(KATEGORI_SEMUA.map(([l]) => l));
     const items = (f.items || []).map((it, i) => ({
       id: teks(it.id) || `i${waktu}-${i}`, urutan: i + 1,
       kategori: kategori.has(it.kategori) ? it.kategori : KATEGORI_PAKET[0][0], grup: teks(it.grup), nama: teks(it.nama),
@@ -1424,8 +1420,13 @@
       if (!url) throw new Error(`Tautan "${teks(l.label) || teks(l.url)}" bukan alamat web (http/https).`);
       return { id: teks(l.id) || `pl${waktu}-${i}`, urutan: i + 1, label: teks(l.label) || judulTautan(url), url };
     });
-    Object.assign(p, { platform: teks(f.platform), program: teks(f.program), namaPaket, produkPic: teks(f.produkPic), items, links, mirror, updatedBy: me, updatedAt: waktu });
-    for (const [kunci] of PAKET_PRODUK) p[kunci] = String(f[kunci] == null ? '' : f[kunci]).replace(/\s+$/, '');
+    Object.assign(p, {
+      platform: teks(f.platform), namaPaket, items, links, mirror, updatedBy: me, updatedAt: waktu,
+      // Program dan PIC produk tak lagi diisi (0.14.0); nilai lama hasil impor v1 dibiarkan.
+      ...(f.program === undefined ? {} : { program: teks(f.program) }), ...(f.produkPic === undefined ? {} : { produkPic: teks(f.produkPic) }),
+    });
+    // Kategori yang tak tampil di form (nonaktif dan belum dipakai paket ini) tak ikut terhapus.
+    for (const [kunci] of PAKET_PRODUK) if (f[kunci] !== undefined) p[kunci] = String(f[kunci] == null ? '' : f[kunci]).replace(/\s+$/, '');
     // Target yang dihapus membawa setorannya: setoran tanpa target tak bisa ditampilkan di mana pun.
     const adaItem = new Set(items.map(it => it.id));
     if (data.setoran) data.setoran = data.setoran.filter(s => s.paket !== p.id || adaItem.has(s.item));
@@ -1705,17 +1706,128 @@
     baris[n] = baris[n].replace(POLA_CENTANG, `${m[1]}[${m[2] === ' ' ? 'x' : ' '}]${m[3]}`);
     return baris.join('\n');
   }
-  /* Satu baris catatan sebagai judul task: tanpa penanda checklist, daftar, judul, format,
-     dan tanpa "→ PRD-…" yang ditempel saat baris itu sudah pernah dijadikan task. */
+  /* Satu baris catatan sebagai judul task: tanpa penanda checklist, daftar, judul, kutipan,
+     format, dan tanpa "→ PRD-…" yang ditempel saat baris itu sudah pernah dijadikan task.
+     Baris tabel menjadi isi selnya; garis pemisah dan baris pemisah tabel menjadi kosong. */
   function teksBarisCatatan(isi, n) {
-    return String(String(isi || '').split('\n')[n] || '')
+    let b = String(String(isi || '').split('\n')[n] || '');
+    if (/^\s*-{3,}\s*$/.test(b)) return '';
+    if (POLA_BARIS_TABEL.test(b)) {
+      const sel = selTabel(b);
+      if (garisTabel(sel)) return '';
+      b = sel.filter(Boolean).join(' · ');
+    }
+    return b
       .replace(POLA_CENTANG, '')
-      .replace(/^\s*(?:#{1,3}|[-*]|\d+[.)])\s+/, '')
+      .replace(/^\s*(?:#{1,3}\s+|[-*]\s+|\d+[.)]\s+|>\s?)/, '')
       .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
       .replace(/\*\*|~~|`/g, '')
       .replace(/\s*→\s*PRD-\d+\s*$/, '')
       .trim();
   }
+  /* ---------- Blok catatan (0.14.0) ----------
+     Isi catatan tetap teks biasa — sel spreadsheet, unduhan .txt, pencarian, dan riwayat versi
+     tetap terbaca — tapi editornya bekerja per blok seperti Notion. Satu baris = satu blok,
+     kecuali tabel (baris-baris "| a | b |", baris kedua "| --- | --- |" menandai kepala tabel).
+     Jenis blok: p (teks), h1–h3 (# ## ###), li (- daftar), ol (1. bernomor), todo ([ ] / [x]),
+     kutip (> ), hr (---), tabel. tingkat = indentasi daftar, dua spasi per tingkat (maks. 3).
+     Teks → blok → teks tak mengubah teks yang ditulis editor ini; teks lama yang ditulis tangan
+     dirapikan sedikit (mis. spasi sel tabel) begitu catatannya diubah. */
+  const POLA_BARIS_TABEL = /^\s*\|.*\|\s*$/;
+  function selTabel(baris) {
+    let s = String(baris).trim();
+    if (s.startsWith('|')) s = s.slice(1);
+    if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0, -1);
+    const sel = [];
+    let kini = '';
+    // Tanpa lookbehind: Safari lama gagal mengurai pola itu dan seluruh aplikasi tak jalan.
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '\\' && s[i + 1] === '|') { kini += '|'; i++; } else if (s[i] === '|') { sel.push(kini.trim()); kini = ''; } else kini += s[i];
+    }
+    sel.push(kini.trim());
+    return sel;
+  }
+  const garisTabel = sel => sel.length > 0 && sel.every(x => /^:?-{3,}:?$/.test(x));
+  const tingkatDari = spasi => Math.min(3, Math.floor(String(spasi || '').replace(/\t/g, '  ').length / 2));
+  const JENIS_BLOK = ['p', 'h1', 'h2', 'h3', 'li', 'ol', 'todo', 'kutip', 'hr', 'tabel'];
+
+  function blokCatatan(isi) {
+    const baris = String(isi == null ? '' : isi).replace(/\r\n?/g, '\n').split('\n');
+    const blok = [];
+    for (let i = 0; i < baris.length; i++) {
+      const b = baris[i];
+      let m;
+      if (POLA_BARIS_TABEL.test(b)) {
+        let j = i;
+        while (j + 1 < baris.length && POLA_BARIS_TABEL.test(baris[j + 1])) j++;
+        const isiTabel = baris.slice(i, j + 1).map(selTabel);
+        const kepala = isiTabel.length > 1 && garisTabel(isiTabel[1]);
+        if (kepala) isiTabel.splice(1, 1);
+        const kolom = Math.max(...isiTabel.map(r => r.length));
+        blok.push({ jenis: 'tabel', kepala, sel: isiTabel.map(r => r.concat(Array(kolom - r.length).fill(''))) });
+        i = j;
+      } else if (/^\s*-{3,}\s*$/.test(b)) blok.push({ jenis: 'hr' });
+      else if ((m = /^(#{1,3})\s+(.*)$/.exec(b))) blok.push({ jenis: 'h' + m[1].length, teks: m[2] });
+      else if ((m = /^(\s*)([-*]\s+)?\[( |x|X)\]\s?(.*)$/.exec(b))) blok.push({ jenis: 'todo', tingkat: tingkatDari(m[1]), titik: !!m[2], cek: m[3] !== ' ', teks: m[4] });
+      else if ((m = /^(\s*)([-*])(?:\s+(.*))?$/.exec(b))) blok.push({ jenis: 'li', tingkat: tingkatDari(m[1]), tanda: m[2], teks: m[3] || '' });
+      else if ((m = /^(\s*)(\d{1,9})[.)]\s+(.*)$/.exec(b))) blok.push({ jenis: 'ol', tingkat: tingkatDari(m[1]), nomor: Number(m[2]), teks: m[3] });
+      else if ((m = /^>\s?(.*)$/.exec(b))) blok.push({ jenis: 'kutip', teks: m[1] });
+      else blok.push({ jenis: 'p', teks: b });
+    }
+    return blok;
+  }
+
+  /* Nomor tiap blok bernomor: urutan ol yang bersambung di tingkat yang sama, mulai dari nomor
+     yang tertulis di butir pertamanya. Blok bukan daftar memutus urutan; daftar yang lebih
+     dangkal memutus urutan yang lebih dalam. Blok lain bernilai 0. */
+  function nomorDaftar(blok) {
+    const lalu = [];
+    return (blok || []).map(b => {
+      const t = b.tingkat || 0;
+      if (!['li', 'ol', 'todo'].includes(b.jenis)) { lalu.length = 0; return 0; }
+      lalu.length = Math.min(lalu.length, t + 1);
+      if (b.jenis !== 'ol') { lalu[t] = 0; return 0; }
+      const n = lalu[t] ? lalu[t] + 1 : (Number(b.nomor) > 0 ? Number(b.nomor) : 1);
+      lalu[t] = n;
+      return n;
+    });
+  }
+
+  const satuBaris = s => String(s == null ? '' : s).replace(/[\r\n]+/g, ' ');
+  const selKeTeks = s => satuBaris(s).trim().replace(/\|/g, '\\|');
+  /* Blok → teks catatan, beserta baris awal tiap blok (untuk "Jadikan task" dari sebuah blok). */
+  function teksBlokDanBaris(blok) {
+    const nomor = nomorDaftar(blok);
+    const keluar = [];
+    const baris = [];
+    (blok || []).forEach((b, i) => {
+      baris.push(keluar.length);
+      const indent = '  '.repeat(Math.min(3, Math.max(0, b.tingkat || 0)));
+      const teks = satuBaris(b.teks);
+      switch (b.jenis) {
+        case 'h1': case 'h2': case 'h3': keluar.push(`${'#'.repeat(Number(b.jenis[1]))} ${teks}`); break;
+        case 'li': keluar.push(`${indent}${b.tanda === '*' ? '*' : '-'} ${teks}`); break;
+        case 'ol': keluar.push(`${indent}${nomor[i]}. ${teks}`); break;
+        case 'todo': keluar.push(`${indent}${b.titik ? '- ' : ''}[${b.cek ? 'x' : ' '}] ${teks}`); break;
+        case 'kutip': keluar.push(`> ${teks}`); break;
+        case 'hr': keluar.push('---'); break;
+        case 'tabel': {
+          const sel = Array.isArray(b.sel) && b.sel.length ? b.sel : [['']];
+          const kolom = Math.max(1, ...sel.map(r => r.length));
+          const baris1 = r => `| ${r.concat(Array(kolom - r.length).fill('')).map(selKeTeks).join(' | ')} |`;
+          sel.forEach((r, k) => {
+            keluar.push(baris1(r));
+            if (k === 0 && b.kepala) keluar.push(`| ${Array(kolom).fill('---').join(' | ')} |`);
+          });
+          break;
+        }
+        default: keluar.push(teks);
+      }
+    });
+    return { teks: keluar.join('\n'), baris };
+  }
+  const teksBlok = blok => teksBlokDanBaris(blok).teks;
+
   function tandaiBarisTask(isi, n, idTask) {
     const baris = String(isi || '').split('\n');
     if (baris[n] === undefined || baris[n].includes(idTask)) return String(isi || '');
@@ -1784,13 +1896,280 @@
       .join(' ').toLowerCase().includes(kata)).slice(0, batas);
   }
 
+  /* ---------- Master (0.14.0) ----------
+     Daftar pilihan yang diatur Manager dan Dev di halaman Master, seperti Dropdown Master v1:
+     sub-stage, platform, kategori item paket (dengan alur langkahnya), satuan item, label
+     prioritas, nama dan bobot capaian, serta nama tim. Isi bawaannya di kode ini (PRD v3);
+     perubahannya disimpan di tab `master` spreadsheet v2, satu baris per isian
+     { jenis, kunci, aktif, urutan, ...data }, dan diterapkan lewat aturMaster (di browser dan
+     di server). Daftar hidup diubah di tempat, jadi semua rujukan ikut berubah.
+
+     Kunci yang sudah dipakai data (kode sub-stage, nama platform, kategori, satuan) tak bisa
+     diganti atau dihapus, hanya dinonaktifkan: tak ditawarkan lagi, tapi data lamanya tetap
+     terbaca. Status, tahap ADDIE, dan peran mengikuti alur kerja, jadi bukan bagian Master. */
+  const JENIS_MASTER = ['tim', 'substage', 'platform', 'satuan', 'prioritas', 'capaian', 'kategori'];
+  const BAWAAN = {
+    tim: Object.values(TIM).map(t => ({ kunci: t.kode, nama: t.nama, aktif: true })),
+    substage: SUB_TAHAP.map(s => ({ kunci: s.kode, nama: s.nama, tim: s.tim, reviewManager: s.reviewManager, aktif: true })),
+    platform: PLATFORM.map((p, i) => ({ kunci: p, aktif: true, urutan: i + 1 })),
+    satuan: SATUAN_PAKET.map((p, i) => ({ kunci: p, aktif: true, urutan: i + 1 })),
+    prioritas: PRIORITAS.map(([kunci, label]) => ({ kunci, label, aktif: true })),
+    capaian: CAPAIAN.map(c => ({ kunci: c.kode, nama: c.nama, bobot: Math.round(c.bobot * 100), aktif: true })),
+    kategori: KATEGORI_PAKET.map(([label, kunci], i) => ({ kunci, label, alur: ALUR_PAKET[label].slice(), aktif: true, urutan: i + 1 })),
+  };
+  /* Daftar lengkap (termasuk yang nonaktif) yang sedang berlaku, untuk halaman Master. */
+  const MASTER_KINI = {};
+  const POLA_KODE_SUB = /^(A|D|DV|I|E|R)([1-9][0-9]?)$/;
+  const KODE_TIM = Object.keys(TIM);
+  const KODE_CAPAIAN = CAPAIAN.map(c => c.kode);
+  const ya2 = v => (v === undefined || v === null || v === '' ? true : v === true || /^(ya|true|1|aktif)$/i.test(String(v).trim()));
+  const angkaUrut = v => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 999);
+  const urutKodeSub = (a, b) => {
+    const t = x => ['A', 'D', 'V', 'I', 'E', 'R'].indexOf(tahapDariKode(x.kunci));
+    const n = x => Number(POLA_KODE_SUB.exec(x.kunci)[2]);
+    return t(a) - t(b) || n(a) - n(b);
+  };
+  /* Kunci kategori juga nama kolom catatannya di paket (p.latsol, …), jadi tak boleh sama dengan
+     isian paket lain. */
+  const KUNCI_PAKET = new Set(['id', 'name', 'program', 'namapaket', 'platform', 'marselpic', 'tagline', 'benefit', 'tanggal', 'tujuan',
+    'produkpic', 'catatan', 'updatedby', 'updatedat', 'createdby', 'createdat', 'mirror', 'items', 'links', 'rumpun', 'arsip',
+    'constructor', 'prototype', 'tostring', 'valueof', 'hasownproperty']);
+  /* Kunci kategori baru dari labelnya: huruf kecil dan angka saja. */
+  function kunciKategori(label, dipakai) {
+    const dasar = String(label || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'kategori';
+    let k = /^[a-z]/.test(dasar) ? dasar : 'k' + dasar;
+    for (let n = 2; dipakai.has(k) || KUNCI_PAKET.has(k); n++) k = dasar + n;
+    return k;
+  }
+
+  /* Satu isian → bentuk bersih. ketat = isian dari halaman Master (galat bila tak sah);
+     longgar = baris dari tab (yang tak sah dilewati supaya aplikasi tetap jalan). */
+  function bersihMaster(jenis, b, ketat) {
+    const x = b && typeof b === 'object' ? b : {};
+    const salah = pesan => { if (ketat) throw new Error(pesan); return null; };
+    const teksM = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+    const aktif = ya2(x.aktif);
+    const urutan = angkaUrut(x.urutan);
+    const kunci = teksM(x.kunci);
+    switch (jenis) {
+      case 'substage': {
+        const kode = kunci.toUpperCase();
+        if (!POLA_KODE_SUB.test(kode)) return salah('Kode sub-stage diawali A, D, DV, I, E, atau R lalu angka, mis. DV10 atau R5.');
+        const nama = teksM(x.nama);
+        if (nama.length < 2 || nama.length > 80) return salah('Nama sub-stage wajib diisi (2–80 karakter).');
+        const tim = String(x.tim || '').toUpperCase();
+        if (tim && !KODE_TIM.includes(tim)) return salah('Tim pemilik tidak dikenal.');
+        const review = x.reviewManager === true || /^(ya|true|1)$/i.test(String(x.reviewManager == null ? '' : x.reviewManager).trim());
+        // Pekerjaan rutin tak ditinjau.
+        return { kunci: kode, nama, tim, reviewManager: tahapDariKode(kode) !== 'R' && review, aktif };
+      }
+      case 'platform':
+      case 'satuan': {
+        const maks = jenis === 'platform' ? 40 : 20;
+        if (!kunci || kunci.length > maks) return salah(`Nama ${jenis} wajib diisi (paling panjang ${maks} karakter).`);
+        return { kunci, aktif, urutan };
+      }
+      case 'prioritas': {
+        if (!PRIORITAS.some(([k]) => k === kunci)) return salah('Tingkat prioritas tidak dikenal.');
+        const label = teksM(x.label);
+        if (!label || label.length > 20) return salah('Label prioritas wajib diisi (paling panjang 20 karakter).');
+        return { kunci, label, aktif: true };
+      }
+      case 'capaian': {
+        if (!KODE_CAPAIAN.includes(kunci)) return salah('Capaian tidak dikenal.');
+        const nama = teksM(x.nama);
+        if (nama.length < 2 || nama.length > 30) return salah('Nama capaian wajib diisi (2–30 karakter).');
+        const bobot = Math.round(Number(x.bobot));
+        if (!Number.isFinite(bobot) || bobot < 1 || bobot > 100) return salah('Bobot capaian 1–100 (%).');
+        return { kunci, nama, bobot, aktif: true };
+      }
+      case 'tim': {
+        if (!KODE_TIM.includes(kunci)) return salah('Tim tidak dikenal.');
+        const nama = teksM(x.nama);
+        if (nama.length < 2 || nama.length > 40) return salah('Nama tim wajib diisi (2–40 karakter).');
+        return { kunci, nama, aktif: true };
+      }
+      case 'kategori': {
+        const label = teksM(x.label);
+        if (label.length < 2 || label.length > 40) return salah('Nama kategori wajib diisi (2–40 karakter).');
+        if (!/^[a-z][a-z0-9]{1,30}$/i.test(kunci) || KUNCI_PAKET.has(kunci.toLowerCase())) return salah('Kunci kategori tidak sah.');
+        const alur = (Array.isArray(x.alur) ? x.alur : String(x.alur || '').split(/[\s,]+/)).map(teksM).filter(Boolean);
+        if (!alur.length || alur.length > 14) return salah('Alur kategori berisi 1–14 langkah.');
+        const langkah = [];
+        for (const l of alur) {
+          const [kode, cap = ''] = l.split(':');
+          const k = String(kode).toUpperCase();
+          if (!POLA_KODE_SUB.test(k) || tahapDariKode(k) === 'R') return salah(`Langkah "${l}" bukan sub-stage ADDIE.`);
+          if (cap && !KODE_CAPAIAN.includes(cap)) return salah(`Capaian "${cap}" tidak dikenal.`);
+          langkah.push(cap ? `${k}:${cap}` : k);
+        }
+        return { kunci, label, alur: langkah, aktif, urutan };
+      }
+      default:
+        return salah('Jenis master tidak dikenal.');
+    }
+  }
+
+  /* Bawaan + baris tab (yang sama kuncinya menimpa) → daftar lengkap jenis itu, sudah terurut. */
+  function susunMaster(jenis, baris) {
+    const per = new Map(BAWAAN[jenis].map(x => [String(x.kunci).toLowerCase(), { ...x }]));
+    for (const b of baris || []) {
+      if (!b || b.jenis !== undefined && b.jenis !== jenis) continue;
+      const x = bersihMaster(jenis, b, false);
+      if (x) per.set(String(x.kunci).toLowerCase(), x);
+    }
+    const daftar = [...per.values()];
+    if (jenis === 'substage') return daftar.sort(urutKodeSub);
+    if (['platform', 'satuan', 'kategori'].includes(jenis)) return daftar.sort((a, b) => (a.urutan || 999) - (b.urutan || 999));
+    return daftar;
+  }
+
+  /* '' kalau daftar itu utuh; kalau tidak, kalimat yang menjelaskan apa yang harus dibetulkan.
+     subAktif = kode sub-stage yang aktif (untuk alur kategori); alurAktif = kode yang dipakai
+     alur kategori aktif (untuk menonaktifkan sub-stage). */
+  function salahMaster(jenis, daftar, { subAktif = null, subAda = null, alurAktif = null } = {}) {
+    const unik = (nama, ambil) => {
+      const lihat = new Map();
+      for (const x of daftar) {
+        const k = String(ambil(x)).toLowerCase();
+        if (lihat.has(k)) return `${nama} "${ambil(x)}" ganda.`;
+        lihat.set(k, true);
+      }
+      return '';
+    };
+    if (jenis === 'platform' || jenis === 'satuan') {
+      if (!daftar.some(x => x.aktif)) return `Sisakan paling sedikit satu ${jenis} yang aktif.`;
+      return unik(jenis === 'platform' ? 'Platform' : 'Satuan', x => x.kunci);
+    }
+    if (jenis === 'kategori') {
+      if (!daftar.some(x => x.aktif)) return 'Sisakan paling sedikit satu kategori yang aktif.';
+      const ganda = unik('Kategori', x => x.label);
+      if (ganda) return ganda;
+      for (const k of daftar) {
+        const tanda = k.alur.map(l => l.split(':')[1]).filter(Boolean);
+        const urut = tanda.map(t => KODE_CAPAIAN.indexOf(t));
+        if (urut.some((u, i) => i && u <= urut[i - 1])) return `Alur ${k.label}: capaian harus berurutan (${KODE_CAPAIAN.join(' → ')}) dan tiap capaian sekali.`;
+        if (!tanda.includes('tayang')) return `Alur ${k.label}: tandai langkah terakhirnya "tayang" (100%).`;
+        for (const l of k.alur) {
+          const kode = l.split(':')[0];
+          if (subAda && !subAda.has(kode)) return `Alur ${k.label}: sub-stage ${kode} tidak ada.`;
+          if (subAktif && k.aktif && !subAktif.has(kode)) return `Alur ${k.label}: sub-stage ${kode} nonaktif. Aktifkan dulu atau ganti langkahnya.`;
+        }
+      }
+      return '';
+    }
+    if (jenis === 'substage') {
+      if (alurAktif) {
+        const dipakai = daftar.find(s => !s.aktif && alurAktif.has(s.kunci));
+        if (dipakai) return `${dipakai.kunci} dipakai alur kategori paket. Ganti langkah alurnya dulu di bagian Kategori.`;
+      }
+      if (!daftar.some(s => s.aktif && tahapDariKode(s.kunci) === 'R')) return 'Sisakan paling sedikit satu jenis rutin (R) yang aktif.';
+      return '';
+    }
+    if (jenis === 'capaian') {
+      const bobot = KODE_CAPAIAN.map(k => (daftar.find(x => x.kunci === k) || {}).bobot);
+      if (bobot.some((b, i) => i && b <= bobot[i - 1])) return `Bobot capaian harus naik berurutan: ${KODE_CAPAIAN.join(' < ')}.`;
+      if (bobot[bobot.length - 1] !== 100) return 'Bobot "tayang" harus 100%: paket baru selesai saat tayang.';
+      return '';
+    }
+    return '';
+  }
+
+  /* Terapkan satu jenis ke daftar hidup (di tempat). */
+  function pakaiMaster(jenis, daftar) {
+    MASTER_KINI[jenis] = daftar;
+    if (jenis === 'tim') for (const t of daftar) TIM[t.kunci].nama = t.nama;
+    if (jenis === 'substage') {
+      SUB_TAHAP.length = 0;
+      SUB_PER_KODE.clear();
+      for (const s of daftar) {
+        const o = { kode: s.kunci, nama: s.nama, tim: s.tim, reviewManager: !!s.reviewManager, tahap: tahapDariKode(s.kunci), aktif: s.aktif };
+        SUB_TAHAP.push(o);
+        SUB_PER_KODE.set(o.kode, o);
+      }
+    }
+    if (jenis === 'platform') { PLATFORM.length = 0; PLATFORM.push(...daftar.filter(x => x.aktif).map(x => x.kunci)); }
+    if (jenis === 'satuan') { SATUAN_PAKET.length = 0; SATUAN_PAKET.push(...daftar.filter(x => x.aktif).map(x => x.kunci)); }
+    if (jenis === 'prioritas') for (const p of PRIORITAS) p[1] = (daftar.find(x => x.kunci === p[0]) || { label: p[1] }).label;
+    if (jenis === 'capaian') {
+      for (const c of CAPAIAN) {
+        const x = daftar.find(d => d.kunci === c.kode);
+        if (x) Object.assign(c, { nama: x.nama, bobot: x.bobot / 100 });
+        BOBOT[c.kode] = c.bobot;
+      }
+    }
+    if (jenis === 'kategori') {
+      KATEGORI_SEMUA.length = 0;
+      KATEGORI_PAKET.length = 0;
+      for (const k of Object.keys(ALUR_PAKET)) delete ALUR_PAKET[k];
+      for (const k of daftar) {
+        KATEGORI_SEMUA.push([k.label, k.kunci]);
+        if (k.aktif) KATEGORI_PAKET.push([k.label, k.kunci]);
+        ALUR_PAKET[k.label] = k.alur.slice();
+      }
+      PAKET_PRODUK.length = 0;
+      PAKET_PRODUK.push(...KATEGORI_SEMUA.map(([label, kunci]) => [kunci, label]), ['catatan', 'Catatan produk']);
+    }
+  }
+
+  /* Baris tab master → semua daftar hidup. Jenis yang isiannya merusak (mis. tab diubah manual)
+     tak diterapkan: kembali ke bawaan, dan alasannya dikembalikan per jenis. */
+  function aturMaster(baris) {
+    const salah = {};
+    for (const jenis of JENIS_MASTER) {
+      const daftar = susunMaster(jenis, (baris || []).filter(b => b && b.jenis === jenis));
+      const konteks = jenis === 'kategori' ? { subAda: new Set(SUB_TAHAP.map(s => s.kode)) } : {};
+      const s = salahMaster(jenis, daftar, konteks);
+      if (s) salah[jenis] = s;
+      pakaiMaster(jenis, s ? susunMaster(jenis, []) : daftar);
+    }
+    return salah;
+  }
+
+  /* Isian halaman Master → baris bersih; galat kalau isian itu atau daftar hasilnya tak sah. */
+  function periksaMaster(jenis, b, barisLain = []) {
+    if (!JENIS_MASTER.includes(jenis)) throw new Error('Jenis master tidak dikenal.');
+    const lain = (barisLain || []).filter(r => r && r.jenis === jenis);
+    const baru = !!(b && b.baru);
+    const daftarKini = MASTER_KINI[jenis] || susunMaster(jenis, lain);
+    // Kategori baru: kuncinya dibuat dari label, tak boleh menabrak yang sudah ada.
+    const kunci = jenis === 'kategori' && baru ? kunciKategori(b.label, new Set(daftarKini.map(d => String(d.kunci).toLowerCase()))) : b && b.kunci;
+    const sama = d => String(d.kunci).toLowerCase() === String(kunci == null ? '' : kunci).replace(/\s+/g, ' ').trim().toLowerCase();
+    // Mengubah yang sudah ada: isian yang tak dikirim tetap seperti sebelumnya (mis. hanya menonaktifkan).
+    const asal = baru ? null : daftarKini.find(sama);
+    const isian = Object.fromEntries(Object.entries(b || {}).filter(([, v]) => v !== undefined));
+    const x = bersihMaster(jenis, { ...(asal || {}), ...isian, kunci }, true);
+    const lama = daftarKini.find(d => String(d.kunci).toLowerCase() === String(x.kunci).toLowerCase());
+    // Item paket merujuk kategorinya lewat nama, jadi nama kategori tetap.
+    if (jenis === 'kategori' && !baru && lama && x.label !== lama.label) throw new Error(`Nama kategori "${lama.label}" tak bisa diganti: item paket lama merujuk ke nama itu. Buat kategori baru, lalu nonaktifkan yang lama.`);
+    if (jenis === 'kategori' && baru) {
+      // kunci sudah unik
+    } else if (baru && lama) {
+      throw new Error(`"${x.kunci}" sudah ada. Ubah yang sudah ada, atau aktifkan lagi kalau nonaktif.`);
+    } else if (!baru && !lama) {
+      throw new Error(`"${x.kunci}" tidak ditemukan.`);
+    }
+    const daftar = susunMaster(jenis, [...lain.filter(r => String(r.kunci).toLowerCase() !== String(x.kunci).toLowerCase()), x]);
+    const kategoriAktif = (MASTER_KINI.kategori || susunMaster('kategori', [])).filter(k => k.aktif);
+    const konteks = jenis === 'kategori'
+      ? { subAda: new Set(SUB_TAHAP.map(s => s.kode)), subAktif: new Set(SUB_TAHAP.filter(s => s.aktif !== false).map(s => s.kode)) }
+      : jenis === 'substage' ? { alurAktif: new Set(kategoriAktif.flatMap(k => k.alur.map(l => l.split(':')[0]))) } : {};
+    const salah = salahMaster(jenis, daftar, konteks);
+    if (salah) throw new Error(salah);
+    return { jenis, ...x };
+  }
+  const daftarMaster = jenis => (MASTER_KINI[jenis] || susunMaster(jenis, [])).map(x => ({ ...x }));
+  const labelPrioritas = kunci => (PRIORITAS.find(([k]) => k === kunci) || [kunci, kunci])[1];
+  for (const jenis of JENIS_MASTER) MASTER_KINI[jenis] = susunMaster(jenis, []);
+
   return {
     MANAGER, KAPASITAS, STATUS, TAHAP, PERAN, ORANG,
+    JENIS_MASTER, PLATFORM, PRIORITAS, KATEGORI_SEMUA, aturMaster, periksaMaster, susunMaster, salahMaster, daftarMaster, labelPrioritas,
     ORANG_BAWAAN, DEV, PERAN_ORANG, TIM_LEAD, susunOrang, salahOrganogram, periksaOrang, aturOrang, nonaktif,
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
     selesai, aktif, indeks, depsBelum, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
-    TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, RUMPUN, rumpunDari, picSah,
+    TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,
     namaTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
     KEPUTUSAN, setKeputusan, setArsip,
@@ -1804,6 +2183,7 @@
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
     FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
     WARNA_CATATAN, warnaiCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
+    JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar,
     FOTO_MAKS, fotoSah, periksaFoto,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
   };

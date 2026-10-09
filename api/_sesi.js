@@ -77,11 +77,21 @@ function sidikDev({ rahasia, pinDev }) {
   return crypto.createHmac('sha256', rahasia).update('dev-v2|' + pinDev).digest('base64url').slice(0, 22);
 }
 
-/* dev = true: sesi mode Dev, berlaku UMUR_DEV_JAM jam. */
-function terbitkan(sekarang = Date.now(), { dev = false } = {}) {
+/* Sidik profil (0.14.0): profil yang dipilih lewat PIN-nya (atau yang tak ber-PIN). hashPin =
+   hash PIN profil itu saat ini ('' kalau tak ber-PIN): mengganti atau menghapus PIN membuat
+   sidik lama tak cocok lagi, jadi profil itu harus dipilih ulang. */
+function sidikMe(orang, hashPin) {
+  const { rahasia } = setelan();
+  return crypto.createHmac('sha256', rahasia).update(`me-v2|${orang}|${hashPin || ''}`).digest('base64url').slice(0, 22);
+}
+
+/* dev = true: sesi mode Dev, berlaku UMUR_DEV_JAM jam (devExp = lanjutkan masa yang ada).
+   me + meSidik = profil yang terbukti (lihat sidikMe). */
+function terbitkan(sekarang = Date.now(), { dev = false, devExp = 0, me = '', meSidik = '' } = {}) {
   const s = setelan();
   const isi = { exp: sekarang + UMUR_HARI * 864e5 };
-  if (dev && s.pinDev) Object.assign(isi, { dev: sidikDev(s), devExp: sekarang + UMUR_DEV_JAM * 36e5 });
+  if (dev && s.pinDev) Object.assign(isi, { dev: sidikDev(s), devExp: devExp > sekarang ? devExp : sekarang + UMUR_DEV_JAM * 36e5 });
+  if (me && meSidik) Object.assign(isi, { me: String(me), meSidik: String(meSidik) });
   const teks = Buffer.from(JSON.stringify(isi)).toString('base64url');
   return teks + '.' + tandai(teks, s).toString('base64url');
 }
@@ -139,5 +149,5 @@ function cookieKeluar(aman) {
 
 module.exports = {
   NAMA_COOKIE, UMUR_HARI, UMUR_DEV_JAM, PANJANG_RAHASIA_MIN,
-  setelanAda, kurangnya, cocokPin, cocokPinDev, terbitkan, isiSesi, sah, dev, akhirDev, bacaCookie, cookieMasuk, cookieKeluar,
+  setelanAda, kurangnya, cocokPin, cocokPinDev, terbitkan, isiSesi, sah, dev, akhirDev, sidikMe, bacaCookie, cookieMasuk, cookieKeluar,
 };

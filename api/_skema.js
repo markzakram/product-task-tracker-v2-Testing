@@ -61,6 +61,14 @@ const FOTO = ['orang', 'gambar', 'diperbarui'];
 const TAB_ORANG = 'orang';
 const ORANG_KOLOM = ['id', 'nama', 'pendek', 'peran', 'jabatan', 'lead', 'tim', 'aktif', 'diperbarui'];
 
+/* Tab master (halaman Master, 0.14.0): satu baris per isian daftar pilihan yang diubah atau
+   ditambah. data = JSON sisa isiannya (nama, tim, alur, bobot, …). Isi bawaan di public/inti.js. */
+const TAB_MASTER = 'master';
+const MASTER_KOLOM = ['jenis', 'kunci', 'data', 'aktif', 'urutan', 'diperbarui'];
+/* Tab pin (PIN tiap profil, 0.14.0): hanya dibaca server. hash = scrypt(PIN, garam). */
+const TAB_PIN = 'pin';
+const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
+
 const DAFTAR = new Set(['support', 'deps']);
 const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
@@ -137,6 +145,24 @@ function orangDariBaris(judul, baris) {
   return { ...o, aktif: !/^(tidak|no|false|0)$/i.test(o.aktif.trim()), diperbarui: dariSel('at', o.diperbarui) };
 }
 
+function masterKeBaris(m) {
+  const { jenis, kunci, aktif, urutan, diperbarui, ...data } = m;
+  return [String(jenis || ''), String(kunci || ''), JSON.stringify(data), aktif === false ? 'tidak' : 'ya', urutan ? String(urutan) : '', keSel('at', diperbarui)];
+}
+function masterDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  let data = {};
+  try { data = JSON.parse(sel('data') || '{}') || {}; } catch (e) { data = {}; }
+  if (typeof data !== 'object' || Array.isArray(data)) data = {};
+  return { ...data, jenis: sel('jenis'), kunci: sel('kunci'), aktif: !/^(tidak|no|false|0)$/i.test(sel('aktif').trim()),
+    urutan: Number(sel('urutan')) || 0, diperbarui: dariSel('at', sel('diperbarui')) };
+}
+const pinKeBaris = p => [String(p.orang || ''), String(p.hash || ''), String(p.garam || ''), keSel('at', p.diperbarui)];
+function pinDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  return { orang: sel('orang'), hash: sel('hash'), garam: sel('garam'), diperbarui: dariSel('at', sel('diperbarui')) };
+}
+
 /* Data aplikasi → baris per tab, judul kolom di baris pertama. */
 function urai(data) {
   const isi = Object.fromEntries(Object.keys(TAB).map(t => [t, []]));
@@ -204,7 +230,8 @@ function nomorTerbesar(daftar, awalan) {
 }
 
 module.exports = {
-  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM,
+  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
   keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
+  masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris,
   urai, rakit, nomorTerbesar,
 };

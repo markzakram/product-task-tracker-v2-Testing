@@ -255,7 +255,7 @@ test('membuat task: sub-stage wajib & menentukan tahap; Lead untuk timnya atau L
   assert.deepEqual([t.id, t.lane, t.stage, t.sub, t.status, t.assignedBy], ['PRD-002', 'proyek', 'E', 'E4', 'Antre', 'alya']);
   assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', pic: 'kiki' }, 'alya', WAKTU, HARI), /Pilih sub-stage/);
   assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'R1', pic: 'kiki' }, 'alya', WAKTU, HARI), /Pilih sub-stage ADDIE/);
-  assert.throws(() => I.taskBaru(d, { title: 'x', sub: 'DV1', pic: 'kiki' }, 'alya', WAKTU, HARI), /R1–R4/);
+  assert.throws(() => I.taskBaru(d, { title: 'x', sub: 'DV1', pic: 'kiki' }, 'alya', WAKTU, HARI), /sub-stage rutin/);
   assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'E4', pic: 'uma' }, 'alya', WAKTU, HARI), /di luar tim/);
   const serah = I.taskBaru(d, { title: 'Produksi soal batch 2', project: 'PRJ-1', sub: 'DV1', pic: 'andika' }, 'alya', WAKTU, HARI);
   assert.equal(serah.pic, 'andika', 'Alya menyerahkan DV1 ke Andika, Lead tim pemiliknya');
@@ -310,7 +310,7 @@ test('ubah task: delegasi dari antrean tim, sub-stage menentukan tahap, batas PI
   d.tasks.push(lepas);
   I.ubahTask(d, lepas, { title: 'Riset kompetitor' }, 'andika', WAKTU);
   assert.equal(lepas.sub, 'A2', 'kode ADDIE task lepas warisan v1 boleh tetap');
-  assert.throws(() => I.ubahTask(d, lepas, { sub: 'A3' }, 'andika', WAKTU), /R1–R4/);
+  assert.throws(() => I.ubahTask(d, lepas, { sub: 'A3' }, 'andika', WAKTU), /sub-stage rutin/);
   I.ubahTask(d, lepas, { sub: 'R2' }, 'andika', WAKTU);
   assert.deepEqual([I.jenisJalur(lepas), lepas.kategori], ['rutin', 'Report berkala']);
   assert.deepEqual(I.cari(d, 'r2').map(x => x.id), [lepas.id], 'kode sub-stage ikut dicari');
@@ -381,18 +381,19 @@ test('riwayat tahap: perpindahan otomatis dan siklus baru dibedakan', () => {
   assert.deepEqual(p.history.map(h => [h.jenis, h.dari, h.ke, h.siklus]), [['siklus', 'E', 'A', 2], ['otomatis', 'A', 'E', 1]]);
 });
 
-test('sub-stage & tim: kode → tahap, tim pemilik, Lead pendelegasi; rumpun platform', () => {
+test('sub-stage & tim: kode → tahap, tim pemilik, Lead pendelegasi; saringan platform', () => {
   assert.equal(I.SUB_TAHAP.length, 46);
   assert.deepEqual(['A4', 'D7', 'DV8', 'I4', 'E12', 'R2'].map(I.tahapDariKode), ['A', 'D', 'V', 'I', 'E', 'R']);
   assert.deepEqual(['DV1', 'DV8', 'DV3', 'DV6', 'A1'].map(I.leadSub), ['andika', 'alya', 'dhea', 'ali', 'nynda']);
   assert.equal(I.peninjau(task({ lane: 'proyek', sub: 'D1', pic: 'kiki' })), 'nynda', 'D1 direview Manager walau PIC staff');
   assert.deepEqual([I.timOrang('kiki').kode, I.timOrang('ali').kode, I.timOrang('nynda').kode], ['LA', 'SI', 'MG']);
-  assert.deepEqual(['OJK', 'Sekdin', 'TOEFL', 'Cerebrum', 'Apa saja'].map(I.rumpunDari), ['BUMN & Keuangan', 'Kedinasan & TNI/Polri', 'Bahasa & Beasiswa', 'Lainnya', 'Lainnya']);
+  assert.equal(I.rumpunDari, undefined, 'rumpun dihapus (0.14.0)');
   assert.deepEqual([I.jenisJalur(task({ lane: 'proyek' })), I.jenisJalur(task({ sub: 'R3' })), I.jenisJalur(task({ sub: 'E4' })), I.jenisJalur(task({}))], ['proyek', 'rutin', 'lepas', 'rutin']);
   const d = data([task({ sub: 'E4', platform: 'OJK' }), task({ sub: 'DV1', pic: 'uma', platform: 'ASN' }), task({ sub: 'R2', platform: 'OJK' })]);
   const judul = f => I.daftarTask(d, f, HARI).map(t => t.sub);
   assert.deepEqual(judul({ tim: 'LA' }), ['E4']);
-  assert.deepEqual(judul({ rumpun: 'BUMN & Keuangan' }), ['E4', 'R2']);
+  assert.deepEqual(judul({ platform: 'OJK' }), ['E4', 'R2']);
+  assert.deepEqual(judul({ rumpun: 'BUMN & Keuangan' }), ['E4', 'DV1', 'R2'], 'saringan rumpun lama (tersimpan di browser) diabaikan');
   assert.deepEqual(judul({ jalur: 'lepas' }), ['E4', 'DV1']);
   assert.deepEqual(judul({ sub: 'R2' }), ['R2']);
 });
@@ -465,14 +466,14 @@ test('capaian berbobot (PRD): konten 40%, input 60%, QC 85%, tayang 100%; batch 
   assert.deepEqual([b[0].capai, b[0].tertunda, b[0].berikut.tahap, b[0].setoran.map(k => k.tahap)], ['input', true, 'tayang', ['konten', 'input', 'tayang']]);
 });
 
-test('dashboard: per tahap, per tim, per rumpun, dan skor bottleneck', () => {
+test('dashboard: per tahap, per tim, dan skor bottleneck', () => {
   const blok = task({ lane: 'proyek', sub: 'DV1', stage: 'V', pic: 'uma', status: 'Dikerjakan', due: '2026-10-01' });
   const tunggu = task({ lane: 'proyek', sub: 'DV8', stage: 'V', pic: 'kiki', deps: [blok.id] });
   const tinjau = siap({ sub: 'E1', stage: 'E', pic: 'tri', status: 'Ditinjau' });
   const r = I.laporan(data([blok, tunggu, tinjau, task({ sub: 'R2', platform: 'OJK' })]), HARI);
   assert.deepEqual(r.perTahap.map(x => [x.id, x.jumlah]), [['A', 0], ['D', 0], ['V', 2], ['I', 0], ['E', 1], ['R', 1]]);
   assert.deepEqual(r.perTim.map(x => [x.kode, x.jumlah]), [['MG', 0], ['AK', 2], ['LA', 1], ['CO', 1], ['SI', 0]]);
-  assert.equal(r.perRumpun.find(x => x.nama === 'BUMN & Keuangan').jumlah, 1);
+  assert.equal(r.perRumpun, undefined);
   const o = id => r.perOrang.find(x => x.id === id);
   assert.deepEqual([o('uma').menahan, o('uma').telat, o('uma').bottleneck], [1, 1, 3], 'menahan 1 task × 2 + 1 telat');
   assert.deepEqual([o('andika').tinjau, o('andika').bottleneck], [1, 2], 'gate menunggu review × 2');

@@ -1,5 +1,48 @@
 # Changelog — ProductTrack v2
 
+## 0.14.0 — Master, PIN profil, dan catatan ala Notion (2026-10-09)
+
+- **Rumpun dihapus.** Saringan rumpun di Task, kolom rumpun di ekspor CSV, dan bagian "Task aktif
+  per rumpun" di Dashboard tak ada lagi. Saringan rumpun yang tersimpan di browser diabaikan.
+- **Rancangan paket tanpa Program dan PIC.** Form paket baru hanya meminta nama paket dan
+  platform; form ubah, kartu, dan detail paket tak lagi menampilkan Program dan PIC produk.
+  Nilai lamanya tetap tersimpan di data.
+- **Sub-stage dipilih sendiri.** Form Tambah task tak lagi memilihkan sub-stage atau jenis rutin;
+  keduanya wajib dipilih.
+- **Halaman Master** (grup Manajer; Manager dan Dev), seperti tab Master v1. Daftar pilihan yang
+  dipakai semua orang kini bisa diatur tanpa mengubah kode:
+  - **Sub-stage**: tambah kode (mis. DV10, R5), ubah nama, tim pemilik, dan tinjauan Manager.
+  - **Kategori paket**: tambah kategori, susun alur langkah dan tanda capaiannya, urutkan.
+  - **Platform** dan **satuan target**: tambah dan urutkan.
+  - **Label prioritas**, **nama tim**, serta **nama dan bobot capaian**.
+  - Yang sudah dipakai data hanya **dinonaktifkan**: tak ditawarkan lagi, data lamanya tetap
+    terbaca. Isian diperiksa supaya alur tetap sah (mis. sub-stage yang dipakai alur aktif tak
+    bisa dinonaktifkan, bobot capaian naik berurutan dan tayang 100%).
+  - Tersimpan di tab baru `master` spreadsheet v2 dan berlaku untuk semua orang saat aplikasi
+    dimuat. Jenis yang rusak karena diubah manual kembali ke bawaan, dengan alasannya.
+- **PIN profil.** Manager (atau Dev) memasang PIN 4–8 angka tiap orang di Master → PIN profil.
+  Profil ber-PIN tampil bergembok dan meminta PIN-nya saat dipilih, juga sesudah keluar-masuk.
+  - Server menolak pesan Komunikasi dan foto profil atas nama profil ber-PIN dari sesi yang belum
+    memasukkan PIN-nya; aplikasi lalu memintanya. PIN yang diganti membatalkan sesi lama.
+  - PIN disimpan sebagai hash bergaram di tab baru `pin`; tak pernah dikirim ke browser.
+  - Master dan PIN hanya bisa diubah Dev atau Manager yang terbukti lewat PIN-nya. Selama
+    Manager belum ber-PIN, keduanya masih terbuka (dengan peringatan di halaman Master).
+  - "Coba sekarang" di Panduan tak lagi meminjam profil ber-PIN; contohnya dibuka sebagai profil
+    sendiri.
+- **Catatan Saya: editor ala Notion.** Mode Baca/Sunting dihapus; menulis, mencentang, dan
+  mengisi tabel kini di satu tampilan.
+  - Blok: teks, judul 1–3, daftar titik, daftar bernomor, checklist, **tabel**, kutipan, garis.
+  - Ketik **/** untuk menu blok, atau pintasan `# `, `- `, `1. `, `[] `, `> `, `---`. Enter di
+    checklist membuat butir berikutnya; Tab menjorokkan; Ctrl+Z/Ctrl+Y mengurungkan.
+  - Tabel: Tab/Enter antarsel, tambah/hapus baris dan kolom, tempel sel dari Google Sheets.
+  - Tetap tersimpan sebagai teks biasa (tabel `| a | b |`), jadi pencarian, unduhan .txt,
+    riwayat versi, Jadikan task, dan catatan lama tetap jalan. Kartu Keep ikut menampilkan tabel.
+  - Templat baru: **Tabel rencana produksi**.
+- Panduan, README, dan tes diperbarui (`test/master.test.js`, `test/catatan-blok.test.js`, dan
+  tes RPC Master & PIN).
+- **Perlu dilakukan sesudah deploy:** buka Master → **PIN profil**, pasang **PIN Manager** dulu,
+  lalu PIN anggota lain dan sampaikan langsung ke masing-masing.
+
 ## 0.13.0 — Mode Dev (2026-10-08)
 
 - **Mode Dev seperti v1.** Tekan-tahan logo ProductTrack ±2 detik (atau buka `#/dev`), lalu isi

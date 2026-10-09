@@ -22,8 +22,9 @@ Data tetap di Google Spreadsheet dan deploy tetap di Vercel, tetapi semuanya mil
 
 ## Alur v2
 
-Satu aplikasi dengan sidebar kiri seperti v1. PIN dipakai bersama, jadi setelah masuk setiap
-orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan Lead mulai di
+Satu aplikasi dengan sidebar kiri seperti v1. PIN aplikasi dipakai bersama, jadi setelah masuk
+setiap orang memilih profilnya sendiri; sejak 0.14.0 profil bisa dikunci dengan **PIN pribadi**
+(lihat *Master & PIN profil*). Halaman pertama mengikuti peran: Staff dan Lead mulai di
 **Hari Ini**, Manager di **Proyek**.
 
 | Grup | Halaman |
@@ -31,7 +32,7 @@ orang memilih profilnya sendiri. Halaman pertama mengikuti peran: Staff dan Lead
 | Ringkasan | Hari Ini · Dashboard · Laporan (Lead & Manager) |
 | Pekerjaan | Rancangan Paket · Proyek (bertahap ADDIE) · Task · Komunikasi |
 | Ruang Saya | Link Saya (termasuk Tautan tim) · Catatan Saya |
-| Manajer | Riwayat Aktivitas (Manager) |
+| Manajer | Riwayat Aktivitas · Master (Manager) |
 | Bantuan | Panduan |
 
 Urutan Pekerjaan mengikuti alurnya: paket dirancang, dielaborasi jadi proyek, lalu proyek
@@ -49,7 +50,8 @@ dengan satu penyederhanaan: tetap empat status.
 - **Sub-stage.** Setiap task berkode: A1–A6, D1–D7, DV1–DV9, I1–I8, E1–E12 di dalam proyek;
   R1–R4 untuk pekerjaan rutin. Kode menentukan tahap task dan **tim pemiliknya** (MG Manager,
   AK Akademik, LA Learning Architecture, CO Content Ops, SI Sistem). A1, A6, D1, I8, dan E12
-  selalu direview Manager.
+  selalu direview Manager. Itu daftar bawaan PRD; sejak 0.14.0 Manager mengaturnya di halaman
+  **Master**, dan form task tak lagi memilihkan sub-stage: harus dipilih sendiri.
 - **Delegasi lewat Lead tim pemilik.** Lead memberi task ke timnya sendiri, atau ke Lead tim
   pemilik sub-stage-nya (mis. Andika menyerahkan DV8 Input ke Alya). Langkah yang sudah siap
   masuk **Antrean tim** di Hari Ini Lead itu, lalu ia **serahkan ke staff** dari detail task.
@@ -66,13 +68,11 @@ dengan satu penyederhanaan: tetap empat status.
   **arsipkan** (proyek tuntas, pilihan utama kalau semua task beres), **mulai siklus
   berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau
   **tahan**. Keputusan proyek: Build, Improve, Maintain, Hold.
-- **Rumpun platform** (Kedinasan & TNI/Polri, ASN & Pendidikan, BUMN & Keuangan, Bahasa &
-  Beasiswa, Lainnya) untuk saringan dan Dashboard. Rumpun tak punya pemilik.
-- **Dashboard:** task aktif per status, tahap, tim pemilik, rumpun, dan platform; per orang
+- **Dashboard:** task aktif per status, tahap, tim pemilik, dan platform; per orang
   ditambah sub-task terbuka dan **skor bottleneck** (task orang lain yang menunggu dia × 2 +
   tinjauan yang menunggu dia × 2 + task telatnya).
 - **Staff** menerima task dari Lead, dan sejak 0.9.0 boleh **menambah task untuk dirinya
-  sendiri**: rutin (R1–R4), atau task proyek di sub-stage milik timnya (E11 revisi juga boleh;
+  sendiri**: rutin (kode R), atau task proyek di sub-stage milik timnya (E11 revisi juga boleh;
   sub-stage yang direview Manager tidak). PIC-nya selalu dirinya; menyerahkan ke orang lain tetap
   lewat Lead. Lead-nya mendapat notifikasi, task proyeknya tetap ditinjau Lead, dan task buatan
   sendiri bisa ia ubah. Ini keputusan user yang menggantikan "Staff tidak membuat task" di PRD v3.
@@ -101,13 +101,14 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
 3. Langkah bercapaian membawa **setoran**. Progres paket **berbobot**: konten siap 40% (E1/E2),
    ter-input 60% (DV8), lolos QC output 85% (QC aplikasi terakhir), tayang 100% (I4). Setiap
    batch dinilai dari langkah bercapaian tertinggi yang sudah disetujui; target baru dihitung
-   **terpenuhi** saat batch-nya tayang. Bobot ini usulan PRD yang masih menunggu keputusan
-   Manager; cukup ubah tabel `CAPAIAN` di `public/inti.js`.
+   **terpenuhi** saat batch-nya tayang. Bobot itu bawaan dari usulan PRD; sejak 0.14.0 nama dan
+   bobotnya diatur Manager di halaman **Master** (tayang tetap 100%).
 4. Progres **dihitung, bukan dipicu**: tak ada yang ditulis saat task selesai. Task yang dibuka
    kembali otomatis menurunkan progresnya lagi.
 
-Alur Dibimbing (D5 → I3 → E5 → I4) dan Live Class (I6 → I7) tidak tercantum di PRD; yang
-dipakai sekarang usulan (`ALUR_PAKET` di `public/inti.js`).
+Alur Dibimbing (D5 → I3 → E5 → I4) dan Live Class (I6 → I7) tidak tercantum di PRD; bawaannya
+usulan (`ALUR_PAKET` di `public/inti.js`). Sejak 0.14.0 kategori paket dan alurnya diatur di
+**Master**: kategori baru, langkah alur, tanda capaian, urutan, dan menonaktifkan kategori.
 
 Task yang dibuat di luar elaborasi bisa menyetor lewat bagian **Setoran ke rancangan paket** di
 detail task (Lead/Manager task itu), lengkap dengan capaiannya. Manager bisa menautkan proyek
@@ -117,18 +118,21 @@ mengisi beberapa paket. Aturannya di `public/inti.js` (`elaborasiPaket`, `setora
 
 Halaman pendukung, setara v1:
 
-- **Rancangan Paket**: identitas paket, teks per kategori (Dibimbing, Latsol, Materi, Tryout,
-  Drilling, Live Class), target per kategori (tayang / progres berbobot / digarap / target /
-  satuan, status dihitung: terpenuhi, digarap, kurang, lebih, beserta chip per batch), tautan,
-  proyek pengisi, dan **Salin ke sheet Marsel** (susunan kolom sheet Master).
-  Lead & Manager membuat paket; PIC Produk boleh menyunting paketnya; membagikan ke Lintas
-  Divisi hanya Lead/Manager; menghapus hanya Manager.
+- **Rancangan Paket**: nama paket dan platform (sejak 0.14.0 Program dan PIC Produk tak lagi
+  diisi; nilai lamanya tetap tersimpan), teks per kategori (bawaannya Dibimbing, Latsol, Materi,
+  Tryout, Drilling, Live Class; diatur di Master), target per kategori (tayang / progres
+  berbobot / digarap / target / satuan, status dihitung: terpenuhi, digarap, kurang, lebih,
+  beserta chip per batch), tautan, proyek pengisi, dan **Salin ke sheet Marsel** (susunan kolom
+  sheet Master Marsel; kategori dari Master ikut jadi kolom). Kategori yang dinonaktifkan tetap
+  tampil di paket yang masih berisi item kategori itu. Lead & Manager membuat paket; PIC Produk
+  dari data v1 boleh menyunting paketnya; membagikan ke Lintas Divisi hanya Lead/Manager;
+  menghapus hanya Manager.
 - **Task**: satu halaman dengan lima tampilan yang diganti lewat deretan ikon di atas daftar:
-  **Daftar** (bisa diurutkan dan diekspor ke CSV, ikut sub-stage, tim, rumpun, dan keadaannya),
+  **Daftar** (bisa diurutkan dan diekspor ke CSV, ikut sub-stage, tim, dan keadaannya),
   **Kanban** (seret-lepas di desktop), **Per orang**, **Timeline** (5 minggu), dan **Kalender**
   (tenggat per hari). Tab fokus berangka di atasnya: Semua, Terlambat, Tertahan, dan Tinjauan
   saya (Lead & Manager). Kotak cari, lingkup (sesuai peran), dan **Saringan**
-  (proyek, jalur, tahap, sub-stage, tim, rumpun, platform) berlaku di semua tampilan. Tampilan
+  (proyek, jalur, tahap, sub-stage, tim, platform) berlaku di semua tampilan. Tampilan
   dan saringan terakhir diingat per browser.
 - **Link Saya** (gaya ide v2): kartu per folder. Tempel alamat di kotak atas lalu Enter, atau
   cukup Ctrl+V di halaman itu; judulnya terisi sendiri dan bisa diubah. ★ memasukkan link ke
@@ -151,15 +155,29 @@ Halaman pendukung, setara v1:
   - **Dua panel** (daftar di kiri, editor besar di kanan) atau **kartu** ala Google Keep
     (editor terbuka di jendela). Daftar dikelompokkan per folder yang bisa diciutkan, dengan
     kelompok **Disematkan** paling atas. Folder catatan bisa diganti nama dan dihapus lewat ⋯.
-  - Mode **Baca** menampilkan format (# judul, - daftar, **tebal**, _miring_, ~~coret~~,
-    `kode`, tautan) dan **checklist `[ ]` yang bisa dicentang**. Mengeklik teksnya membuka
-    **Sunting** tepat di baris itu; Ctrl+E berganti mode. Catatan yang berisi terbuka dalam mode
-    Baca.
-  - **Toolbar** Sunting: judul, tebal, miring, daftar, checklist, tautan `[teks](alamat)`.
-  - **Jadikan task** dari baris tempat kursor (atau ikon di ujung baris saat Baca): form Tambah
-    task terisi judul dari baris itu. Sesudah task dibuat, "→ PRD-…" ditempel di ujung baris
-    dan bisa diklik untuk membuka task-nya.
-  - **Templat**: Notulen rapat, Rencana minggu ini, Checklist QC, Catatan 1-on-1.
+  - **Editor blok ala Notion** (0.14.0): satu tampilan langsung, tanpa mode Baca/Sunting.
+    Menulis, mencentang checklist, dan mengisi tabel terjadi di tempat yang sama. Jenis blok:
+    teks, judul 1–3, daftar titik, daftar bernomor, **checklist**, **tabel**, kutipan, dan
+    garis pemisah.
+    - Ketik **/** untuk menu blok (bisa disaring: "/tab", "/cek"), atau pakai toolbar.
+      Pintasan markdown di awal paragraf: `# `, `## `, `- `, `1. `, `[] `, `> `, `---`.
+    - **Enter** memecah blok; di checklist dan daftar membuat butir berikutnya, dan di butir
+      kosong keluar dari daftar. **Backspace** di awal blok mengubahnya jadi paragraf lalu
+      menyatukannya dengan blok di atas. **Tab** menjorokkan butir; panah berpindah antarblok.
+    - **Tabel**: Tab/Enter berpindah sel (baris baru di akhir), tombol tambah/hapus baris dan
+      kolom, dan sel yang ditempel dari Google Sheets mengisi tabel sekaligus. Menempel beberapa
+      baris teks memecahnya jadi blok.
+    - Blok yang sedang diketik menampilkan teks mentahnya (`**tebal**`, `[teks](alamat)`);
+      blok lain tampil berformat dengan tautan dan nomor task yang bisa diklik. Ctrl+B/Ctrl+I,
+      dan **Ctrl+Z / Ctrl+Y** mengurungkan dan mengulang.
+    - Yang tersimpan tetap **teks biasa** (tabel sebagai `| a | b |`), jadi pencarian, unduhan
+      .txt, riwayat versi, dan catatan lama tetap jalan. Aturannya `blokCatatan`/`teksBlok` di
+      `public/inti.js`, diuji di `test/catatan-blok.test.js`.
+  - **Jadikan task** dari blok yang sedang diketik (atau ikon di ujung blok): form Tambah task
+    terisi judul dari blok itu. Sesudah task dibuat, "→ PRD-…" ditempel di ujung blok dan bisa
+    diklik untuk membuka task-nya.
+  - **Templat**: Notulen rapat, Rencana minggu ini, Checklist QC, Catatan 1-on-1, Tabel rencana
+    produksi.
   - **Warna** (biru, hijau, kuning, merah, ungu) dan saringan menurut warna.
   - **Riwayat versi**: isi lama disimpan sebelum tertimpa (sekali di awal sesi menyunting,
     lalu paling sering tiap 10 menit; maksimal 15 versi per catatan) dan bisa dipulihkan.
@@ -294,6 +312,42 @@ Server: aksi `masukDev`, `keluarDev`, `sistem`, `simpanOrang`, dan peristiwa obr
 `public/inti.js` (`periksaOrang`, `aturOrang`, `salahOrganogram`), diuji di
 `test/orang.test.js`, `test/sesi.test.js`, dan `test/rpc.test.js`.
 
+### Master & PIN profil
+
+Sejak 0.14.0, seperti tab Master di v1: halaman **Master** (grup Manajer; Manager dan Dev)
+mengatur daftar pilihan yang dipakai semua orang, dan **PIN pribadi** tiap profil.
+
+- **Sub-stage**: tambah kode baru (nomor berikutnya terisi sendiri, mis. DV10 atau R5), ubah
+  nama, tim pemilik, dan "direview Manager", atau nonaktifkan.
+- **Kategori paket**: tambah kategori, susun **alur langkah** dan tanda capaiannya (konten →
+  input → QC → tayang; tayang wajib), urutkan, nonaktifkan. Nama kategori tetap, karena item
+  paket merujuk ke nama itu.
+- **Platform & satuan**: tambah, urutkan, nonaktifkan.
+- **Label & bobot**: label prioritas, nama tim, serta nama dan bobot capaian (naik berurutan,
+  tayang 100%).
+- **PIN profil**: pasang, ganti, atau hapus PIN (4–8 angka) tiap orang.
+
+Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi di form,
+tapi task dan paket lamanya tetap terbaca. Perubahan berlaku untuk semua orang saat aplikasi
+dimuat ulang.
+
+**PIN profil.** Profil ber-PIN tampil bergembok di pemilih profil dan meminta PIN-nya. Server
+mencatat profil yang sudah terbukti di cookie sesi (ikut sidik hash PIN-nya, jadi PIN yang
+diganti membatalkan sesi lama), dan **menolak menulis atas nama profil ber-PIN** dari sesi lain:
+pesan Komunikasi dan foto profil. Browser lalu meminta PIN itu lagi. PIN disimpan sebagai hash
+scrypt bergaram di tab `pin` dan tak pernah dikirim ke browser.
+
+**Siapa yang boleh.** Dev, atau Manager yang terbukti lewat PIN-nya. Selama belum ada Manager
+yang ber-PIN, Master dan PIN masih terbuka bagi siapa pun yang memilih profil Manager (seperti
+data prototipe lainnya), dan halamannya menampilkan peringatan. **Pasang PIN Manager lebih dulu.**
+
+**Cara kerjanya.** Tab `master` berisi satu baris per isian yang diubah (`jenis`, `kunci`,
+`data` JSON, `aktif`, `urutan`); bawaannya tetap di kode (`public/inti.js`). Isian diperiksa di
+browser dan server (`periksaMaster`), jenis yang rusak karena diubah manual kembali ke bawaan
+dengan alasannya. Aksi `simpanMaster`, `aturPin`, dan `masukProfil` di `/api/rpc`. Seperti
+`obrolan` dan `foto`, tab `master` dan `pin` tak disentuh impor ulang maupun Reset data contoh.
+Diuji di `test/master.test.js` dan `test/rpc.test.js`.
+
 ### Alamat, pencarian cepat, dan notifikasi
 
 - **Alamat per halaman.** Setiap halaman dan yang sedang terbuka punya alamat sendiri, mis.
@@ -333,9 +387,9 @@ public/app.css        gaya tampilan, warna dari logo ProductTrack
 public/inti.js        aturan alur v2, dipakai browser dan tes
 public/panduan.js     isi halaman Panduan + pencari contoh untuk "Coba sekarang"
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
-api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh, muatObrolan, kirimObrolan
-api/_sesi.js          gerbang PIN + cookie sesi
-api/_sheets.js        Google Sheets + aturan kepemilikan + tulis/baca data contoh + tab obrolan
+api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh, obrolan, foto, mode Dev, Master, PIN profil
+api/_sesi.js          gerbang PIN + cookie sesi (mode Dev, profil terbukti)
+api/_sheets.js        Google Sheets + aturan kepemilikan + data contoh + tab obrolan, foto, orang, master, pin
 api/_skema.js         bentuk tab spreadsheet v2, baris ↔ objek prototipe
 scripts/impor-v1.js   npm run impor:v1 — tarikan v1 → data contoh di spreadsheet v2
 scripts/_v1ke2.js     semua aturan pemetaan v1 → v2 (tabel yang bisa diubah)

@@ -60,6 +60,7 @@
     { grup: 'Ruang Saya', id: 'link', judul: 'Link Saya', ikon: 'penanda' },
     { grup: 'Ruang Saya', id: 'catatan', judul: 'Catatan Saya', ikon: 'catatan' },
     { grup: 'Manajer', id: 'riwayat', judul: 'Riwayat Aktivitas', ikon: 'riwayat', peran: ['manager'] },
+    { grup: 'Manajer', id: 'master', judul: 'Master', ikon: 'atur', peran: ['manager'] },
     { grup: 'Bantuan', id: 'panduan', judul: 'Panduan', ikon: 'buku' },
     { grup: 'Dev', id: 'dev', judul: 'Panel Dev', ikon: 'kode', dev: true },
   ];
@@ -91,8 +92,8 @@
     return !h.peran || h.peran.includes(I.orang(S.me).peran);
   }
   const halamanAwal = () => (S.me === I.DEV ? 'dev' : I.orang(S.me).peran === 'manager' ? 'proyek' : 'hari');
-  /* Saringan task bersama semua tampilan Task (PRD: per tahap, sub-stage, tim, rumpun). */
-  const SARING_KOSONG = { jalur: '', tahap: '', sub: '', tim: '', rumpun: '', platform: '' };
+  /* Saringan task bersama semua tampilan Task (PRD: per tahap, sub-stage, tim, platform). */
+  const SARING_KOSONG = { jalur: '', tahap: '', sub: '', tim: '', platform: '' };
   /* Preferensi Task tersimpan. lk 2 = lingkup per peran (0.9.0); lingkup tersimpan sebelum itu
      dibuang karena "tim" Manager dulu berarti seluruh divisi, kini para Lead. */
   function prefTask() {
@@ -129,9 +130,9 @@
     /* penuh = kartu folder yang sedang menampilkan semua link-nya (selama sesi ini). */
     lnk: { q: '', penuh: new Set() },
     /* pilih = catatan yang terbuka di editor: id, '__baru' (belum tersimpan), atau null.
-       mode = 'baca' | 'sunting'; warna = saringan warna; folderBaru = folder catatan baru;
-       versiSesi = catatan yang versi awal sesi ini sudah disimpan. */
-    ctt: { q: '', pilih: null, mode: 'sunting', warna: '', folderBaru: '', versiSesi: '' },
+       warna = saringan warna; folderBaru = folder catatan baru; versiSesi = catatan yang versi
+       awal sesi ini sudah disimpan. */
+    ctt: { q: '', pilih: null, warna: '', folderBaru: '', versiSesi: '' },
     rwy: { jenis: '', orang: '', q: '', batas: 100 },
     pnd: { tab: ambil('pnd_tab', 'mulai'), buka: '' },
     /* Panduan yang sedang dicoba: langkahnya tampil di kotak melayang (#pemandu). */
@@ -149,6 +150,10 @@
        sedang "Lihat sebagai" (S.me sementara orang itu); orangBaris = baris tab orang dari
        server (organogram terkini), orangSalah = alasan tab itu diabaikan. */
     dev: false, devSampai: 0, devSistem: null, devTab: 'sistem', pratinjau: null, orangBaris: [], orangSalah: '',
+    /* Master & PIN profil (0.14.0): masterBaris = baris tab master dari server, masterSalah = jenis
+       yang diabaikan karena rusak (beserta alasannya), berpin = profil yang memakai PIN pribadi,
+       meSesi = profil yang sudah terbukti di sesi server ini (lewat PIN-nya, atau tak ber-PIN). */
+    masterBaris: [], masterSalah: {}, berpin: new Set(), meSesi: '', mst: { tab: 'substage' },
   };
   {
     const KE_TAMPILAN = { kanban: 'kanban', daftar: 'daftar', timeline: 'timeline', kalender: 'kalender' };
@@ -266,6 +271,13 @@
     kurang: '<path d="M5 12h14"/>',
     lainnya: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
     tambahFolder: '<path d="M12 10v6M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    teks: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
+    daftarNomor: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+    kutip: '<path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .01-1 1.03V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>',
+    gembok: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    atur: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+    naik: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+    turun: '<path d="M12 5v14M19 12l-7 7-7-7"/>',
   };
   const ikon = (nama, ukuran = 18) => `<svg width="${ukuran}" height="${ukuran}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${JALUR_IKON[nama] || ''}</svg>`;
   /* Nama ikon Dashboard Lain berasal dari v1 (Material Icons). */
@@ -323,7 +335,7 @@
     if (n === 1) return '<span class="tenggat">Besok</span>';
     return `<span class="tenggat">${esc(fmtTanggal(t.due))}</span>`;
   }
-  /* Kode sub-stage (PRD v3): kode ADDIE di dalam proyek; R1–R4 = rutin; kode ADDIE di luar
+  /* Kode sub-stage (PRD v3): kode ADDIE di dalam proyek; kode R = rutin; kode ADDIE di luar
      proyek = pekerjaan "lepas" warisan v1. Task lama tanpa kode memakai huruf tahapnya. */
   function chipJalur(t) {
     const s = I.subTahap(t.sub);
@@ -339,7 +351,8 @@
   }
   const menyetor = t => (S.data.setoran || []).some(x => x.task === t.id);
   const chipSetor = t => (menyetor(t) ? '<span class="chip-paket" title="Menaikkan progres rancangan paket saat disetujui">Paket</span>' : '');
-  const chipPenting = t => (t.priority === 'Urgent' ? '<span class="chip-penting">Mendesak</span>' : t.priority === 'High' ? '<span class="chip-penting">Penting</span>' : '');
+  /* Labelnya dari Master (bawaan: Penting, Mendesak). */
+  const chipPenting = t => (['Urgent', 'High'].includes(t.priority) ? `<span class="chip-penting">${esc(I.labelPrioritas(t.priority))}</span>` : '');
   const proyekDari = id => S.data.projects.find(p => p.id === id);
   const asal = t => (t.project ? (proyekDari(t.project) || { name: t.project }).name : t.kategori || 'Rutin');
   function ringkasSub(t) {
@@ -476,20 +489,19 @@
 
   const SEMUA = ['', 'Semua'];
   const OPSI_JALUR = [SEMUA, ['proyek', 'Proyek'], ['rutin', 'Rutin'], ['lepas', 'Lepas (warisan v1)']];
-  const OPSI_TAHAP = [SEMUA, ...I.TAHAP.map(x => [x.id, `${x.id} · ${x.nama}`]), ['R', 'Rutin (R1–R4)']];
-  const OPSI_TIM = [SEMUA, ...Object.values(I.TIM).map(x => [x.kode, `${x.kode} · ${x.nama}`])];
-  const OPSI_RUMPUN = [SEMUA, ...I.RUMPUN.map(([n]) => [n, n])];
+  const OPSI_TAHAP = [SEMUA, ...I.TAHAP.map(x => [x.id, `${x.id} · ${x.nama}`]), ['R', 'Rutin (R)']];
+  // Fungsi, bukan tetapan: nama tim bisa diubah di Master sesudah berkas ini dimuat.
+  const opsiTim = () => [SEMUA, ...Object.values(I.TIM).map(x => [x.kode, `${x.kode} · ${x.nama}`])];
   const opsiSubTahap = tahap => [SEMUA, ...I.SUB_TAHAP.filter(s => s.tahap === tahap).map(s => [s.kode, `${s.kode} · ${s.nama}`])];
   /* Saringan halaman Task, berlaku di semua tampilannya. Pilihan sub-stage muncul sesudah tahap dipilih. */
   const pilihanSaring = (ruang, f) => [
     pilihan(ruang, 'jalur', f.jalur, OPSI_JALUR, 'Jalur'),
     pilihan(ruang, 'tahap', f.tahap, OPSI_TAHAP, 'Tahap'),
     f.tahap ? pilihan(ruang, 'sub', f.sub, opsiSubTahap(f.tahap), 'Sub-stage') : '',
-    pilihan(ruang, 'tim', f.tim, OPSI_TIM, 'Tim'),
-    pilihan(ruang, 'rumpun', f.rumpun, OPSI_RUMPUN, 'Rumpun'),
+    pilihan(ruang, 'tim', f.tim, opsiTim(), 'Tim'),
     pilihan(ruang, 'platform', f.platform, [SEMUA, ...daftarPlatform().map(x => [x, x])], 'Platform'),
   ].join('');
-  const nilaiSaring = f => ({ jalur: f.jalur, tahap: f.tahap, sub: f.sub, tim: f.tim, rumpun: f.rumpun, platform: f.platform });
+  const nilaiSaring = f => ({ jalur: f.jalur, tahap: f.tahap, sub: f.sub, tim: f.tim, platform: f.platform });
   const adaSaring = f => Object.keys(SARING_KOSONG).some(k => f[k]);
 
   /* ---------- Toast & papan klip ---------- */
@@ -532,8 +544,8 @@
 
   /* batasMs: tanpa batas waktu, layar "Memuat data…" menunggu selamanya kalau server tak menjawab. */
   async function api(action, args = [], batasMs = 30000) {
-    // "Lihat sebagai" hanya tampilan: tak ada pesan, foto, atau perubahan orang yang terkirim.
-    if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang'].includes(action)) {
+    // "Lihat sebagai" hanya tampilan: tak ada pesan, foto, perubahan orang, atau Master yang terkirim.
+    if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang', 'simpanMaster', 'aturPin'].includes(action)) {
       return { http: 0, success: false, message: 'Mode Lihat sebagai: tampilan saja, tidak ada yang dikirim. Kembali jadi Dev dulu.' };
     }
     const henti = new AbortController();
@@ -544,7 +556,9 @@
       const d = await r.json().catch(() => null);
       if (!d) return { http: r.status, success: false, message: henti.signal.aborted ? habis : `Balasan server tak terbaca (HTTP ${r.status}).` };
       // Sesi Dev lewat 12 jam (atau DEV_PIN diganti): server tak lagi menganggapnya Dev.
-      if (S.dev && (d.dev === false || r.status === 403) && !['keluarDev', 'masukDev'].includes(action)) setTimeout(devBerakhir, 0);
+      if (S.dev && d.dev === false && !['keluarDev', 'masukDev'].includes(action)) setTimeout(devBerakhir, 0);
+      // Profil ber-PIN yang belum (atau tak lagi) terbukti di sesi ini, mis. PIN-nya baru diganti.
+      if (d.kode === 'PERLU_PIN') setTimeout(pinLagi, 0);
       return { http: r.status, ...d };
     } catch (e) {
       return { http: 0, success: false, message: henti.signal.aborted ? habis : 'Server tak terjangkau. Periksa koneksi, lalu muat ulang halaman.' };
@@ -617,19 +631,78 @@
     const kelompok = ['manager', 'lead', 'staff'].map(peran => `
       <p class="subjudul">${I.PERAN[peran]}</p>
       <div class="pilih-profil">${I.ORANG.filter(o => o.peran === peran).map(o => `
-        <button type="button" data-aksi="pilih-profil" data-id="${o.id}">${avatar(o.id, 'besar')}<span>${esc(o.nama)}<span>${esc(o.jabatan)}</span></span></button>`).join('')}
+        <button type="button" data-aksi="pilih-profil" data-id="${o.id}">${avatar(o.id, 'besar')}<span>${esc(o.nama)}<span>${esc(o.jabatan)}</span></span>${S.berpin.has(o.id) ? `<span class="profil-gembok" title="Memakai PIN pribadi">${ikon('gembok', 16)}<span class="sr">memakai PIN</span></span>` : ''}</button>`).join('')}
       </div>`).join('');
     const kartuDev = S.dev ? `<p class="subjudul">Mode Dev</p>
       <div class="pilih-profil"><button type="button" data-aksi="pilih-profil" data-id="${I.DEV}">${avatar(I.DEV, 'besar')}<span>Dev<span>Akun teknis${S.devSampai ? ' · sampai ' + esc(jamDev()) : ''}</span></span></button></div>` : '';
     $('#profil').innerHTML = `<div class="kartu-layar lebar">
       <span class="merek">${LOGO}ProductTrack</span>
       <div><h1 style="margin:0;font-size:22px;color:var(--navy)">Masuk sebagai siapa?</h1>
-      <p class="pesan-info" style="margin-top:6px">PIN dipakai bersama, jadi pilih profil Anda sendiri. Tampilan menyesuaikan peran: Staff dan Lead mulai di Hari Ini, Manager di Proyek.</p></div>
+      <p class="pesan-info" style="margin-top:6px">PIN aplikasi dipakai bersama, jadi pilih profil Anda sendiri${S.berpin.size ? '; profil bergembok meminta PIN pribadinya' : ''}. Tampilan menyesuaikan peran: Staff dan Lead mulai di Hari Ini, Manager di Proyek.</p></div>
       ${kartuDev}${kelompok}
     </div>`;
     $('#kunci').hidden = true;
     $('#app').hidden = true;
     $('#profil').hidden = false;
+  }
+
+  /* Pilih profil (0.14.0): profil ber-PIN meminta PIN pribadinya; profil lain langsung masuk,
+     sambil memberi tahu server profil mana yang dipakai sesi ini. Akun Dev tak lewat sini. */
+  async function pilihProfil(id, tombol) {
+    if (id !== I.DEV && S.meSesi !== id) {
+      if (S.berpin.has(id)) return bukaPinProfil(id);
+      if (tombol) tombol.disabled = true;
+      const h = await api('masukProfil', [id, '']);
+      if (tombol) tombol.disabled = false;
+      if (h.kode === 'PIN_PROFIL') { S.berpin.add(id); return bukaPinProfil(id); }
+      if (h.http === 401) return tampilKunci('Sesi berakhir. Masukkan PIN untuk melanjutkan.', false);
+      if (!h.success) return toast(h.message || 'Profil gagal dipilih. Coba lagi.', true);
+      S.meSesi = h.me || id;
+    }
+    jadiProfil(id);
+  }
+  function jadiProfil(id) {
+    if (S.pratinjau) S.pratinjau = null;
+    gantiIdentitas(id);
+    masukApp();
+    toast(id === I.DEV ? `Mode Dev${S.devSampai ? ' sampai ' + jamDev() : ''}.` : `Masuk sebagai ${I.orang(S.me).pendek} (${I.PERAN[I.orang(S.me).peran]}).`);
+  }
+  /* lagi = sudah di dalam aplikasi, tapi server meminta PIN profil ini lagi (mis. baru diganti). */
+  function bukaPinProfil(id, lagi = false) {
+    const o = I.orang(id);
+    bukaModal({ jenis: 'pin-profil', id, atas: true, lagi }, `<form class="form-pin" data-form="pin-profil" novalidate>
+        <div class="pin-profil-kepala">${avatar(id, 'besar')}<div><h2>${esc(o.nama)}</h2><p class="hint">${esc(I.PERAN[o.peran])}${o.jabatan ? ' · ' + esc(o.jabatan) : ''}</p></div></div>
+        ${lagi ? '<p class="banner kuning">Masukkan PIN Anda lagi untuk melanjutkan; PIN-nya mungkin baru diganti.</p>' : ''}
+        <label class="isian">PIN profil<input id="pin-profil" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required></label>
+        <p class="hint">Lupa PIN? Manager atau Dev bisa memasang PIN baru di halaman Master.</p>
+        ${kakiModal('Masuk')}
+      </form>`);
+  }
+  async function kirimPinProfil(form) {
+    const m = S.modal;
+    if (!m || m.jenis !== 'pin-profil') return;
+    const isian = $('#pin-profil');
+    const tombol = form.querySelector('.tombol.utama');
+    tombol.disabled = true;
+    const h = await api('masukProfil', [m.id, isian.value]);
+    tombol.disabled = false;
+    if (h.http === 401 && h.kode !== 'PIN_PROFIL') { tutupModal(); return tampilKunci('Sesi berakhir. Masukkan PIN untuk melanjutkan.', false); }
+    if (!h.success) {
+      isian.value = '';
+      isian.focus();
+      return galatModal(h.message || 'PIN salah.');
+    }
+    S.meSesi = h.me || m.id;
+    tutupModal();
+    if (m.lagi && S.me === m.id) return toast('PIN diterima. Ulangi yang tadi.');
+    jadiProfil(m.id);
+  }
+  /* Server menolak menulis atas nama profil ini (kode PERLU_PIN): PIN-nya diminta lagi. */
+  function pinLagi() {
+    S.meSesi = '';
+    if (!S.me || S.me === I.DEV || S.pratinjau) return;
+    S.berpin.add(S.me);
+    if (!S.modal && !$('#app').hidden) bukaPinProfil(S.me, true);
   }
 
   /* Berganti profil (pilih profil, akun Dev, Lihat sebagai): keadaan milik profil sebelumnya tak
@@ -649,7 +722,7 @@
     // Draf dan balasan milik profil sebelumnya tak ikut terkirim atas nama profil baru.
     Object.assign(S.kom, { pilih: null, balas: '', ubah: '', tanya: false, draf: {}, saring: 'semua', batasBaru: null });
     Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
-    Object.assign(S.ctt, { pilih: null, mode: 'sunting', warna: '', folderBaru: '', versiSesi: '' });
+    Object.assign(S.ctt, { pilih: null, warna: '', folderBaru: '', versiSesi: '' });
     S.lnk.penuh = new Set();
     S.notif.buka = false;
   }
@@ -696,6 +769,12 @@
       S.orangBaris = Array.isArray(h.orang) ? h.orang : [];
       S.orangSalah = I.aturOrang(S.orangBaris);
       if (S.orangSalah) catatGalat('Tab orang diabaikan: ' + S.orangSalah, 'organogram');
+      // Master (0.14.0): daftar pilihan bersama, juga diterapkan sebelum layar pertama.
+      S.masterBaris = Array.isArray(h.master) ? h.master : [];
+      S.masterSalah = I.aturMaster(S.masterBaris);
+      for (const [jenis, alasan] of Object.entries(S.masterSalah)) catatGalat(`Master ${jenis} diabaikan: ${alasan}`, 'master');
+      S.berpin = new Set(Array.isArray(h.berpin) ? h.berpin : []);
+      S.meSesi = h.me || '';
       const lokal = ambil('data', null);
       if (h.data && lokal && lokal.versi === h.versi && lokal.data) {
         S.data = rapikan(lokal.data);
@@ -715,8 +794,13 @@
       S.sumber = h.sumber || '';
       simpanData();
       if (S.me === I.DEV && !S.dev) S.me = null;
-      if (!S.me || !(S.me === I.DEV || I.ORANG.some(o => o.id === S.me))) tampilProfil();
-      else masukApp();
+      // Profil ber-PIN yang belum terbukti di sesi ini (mis. sesudah keluar): PIN-nya diminta dulu.
+      const dikenal = !!S.me && (S.me === I.DEV || I.ORANG.some(o => o.id === S.me));
+      const perluPin = dikenal && S.me !== I.DEV && S.berpin.has(S.me) && S.meSesi !== S.me;
+      if (!dikenal || perluPin) {
+        tampilProfil();
+        if (perluPin && !mintaDev) bukaPinProfil(S.me);
+      } else masukApp();
       if (mintaDev && !modeDev()) bukaMasukDev();
     } catch (e) {
       return galatMuat(e);
@@ -899,7 +983,7 @@
     hari: () => viewHari(), dashboard: () => viewDashboard(), laporan: () => viewLaporan(), task: () => viewTask(),
     proyek: () => viewProyek(), paket: () => viewPaket(), komunikasi: () => viewKomunikasi(),
     link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(), panduan: () => viewPanduan(),
-    dev: () => viewDev(),
+    master: () => viewMaster(), dev: () => viewDev(),
   };
   /* Bagian halaman yang digambar ulang saat orang mengetik di kotak cari halaman,
      supaya kotaknya tidak kehilangan fokus. */
@@ -1428,9 +1512,6 @@
           ${batangDaftar(r.perTim.map(x => ({ label: `${chipTim(x.kode)} ${esc(x.nama)}`, jumlah: x.jumlah })), 'Tidak ada task aktif.', 'lebar-label')}
           <p class="hint" style="margin-top:10px">Tim pemilik = tim pemegang sub-stage task; task tanpa kode ikut tim PIC-nya.</p>
         </section>
-        <section class="kartu-polos"><p class="subjudul">Task aktif per rumpun</p>
-          ${batangDaftar(r.perRumpun.map(x => ({ label: esc(x.nama), jumlah: x.jumlah })), 'Tidak ada task aktif.', 'lebar-label')}
-        </section>
         <section class="kartu-polos"><p class="subjudul">Task aktif per platform</p>
           ${batangDaftar(r.perPlatform.map(x => ({ label: esc(x.platform), jumlah: x.jumlah })))}
         </section>
@@ -1773,11 +1854,11 @@
   function eksporCsv(daftar) {
     const sel = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
     const perId = perIdKini();
-    const judul = ['ID', 'Judul', 'Jalur', 'Proyek', 'Kategori', 'Tahap', 'Sub-stage', 'Tim', 'Platform', 'Rumpun', 'PIC', 'Status', 'Keadaan', 'Tenggat', 'Selesai'];
+    const judul = ['ID', 'Judul', 'Jalur', 'Proyek', 'Kategori', 'Tahap', 'Sub-stage', 'Tim', 'Platform', 'PIC', 'Status', 'Keadaan', 'Tenggat', 'Selesai'];
     const baris = daftar.map(t => {
       const s = I.subTahap(t.sub);
       return [t.id, t.title, I.jenisJalur(t), t.project ? asal(t) : '', t.kategori, s && s.tahap !== 'R' ? I.namaTahap(s.tahap) : t.stage ? I.namaTahap(t.stage) : '',
-        s ? I.namaSub(s.kode) : '', I.timTask(t), t.platform, I.rumpunDari(t.platform), I.orang(t.pic).nama, t.status, I.labelKeadaan(t, perId),
+        s ? I.namaSub(s.kode) : '', I.timTask(t), t.platform, I.orang(t.pic).nama, t.status, I.labelKeadaan(t, perId),
         t.due, t.selesaiAt ? I.isoHari(t.selesaiAt) : ''];
     });
     const csv = '﻿' + [judul, ...baris].map(b => b.map(sel).join(',')).join('\n');
@@ -1815,7 +1896,7 @@
       const paket = I.paketProyek(S.data, p);
       return `<button type="button" class="baris-proyek" data-aksi="buka-proyek" data-id="${esc(p.id)}">
         <span class="baris-proyek-nama"><strong>${esc(p.name)}</strong>
-          <small>${esc(p.platform)} · ${esc(I.rumpunDari(p.platform))}${(p.cycle || 1) > 1 ? ' · siklus ' + p.cycle : ''}${r.tenggat ? ' · tenggat ' + esc(fmtTanggal(r.tenggat)) : ''}${paket.length ? ' · paket ' + esc(paket.map(judulPaket).join(', ')) : ''}</small>
+          <small>${esc(p.platform)}${(p.cycle || 1) > 1 ? ' · siklus ' + p.cycle : ''}${r.tenggat ? ' · tenggat ' + esc(fmtTanggal(r.tenggat)) : ''}${paket.length ? ' · paket ' + esc(paket.map(judulPaket).join(', ')) : ''}</small>
           <span class="baris-tim">${timHtml(p)}</span></span>
         ${jalurMini(p, r.tutup)}
         <span class="baris-proyek-maju">${r.total ? `${r.selesai}/${r.total} task ${esc(I.namaTahap(p.stage))}` : 'Belum ada task'}${r.buka ? ` · ${r.buka} terbuka` : ''}
@@ -1959,7 +2040,7 @@
       <div class="dua-kolom" style="margin-top:8px">
         <div class="kolom-utama">
           <div class="kepala-proyek kartu-polos">
-            <div><p class="detail-asal">${esc(p.platform)} · ${esc(I.rumpunDari(p.platform))} · Siklus ${siklus} · ${esc(p.id)}</p>
+            <div><p class="detail-asal">${esc(p.platform)} · Siklus ${siklus} · ${esc(p.id)}</p>
               <h1 class="judul-besar">${esc(p.name)}</h1>
               <p class="baris-tim" style="margin-top:6px">Tim: ${timHtml(p)}</p>
               ${p.goal ? `<p class="teks-panjang" style="margin-top:8px">${teksBertaut(p.goal)}</p>` : ''}</div>
@@ -2008,7 +2089,7 @@
   function paketTersaring() {
     const kata = S.pkt.q.trim().toLowerCase();
     return S.data.packages.filter(p => (!S.pkt.platform || p.platform === S.pkt.platform)
-      && (!kata || [p.id, p.namaPaket, p.program, p.platform, I.orang(p.produkPic).nama].join(' ').toLowerCase().includes(kata)));
+      && (!kata || [p.id, p.namaPaket, p.program, p.platform].join(' ').toLowerCase().includes(kata)));
   }
 
   function viewPaket() {
@@ -2021,7 +2102,7 @@
         ${bolehBuat ? `<button type="button" class="tombol utama" data-aksi="paket-baru">${ikon('tambah', 16)} Paket baru</button>` : ''}
       </div>
       <div class="alat">
-        ${kotakCari('paket', S.pkt.q, 'Cari nama paket, program, PIC…')}
+        ${kotakCari('paket', S.pkt.q, 'Cari nama paket atau platform…')}
         ${pilihan('pkt', 'platform', S.pkt.platform, [['', 'Semua'], ...platform.map(x => [x, x])], 'Platform')}
       </div>
       <div id="hasil">${hasilPaket()}</div>`;
@@ -2032,15 +2113,14 @@
     if (!daftar.length) return `<div class="kosong-isi">${S.data.packages.length ? 'Tidak ada paket yang cocok.' : 'Belum ada rancangan paket.'}</div>`;
     return `<div class="grid-paket">${daftar.map(p => {
       const r = ringkasP(p);
-      const perKat = I.KATEGORI_PAKET.map(([l]) => [l, p.items.filter(i => i.kategori === l).length]).filter(([, n]) => n);
+      const perKat = I.KATEGORI_SEMUA.map(([l]) => [l, p.items.filter(i => i.kategori === l).length]).filter(([, n]) => n);
       const nProyek = I.proyekPengisi(S.data, p.id).filter(x => !x.arsip).length;
       return `<button type="button" class="kartu-paket" data-aksi="paket-buka" data-id="${esc(p.id)}">
         <span class="kartu-paket-atas"><span class="chip-platform">${esc(p.platform || '—')}</span>${p.mirror ? '<span class="pill kd-aman">Dibagikan</span>' : ''}<small>${esc(p.id)}</small></span>
         <strong>${esc(judulPaket(p))}</strong>
-        ${p.program && p.namaPaket ? `<span class="kartu-paket-program">${esc(p.program)}</span>` : ''}
         <span class="kartu-paket-maju">${batangPaket(r)}<small>${r.target ? `Progres ${r.persen}% · ${fmtAngka(r.terpenuhi)}/${fmtAngka(r.target)} tayang${r.digarap ? ` · ${fmtAngka(r.digarap)} digarap` : ''}` : 'Belum ada target'}${nProyek ? ` · ${nProyek} proyek` : ''}</small></span>
         ${perKat.length ? `<span class="kartu-paket-kat">${perKat.map(([l, n]) => `<span>${esc(l)} <b>${n}</b></span>`).join('')}</span>` : ''}
-        <span class="kartu-paket-bawah">${p.produkPic ? `${avatar(p.produkPic, 'kecil')} ${nama(p.produkPic)}` : '<span class="hint">PIC produk belum diisi</span>'}${p.updatedAt ? `<small>· ${esc(relatif(p.updatedAt))}</small>` : ''}</span>
+        ${p.updatedAt ? `<span class="kartu-paket-bawah"><small>Diperbarui ${esc(relatif(p.updatedAt))}</small></span>` : ''}
       </button>`;
     }).join('')}</div>`;
   }
@@ -2089,7 +2169,7 @@
     const proyek = I.proyekPengisi(S.data, p.id);
     const boleh = I.bolehUbahPaket(p, S.me);
     const isM = I.orang(S.me).peran === 'manager';
-    const blok = I.KATEGORI_PAKET.map(([label, kunci]) => {
+    const blok = I.KATEGORI_SEMUA.map(([label, kunci]) => {
       const items = p.items.filter(i => i.kategori === label);
       const catatan = String(p[kunci] || '').trim();
       if (!items.length && !catatan) return '';
@@ -2106,8 +2186,7 @@
       <div class="kepala-proyek kartu-polos" style="margin-top:8px">
         <div><p class="detail-asal">${esc(p.platform || 'Tanpa platform')} · ${esc(p.id)}${p.mirror ? ' · <span class="pill kd-aman">Dibagikan ke Lintas Divisi</span>' : ''}</p>
           <h1 class="judul-besar">${esc(judulPaket(p))}</h1>
-          ${p.program ? `<p class="teks-panjang" style="margin-top:4px">${esc(p.program)}</p>` : ''}
-          <p class="detail-orang" style="margin-top:8px">${p.produkPic ? `${avatar(p.produkPic)} PIC produk ${nama(p.produkPic)}` : 'PIC produk belum diisi'}${p.updatedAt ? ` · diperbarui ${esc(relatif(p.updatedAt))}${p.updatedBy ? ' oleh ' + nama(p.updatedBy) : ''}` : ''}</p></div>
+          ${p.updatedAt ? `<p class="detail-orang" style="margin-top:8px">Diperbarui ${esc(relatif(p.updatedAt))}${p.updatedBy ? ' oleh ' + nama(p.updatedBy) : ''}</p>` : ''}</div>
         <div class="detail-aksi tanpa-regang">
           ${bolehElaborasi() ? `<button type="button" class="tombol utama" data-aksi="paket-elaborasi" ${r.terbuka ? '' : 'disabled'} title="${r.terbuka ? `${r.terbuka} target belum ditangani` : 'Semua target sudah terpenuhi atau sedang digarap'}">${ikon('lapis', 16)} Elaborasi jadi proyek</button>` : ''}
           ${boleh ? `<button type="button" class="tombol" data-aksi="paket-ubah">${ikon('sunting', 16)} Ubah rancangan</button>` : ''}
@@ -2164,10 +2243,15 @@
       <button type="button" class="ikon-tombol" data-aksi="paket-hapus-baris" aria-label="Hapus tautan">${ikon('hapus', 18)}</button>
     </div>`;
 
+  /* Kategori di form dan salinan paket (0.14.0): yang aktif di Master, ditambah yang nonaktif tapi
+     masih berisi item atau catatan di paket itu, supaya isi lamanya tetap terbaca dan tersunting. */
+  const kategoriUntuk = (...paket) => I.KATEGORI_SEMUA.filter(([label, kunci]) => I.KATEGORI_PAKET.some(([l]) => l === label)
+    || paket.some(p => p.items.some(i => i.kategori === label) || String(p[kunci] || '').trim()));
+
   function viewPaketSunting(p) {
     const bolehBagi = ['lead', 'manager'].includes(I.orang(S.me).peran);
-    const platform = [...new Set([...PLATFORM, ...(p.platform ? [p.platform] : [])])];
-    const blok = I.KATEGORI_PAKET.map(([label, kunci]) => `<section class="kartu-polos blok-kategori" data-kategori="${esc(label)}">
+    const platform = [...new Set([...I.PLATFORM, ...(p.platform ? [p.platform] : [])])];
+    const blok = kategoriUntuk(p).map(([label, kunci]) => `<section class="kartu-polos blok-kategori" data-kategori="${esc(label)}">
         <div class="blok-kepala"><h2>${esc(label)}</h2></div>
         <label class="isian">Catatan ${esc(label)} <small>Teks bebas untuk kategori ini, mis. bonus angkatan lama.</small><textarea name="${kunci}" maxlength="4000">${esc(p[kunci] || '')}</textarea></label>
         <div class="target-daftar">
@@ -2181,9 +2265,7 @@
         <button type="button" class="tombol" data-aksi="paket-batal">Batal</button><button class="tombol utama">Simpan</button></div>
       <section class="kartu-polos isian-grid">
         <label class="isian">Nama paket <input name="namaPaket" required maxlength="200" value="${esc(p.namaPaket || '')}"></label>
-        <label class="isian">Program <input name="program" maxlength="300" value="${esc(p.program || '')}" placeholder="mis. Program Super Intensif Lolos Polri TA 2026"></label>
         <label class="isian">Platform <select name="platform">${opsiHtml([['', '—'], ...platform.map(x => [x, x])], p.platform || '')}</select></label>
-        <label class="isian">PIC produk <select name="produkPic">${opsiHtml([['', '—'], ...I.ORANG.map(o => [o.id, o.nama])], p.produkPic || '')}</select></label>
         ${bolehBagi ? `<label class="centang"><input type="checkbox" name="mirror" ${p.mirror ? 'checked' : ''}> Bagikan ke Lintas Divisi</label>` : ''}
       </section>
       ${blok}
@@ -2199,9 +2281,9 @@
 
   function bacaFormPaket(form) {
     const el = n => form.elements.namedItem(n);
-    const f = { namaPaket: el('namaPaket').value, program: el('program').value, platform: el('platform').value, produkPic: el('produkPic').value, catatan: el('catatan').value };
+    const f = { namaPaket: el('namaPaket').value, platform: el('platform').value, catatan: el('catatan').value };
     if (el('mirror')) f.mirror = el('mirror').checked;
-    for (const [, kunci] of I.KATEGORI_PAKET) f[kunci] = el(kunci).value;
+    for (const [, kunci] of I.KATEGORI_SEMUA) if (el(kunci)) f[kunci] = el(kunci).value;
     const nilai = (baris, n) => $(`[name="${n}"]`, baris).value;
     f.items = $$('[data-kategori]', form).flatMap(blok => $$('[data-item]', blok).map(b => ({
       kategori: blok.dataset.kategori, id: nilai(b, 'i-id'), grup: nilai(b, 'i-grup'), nama: nilai(b, 'i-nama'),
@@ -2225,15 +2307,17 @@
       baris.push(h.sisa ? `${inti} + ${fmtAngka(h.sisa)} ${it.satuan} COMING SOON` : inti);
     }
     if (items.length) baris.push(` Total: ${fmtAngka(items.reduce((n, x) => n + (Number(x.target) || 0), 0))} ${items[0].satuan || 'Paket'}`);
-    const kunci = (I.KATEGORI_PAKET.find(([l]) => l === kategori) || [])[1];
+    const kunci = (I.KATEGORI_SEMUA.find(([l]) => l === kategori) || [])[1];
     const bonus = String((kunci && p[kunci]) || '').trim();
     if (bonus) baris.push('', bonus);
     return baris.join('\n').trim();
   }
   function salinPaket(daftar) {
     if (!daftar.length) return toast('Tak ada paket untuk disalin.', true);
-    const KOLOM = ['APK', 'Dibimbing', 'Latsol', 'Materi', 'Tryout', 'Drilling', 'Live Class', 'Catatan Produk'];
-    const sel = p => { const k = kontribPaket(p); return [p.platform || '', ...I.KATEGORI_PAKET.map(([l]) => selPaket(p, l, k)), String(p.catatan || '')]; };
+    // Kolom kategori mengikuti Master; bawaannya persis kolom sheet Marsel.
+    const kat = kategoriUntuk(...daftar);
+    const KOLOM = ['APK', ...kat.map(([l]) => l), 'Catatan Produk'];
+    const sel = p => { const k = kontribPaket(p); return [p.platform || '', ...kat.map(([l]) => selPaket(p, l, k)), String(p.catatan || '')]; };
     const tsv = v => (/["\t\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
     const teks = [KOLOM.join('\t'), ...daftar.map(p => sel(p).map(tsv).join('\t'))].join('\n');
     const html = `<table><tr>${KOLOM.map(k => `<th>${esc(k)}</th>`).join('')}</tr>${daftar.map(p => `<tr>${sel(p).map(v => `<td>${esc(v).split('\n').join('<br>')}</td>`).join('')}</tr>`).join('')}</table>`;
@@ -3159,10 +3243,10 @@
   /* ---------- Catatan Saya ----------
      Seperti ide v2: dua panel (daftar + editor besar), atau kartu ala Google Keep (editor
      terbuka di jendela). Daftar dikelompokkan per folder yang bisa diciutkan, yang disematkan
-     paling atas. Editor punya dua mode: Baca (format tampil, checklist bisa dicentang, baris
-     bisa dijadikan task) dan Sunting (teks biasa + toolbar). Tersimpan otomatis; Ctrl+S
-     menyimpan seketika, Ctrl+E berganti mode. Catatan tetap di browser ini (pribadi), begitu
-     juga riwayat versinya. */
+     paling atas. Sejak 0.14.0 editornya satu tampilan langsung ala Notion: blok judul, daftar,
+     checklist yang bisa dicentang, tabel, kutipan, dan garis pemisah, dipilih lewat "/" atau
+     toolbar. Tersimpan otomatis; Ctrl+S menyimpan seketika. Catatan tetap di browser ini
+     (pribadi), begitu juga riwayat versinya. */
 
   const catatanSaya = () => S.data.notes.filter(n => n.user === S.me);
   const urutCatatan = daftar => daftar.slice().sort((a, b) => (b.pin - a.pin) || (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -3277,7 +3361,7 @@
   function kartuCatatan(n) {
     return `<button type="button" class="ctt-kartu ${n.warna ? 'w-' + n.warna : ''}" data-aksi="catatan-pilih" data-id="${esc(n.id)}" aria-label="${esc(judulCatatan(n))}">
         ${n.title ? `<span class="ctt-kartu-judul">${n.pin ? ikon('semat', 14) : ''}<strong>${esc(n.title)}</strong></span>` : ''}
-        <span class="ctt-kartu-isi">${renderIsiCatatan(n.body, false, 8) || '<i class="hint">Kosong</i>'}</span>
+        <span class="ctt-kartu-isi">${renderIsiCatatan(n.body, 8) || '<i class="hint">Kosong</i>'}</span>
         <span class="ctt-kartu-kaki">${!n.title && n.pin ? ikon('semat', 12) : ''}${progresChecklist(n)}<small>${esc(relatif(n.updatedAt))}${n.folder ? ' · ' + esc(n.folder) : ''}</small></span>
       </button>`;
   }
@@ -3290,27 +3374,30 @@
     <button type="button" class="ikon-tombol" data-aksi="ctt-versi" title="Riwayat versi" aria-label="Riwayat versi catatan">${ikon('riwayat', 18)}</button>
     <button type="button" class="ikon-tombol" data-aksi="catatan-unduh" title="Unduh sebagai .txt" aria-label="Unduh catatan">${ikon('unduh', 18)}</button>
     <button type="button" class="ikon-tombol" data-aksi="catatan-hapus" title="Hapus" aria-label="Hapus catatan">${ikon('hapus', 18)}</button>`);
-  const ALAT_FORMAT = [
-    ['judul', 'judulH', 'Judul (# di awal baris)'], ['tebal', 'tebal', 'Tebal (**teks**)'], ['miring', 'miring', 'Miring (_teks_)'],
-    ['daftar', 'daftarTitik', 'Daftar (- di awal baris)'], ['centang', 'centangKotak', 'Checklist ([ ] di awal baris)'], ['tautan', 'tautan', 'Tautan'],
+  const warnaCatatanHtml = n => (n.id === '__baru' ? '' : `<span class="ctt-warna" role="group" aria-label="Warna catatan">${WARNA_UI.map(([w, l]) => `<button type="button" class="ctt-warna-titik w-${w || 'polos'}" data-aksi="ctt-warna" data-warna="${w}" aria-pressed="${(n.warna || '') === w}" title="${l}" aria-label="Warna: ${l}"></button>`).join('')}</span>`);
+  /* Toolbar editor: jenis blok untuk blok yang sedang diketik, lalu format teks. Semuanya juga
+     lewat "/" (menu blok) dan pintasan markdown. */
+  const ALAT_BLOK = [
+    ['judul', 'judulH', 'Judul'], ['daftar', 'daftarTitik', 'Daftar titik'], ['nomor', 'daftarNomor', 'Daftar bernomor'],
+    ['centang', 'centangKotak', 'Checklist'], ['tabel', 'tabel', 'Tabel'], ['garis', 'kurang', 'Garis pemisah'],
   ];
+  const ALAT_FORMAT = [['tebal', 'tebal', 'Tebal (Ctrl+B)'], ['miring', 'miring', 'Miring (Ctrl+I)'], ['tautan', 'tautan', 'Tautan']];
   const hitungTeks = n => {
     const c = I.hitungChecklist(n.body);
     return `${n.body.length} karakter${c.total ? ` · ${c.selesai} dari ${c.total} butir selesai` : ''}`;
   };
 
+  /* Satu tampilan langsung (0.14.0), seperti Notion: menulis, mencentang checklist, dan mengisi
+     tabel di tempat yang sama, tanpa mode Baca/Sunting. Isinya diedit per blok (lihat Editor blok
+     di bawah); teks catatannya disalin ke #catatan-isi (tersembunyi), yang dibaca saat menyimpan. */
   function editorCatatan(n, folder) {
-    const baca = S.ctt.mode === 'baca' && n.id !== '__baru';
-    return `<section class="catatan-editor kartu-polos rapat ${n.warna ? 'w-' + n.warna : ''} ${baca ? 'mode-baca' : 'mode-sunting'}" data-catatan="${esc(n.id)}">
+    mulaiEditor(n);
+    return `<section class="catatan-editor kartu-polos rapat ${n.warna ? 'w-' + n.warna : ''}" data-catatan="${esc(n.id)}">
       <div class="editor-kepala">
         ${modeKartu() ? `<button type="button" class="ikon-tombol catatan-kembali" data-aksi="catatan-kembali" title="Tutup (Esc)" aria-label="Tutup catatan">${ikon('tutup', 20)}</button>`
     : `<button type="button" class="ikon-tombol catatan-kembali" data-aksi="catatan-kembali" aria-label="Kembali ke daftar catatan">${ikon('kiri', 20)}</button>`}
         <span id="catatan-status" class="catatan-status">${statusCatatan(n)}</span>
         <span class="spasi"></span>
-        ${n.id === '__baru' ? '' : `<div class="segmen ctt-mode" role="group" aria-label="Mode catatan">
-          <button type="button" data-aksi="ctt-mode" data-nilai="baca" aria-pressed="${baca}" title="Baca (Ctrl+E)">${ikon('mata', 16)}<span>Baca</span></button>
-          <button type="button" data-aksi="ctt-mode" data-nilai="sunting" aria-pressed="${!baca}" title="Sunting (Ctrl+E)">${ikon('sunting', 16)}<span>Sunting</span></button>
-        </div>`}
         <span id="catatan-aksi" class="catatan-aksi">${aksiCatatan(n)}</span>
       </div>
       <div class="editor-isi">
@@ -3318,52 +3405,834 @@
         <div class="catatan-meta">
           <label class="catatan-folder">${ikon('folder', 14)}<span class="sr">Folder</span><input id="catatan-folder" list="folder-catatan" maxlength="80" placeholder="${I.FOLDER_UMUM}" value="${esc(n.folder)}" autocomplete="off"></label>
           <datalist id="folder-catatan">${folder.map(f => `<option value="${esc(f)}">`).join('')}</datalist>
-          ${n.id === '__baru' ? '' : `<span class="ctt-warna" role="group" aria-label="Warna catatan">${WARNA_UI.map(([w, l]) => `<button type="button" class="ctt-warna-titik w-${w || 'polos'}" data-aksi="ctt-warna" data-warna="${w}" aria-pressed="${(n.warna || '') === w}" title="${l}" aria-label="Warna: ${l}"></button>`).join('')}</span>`}
+          ${warnaCatatanHtml(n)}
           ${n.createdAt ? `<small>Dibuat ${esc(fmtWaktu(n.createdAt))}</small>` : ''}
         </div>
-        <div class="ctt-toolbar" role="toolbar" aria-label="Format" ${baca ? 'hidden' : ''}>
+        <div class="ctt-toolbar" role="toolbar" aria-label="Jenis blok dan format">
+          ${ALAT_BLOK.map(([j, ik, t]) => `<button type="button" class="ikon-tombol" data-aksi="ctt-format" data-jenis="${j}" title="${t}" aria-label="${t}">${ikon(ik, 16)}</button>`).join('')}
+          <span class="ctt-toolbar-garis" aria-hidden="true"></span>
           ${ALAT_FORMAT.map(([j, ik, t]) => `<button type="button" class="ikon-tombol" data-aksi="ctt-format" data-jenis="${j}" title="${t}" aria-label="${t}">${ikon(ik, 16)}</button>`).join('')}
           <span class="ctt-toolbar-pisah"></span>
-          <button type="button" class="tombol kecil" data-aksi="ctt-task" title="Jadikan task dari baris tempat kursor berada">${ikon('tugas', 14)} Jadikan task</button>
+          <button type="button" class="tombol kecil" data-aksi="ctt-task" title="Jadikan task dari blok yang sedang diketik">${ikon('tugas', 14)} Jadikan task</button>
         </div>
-        <textarea id="catatan-isi" class="catatan-isi" maxlength="20000" placeholder="Tulis isi catatan di sini…  [ ] untuk checklist, - untuk daftar, # untuk judul" aria-label="Isi catatan" ${baca ? 'hidden' : ''}>${esc(n.body)}</textarea>
-        <div id="catatan-baca" class="ctt-baca" ${baca ? '' : 'hidden'}>${baca ? renderIsiCatatan(n.body, true) : ''}</div>
+        <div class="ne ${kosongSemua() ? 'kosong' : ''}" data-ne>${htmlSemuaBlok()}</div>
+        <div class="ne-menu" id="ne-menu" role="listbox" aria-label="Pilih jenis blok" hidden></div>
+        <textarea id="catatan-isi" hidden aria-hidden="true" tabindex="-1">${esc(n.body)}</textarea>
       </div>
-      <div class="editor-kaki"><span id="catatan-hitung">${hitungTeks(n)}</span><span>${baca ? 'Klik baris untuk menyunting · centang langsung di sini' : 'Ctrl+S menyimpan seketika · Ctrl+E ke mode Baca'}</span></div>
+      <div class="editor-kaki"><span id="catatan-hitung">${hitungTeks(n)}</span><span>Ketik / untuk judul, checklist, atau tabel · Ctrl+S menyimpan seketika</span></div>
     </section>`;
   }
 
-  /* Pratinjau baris demi baris: # judul, - daftar, [ ] checklist, dan format ringan yang sama
-     dengan pesan Komunikasi. interaktif = di editor: checklist bisa dicentang, tiap baris
-     membawa nomornya (klik = sunting di baris itu) dan tombol "Jadikan task". */
-  function renderIsiCatatan(isi, interaktif, batas = 0) {
+  /* Pratinjau kartu (tampilan Keep): blok-blok dibaca saja. batas = jumlah baris paling banyak. */
+  function renderIsiCatatan(isi, batas = 0) {
     const teks = String(isi || '');
-    if (!teks.trim()) return interaktif ? '<p class="hint ctt-baca-kosong" data-baris="0">Catatan masih kosong. Klik di sini untuk mulai menulis.</p>' : '';
-    const semua = teks.split('\n');
-    const baris = batas ? semua.slice(0, batas) : semua;
-    return baris.map((b, i) => {
-      const nomor = interaktif ? ` data-baris="${i}"` : '';
-      const judulTask = interaktif ? I.teksBarisCatatan(teks, i) : '';
-      const task = judulTask && !/→\s*PRD-\d+\s*$/.test(b)
-        ? `<button type="button" class="ctt-jadi-task" data-aksi="ctt-task" data-baris="${i}" title="Jadikan task" aria-label="Jadikan task: ${esc(potong(judulTask, 60))}">${ikon('tugas', 14)}</button>` : '';
-      const cek = /^(\s*(?:[-*]\s+)?)\[( |x|X)\] ?(.*)$/.exec(b);
-      if (cek) {
-        const sudah = cek[2] !== ' ';
-        const kotak = interaktif
-          ? `<button type="button" class="ctt-cek ${sudah ? 'sudah' : ''}" data-aksi="ctt-centang" data-baris="${i}" role="checkbox" aria-checked="${sudah}" aria-label="${esc(potong(cek[3] || 'butir', 60))}">${sudah ? ikon('centang', 12) : ''}</button>`
-          : `<span class="ctt-cek ${sudah ? 'sudah' : ''}">${sudah ? ikon('centang', 12) : ''}</span>`;
-        return `<div class="ctt-baris cek ${sudah ? 'sudah' : ''}"${nomor}>${kotak}<span class="ctt-teks">${formatCatatan(cek[3]) || '&nbsp;'}</span>${task}</div>`;
+    if (!teks.trim()) return '';
+    const blok = I.blokCatatan(teks);
+    const nomor = I.nomorDaftar(blok);
+    let sisa = batas || Infinity;
+    const keluar = [];
+    let i = 0;
+    for (; i < blok.length && sisa > 0; i++) {
+      const b = blok[i];
+      const gaya = b.tingkat ? ` style="--tingkat:${b.tingkat}"` : '';
+      const isiTeks = formatPratinjau(b.teks) || '&nbsp;';
+      if (b.jenis === 'tabel') {
+        const baris = b.sel.slice(0, Math.max(1, sisa));
+        sisa -= baris.length;
+        keluar.push(`<table class="ctt-tabel-kecil"><tbody>${baris.map((r, k) => {
+          const t = k === 0 && b.kepala ? 'th' : 'td';
+          return `<tr>${r.map(x => `<${t}>${formatPratinjau(x)}</${t}>`).join('')}</tr>`;
+        }).join('')}</tbody></table>`);
+        continue;
       }
-      const judul = /^(#{1,3})\s+(.*)$/.exec(b);
-      if (judul) return `<div class="ctt-baris judul j${judul[1].length}"${nomor}><span class="ctt-teks">${formatCatatan(judul[2])}</span></div>`;
-      const titik = /^\s*[-*]\s+(.*)$/.exec(b);
-      if (titik) return `<div class="ctt-baris titik"${nomor}><span class="ctt-titik" aria-hidden="true"></span><span class="ctt-teks">${formatCatatan(titik[1]) || '&nbsp;'}</span>${task}</div>`;
-      if (!b.trim()) return `<div class="ctt-baris kosong"${nomor}></div>`;
-      return `<div class="ctt-baris"${nomor}><span class="ctt-teks">${formatCatatan(b)}</span>${task}</div>`;
-    }).join('') + (batas && semua.length > batas ? '<div class="ctt-baris lagi">…</div>' : '');
+      sisa--;
+      if (b.jenis === 'hr') keluar.push('<hr class="ctt-garis">');
+      else if (b.jenis === 'todo') keluar.push(`<div class="ctt-baris cek ${b.cek ? 'sudah' : ''}"${gaya}><span class="ctt-cek ${b.cek ? 'sudah' : ''}">${b.cek ? ikon('centang', 12) : ''}</span><span class="ctt-teks">${isiTeks}</span></div>`);
+      else if (/^h[123]$/.test(b.jenis)) keluar.push(`<div class="ctt-baris judul j${b.jenis[1]}"><span class="ctt-teks">${isiTeks}</span></div>`);
+      else if (b.jenis === 'li') keluar.push(`<div class="ctt-baris titik"${gaya}><span class="ctt-titik" aria-hidden="true"></span><span class="ctt-teks">${isiTeks}</span></div>`);
+      else if (b.jenis === 'ol') keluar.push(`<div class="ctt-baris nomor"${gaya}><span class="ctt-nomor">${nomor[i]}.</span><span class="ctt-teks">${isiTeks}</span></div>`);
+      else if (b.jenis === 'kutip') keluar.push(`<div class="ctt-baris kutip"><span class="ctt-teks">${isiTeks}</span></div>`);
+      else keluar.push(b.teks.trim() ? `<div class="ctt-baris"><span class="ctt-teks">${isiTeks}</span></div>` : '<div class="ctt-baris kosong"></div>');
+    }
+    return keluar.join('') + (i < blok.length ? '<div class="ctt-baris lagi">…</div>' : '');
   }
   /* Format ringan + "→ PRD-…" (baris yang sudah dijadikan task) menjadi tombol pembuka task. */
   const formatCatatan = s => formatPesan(s).replace(/→ (PRD-\d+)/g, '→ <button type="button" class="ctt-rujuk-task" data-aksi="buka-task" data-id="$1">$1</button>');
+  /* Di dalam kartu (yang sendirinya tombol) tak boleh ada tombol atau tautan lain. */
+  const formatPratinjau = s => formatPesan(s).replace(/<a [^>]*>/g, '<span class="ctt-tautan">').replace(/<\/a>/g, '</span>')
+    .replace(/→ (PRD-\d+)/g, '→ <span class="ctt-rujuk-task">$1</span>');
+
+  /* ----- Editor blok (0.14.0) -----
+     Tiap blok (paragraf, judul, butir daftar, checklist, kutipan) adalah satu kotak teks
+     contenteditable; tabel punya satu kotak per sel; garis pemisah bisa dipilih lalu dihapus.
+     Modelnya (ED.blok) dibaca dan ditulis lewat Inti.blokCatatan/teksBlok, jadi yang tersimpan
+     tetap teks biasa. Blok yang sedang diketik menampilkan teks mentahnya (**tebal**,
+     [tautan](…)); blok lain menampilkan hasil formatnya, dengan tautan dan nomor task yang bisa
+     diklik. Enter, Backspace, panah, Tab, menu "/", pintasan markdown ("# ", "- ", "[] ", "1. ",
+     "> ", "---"), tempel beberapa baris atau sel dari spreadsheet, dan urungkan (Ctrl+Z) diatur
+     di sini. Perubahan struktur menggambar ulang semua blok lalu mengembalikan kursornya. */
+
+  const ED = { id: null, teks: '', blok: [], riwayat: [], ke: 0, tundaRiwayat: null, slash: null, fokus: null, kursorAkhir: null };
+  const MAKS_KOLOM = 20;
+  const KOSONG_PH = 'Tulis sesuatu, atau ketik / untuk judul, checklist, tabel…';
+  /* [jenis, label, ikon, kata kunci pencarian, keterangan] — urutan menu "/". */
+  const MENU_BLOK = [
+    ['p', 'Teks', 'teks', 'teks paragraf biasa', 'Paragraf biasa'],
+    ['h1', 'Judul 1', 'judulH', 'judul heading h1 besar', 'Judul bagian besar'],
+    ['h2', 'Judul 2', 'judulH', 'judul heading h2 sedang', 'Judul bagian sedang'],
+    ['h3', 'Judul 3', 'judulH', 'judul heading h3 kecil', 'Judul bagian kecil'],
+    ['todo', 'Checklist', 'centangKotak', 'checklist ceklis centang todo tugas kotak', 'Butir yang bisa dicentang'],
+    ['li', 'Daftar titik', 'daftarTitik', 'daftar titik bullet list butir', 'Daftar berbutir'],
+    ['ol', 'Daftar bernomor', 'daftarNomor', 'daftar nomor angka numbered urut', 'Daftar 1, 2, 3'],
+    ['tabel', 'Tabel', 'tabel', 'tabel table kolom baris', 'Baris dan kolom yang bisa diisi'],
+    ['kutip', 'Kutipan', 'kutip', 'kutipan quote sorot', 'Teks yang disorot'],
+    ['hr', 'Garis pemisah', 'kurang', 'garis pemisah divider pembatas', 'Pembatas antarbagian'],
+  ];
+  const PH_BLOK = { p: 'Ketik / untuk pilihan blok', h1: 'Judul 1', h2: 'Judul 2', h3: 'Judul 3', li: 'Daftar', ol: 'Daftar', todo: 'Tugas', kutip: 'Kutipan' };
+  const LABEL_BLOK = Object.fromEntries(MENU_BLOK.map(([j, l]) => [j, l]));
+
+  /* Catatan yang sama digambar ulang (mis. ganti warna): riwayat urungkan tetap. */
+  function mulaiEditor(n) {
+    const lanjut = ED.teks === n.body && (ED.id === n.id || ED.id === '__baru');
+    ED.id = n.id;
+    ED.blok = I.blokCatatan(n.body);
+    ED.teks = n.body;
+    ED.slash = null;
+    if (!lanjut) Object.assign(ED, { riwayat: [{ teks: n.body, fokus: null }], ke: 0, fokus: null, kursorAkhir: null });
+  }
+  const kosongSemua = () => ED.blok.length === 1 && ED.blok[0].jenis === 'p' && !ED.blok[0].teks;
+
+  /* --- Menggambar --- */
+
+  function htmlSemuaBlok() {
+    const { baris } = I.teksBlokDanBaris(ED.blok);
+    const nomor = I.nomorDaftar(ED.blok);
+    const kosong = kosongSemua();
+    return ED.blok.map((b, i) => htmlBlok(b, i, baris[i], nomor[i], kosong)).join('')
+      + '<div class="ne-bawah" data-aksi="ne-bawah" aria-hidden="true"></div>';
+  }
+  /* Teks blok yang tak sedang diketik: format ringan; tautan dan tombol task tetap bisa diklik. */
+  const tampilTeks = teks => formatCatatan(teks).replace(/<(a|button) /g, '<$1 contenteditable="false" ');
+  function kotakTeks(teks, atribut, kelas = '') {
+    const f = tampilTeks(teks);
+    return `<div class="ne-teks${kelas}" contenteditable="true" spellcheck="true" data-tampil="${f !== esc(teks) ? 'format' : 'mentah'}" ${atribut}>${f}</div>`;
+  }
+  function htmlBlok(b, i, baris, nomor, kosong) {
+    if (b.jenis === 'hr') return `<div class="ne-blok ne-hr" data-i="${i}" tabindex="0" role="separator" aria-label="Garis pemisah. Backspace untuk menghapus."><hr></div>`;
+    if (b.jenis === 'tabel') return htmlTabel(b, i);
+    const judul = I.teksBarisCatatan(b.teks, 0);
+    const task = ['p', 'li', 'ol', 'todo', 'kutip'].includes(b.jenis) && judul && !/→\s*PRD-\d+\s*$/.test(b.teks)
+      ? `<button type="button" class="ctt-jadi-task" data-aksi="ctt-task" data-baris="${baris}" tabindex="-1" title="Jadikan task" aria-label="Jadikan task: ${esc(potong(judul, 60))}">${ikon('tugas', 14)}</button>` : '';
+    const depan = b.jenis === 'todo'
+      ? `<button type="button" class="ctt-cek ne-cek ${b.cek ? 'sudah' : ''}" data-aksi="ne-cek" role="checkbox" aria-checked="${!!b.cek}" tabindex="-1" aria-label="Tandai selesai">${b.cek ? ikon('centang', 12) : ''}</button>`
+      : b.jenis === 'li' ? '<span class="ctt-titik ne-titik" aria-hidden="true"></span>'
+        : b.jenis === 'ol' ? `<span class="ne-nomor" aria-hidden="true">${nomor}.</span>` : '';
+    const ph = kosong ? KOSONG_PH : PH_BLOK[b.jenis] || '';
+    return `<div class="ne-blok ne-${b.jenis}${b.jenis === 'todo' && b.cek ? ' sudah' : ''}" data-i="${i}" data-baris="${baris}"${b.tingkat ? ` style="--tingkat:${b.tingkat}"` : ''}>${depan}${kotakTeks(b.teks, `data-ph="${esc(ph)}" role="textbox" aria-label="${esc(LABEL_BLOK[b.jenis] || 'Teks')}"`)}${task}</div>`;
+  }
+  function htmlTabel(b, i) {
+    const kolom = Math.max(1, ...b.sel.map(r => r.length));
+    const sel = (teks, r, c) => {
+      const t = r === 0 && b.kepala ? 'th' : 'td';
+      return `<${t}>${kotakTeks(teks, `data-r="${r}" data-c="${c}" role="textbox" aria-label="Sel baris ${r + 1}, kolom ${c + 1}"`, ' ne-sel')}</${t}>`;
+    };
+    return `<div class="ne-blok ne-tabel" data-i="${i}">
+      <div class="ne-tabel-gulir"><table><tbody>${b.sel.map((r, ri) => `<tr>${Array.from({ length: kolom }, (_, ci) => sel(r[ci] || '', ri, ci)).join('')}</tr>`).join('')}</tbody></table></div>
+      <div class="ne-tabel-alat" role="toolbar" aria-label="Atur tabel">
+        <button type="button" class="tombol kecil" data-aksi="ne-tabel" data-op="baris" title="Tambah baris di bawah sel yang dipilih">${ikon('tambah', 14)} Baris</button>
+        <button type="button" class="tombol kecil" data-aksi="ne-tabel" data-op="kolom" title="Tambah kolom di kanan sel yang dipilih">${ikon('tambah', 14)} Kolom</button>
+        <button type="button" class="tombol kecil" data-aksi="ne-tabel" data-op="hapus-baris" title="Hapus baris sel yang dipilih">${ikon('kurang', 14)} Baris</button>
+        <button type="button" class="tombol kecil" data-aksi="ne-tabel" data-op="hapus-kolom" title="Hapus kolom sel yang dipilih">${ikon('kurang', 14)} Kolom</button>
+        <button type="button" class="tombol kecil bahaya" data-aksi="ne-tabel" data-op="hapus" title="Hapus seluruh tabel">${ikon('hapus', 14)} Tabel</button>
+      </div></div>`;
+  }
+
+  /* --- Elemen, kursor, dan model --- */
+
+  const akarEditor = () => $('.ne[data-ne]');
+  const elBlok = i => { const a = akarEditor(); return a ? a.querySelector(`:scope > [data-i="${i}"]`) : null; };
+  const elFokus = () => { const a = document.activeElement; return a && a.classList && a.classList.contains('ne-teks') && a.closest('.ne[data-ne]') ? a : null; };
+  function posisiEl(el) {
+    const p = { i: Number(el.closest('[data-i]').dataset.i) };
+    if (el.classList.contains('ne-sel')) Object.assign(p, { r: Number(el.dataset.r), c: Number(el.dataset.c) });
+    return p;
+  }
+  const bacaTeks = el => el.textContent.replace(/ /g, ' ').replace(/[\r\n]+/g, ' ');
+  function teksPosisi(p) {
+    const b = ED.blok[p.i];
+    if (!b) return '';
+    return p.r === undefined ? b.teks || '' : (b.sel[p.r] || [])[p.c] || '';
+  }
+  function aturTeksPosisi(p, teks) {
+    const b = ED.blok[p.i];
+    if (!b) return;
+    if (p.r === undefined) b.teks = teks; else b.sel[p.r][p.c] = teks;
+  }
+  function rentangKursor(el) {
+    const sel = getSelection();
+    if (!sel.rangeCount) return [0, 0];
+    const r = sel.getRangeAt(0);
+    if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) { const n = bacaTeks(el).length; return [n, n]; }
+    const ukur = (node, off) => { const p = document.createRange(); p.selectNodeContents(el); p.setEnd(node, off); return p.toString().length; };
+    return [ukur(r.startContainer, r.startOffset), ukur(r.endContainer, r.endOffset)];
+  }
+  function aturKursor(el, a, b = a) {
+    const cari = n => {
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let sisa = n, t;
+      while ((t = w.nextNode())) { if (sisa <= t.length) return [t, sisa]; sisa -= t.length; }
+      return [el, el.childNodes.length];
+    };
+    const r = document.createRange();
+    r.setStart(...cari(a));
+    r.setEnd(...cari(b));
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  function tampilMentah(el) {
+    if (el.dataset.tampil !== 'format') return;
+    el.textContent = teksPosisi(posisiEl(el));
+    el.dataset.tampil = 'mentah';
+  }
+  /* Posisi di teks yang tampil (berformat) → posisi yang sama di teks mentahnya: tanda **, _, ~~,
+     `, dan [label](alamat) dilewati (polanya sama dengan formatPesan). */
+  function offsetMentah(mentah, tampil) {
+    const pola = new RegExp(POLA_FORMAT.source, 'g');
+    let i = 0, v = 0, m;
+    while ((m = pola.exec(mentah))) {
+      const g = m.groups;
+      let pra = '', isi, awal;
+      if (g.kode !== undefined) { isi = g.kode; awal = m.index + 1; }
+      else if (g.tebal !== undefined) { isi = g.tebal; awal = m.index + 2; }
+      else if (g.coret !== undefined) { isi = g.coret; awal = m.index + 2; }
+      else if (g.label !== undefined) { isi = g.label; awal = m.index + 1; }
+      else if (g.miring !== undefined) { pra = g.pra; isi = g.miring; awal = m.index + pra.length + 1; }
+      else continue;   // tautan polos dan @sebutan tampil apa adanya
+      const biasa = m.index - i + pra.length;
+      if (tampil <= v + biasa) return i + (tampil - v);
+      v += biasa;
+      if (tampil <= v + isi.length) return awal + (tampil - v);
+      v += isi.length;
+      i = m.index + m[0].length;
+    }
+    return Math.min(mentah.length, i + (tampil - v));
+  }
+  /* Blok berformat yang akan diketik: ganti ke teks mentah, kursornya tetap di tempat yang sama. */
+  function keMentah(el) {
+    if (el.dataset.tampil !== 'format') return;
+    const sel = getSelection();
+    const di = sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer);
+    const [a, z] = di ? rentangKursor(el) : [Infinity, Infinity];
+    const mentah = teksPosisi(posisiEl(el));
+    tampilMentah(el);
+    aturKursor(el, offsetMentah(mentah, a), offsetMentah(mentah, z));
+  }
+  function tampilFormat(el) {
+    const teks = teksPosisi(posisiEl(el));
+    const f = tampilTeks(teks);
+    el.dataset.tampil = f !== esc(teks) ? 'format' : 'mentah';
+    if (f !== esc(teks)) el.innerHTML = f;
+    else if (!teks && el.innerHTML) el.innerHTML = '';
+  }
+
+  /* Model → teks catatan (#catatan-isi) → simpan otomatis seperti biasa. */
+  function selaraskan() {
+    const akar = akarEditor();
+    if (akar) akar.classList.toggle('kosong', kosongSemua());
+    const teks = I.teksBlok(ED.blok);
+    if (teks === ED.teks) return;
+    ED.teks = teks;
+    const ta = $('#catatan-isi');
+    if (ta) ta.value = teks;
+    catatanBerubah();
+    jadwalRiwayat();
+  }
+  function gambarBlok(fokus) {
+    const akar = akarEditor();
+    if (!akar) return;
+    tutupMenuBlok();
+    if (!ED.blok.length) ED.blok.push({ jenis: 'p', teks: '' });
+    akar.innerHTML = htmlSemuaBlok();
+    selaraskan();
+    if (fokus) fokusKe(fokus);
+  }
+  /* f = { i, r?, c?, offset?, sampai?, akhir?, x?, bawah? } */
+  function fokusKe(f) {
+    const blok = elBlok(f.i);
+    if (!blok) return;
+    if (blok.classList.contains('ne-hr')) { blok.focus(); return; }
+    let el = blok.querySelector(':scope > .ne-teks');
+    if (blok.classList.contains('ne-tabel')) {
+      const b = ED.blok[f.i];
+      const r = f.r === undefined ? (f.bawah ? b.sel.length - 1 : 0) : f.r;
+      el = blok.querySelector(`.ne-sel[data-r="${r}"][data-c="${f.c || 0}"]`) || blok.querySelector('.ne-sel');
+    }
+    if (!el) return;
+    tampilMentah(el);
+    el.focus();
+    ED.fokus = posisiEl(el);
+    const n = bacaTeks(el).length;
+    if (f.x != null && letakkanDiX(el, f.x, f.bawah)) return;
+    const a = f.akhir ? n : Math.min(f.offset || 0, n);
+    aturKursor(el, a, f.sampai == null ? a : Math.min(f.sampai, n));
+  }
+  /* Panah atas/bawah: kursor tetap di kolom yang sama, di baris terakhir/pertama blok tujuan. */
+  function letakkanDiX(el, x, bawah) {
+    const k = el.getBoundingClientRect();
+    return letakkanDiTitik(el, x, bawah ? k.bottom - 6 : k.top + 6);
+  }
+  function letakkanDiTitik(el, x, y) {
+    let r = null;
+    if (document.caretRangeFromPoint) r = document.caretRangeFromPoint(x, y);
+    else if (document.caretPositionFromPoint) {
+      const p = document.caretPositionFromPoint(x, y);
+      if (p) { r = document.createRange(); r.setStart(p.offsetNode, p.offset); }
+    }
+    if (!r || !el.contains(r.startContainer)) return false;
+    r.collapse(true);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    return true;
+  }
+  function xKursor() {
+    const sel = getSelection();
+    if (!sel.rangeCount) return null;
+    const r = sel.getRangeAt(0).cloneRange();
+    r.collapse(true);
+    const k = r.getClientRects()[0];
+    return k ? k.left : null;
+  }
+  /* Kursor di baris pertama (atas) atau terakhir (bawah) blok yang bisa terlipat beberapa baris. */
+  function diTepi(el, atas) {
+    const sel = getSelection();
+    if (!sel.rangeCount) return true;
+    const r = sel.getRangeAt(0).cloneRange();
+    r.collapse(atas);
+    const k = r.getClientRects()[0];
+    if (!k) { const [a] = rentangKursor(el); return atas ? a === 0 : a >= bacaTeks(el).length; }
+    const kotak = el.getBoundingClientRect();
+    const garis = parseFloat(getComputedStyle(el).lineHeight) || 22;
+    return atas ? k.top - kotak.top < garis * 0.75 : kotak.bottom - k.bottom < garis * 0.75;
+  }
+  function bentukBlok(jenis, lama = { teks: '' }) {
+    const teks = lama.teks || '';
+    const tingkat = ['li', 'ol', 'todo'].includes(lama.jenis) ? lama.tingkat || 0 : 0;
+    if (jenis === 'todo') return { jenis, teks, tingkat, cek: false, titik: false };
+    if (jenis === 'li') return { jenis, teks, tingkat, tanda: '-' };
+    if (jenis === 'ol') return { jenis, teks, tingkat, nomor: 1 };
+    return { jenis, teks };
+  }
+
+  /* --- Urungkan (Ctrl+Z) dan ulangi (Ctrl+Y / Ctrl+Shift+Z) ---
+     Riwayat teks utuh: dicatat sesudah berhenti mengetik dan sebelum setiap perubahan struktur. */
+  function kursorKini() {
+    const el = elFokus();
+    return el ? { ...posisiEl(el), offset: rentangKursor(el)[0] } : ED.fokus;
+  }
+  function jadwalRiwayat() {
+    clearTimeout(ED.tundaRiwayat);
+    ED.tundaRiwayat = setTimeout(catatRiwayatSekarang, 600);
+  }
+  function catatRiwayatSekarang() {
+    clearTimeout(ED.tundaRiwayat);
+    ED.tundaRiwayat = null;
+    const teks = I.teksBlok(ED.blok);
+    if (ED.riwayat[ED.ke] && ED.riwayat[ED.ke].teks === teks) return;
+    ED.riwayat = ED.riwayat.slice(0, ED.ke + 1);
+    ED.riwayat.push({ teks, fokus: kursorKini() });
+    if (ED.riwayat.length > 100) ED.riwayat.shift();
+    ED.ke = ED.riwayat.length - 1;
+  }
+  function undoEditor(arah) {
+    catatRiwayatSekarang();
+    const ke = ED.ke + arah;
+    if (ke < 0 || ke >= ED.riwayat.length) return;
+    ED.ke = ke;
+    const s = ED.riwayat[ke];
+    ED.blok = I.blokCatatan(s.teks);
+    gambarBlok(s.fokus && ED.blok[s.fokus.i] ? s.fokus : { i: ED.blok.length - 1, akhir: true });
+  }
+
+  /* --- Mengetik --- */
+
+  function inputBlok(el, e) {
+    const p = posisiEl(el);
+    const b = ED.blok[p.i];
+    if (!b) return;
+    const teks = bacaTeks(el);
+    if (!teks && el.innerHTML && !e.isComposing) el.innerHTML = '';   // sisa <br> dari peramban: petunjuknya tampil lagi
+    el.dataset.tampil = 'mentah';
+    if (p.r !== undefined) { b.sel[p.r][p.c] = teks; return selaraskan(); }
+    b.teks = teks;
+    // Pintasan markdown di awal paragraf: "# ", "## ", "- ", "1. ", "[] ", "[x] ", "> ", "---".
+    if (b.jenis === 'p' && !e.isComposing) {
+      const m = /^(#{1,3}|[-*]|\d{1,3}[.)]|\[[ xX]?\]|>)\s/.exec(teks);
+      if (m) return pintasan(el, p.i, m[1], m[0].length);
+      if (teks === '---') { catatRiwayatSekarang(); ED.blok[p.i] = { jenis: 'p', teks: '' }; return sisipkanKhusus(p.i, 'hr'); }
+    }
+    const [a] = rentangKursor(el);
+    if (ED.slash) perbaruiMenuBlok(el);
+    else if (/^insert/.test(e.inputType || 'insert') && String(e.data == null ? '/' : e.data).includes('/')) {
+      // "/" di awal kata membuka menu blok (juga bila papan ketik menyisipkan "/kata" sekaligus).
+      const awal = teks.lastIndexOf('/', a - 1);
+      if (awal >= 0 && (awal === 0 || /\s/.test(teks[awal - 1])) && /^[^\s/]{0,20}$/.test(teks.slice(awal + 1, a))) {
+        bukaMenuBlok(el, awal);
+        perbaruiMenuBlok(el);
+      }
+    }
+    selaraskan();
+  }
+  function pintasan(el, i, tanda, panjang) {
+    const [a] = rentangKursor(el);
+    const jenis = tanda[0] === '#' ? 'h' + tanda.length : /^[-*]$/.test(tanda) ? 'li' : /^\d/.test(tanda) ? 'ol' : tanda === '>' ? 'kutip' : 'todo';
+    catatRiwayatSekarang();
+    const baru = bentukBlok(jenis, { teks: ED.blok[i].teks.slice(panjang) });
+    if (jenis === 'todo') baru.cek = /x/i.test(tanda);
+    if (jenis === 'ol') baru.nomor = parseInt(tanda, 10) || 1;
+    if (jenis === 'li') baru.tanda = tanda;
+    ED.blok[i] = baru;
+    gambarBlok({ i, offset: Math.max(0, a - panjang) });
+  }
+  /* Enter: blok dipecah di kursor. Daftar dan checklist berlanjut dengan butir baru; butir kosong
+     keluar dari daftar (atau naik satu tingkat). Di tabel: turun satu sel, baris baru di akhir. */
+  function enterBlok(el) {
+    if (ED.slash) return pakaiMenuBlok();
+    const p = posisiEl(el);
+    const b = ED.blok[p.i];
+    if (!b) return;
+    catatRiwayatSekarang();
+    if (p.r !== undefined) {
+      if (p.r + 1 >= b.sel.length) b.sel.push(Array(b.sel[0].length).fill(''));
+      return gambarBlok({ i: p.i, r: p.r + 1, c: p.c, akhir: true });
+    }
+    const [a, z] = rentangKursor(el);
+    const teks = bacaTeks(el);
+    const daftar = ['li', 'ol', 'todo', 'kutip'].includes(b.jenis);
+    if (daftar && !teks.trim()) {
+      if (b.tingkat) b.tingkat--; else ED.blok[p.i] = { jenis: 'p', teks: '' };
+      return gambarBlok({ i: p.i });
+    }
+    const lanjut = daftar && b.jenis !== 'kutip' ? { ...bentukBlok(b.jenis, b), ...(b.jenis === 'li' ? { tanda: b.tanda } : {}), ...(b.jenis === 'todo' ? { titik: b.titik } : {}) } : { jenis: 'p' };
+    if (a === 0 && z === 0 && teks) {
+      ED.blok.splice(p.i, 0, { ...lanjut, teks: '' });
+      return gambarBlok({ i: p.i + 1, offset: 0 });
+    }
+    b.teks = teks.slice(0, a);
+    ED.blok.splice(p.i + 1, 0, { ...lanjut, teks: teks.slice(z) });
+    gambarBlok({ i: p.i + 1, offset: 0 });
+  }
+  /* Backspace di awal blok: judul/daftar jadi paragraf (butir menjorok naik dulu); paragraf
+     menyatu dengan blok di atasnya; garis pemisah di atasnya terhapus. */
+  function hapusDiAwal(el) {
+    const p = posisiEl(el);
+    const b = ED.blok[p.i];
+    if (!b) return;
+    if (p.r !== undefined) {
+      if (p.r || p.c) return pindahSel(p, -1, false);
+      if (b.sel.every(r => r.every(x => !String(x).trim()))) {
+        catatRiwayatSekarang();
+        ED.blok.splice(p.i, 1);
+        return gambarBlok(p.i > 0 ? { i: p.i - 1, akhir: true } : { i: 0 });
+      }
+      return pindahBlok(p.i, -1, null, true);
+    }
+    catatRiwayatSekarang();
+    if (b.jenis !== 'p') {
+      if (b.tingkat) b.tingkat--; else ED.blok[p.i] = { jenis: 'p', teks: b.teks };
+      return gambarBlok({ i: p.i, offset: 0 });
+    }
+    const lalu = ED.blok[p.i - 1];
+    if (!lalu) return;
+    if (lalu.jenis === 'hr') { ED.blok.splice(p.i - 1, 1); return gambarBlok({ i: p.i - 1, offset: 0 }); }
+    if (lalu.jenis === 'tabel') {
+      if (!b.teks) ED.blok.splice(p.i, 1);
+      const r = lalu.sel.length - 1;
+      return gambarBlok({ i: p.i - 1, r, c: lalu.sel[r].length - 1, akhir: true });
+    }
+    const pos = (lalu.teks || '').length;
+    lalu.teks = (lalu.teks || '') + b.teks;
+    ED.blok.splice(p.i, 1);
+    gambarBlok({ i: p.i - 1, offset: pos });
+  }
+  /* Delete di akhir blok: blok berikutnya (teks) naik dan menyatu. */
+  function hapusDiAkhir(el) {
+    const p = posisiEl(el);
+    if (p.r !== undefined) return;
+    const b = ED.blok[p.i], lanjut = ED.blok[p.i + 1];
+    if (!b || !lanjut || lanjut.jenis === 'tabel') return;
+    catatRiwayatSekarang();
+    if (lanjut.jenis === 'hr') { ED.blok.splice(p.i + 1, 1); return gambarBlok({ i: p.i, akhir: true }); }
+    const pos = b.teks.length;
+    b.teks += lanjut.teks || '';
+    ED.blok.splice(p.i + 1, 1);
+    gambarBlok({ i: p.i, offset: pos });
+  }
+  function hapusGaris(i, arah) {
+    catatRiwayatSekarang();
+    ED.blok.splice(i, 1);
+    if (!ED.blok.length) ED.blok.push({ jenis: 'p', teks: '' });
+    gambarBlok(arah < 0 && i > 0 ? { i: i - 1, akhir: true } : { i: Math.min(i, ED.blok.length - 1) });
+  }
+  function indentasi(i, d) {
+    const b = ED.blok[i];
+    const t = Math.max(0, Math.min(3, (b.tingkat || 0) + d));
+    if (t === (b.tingkat || 0)) return;
+    const el = elFokus();
+    const offset = el ? rentangKursor(el)[0] : 0;
+    catatRiwayatSekarang();
+    b.tingkat = t;
+    gambarBlok({ i, offset });
+  }
+
+  /* --- Berpindah blok dan sel --- */
+
+  function pindahBlok(i, arah, x = null, akhir = arah < 0) {
+    const j = i + arah;
+    if (j < 0) {
+      const judul = $('#catatan-judul');
+      if (judul) { judul.focus(); judul.setSelectionRange(judul.value.length, judul.value.length); }
+      return;
+    }
+    const b = ED.blok[j];
+    if (!b) return;
+    if (b.jenis === 'tabel') {
+      const r = arah < 0 ? b.sel.length - 1 : 0;
+      return fokusKe({ i: j, r, c: kolomDiX(j, r, x), akhir });
+    }
+    fokusKe({ i: j, x, bawah: arah < 0, akhir });
+  }
+  function kolomDiX(i, r, x) {
+    const sel = $$(`.ne-sel[data-r="${r}"]`, elBlok(i));
+    if (x == null || !sel.length) return 0;
+    const k = sel.findIndex(el => { const kotak = el.closest('td, th').getBoundingClientRect(); return x >= kotak.left && x <= kotak.right; });
+    return k >= 0 ? k : x < sel[0].getBoundingClientRect().left ? 0 : sel.length - 1;
+  }
+  /* Kiri/kanan (dan Tab) antarsel; Tab di sel terakhir menambah baris. */
+  function pindahSel(p, arah, tab) {
+    const b = ED.blok[p.i];
+    const kolom = b.sel[0].length;
+    let r = p.r, c = p.c + arah;
+    if (c >= kolom) { c = 0; r++; }
+    if (c < 0) { c = kolom - 1; r--; }
+    if (r < 0) return tab ? undefined : pindahBlok(p.i, -1, null, true);
+    if (r >= b.sel.length) {
+      if (!tab) return pindahBlok(p.i, 1, null, false);
+      catatRiwayatSekarang();
+      b.sel.push(Array(kolom).fill(''));
+      return gambarBlok({ i: p.i, r, c: 0 });
+    }
+    fokusKe({ i: p.i, r, c, akhir: arah < 0 || tab });
+  }
+  function pindahSelVertikal(p, arah, x) {
+    const b = ED.blok[p.i];
+    const r = p.r + arah;
+    if (r < 0 || r >= b.sel.length) return pindahBlok(p.i, arah, x);
+    fokusKe({ i: p.i, r, c: p.c, x, bawah: arah < 0, akhir: arah < 0 });
+  }
+
+  /* --- Tombol (selain Enter/Backspace, yang lewat beforeinput) --- */
+
+  function tombolEditor(e) {
+    const el = e.target.closest('.ne-teks');
+    const garis = e.target.closest('.ne-hr');
+    const k = e.key;
+    if (el) keMentah(el);
+    if (ED.slash && el) {
+      if (k === 'ArrowDown' || k === 'ArrowUp') { e.preventDefault(); geserMenuBlok(k === 'ArrowDown' ? 1 : -1); return true; }
+      if (k === 'Enter' || k === 'Tab') { e.preventDefault(); pakaiMenuBlok(); return true; }
+      if (k === 'Escape') { e.preventDefault(); tutupMenuBlok(); return true; }
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const t = String(k).toLowerCase();
+      if (t === 'z') { e.preventDefault(); undoEditor(e.shiftKey ? 1 : -1); return true; }
+      if (t === 'y') { e.preventDefault(); undoEditor(1); return true; }
+      if (el && (t === 'b' || t === 'i')) { e.preventDefault(); bungkusPilihan(t === 'b' ? '**' : '_'); return true; }
+      if (el && t === 'u') { e.preventDefault(); return true; }
+      return false;
+    }
+    if (garis) {
+      const i = Number(garis.dataset.i);
+      if (k === 'Backspace' || k === 'Delete') { e.preventDefault(); hapusGaris(i, k === 'Backspace' ? -1 : 1); return true; }
+      if (k === 'Enter') { e.preventDefault(); catatRiwayatSekarang(); ED.blok.splice(i + 1, 0, { jenis: 'p', teks: '' }); gambarBlok({ i: i + 1 }); return true; }
+      if (k === 'ArrowUp' || k === 'ArrowLeft') { e.preventDefault(); pindahBlok(i, -1); return true; }
+      if (k === 'ArrowDown' || k === 'ArrowRight') { e.preventDefault(); pindahBlok(i, 1); return true; }
+      return false;
+    }
+    if (!el || e.isComposing) return false;
+    const p = posisiEl(el);
+    const b = ED.blok[p.i];
+    if (!b) return false;
+    if (k === 'Tab') {
+      if (p.r !== undefined) { e.preventDefault(); pindahSel(p, e.shiftKey ? -1 : 1, true); return true; }
+      if (['li', 'ol', 'todo'].includes(b.jenis)) { e.preventDefault(); indentasi(p.i, e.shiftKey ? -1 : 1); return true; }
+      return false;
+    }
+    if ((k === 'ArrowUp' || k === 'ArrowDown') && !e.shiftKey && !e.altKey) {
+      const atas = k === 'ArrowUp';
+      if (!diTepi(el, atas)) return false;
+      e.preventDefault();
+      const x = xKursor();
+      if (p.r !== undefined) pindahSelVertikal(p, atas ? -1 : 1, x); else pindahBlok(p.i, atas ? -1 : 1, x);
+      return true;
+    }
+    if ((k === 'ArrowLeft' || k === 'ArrowRight') && !e.shiftKey && !e.altKey) {
+      const [a, z] = rentangKursor(el);
+      if (a !== z) return false;
+      if (k === 'ArrowLeft' && a === 0) { e.preventDefault(); if (p.r !== undefined) pindahSel(p, -1, false); else pindahBlok(p.i, -1, null, true); return true; }
+      if (k === 'ArrowRight' && a === bacaTeks(el).length) { e.preventDefault(); if (p.r !== undefined) pindahSel(p, 1, false); else pindahBlok(p.i, 1, null, false); return true; }
+    }
+    return false;
+  }
+
+  /* --- Menu "/" --- */
+
+  function bukaMenuBlok(el, posisi) {
+    if (el.classList.contains('ne-sel')) return;
+    ED.slash = { el, posisi, q: '', pilih: 0, calon: MENU_BLOK };
+    gambarMenuBlok();
+  }
+  function perbaruiMenuBlok(el) {
+    const s = ED.slash;
+    if (!s) return;
+    if (s.el !== el) return tutupMenuBlok();
+    const teks = bacaTeks(el);
+    const [a] = rentangKursor(el);
+    if (teks[s.posisi] !== '/' || a <= s.posisi) return tutupMenuBlok();
+    const q = teks.slice(s.posisi + 1, a);
+    if (q.length > 20 || /^\s|\s\s/.test(q)) return tutupMenuBlok();
+    const k = q.toLowerCase().trim();
+    s.q = q;
+    s.calon = MENU_BLOK.filter(([, label, , kata]) => !k || `${label} ${kata}`.toLowerCase().includes(k));
+    if (!s.calon.length && k.length > 3) return tutupMenuBlok();
+    s.pilih = Math.min(s.pilih, Math.max(0, s.calon.length - 1));
+    gambarMenuBlok();
+  }
+  function gambarMenuBlok() {
+    const s = ED.slash, menu = $('#ne-menu');
+    if (!s || !menu) return;
+    menu.innerHTML = s.calon.length
+      ? s.calon.map(([jenis, label, ik, , ket], k) => `<button type="button" class="ne-menu-item" role="option" data-aksi="ne-slash" data-jenis="${jenis}" aria-selected="${k === s.pilih}">
+          <span class="ne-menu-ikon">${ikon(ik, 16)}</span><span><b>${esc(label)}</b><small>${esc(ket)}</small></span></button>`).join('')
+      : '<p class="ne-menu-kosong">Tidak ada jenis blok yang cocok.</p>';
+    menu.hidden = false;
+    // Di bawah kursor, di dalam .editor-isi (yang ikut bergulir di jendela kartu).
+    const wadah = menu.parentElement;
+    const kotak = wadah.getBoundingClientRect();
+    let k = s.el.getBoundingClientRect();
+    const sel = getSelection();
+    if (sel.rangeCount) { const r = sel.getRangeAt(0).cloneRange(); r.collapse(true); const kk = r.getClientRects()[0]; if (kk) k = kk; }
+    const lebar = Math.min(290, kotak.width - 16);
+    menu.style.width = lebar + 'px';
+    menu.style.left = Math.max(8, Math.min(k.left - kotak.left, kotak.width - lebar - 8)) + 'px';
+    menu.style.top = (k.bottom - kotak.top + wadah.scrollTop + 6) + 'px';
+    const pilih = menu.querySelector('[aria-selected="true"]');
+    if (pilih) pilih.scrollIntoView({ block: 'nearest' });
+  }
+  function geserMenuBlok(d) {
+    const s = ED.slash;
+    if (!s || !s.calon.length) return;
+    s.pilih = (s.pilih + d + s.calon.length) % s.calon.length;
+    gambarMenuBlok();
+  }
+  function tutupMenuBlok() {
+    ED.slash = null;
+    const menu = $('#ne-menu');
+    if (menu && !menu.hidden) { menu.hidden = true; menu.innerHTML = ''; }
+  }
+  function pakaiMenuBlok(jenis) {
+    const s = ED.slash;
+    if (!s) return;
+    const pilihan = jenis || (s.calon[s.pilih] || [])[0];
+    tutupMenuBlok();
+    if (!pilihan || !s.el.isConnected) return;
+    const p = posisiEl(s.el);
+    const teks = bacaTeks(s.el);
+    catatRiwayatSekarang();
+    // "/kata" yang diketik dibuang dari teksnya.
+    ED.blok[p.i].teks = teks.slice(0, s.posisi) + teks.slice(s.posisi + 1 + s.q.length);
+    jadikanJenis(p.i, pilihan, s.posisi);
+  }
+  /* Blok i menjadi jenis lain (teksnya tetap). Tabel dan garis disisipkan di bawahnya, atau
+     menggantikan paragraf kosong. */
+  function jadikanJenis(i, jenis, offset = 0) {
+    const b = ED.blok[i];
+    if (!b) return;
+    if (jenis === 'tabel' || jenis === 'hr') return sisipkanKhusus(i, jenis);
+    if (b.jenis === 'tabel' || b.jenis === 'hr') {
+      ED.blok.splice(i + 1, 0, bentukBlok(jenis));
+      return gambarBlok({ i: i + 1 });
+    }
+    ED.blok[i] = bentukBlok(jenis, b);
+    gambarBlok({ i, offset });
+  }
+  function sisipkanKhusus(i, jenis) {
+    const b = ED.blok[i];
+    const ganti = !!b && b.jenis === 'p' && !b.teks;
+    const baru = jenis === 'tabel' ? { jenis, kepala: true, sel: [['', '', ''], ['', '', ''], ['', '', '']] } : { jenis: 'hr' };
+    const j = ganti ? i : i + 1;
+    ED.blok.splice(j, ganti ? 1 : 0, baru);
+    // Selalu ada tempat menulis di bawah tabel atau garis.
+    const lanjut = ED.blok[j + 1];
+    if (!lanjut || lanjut.jenis === 'tabel' || lanjut.jenis === 'hr') ED.blok.splice(j + 1, 0, { jenis: 'p', teks: '' });
+    gambarBlok(jenis === 'tabel' ? { i: j, r: 0, c: 0 } : { i: j + 1 });
+  }
+
+  /* --- Toolbar, format, tautan --- */
+
+  /* Kursor di blok yang sedang diketik, atau yang terakhir ditinggalkan (tombol toolbar di
+     ponsel bisa mengambil fokus). */
+  function titikKerja() {
+    const el = elFokus();
+    if (el) { const [a, z] = rentangKursor(el); return { p: posisiEl(el), a, z }; }
+    const k = ED.kursorAkhir;
+    return k && ED.blok[k.p.i] ? k : null;
+  }
+  function alatEditor(jenis) {
+    if (jenis === 'tebal' || jenis === 'miring') return bungkusPilihan(jenis === 'tebal' ? '**' : '_');
+    if (jenis === 'tautan') return sisipTautan();
+    const tujuan = { judul: 'h1', daftar: 'li', nomor: 'ol', centang: 'todo', tabel: 'tabel', garis: 'hr' }[jenis];
+    if (!tujuan) return;
+    const t = titikKerja();
+    const i = t ? t.p.i : ED.blok.length - 1;
+    const b = ED.blok[i];
+    catatRiwayatSekarang();
+    // Jenis yang sama ditekan lagi: kembali jadi paragraf.
+    if (b && b.jenis === tujuan && !['tabel', 'hr'].includes(tujuan)) { ED.blok[i] = { jenis: 'p', teks: b.teks }; return gambarBlok({ i, offset: t ? t.a : 0 }); }
+    jadikanJenis(i, tujuan, t && t.p.r === undefined ? t.a : 0);
+  }
+  function bungkusPilihan(tanda) {
+    const t = titikKerja();
+    if (!t) return toast('Klik dulu teks yang ingin diformat.', true);
+    const lama = teksPosisi(t.p);
+    const L = tanda.length;
+    const { a, z } = t;
+    let baru, pa, pz;
+    if (a >= L && lama.slice(a - L, a) === tanda && lama.slice(z, z + L) === tanda) {
+      // Sudah bertanda: tandanya dilepas.
+      baru = lama.slice(0, a - L) + lama.slice(a, z) + lama.slice(z + L);
+      pa = a - L; pz = z - L;
+    } else {
+      const isi = lama.slice(a, z) || (tanda === '**' ? 'teks tebal' : 'teks miring');
+      baru = lama.slice(0, a) + tanda + isi + tanda + lama.slice(z);
+      pa = a + L; pz = a + L + isi.length;
+    }
+    catatRiwayatSekarang();
+    aturTeksPosisi(t.p, baru);
+    gambarBlok({ ...t.p, offset: pa, sampai: pz });
+  }
+  function sisipTautan() {
+    const t = titikKerja();
+    if (!t) return toast('Klik dulu di teks tempat tautan disisipkan.', true);
+    const alamat = I.tautanRapi(prompt('Alamat tautan, mis. https://docs.google.com/…', 'https://') || '');
+    if (!alamat) return fokusKe({ ...t.p, offset: t.a });
+    const lama = teksPosisi(t.p);
+    const sisip = `[${(lama.slice(t.a, t.z) || namaSitus(alamat)).replace(/[[\]]/g, '')}](${alamat})`;
+    catatRiwayatSekarang();
+    aturTeksPosisi(t.p, lama.slice(0, t.a) + sisip + lama.slice(t.z));
+    gambarBlok({ ...t.p, offset: t.a + sisip.length });
+  }
+  function centangBlok(tombol) {
+    const blok = tombol.closest('[data-i]');
+    const b = blok && ED.blok[Number(blok.dataset.i)];
+    if (!b || b.jenis !== 'todo') return;
+    catatRiwayatSekarang();
+    b.cek = !b.cek;
+    blok.classList.toggle('sudah', b.cek);
+    tombol.classList.toggle('sudah', b.cek);
+    tombol.setAttribute('aria-checked', String(b.cek));
+    tombol.innerHTML = b.cek ? ikon('centang', 12) : '';
+    selaraskan();
+  }
+  /* Klik di bawah blok terakhir: lanjut menulis di paragraf kosong paling bawah. */
+  function klikBawah() {
+    const akhir = ED.blok[ED.blok.length - 1];
+    if (akhir && akhir.jenis === 'p' && !akhir.teks) return fokusKe({ i: ED.blok.length - 1 });
+    catatRiwayatSekarang();
+    ED.blok.push({ jenis: 'p', teks: '' });
+    gambarBlok({ i: ED.blok.length - 1 });
+  }
+  function opTabel(op, tombol) {
+    const i = Number(tombol.closest('[data-i]').dataset.i);
+    const b = ED.blok[i];
+    if (!b || b.jenis !== 'tabel') return;
+    const aktif = elFokus();
+    const kini = aktif && aktif.classList.contains('ne-sel') ? posisiEl(aktif) : ED.fokus;
+    const f = kini && kini.i === i && kini.r !== undefined ? kini : { i, r: b.sel.length - 1, c: b.sel[0].length - 1 };
+    const kolom = b.sel[0].length;
+    if (op === 'hapus' || (op === 'hapus-baris' && b.sel.length <= 1) || (op === 'hapus-kolom' && kolom <= 1)) {
+      if (b.sel.some(r => r.some(x => String(x).trim())) && !confirm('Hapus tabel ini beserta isinya?')) return;
+      catatRiwayatSekarang();
+      ED.blok.splice(i, 1);
+      return gambarBlok(ED.blok.length ? { i: Math.max(0, i - 1), akhir: true } : { i: 0 });
+    }
+    catatRiwayatSekarang();
+    if (op === 'baris') { b.sel.splice(f.r + 1, 0, Array(kolom).fill('')); return gambarBlok({ i, r: f.r + 1, c: f.c }); }
+    if (op === 'kolom') {
+      if (kolom >= MAKS_KOLOM) return toast(`Tabel paling banyak ${MAKS_KOLOM} kolom.`, true);
+      b.sel.forEach(r => r.splice(f.c + 1, 0, ''));
+      return gambarBlok({ i, r: f.r, c: f.c + 1 });
+    }
+    if (op === 'hapus-baris') { b.sel.splice(f.r, 1); return gambarBlok({ i, r: Math.min(f.r, b.sel.length - 1), c: f.c }); }
+    if (op === 'hapus-kolom') { b.sel.forEach(r => r.splice(f.c, 1)); return gambarBlok({ i, r: f.r, c: Math.min(f.c, kolom - 2) }); }
+  }
+
+  /* --- Tempel --- */
+
+  /* Satu baris: disisipkan di kursor. Beberapa baris: dipecah jadi blok (daftar, checklist, judul
+     ikut dikenali). Sel dari spreadsheet (dipisah Tab): mengisi tabel mulai dari sel ini, atau
+     menjadi tabel baru di luar tabel. */
+  function tempelBlok(el, mentah) {
+    const teks = String(mentah || '').replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+    if (!teks) return;
+    const p = posisiEl(el);
+    const baris = teks.split('\n');
+    const grid = /\t/.test(teks) ? baris.map(l => l.split('\t').map(x => x.trim()).slice(0, MAKS_KOLOM)) : null;
+    if (p.r !== undefined && grid) {
+      catatRiwayatSekarang();
+      const b = ED.blok[p.i];
+      grid.slice(0, 200).forEach((isi, dr) => isi.forEach((x, dc) => {
+        const r = p.r + dr, c = p.c + dc;
+        if (c >= MAKS_KOLOM) return;
+        while (b.sel.length <= r) b.sel.push(Array(b.sel[0].length).fill(''));
+        if (c >= b.sel[0].length) b.sel.forEach(row => { while (row.length <= c) row.push(''); });
+        b.sel[r][c] = x;
+      }));
+      const akhir = grid[Math.min(grid.length, 200) - 1];
+      return gambarBlok({ i: p.i, r: p.r + Math.min(grid.length, 200) - 1, c: Math.min(MAKS_KOLOM - 1, p.c + akhir.length - 1), akhir: true });
+    }
+    if (baris.length === 1 || p.r !== undefined) {
+      document.execCommand('insertText', false, baris.join(' ').replace(/\t/g, ' '));
+      return;
+    }
+    catatRiwayatSekarang();
+    const b = ED.blok[p.i];
+    const [a, z] = rentangKursor(el);
+    const isi = bacaTeks(el);
+    const kiri = isi.slice(0, a), kanan = isi.slice(z);
+    const baru = grid && grid.length > 1
+      ? [{ jenis: 'tabel', kepala: true, sel: grid.map(r => r.concat(Array(Math.max(0, Math.max(...grid.map(x => x.length)) - r.length)).fill(''))) }]
+      : I.blokCatatan(teks);
+    const pertama = baru[0];
+    if (!kiri && b.jenis === 'p') ED.blok.splice(p.i, 1);       // paragraf kosong: digantikan isi tempelan
+    else if (pertama.jenis === 'tabel' || pertama.jenis === 'hr') b.teks = kiri;
+    else { b.teks = kiri + (pertama.teks || ''); baru.shift(); }
+    const awal = !kiri && b.jenis === 'p' ? p.i : p.i + 1;
+    ED.blok.splice(awal, 0, ...baru);
+    let akhir = baru.length ? awal + baru.length - 1 : p.i;
+    let offset;
+    const terakhir = ED.blok[akhir];
+    if (kanan && terakhir && terakhir.jenis !== 'tabel' && terakhir.jenis !== 'hr') {
+      offset = (terakhir.teks || '').length;
+      terakhir.teks = (terakhir.teks || '') + kanan;
+    } else if (kanan) {
+      ED.blok.splice(akhir + 1, 0, { jenis: 'p', teks: kanan });
+      akhir++;
+      offset = 0;
+    }
+    gambarBlok(offset === undefined ? { i: akhir, akhir: true } : { i: akhir, offset });
+  }
 
   /* ----- Menyimpan ----- */
 
@@ -3398,8 +4267,17 @@
       if (id === '__baru') {
         S.ctt.pilih = n.id;
         ed.dataset.catatan = n.id;
+        ED.id = n.id;
+        if (S.modal && S.modal.jenis === 'editor-catatan') S.modal.id = n.id;
         catatAlamat();
-        return gambarUlangEditor(true) || n;
+        // Blok-bloknya tak digambar ulang: kursor dan ketikan (juga di papan ketik ponsel) tetap utuh.
+        if (s) s.innerHTML = statusCatatan(n);
+        const aksi = $('#catatan-aksi');
+        if (aksi) aksi.innerHTML = aksiCatatan(n);
+        const daftarFolder = $('#folder-catatan');
+        if (daftarFolder && !$('.catatan-meta .ctt-warna')) daftarFolder.insertAdjacentHTML('afterend', warnaCatatanHtml(n));
+        segarkanDaftarCatatan();
+        return n;
       }
       if (s) s.innerHTML = statusCatatan(n);
       segarkanDaftarCatatan();
@@ -3421,17 +4299,19 @@
     const n = catatanAktif();
     if (!ed || !n) { render(); return null; }
     const aktif = tetapFokus && document.activeElement;
-    const posisi = aktif && 'selectionStart' in aktif ? [aktif.id, aktif.selectionStart, aktif.selectionEnd] : null;
+    const posisi = aktif && aktif.id && 'selectionStart' in aktif ? [aktif.id, aktif.selectionStart, aktif.selectionEnd] : null;
+    const blok = aktif && aktif === elFokus() ? { ...posisiEl(aktif), offset: rentangKursor(aktif)[0] } : null;
     ed.outerHTML = editorCatatan(n, folderSaya(catatanSaya()));
     segarkanDaftarCatatan();
     if (posisi) { const el = document.getElementById(posisi[0]); if (el) { el.focus(); el.setSelectionRange(posisi[1], posisi[2]); } }
+    else if (blok) fokusKe(blok);
     return n;
   }
 
-  /* ----- Membuka, membuat, berganti mode ----- */
+  /* ----- Membuka dan membuat ----- */
 
   function pilihAwal(n) {
-    Object.assign(S.ctt, { pilih: n.id, mode: String(n.body || '').trim() ? 'baca' : 'sunting', versiSesi: '' });
+    Object.assign(S.ctt, { pilih: n.id, versiSesi: '' });
   }
   function pilihCatatan(id) {
     simpanCatatanTertunda();
@@ -3452,14 +4332,16 @@
     bukaModal({ jenis: 'editor-catatan', id: n.id }, editorCatatan(n, folderSaya(catatanSaya())));
     $('#modal-panel').classList.add('panel-catatan');
     catatAlamat();
+    // Catatan baru: kursor di judul. Catatan lama dibuka untuk dibaca dulu (papan ketik ponsel tak muncul).
     setTimeout(() => {
-      const el = S.ctt.mode === 'sunting' ? (n.id === '__baru' ? $('#catatan-judul') : $('#catatan-isi')) : null;
-      if (el) el.focus(); else if (document.activeElement) document.activeElement.blur();
+      const judul = $('#catatan-judul');
+      if (n.id === '__baru' && judul) judul.focus();
+      else if (document.activeElement) document.activeElement.blur();
     }, 40);
   }
   function catatanBaru(folder = '') {
     simpanCatatanTertunda();
-    Object.assign(S.ctt, { pilih: '__baru', mode: 'sunting', folderBaru: folder, versiSesi: '' });
+    Object.assign(S.ctt, { pilih: '__baru', folderBaru: folder, versiSesi: '' });
     if (S.view === 'catatan' && modeKartu()) return bukaEditorJendela();
     if (S.view !== 'catatan') return pindahHalaman('catatan');
     render();
@@ -3473,65 +4355,22 @@
     pindahHalaman('catatan');
     if (n && modeKartu()) bukaEditorJendela();
   }
-  /* baris: masuk Sunting dengan kursor di ujung baris itu (-1 = paling akhir). */
-  function gantiModeCatatan(mode, baris = -1) {
-    simpanCatatanTertunda();
-    S.ctt.mode = mode === 'baca' ? 'baca' : 'sunting';
-    gambarUlangEditor();
-    if (S.ctt.mode !== 'sunting') return;
-    const ta = $('#catatan-isi');
-    if (!ta) return;
-    const b = ta.value.split('\n');
-    const i = baris < 0 || baris >= b.length ? b.length - 1 : baris;
-    const pos = b.slice(0, i + 1).join('\n').length;
-    ta.focus();
-    ta.setSelectionRange(pos, pos);
+
+  /* Satu blok catatan → form Tambah task yang sudah terisi. Sesudah task dibuat, nomornya
+     ditempel di ujung baris blok itu (lihat kirimModal 'tambah'). baris kosong = blok yang
+     sedang (atau terakhir) diketik. */
+  function barisFokus() {
+    const t = titikKerja();
+    if (!t || t.p.r !== undefined) return -1;
+    return I.teksBlokDanBaris(ED.blok).baris[t.p.i];
   }
-
-  /* ----- Toolbar Sunting ----- */
-
-  function formatSunting(jenis) {
-    const ta = $('#catatan-isi');
-    if (!ta || ta.hidden) return;
-    const v = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
-    const awal = v.lastIndexOf('\n', a - 1) + 1;
-    let akhir = v.indexOf('\n', b);
-    if (akhir < 0) akhir = v.length;
-    const prefiks = { judul: '# ', daftar: '- ', centang: '[ ] ' }[jenis];
-    if (prefiks) {
-      // Penanda baris: dipasang di semua baris terpilih, atau dicabut kalau semuanya sudah punya.
-      const blok = v.slice(awal, akhir).split('\n');
-      const lepas = blok.every(x => x.startsWith(prefiks));
-      const baru = blok.map(x => (lepas ? x.slice(prefiks.length) : prefiks + x.replace(/^(#{1,3}\s+|[-*]\s+|\[( |x|X)\] ?)/, ''))).join('\n');
-      ta.value = v.slice(0, awal) + baru + v.slice(akhir);
-      ta.setSelectionRange(awal + baru.length, awal + baru.length);
-    } else if (jenis === 'tebal' || jenis === 'miring') {
-      const tanda = jenis === 'tebal' ? '**' : '_';
-      const pilih = v.slice(a, b) || (jenis === 'tebal' ? 'teks tebal' : 'teks miring');
-      ta.value = v.slice(0, a) + tanda + pilih + tanda + v.slice(b);
-      ta.setSelectionRange(a + tanda.length, a + tanda.length + pilih.length);
-    } else if (jenis === 'tautan') {
-      const alamat = I.tautanRapi(prompt('Alamat tautan, mis. https://docs.google.com/…', 'https://') || '');
-      if (!alamat) return ta.focus();
-      const sisip = `[${(v.slice(a, b) || namaSitus(alamat)).replace(/[[\]]/g, '')}](${alamat})`;
-      ta.value = v.slice(0, a) + sisip + v.slice(b);
-      ta.setSelectionRange(a + sisip.length, a + sisip.length);
-    }
-    ta.focus();
-    catatanBerubah();
-  }
-  const barisKursor = ta => ta.value.slice(0, ta.selectionStart).split('\n').length - 1;
-
-  /* Satu baris catatan → form Tambah task yang sudah terisi. Sesudah task dibuat, nomornya
-     ditempel di ujung baris itu (lihat kirimModal 'tambah'). */
   function jadikanTask(baris) {
-    const ta = $('#catatan-isi');
-    if (baris === undefined || Number.isNaN(baris)) baris = ta && !ta.hidden ? barisKursor(ta) : -1;
+    if (baris === undefined || Number.isNaN(baris)) baris = barisFokus();
     simpanCatatanTertunda();
     const n = catatanAktif();
     if (!n || n.id === '__baru') return toast('Tulis dulu isinya; catatan baru tersimpan begitu ada teksnya.', true);
     const judul = I.teksBarisCatatan(n.body, baris);
-    if (!judul) return toast('Baris itu kosong. Taruh kursor di baris yang berisi teks.', true);
+    if (!judul) return toast('Blok itu kosong. Klik di blok yang berisi teks, lalu tekan Jadikan task.', true);
     if (!I.bolehBuatTask(S.me)) return toast('Pilih profil dulu.', true);
     bukaModal({ jenis: 'tambah', catatan: n.id, baris, keEditor: editorDiJendela() }, formTask(null, { judul, detail: `Dari catatan "${judulCatatan(n)}".` }));
   }
@@ -3548,6 +4387,8 @@
       isi: () => ({ title: 'Checklist QC · ', body: '[ ] Soal dan kunci jawaban cocok\n[ ] Gambar tampil di Web\n[ ] Gambar tampil di Android\n[ ] Pembahasan lengkap\n[ ] Show/hide sudah benar\n' }) },
     { nama: 'Catatan 1-on-1', ikon: 'obrolan', ket: 'Kabar, hambatan, dan tindak lanjut dengan Lead atau Manager.',
       isi: () => ({ title: `1-on-1 · ${hariPendek()}`, body: '# Kabar\n- \n\n# Hambatan\n- \n\n# Tindak lanjut\n[ ] ' }) },
+    { nama: 'Tabel rencana produksi', ikon: 'tabel', ket: 'Item, PIC, tenggat, dan status dalam satu tabel.',
+      isi: () => ({ title: `Rencana produksi · ${hariPendek()}`, body: '| Item | PIC | Tenggat | Status |\n| --- | --- | --- | --- |\n|  |  |  |  |\n|  |  |  |  |\n|  |  |  |  |\n\n# Catatan\n' }) },
   ];
   function formTemplat() {
     return `<div class="form-templat">
@@ -3565,18 +4406,15 @@
     const n = I.simpanCatatan(S.data, S.me, { title: isi.title, body: isi.body, folder: S.ctt.folderBaru || '' }, '', Date.now());
     simpanData();
     tutupModal();
-    Object.assign(S.ctt, { pilih: n.id, mode: 'sunting', versiSesi: '' });
+    Object.assign(S.ctt, { pilih: n.id, versiSesi: '' });
     if (S.view !== 'catatan') pindahHalaman('catatan'); else render();
     if (modeKartu()) bukaEditorJendela();
-    // Kursor di butir kosong pertama, siap diketik.
+    // Kursor di butir kosong pertama (atau sel pertama tabel), siap diketik.
     setTimeout(() => {
-      const ta = $('#catatan-isi');
-      if (!ta) return;
-      const m = /(^|\n)(- |\[ \] )(?=\n|$)/.exec(ta.value);
-      const pos = m ? m.index + m[0].length : ta.value.length;
-      ta.focus();
-      ta.setSelectionRange(pos, pos);
-    }, 60);
+      const i = ED.blok.findIndex(b => (['li', 'ol', 'todo'].includes(b.jenis) && !b.teks.trim()) || b.jenis === 'tabel');
+      const b = ED.blok[i];
+      fokusKe(i < 0 ? { i: ED.blok.length - 1, akhir: true } : b.jenis === 'tabel' ? { i, r: Math.min(1, b.sel.length - 1), c: 0 } : { i });
+    }, 80);
     toast(`${t.nama} dibuat.`);
   }
 
@@ -4093,7 +4931,7 @@
     const sama = !x.versi || !vb || x.versi === vb;
     const sp = x.spreadsheet || {};
     const tab = (x.tab || []).slice().sort((a, b) => a.nama.localeCompare(b.nama));
-    const milikApp = ['obrolan', 'foto', 'orang'];
+    const milikApp = ['obrolan', 'foto', 'orang', 'master', 'pin'];
     return `<dl class="dev-daftar">
         <dt>Lingkungan</dt><dd>${esc(x.lingkungan || '—')}${x.wilayah ? ' · ' + esc(x.wilayah) : ''}</dd>
         <dt>Versi</dt><dd>server ${esc(x.versi || '?')} · browser ${esc(vb || '?')} ${sama ? '<span class="chip-ok">sama</span>' : '<span class="chip-beda">beda: muat ulang dengan Ctrl+Shift+R</span>'}</dd>
@@ -4149,6 +4987,8 @@
       } : null,
       browser: { dataContoh: S.versi, task: S.data.tasks.length, peristiwa: S.obr.peristiwa.length, gagalTarik: S.obr.gagal, penyimpanan: ukuranPenyimpanan().slice(0, 8) },
       organogram: S.orangSalah || 'utuh',
+      master: Object.keys(S.masterSalah).length ? S.masterSalah : 'utuh',
+      profilBerpin: S.berpin.size,
       galat: GALAT,
     }, null, 2);
   }
@@ -4269,6 +5109,309 @@
     pasangGayaFoto();
     segarkanDev();
     toast(`Foto ${I.orang(id).pendek} dihapus.`);
+  }
+
+  /* ---------- Master (0.14.0) ----------
+     Daftar pilihan bersama — sub-stage, kategori paket & alurnya, platform, satuan, label
+     prioritas, capaian, nama tim — dan PIN tiap profil. Hanya Manager dan Dev. Tersimpan di tab
+     master dan tab pin spreadsheet v2 dan berlaku bagi semua orang saat aplikasi dimuat ulang;
+     aturannya (apa yang sah) di Inti. Yang sudah dipakai data tak dihapus, hanya dinonaktifkan:
+     tak ditawarkan lagi, tapi data lamanya tetap terbaca. */
+
+  const TAB_MASTER = [['substage', 'Sub-stage', 'lapis'], ['kategori', 'Kategori paket', 'kotak'], ['pilihan', 'Platform & satuan', 'daftar'],
+    ['label', 'Label & bobot', 'sunting'], ['pin', 'PIN profil', 'gembok']];
+  const NAMA_MASTER = { substage: 'Sub-stage', kategori: 'Kategori paket', platform: 'Platform', satuan: 'Satuan', prioritas: 'Prioritas', capaian: 'Capaian', tim: 'Nama tim' };
+  const managerBerpin = () => I.ORANG.some(o => o.peran === 'manager' && S.berpin.has(o.id));
+  const awalanKode = tahap => (tahap === 'V' ? 'DV' : tahap);
+
+  function viewMaster() {
+    const tab = TAB_MASTER.some(([id]) => id === S.mst.tab) ? S.mst.tab : 'substage';
+    const isi = { substage: mstSub, kategori: mstKategori, pilihan: mstPilihan, label: mstLabel, pin: mstPin }[tab];
+    return `<div class="judul-halaman"><div><h1>Master</h1><p>Daftar pilihan yang dipakai semua orang · tersimpan di spreadsheet v2, berlaku saat aplikasi dimuat ulang</p></div></div>
+      ${managerBerpin() ? '' : `<p class="banner kuning mst-banner">${ikon('gembok', 16)}<span>Master dan PIN masih terbuka: siapa pun yang memilih profil Manager bisa mengubahnya. Pasang PIN Manager di bagian <b>PIN profil</b>.</span></p>`}
+      ${Object.entries(S.masterSalah || {}).map(([j, alasan]) => `<p class="banner kuning mst-banner"><span>${esc(NAMA_MASTER[j] || j)} di tab master diabaikan, kembali ke bawaan: ${esc(alasan)} Simpan ulang isiannya dari sini untuk membetulkannya.</span></p>`).join('')}
+      <div class="segmen dev-tab mst-tab" role="group" aria-label="Bagian Master">${TAB_MASTER.map(([id, l, ik]) => `<button type="button" data-aksi="mst-tab" data-nilai="${id}" aria-pressed="${tab === id}">${ikon(ik, 16)}<span>${l}</span></button>`).join('')}</div>
+      <div id="mst-isi">${isi()}</div>`;
+  }
+
+  /* Satu isian → server → semua daftar hidup diperbarui. form = tempat galatnya ditampilkan. */
+  async function simpanMaster(jenis, isian, form) {
+    try { I.periksaMaster(jenis, isian, S.masterBaris); } catch (err) { return gagalMaster(err.message, form); }
+    const tombol = form && form.querySelector('button:not([type="button"])');
+    if (tombol) tombol.disabled = true;
+    const h = await api('simpanMaster', [jenis, isian]);
+    if (tombol) tombol.disabled = false;
+    if (!h.success || !Array.isArray(h.master)) return gagalMaster(h.message || 'Gagal menyimpan.', form);
+    S.masterBaris = h.master;
+    S.masterSalah = I.aturMaster(S.masterBaris);
+    return true;
+  }
+  function gagalMaster(pesan, form) {
+    if (form && form.closest('#modal-panel')) galatModal(pesan); else toast(pesan, true);
+    return false;
+  }
+  const urutanBerikut = jenis => Math.max(0, ...I.daftarMaster(jenis).map(x => Number(x.urutan) || 0).filter(n => n < 999)) + 1;
+  const tombolUrut = (jenis, kunci, i, n) => [[-1, 'naik', 'Naikkan'], [1, 'turun', 'Turunkan']].map(([arah, ik, label]) =>
+    `<button type="button" class="ikon-tombol mst-urut" data-aksi="mst-urut" data-jenis="${jenis}" data-kunci="${esc(kunci)}" data-arah="${arah}" ${(arah < 0 ? i > 0 : i < n - 1) ? '' : 'disabled'} aria-label="${label} ${esc(kunci)}">${ikon(ik, 16)}</button>`).join('');
+  /* Pindah satu tempat: urutan barunya di antara dua tetangga di tujuan, jadi cukup satu baris berubah. */
+  async function urutMaster(jenis, kunci, arah) {
+    const daftar = I.daftarMaster(jenis);
+    const i = daftar.findIndex(x => x.kunci === kunci);
+    const j = i + arah;
+    if (i < 0 || j < 0 || j >= daftar.length) return;
+    const u = x => Number(x.urutan) || 999;
+    const [a, b] = arah < 0 ? [daftar[j - 1], daftar[j]] : [daftar[j], daftar[j + 1]];
+    const urutan = !a ? u(b) / 2 : !b ? u(a) + 1 : (u(a) + u(b)) / 2;
+    if (await simpanMaster(jenis, { kunci, urutan }, null)) render();
+  }
+  async function aktifkanMaster(jenis, kunci, aktif) {
+    if (!await simpanMaster(jenis, { kunci, aktif }, null)) return;
+    render();
+    toast(aktif ? `${kunci} aktif lagi.` : `${kunci} dinonaktifkan: tak ditawarkan lagi, data lamanya tetap terbaca.`);
+  }
+
+  /* --- Sub-stage --- */
+  function mstSub() {
+    const semua = I.daftarMaster('substage');
+    const nTask = new Map();
+    for (const t of S.data.tasks) if (t.sub) nTask.set(t.sub, (nTask.get(t.sub) || 0) + 1);
+    const alur = new Map();
+    for (const k of I.daftarMaster('kategori').filter(x => x.aktif)) {
+      for (const l of k.alur) { const kode = l.split(':')[0]; alur.set(kode, new Set([...(alur.get(kode) || []), k.label])); }
+    }
+    const nonaktif = semua.filter(s => !s.aktif).length;
+    const baris = s => {
+      const tim = s.tim ? I.TIM[s.tim] : null;
+      const pakai = [nTask.get(s.kunci) ? `${nTask.get(s.kunci)} task` : '', alur.has(s.kunci) ? 'alur ' + [...alur.get(s.kunci)].join(', ') : ''].filter(Boolean).join(' · ');
+      return `<tr class="${s.aktif ? '' : 'nonaktif'}">
+        <td><span class="${I.tahapDariKode(s.kunci) === 'R' ? 'chip-rutin' : 'chip-sub'}">${esc(s.kunci)}</span></td>
+        <td>${esc(s.nama)}${pakai ? `<small class="mst-pakai">${esc(pakai)}</small>` : ''}</td>
+        <td>${tim ? esc(`${tim.kode} · ${tim.nama}`) : '<span class="hint">tim pemilik output</span>'}</td>
+        <td>${s.reviewManager ? 'Ya' : '—'}</td>
+        <td>${s.aktif ? '<span class="chip-status hidup">Aktif</span>' : '<span class="chip-status mati">Nonaktif</span>'}</td>
+        <td><button type="button" class="tombol kecil" data-aksi="mst-sub-ubah" data-kunci="${esc(s.kunci)}">${ikon('sunting', 14)} Ubah</button></td></tr>`;
+    };
+    const grup = [...I.TAHAP.map(t => [t.id, `${awalanKode(t.id)} · ${t.nama}`]), ['R', 'R · Rutin, di luar proyek']];
+    return `<div class="dev-alat"><p class="hint">Kode sub-stage menentukan tahap ADDIE task, tim pemiliknya (Lead tim itu menerima task-nya di antrean), dan apakah task-nya direview Manager. ${semua.length} sub-stage${nonaktif ? `, ${nonaktif} nonaktif` : ''}. Yang nonaktif tak ditawarkan untuk task baru; task lamanya tetap terbaca.</p>
+        <button type="button" class="tombol utama" data-aksi="mst-sub-baru">${ikon('tambah', 16)} Tambah sub-stage</button></div>
+      <div class="tabel-gulir"><table class="tabel dev-tabel mst-tabel"><thead><tr><th>Kode</th><th>Nama</th><th>Tim pemilik</th><th>Review Manager</th><th>Status</th><th></th></tr></thead>
+        <tbody>${grup.map(([id, judul]) => {
+          const isi = semua.filter(s => I.tahapDariKode(s.kunci) === id);
+          return isi.length ? `<tr class="baris-grup"><td colspan="6">${esc(judul)}</td></tr>${isi.map(baris).join('')}` : '';
+        }).join('')}</tbody></table></div>`;
+  }
+  function kodeSubBerikut(tahap) {
+    const awal = awalanKode(tahap);
+    const ada = new Set(I.daftarMaster('substage').map(s => s.kunci));
+    for (let n = 1; n < 100; n++) if (!ada.has(awal + n)) return awal + n;
+    return '';
+  }
+  function formMasterSub(s) {
+    const x = s || { kunci: '', nama: '', tim: '', reviewManager: false, aktif: true };
+    const tahap = s ? I.tahapDariKode(s.kunci) : 'V';
+    const opsiTahap = [...I.TAHAP.map(t => [t.id, `${awalanKode(t.id)} · ${t.nama}`]), ['R', 'R · Rutin']];
+    return `<form data-form="mst-sub" novalidate>
+      <h2>${s ? `Ubah ${esc(s.kunci)}` : 'Tambah sub-stage'}</h2>
+      ${s ? `<p class="hint">Kode <code>${esc(s.kunci)}</code> tetap: dipakai task yang sudah ada.</p>`
+    : `<div class="dua-isian"><label class="isian">Tahap<select name="tahap">${opsiHtml(opsiTahap, tahap)}</select></label>
+          <label class="isian">Kode<input name="kunci" value="${esc(kodeSubBerikut(tahap))}" maxlength="4" autocomplete="off" required><small>Terisi sendiri: nomor berikutnya di tahap itu.</small></label></div>`}
+      <label class="isian">Nama<input name="nama" value="${esc(x.nama)}" maxlength="80" required></label>
+      <label class="isian">Tim pemilik<select name="tim">${opsiHtml([['', '— tim pemilik output yang dikerjakan —'], ...Object.values(I.TIM).map(t => [t.kode, `${t.kode} · ${t.nama}`])], x.tim || '')}</select>
+        <small>Lead tim ini menerima task-nya di antrean untuk didelegasikan. Kosong: dipegang tim pemilik output yang dikerjakan, mis. revisi.</small></label>
+      <label class="dev-cek" data-bagian-sub="review" ${tahap === 'R' ? 'hidden' : ''}><input type="checkbox" name="reviewManager" ${x.reviewManager ? 'checked' : ''}> Direview Manager sebelum selesai</label>
+      ${s ? `<label class="dev-cek"><input type="checkbox" name="aktif" ${x.aktif ? 'checked' : ''}> Aktif — ditawarkan untuk task baru</label>` : ''}
+      ${kakiModal(s ? 'Simpan' : 'Tambah')}
+    </form>`;
+  }
+  async function kirimMasterSub(form) {
+    const lama = S.modal && S.modal.kunci ? I.daftarMaster('substage').find(s => s.kunci === S.modal.kunci) : null;
+    const el = n => form.elements.namedItem(n);
+    const isian = {
+      ...(lama ? { kunci: lama.kunci, aktif: el('aktif').checked } : { baru: true, kunci: el('kunci').value }),
+      nama: el('nama').value, tim: el('tim').value, reviewManager: el('reviewManager').checked,
+    };
+    if (!await simpanMaster('substage', isian, form)) return;
+    tutupModal();
+    render();
+    toast(`${lama ? lama.kunci + ' disimpan' : String(isian.kunci).trim().toUpperCase() + ' ditambahkan'}. Orang lain melihatnya saat membuka aplikasi lagi.`);
+  }
+
+  /* --- Kategori paket & alurnya --- */
+  function mstKategori() {
+    const semua = I.daftarMaster('kategori');
+    const nItem = new Map();
+    for (const p of S.data.packages) for (const i of p.items) nItem.set(i.kategori, (nItem.get(i.kategori) || 0) + 1);
+    return `<div class="dev-alat"><p class="hint">Kategori item rancangan paket, urutannya di paket, dan alur langkahnya saat dielaborasi jadi proyek. Langkah bertanda capaian menaikkan progres paket.</p>
+        <button type="button" class="tombol utama" data-aksi="mst-kat-baru">${ikon('tambah', 16)} Tambah kategori</button></div>
+      <div class="mst-kategori">${semua.map((k, i) => `<section class="kartu-polos mst-kat ${k.aktif ? '' : 'nonaktif'}">
+          <div class="mst-kat-kepala"><h2>${esc(k.label)}</h2>${k.aktif ? '' : '<span class="chip-status mati">Nonaktif</span>'}
+            <span class="dev-aksi-baris">${tombolUrut('kategori', k.kunci, i, semua.length)}
+              <button type="button" class="tombol kecil" data-aksi="mst-kat-ubah" data-kunci="${esc(k.kunci)}">${ikon('sunting', 14)} Ubah</button></span></div>
+          <p class="hint">${nItem.get(k.label) ? `${nItem.get(k.label)} item paket` : 'Belum dipakai paket'} · ${k.alur.length} langkah</p>
+          <ol class="mst-alur">${k.alur.map(l => {
+            const [kode, cap] = l.split(':');
+            const s = I.subTahap(kode);
+            return `<li title="${esc(s ? s.nama : kode)}"><b>${esc(kode)}</b>${cap ? `<span class="mst-capaian">${esc(I.namaCapaian(cap))}</span>` : ''}</li>`;
+          }).join('')}</ol>
+        </section>`).join('')}</div>`;
+  }
+  function opsiLangkah(terpilih) {
+    return '<option value="">— pilih sub-stage —</option>' + I.TAHAP.map(t => {
+      const isi = I.SUB_TAHAP.filter(s => s.tahap === t.id && (s.aktif !== false || s.kode === terpilih));
+      return isi.length ? `<optgroup label="${esc(t.nama)}">${isi.map(s => `<option value="${s.kode}" ${s.kode === terpilih ? 'selected' : ''}>${s.kode} · ${esc(s.nama)}</option>`).join('')}</optgroup>` : '';
+    }).join('');
+  }
+  function barisLangkah(l = '') {
+    const [kode = '', cap = ''] = String(l).split(':');
+    return `<li class="mst-langkah" data-langkah>
+      <select class="input" name="l-kode" aria-label="Sub-stage langkah">${opsiLangkah(kode)}</select>
+      <select class="input" name="l-capaian" aria-label="Capaian langkah">${opsiHtml([['', 'Tanpa capaian'], ...I.CAPAIAN.map(c => [c.kode, `${c.nama} · ${Math.round(c.bobot * 100)}%`])], cap)}</select>
+      <span class="mst-langkah-aksi"><button type="button" class="ikon-tombol" data-aksi="mst-langkah-naik" aria-label="Naikkan langkah">${ikon('naik', 16)}</button><button type="button" class="ikon-tombol" data-aksi="mst-langkah-hapus" aria-label="Hapus langkah">${ikon('hapus', 16)}</button></span>
+    </li>`;
+  }
+  function formMasterKategori(k) {
+    const alur = k ? k.alur : ['DV1', 'E1:konten', 'DV8:input', 'E6:qc', 'I4:tayang'];
+    return `<form data-form="mst-kat" class="form-mst-kat" novalidate>
+      <h2>${k ? `Ubah ${esc(k.label)}` : 'Tambah kategori'}</h2>
+      ${k ? '<p class="hint">Nama kategori tetap: item paket merujuk ke nama ini.</p>'
+    : '<label class="isian">Nama kategori<input name="label" maxlength="40" required placeholder="mis. Bank Soal"></label>'}
+      <div class="isian"><span>Alur langkah</span>
+        <ol class="mst-langkah-daftar">${alur.map(barisLangkah).join('')}</ol>
+        <button type="button" class="tombol kecil mst-langkah-tambah" data-aksi="mst-langkah-tambah">${ikon('tambah', 14)} Tambah langkah</button>
+        <small>Urut dari atas. Capaian menandai langkah yang menaikkan progres paket: urutannya ${I.CAPAIAN.map(c => esc(c.nama)).join(' → ')}, masing-masing sekali, dan langkah ${esc(I.namaCapaian('tayang'))} wajib ada.</small></div>
+      ${k ? `<label class="dev-cek"><input type="checkbox" name="aktif" ${k.aktif ? 'checked' : ''}> Aktif — ditawarkan untuk item paket baru</label>` : ''}
+      ${kakiModal(k ? 'Simpan' : 'Tambah')}
+    </form>`;
+  }
+  async function kirimMasterKategori(form) {
+    const lama = S.modal && S.modal.kunci ? I.daftarMaster('kategori').find(k => k.kunci === S.modal.kunci) : null;
+    const alur = $$('[data-langkah]', form).map(li => {
+      const kode = $('[name="l-kode"]', li).value;
+      const cap = $('[name="l-capaian"]', li).value;
+      return kode ? (cap ? `${kode}:${cap}` : kode) : '';
+    });
+    if (!alur.length || alur.some(l => !l)) return galatModal('Pilih sub-stage untuk setiap langkah, atau hapus langkah yang kosong.');
+    const isian = lama ? { kunci: lama.kunci, alur, aktif: form.elements.namedItem('aktif').checked }
+      : { baru: true, label: form.elements.namedItem('label').value, alur, urutan: urutanBerikut('kategori') };
+    if (!await simpanMaster('kategori', isian, form)) return;
+    tutupModal();
+    render();
+    toast(`Kategori ${lama ? lama.label + ' disimpan' : String(isian.label).trim() + ' ditambahkan'}. Orang lain melihatnya saat membuka aplikasi lagi.`);
+  }
+
+  /* --- Platform & satuan --- */
+  function mstPilihan() {
+    const kartu = (jenis, judul, ket, contoh, maks) => {
+      const semua = I.daftarMaster(jenis);
+      return `<section class="kartu-polos dev-kartu"><h2>${judul}</h2><p class="hint">${ket}</p>
+        <ul class="mst-daftar">${semua.map((x, i) => `<li class="${x.aktif ? '' : 'nonaktif'}">
+            <span class="mst-nama">${esc(x.kunci)}</span>${x.aktif ? '' : '<span class="chip-status mati">Nonaktif</span>'}
+            <span class="dev-aksi-baris">${tombolUrut(jenis, x.kunci, i, semua.length)}
+              <button type="button" class="tombol kecil" data-aksi="mst-aktif" data-jenis="${jenis}" data-kunci="${esc(x.kunci)}" data-nilai="${x.aktif ? '0' : '1'}">${x.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button></span></li>`).join('')}</ul>
+        <form class="mst-tambah" data-form="mst-tambah" data-jenis="${jenis}" novalidate>
+          <input class="input" name="kunci" maxlength="${maks}" placeholder="${esc(contoh)}" aria-label="${esc(judul)} baru" autocomplete="off">
+          <button class="tombol">${ikon('tambah', 16)} Tambah</button></form>
+      </section>`;
+    };
+    return `<div class="dev-grid">
+        ${kartu('platform', 'Platform', 'Pilihan platform untuk proyek dan rancangan paket. Namanya tersimpan di data, jadi tak bisa diganti; yang tak dipakai lagi dinonaktifkan.', 'Platform baru, mis. SNBT', 40)}
+        ${kartu('satuan', 'Satuan target', 'Satuan target item paket, mis. Paket, BAB, Video.', 'Satuan baru, mis. Modul', 20)}
+      </div>`;
+  }
+  async function kirimMasterTambah(form) {
+    const jenis = form.dataset.jenis;
+    const kunci = form.elements.namedItem('kunci').value.replace(/\s+/g, ' ').trim();
+    if (!kunci) return toast(`Isi nama ${jenis} barunya dulu.`, true);
+    if (!await simpanMaster(jenis, { baru: true, kunci, urutan: urutanBerikut(jenis) }, form)) return;
+    render();
+    toast(`${kunci} ditambahkan. Orang lain melihatnya saat membuka aplikasi lagi.`);
+  }
+
+  /* --- Label & bobot --- */
+  function mstLabel() {
+    const baris = (jenis, kunci, isi) => `<form class="mst-baris" data-form="mst-label" data-jenis="${jenis}" data-kunci="${esc(kunci)}" novalidate>${isi}<button class="tombol kecil">Simpan</button></form>`;
+    return `<div class="dev-grid">
+      <section class="kartu-polos dev-kartu"><h2>Label prioritas</h2><p class="hint">Tingkatnya tetap empat (dipakai mengurutkan); labelnya yang tampil di task.</p>
+        ${I.daftarMaster('prioritas').map(p => baris('prioritas', p.kunci, `<span class="mst-kunci">${esc(p.kunci)}</span><input class="input" name="label" value="${esc(p.label)}" maxlength="20" aria-label="Label prioritas ${esc(p.kunci)}">`)).join('')}
+      </section>
+      <section class="kartu-polos dev-kartu"><h2>Nama tim</h2><p class="hint">Kodenya tetap. Lead tiap tim diatur lewat mode Dev (Pengguna).</p>
+        ${I.daftarMaster('tim').map(t => baris('tim', t.kunci, `<span class="mst-kunci">${esc(t.kunci)}</span><input class="input" name="nama" value="${esc(t.nama)}" maxlength="40" aria-label="Nama tim ${esc(t.kunci)}">`)).join('')}
+      </section>
+      <section class="kartu-polos dev-kartu dev-lebar"><h2>Capaian & bobot progres paket</h2>
+        <p class="hint">Bobot naik berurutan dan ${esc(I.namaCapaian('tayang'))} selalu 100%. Menaikkan bobot: simpan dari bawah (QC) ke atas; menurunkan: dari atas.</p>
+        ${I.daftarMaster('capaian').map(c => baris('capaian', c.kunci, `<span class="mst-kunci">${esc(c.kunci)}</span><input class="input" name="nama" value="${esc(c.nama)}" maxlength="30" aria-label="Nama capaian ${esc(c.kunci)}">
+          <label class="mst-bobot"><input class="input angka" name="bobot" value="${esc(c.bobot)}" inputmode="numeric" maxlength="3" ${c.kunci === 'tayang' ? 'readonly' : ''} aria-label="Bobot ${esc(c.kunci)} (%)"><span>%</span></label>`)).join('')}
+      </section>
+    </div>`;
+  }
+  async function kirimMasterLabel(form) {
+    const isian = { kunci: form.dataset.kunci, ...Object.fromEntries(new FormData(form).entries()) };
+    if (!await simpanMaster(form.dataset.jenis, isian, form)) return;
+    render();
+    toast('Disimpan. Orang lain melihatnya saat membuka aplikasi lagi.');
+  }
+
+  /* --- PIN profil --- */
+  function mstPin() {
+    const baris = o => {
+      const ada = S.berpin.has(o.id);
+      return `<tr>
+        <td><span class="dev-orang">${avatar(o.id)}<span><strong>${esc(o.nama)}</strong><small>${esc(I.PERAN[o.peran])}${o.jabatan ? ' · ' + esc(o.jabatan) : ''}</small></span></span></td>
+        <td>${ada ? `<span class="chip-status hidup">${ikon('gembok', 12)} Ber-PIN</span>` : '<span class="chip-status mati">Tanpa PIN</span>'}</td>
+        <td><span class="dev-aksi-baris">
+          <button type="button" class="tombol kecil" data-aksi="mst-pin-atur" data-id="${esc(o.id)}">${ada ? 'Ganti PIN' : 'Pasang PIN'}</button>
+          ${ada ? `<button type="button" class="tombol kecil bahaya" data-aksi="mst-pin-hapus" data-id="${esc(o.id)}">Hapus</button>` : ''}
+        </span></td></tr>`;
+    };
+    return `<div class="dev-alat"><p class="hint">PIN profil (4–8 angka) diminta saat memilih profil itu. Orang lain yang tahu PIN aplikasi tak bisa masuk sebagai dia, menulis pesan atas namanya, atau mengganti fotonya. PIN disimpan sebagai sidik (hash) di tab <b>pin</b>; tak ada yang bisa membacanya, termasuk Dev. Lupa PIN? Pasang PIN baru di sini.</p></div>
+      <div class="tabel-gulir"><table class="tabel dev-tabel"><thead><tr><th>Profil</th><th>PIN</th><th></th></tr></thead>
+        <tbody>${['manager', 'lead', 'staff'].map(p => I.ORANG.filter(o => o.peran === p).map(baris).join('')).join('')}</tbody></table></div>`;
+  }
+  function formPin(id) {
+    const o = I.orang(id);
+    return `<form data-form="mst-pin" novalidate>
+      <h2 class="judul-ikon">${ikon('gembok', 20)} PIN ${esc(o.pendek)}</h2>
+      <p class="hint">${id === S.me ? 'Ini profil Anda sendiri: sesi ini langsung memakai PIN barunya.' : `Sampaikan PIN barunya langsung ke ${esc(o.pendek)}, jangan lewat pesan di aplikasi.`}</p>
+      <div class="dua-isian">
+        <label class="isian">PIN baru<input name="pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" required></label>
+        <label class="isian">Ulangi PIN<input name="ulang" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" required></label>
+      </div>
+      <p class="hint">4–8 angka.${o.peran === 'manager' && !managerBerpin() ? ' Begitu PIN Manager terpasang, Master dan PIN hanya bisa diubah Manager (dengan PIN-nya) dan Dev.' : ''}</p>
+      ${kakiModal('Simpan PIN')}
+    </form>`;
+  }
+  /* pin '' = hapus. PIN profil sendiri berganti: sesi ini dibuktikan ulang dengan PIN barunya. */
+  async function aturPin(id, pin, form) {
+    const h = await api('aturPin', [id, pin]);
+    if (!h.success || !Array.isArray(h.berpin)) return gagalMaster(h.message || 'PIN gagal disimpan.', form);
+    S.berpin = new Set(h.berpin);
+    if (id === S.me) {
+      const m = await api('masukProfil', [id, pin]);
+      if (m.success) S.meSesi = m.me || id;
+    }
+    return true;
+  }
+  async function kirimFormPin(form) {
+    const pin = form.elements.namedItem('pin').value.trim();
+    if (!/^\d{4,8}$/.test(pin)) return galatModal('PIN 4–8 angka.');
+    if (pin !== form.elements.namedItem('ulang').value.trim()) return galatModal('Kedua PIN tidak sama.');
+    const id = S.modal.id;
+    const tombol = form.querySelector('.tombol.utama');
+    tombol.disabled = true;
+    const ok = await aturPin(id, pin, form);
+    tombol.disabled = false;
+    if (!ok) return;
+    tutupModal();
+    render();
+    toast(`PIN ${I.orang(id).pendek} disimpan.`);
+  }
+  async function hapusPin(id) {
+    const o = I.orang(id);
+    const manager = o.peran === 'manager';
+    if (!confirm(`Hapus PIN ${o.pendek}? Profilnya bisa dipilih tanpa PIN lagi.${manager ? '\n\nIni PIN Manager: Master dan PIN jadi terbuka lagi bagi siapa pun yang memilih profil Manager.' : ''}`)) return;
+    if (!await aturPin(id, '', null)) return;
+    render();
+    toast(`PIN ${o.pendek} dihapus.`);
   }
 
   /* ---------- Riwayat Aktivitas ---------- */
@@ -4423,8 +5566,15 @@
     const c = P.cariContoh(id, S.data, I, hariIni(), S.me);
     if (!c) return toast('Contohnya sudah terpakai di data ini. Tekan Reset data contoh di kaki sidebar untuk mengembalikannya.', true);
     if (!bolehTinggalkanPaket()) return;
-    const ganti = !!c.profil && c.profil !== S.me;
-    if (ganti) { S.me = c.profil; simpan('me', S.me); S.kom.pilih = null; }
+    // Profil ber-PIN (0.14.0) tak dipinjam lewat panduan: contohnya dibuka sebagai profil sendiri.
+    const terkunci = !!c.profil && c.profil !== S.me && S.berpin.has(c.profil) && S.meSesi !== c.profil;
+    const ganti = !!c.profil && c.profil !== S.me && !terkunci;
+    if (ganti) {
+      S.me = c.profil;
+      simpan('me', S.me);
+      S.kom.pilih = null;
+      api('masukProfil', [S.me, '']).then(h => { if (h.success) S.meSesi = h.me || c.profil; });
+    }
     simpan('kenal_' + S.me, 1);
     // Di ponsel kotak langkah mulai ringkas: kalau terbuka, ia menutupi laci detail tempat orang mencoba.
     Object.assign(S, { view: c.view, pilih: c.task || null, proyek: c.proyek || null, navBuka: false, pemandu: id, pemanduKecil: hp() });
@@ -4440,7 +5590,8 @@
     window.scrollTo(0, 0);
     const o = I.orang(S.me);
     const arah = hp() ? 'Langkahnya ada di kotak panduan di bawah; ketuk untuk membukanya.' : 'Ikuti kotak langkah di bawah.';
-    toast(ganti ? `Sekarang sebagai ${o.pendek} (${I.PERAN[o.peran]}). ${arah} Profil lain bisa dipilih lagi lewat Ganti profil.` : arah);
+    toast(ganti ? `Sekarang sebagai ${o.pendek} (${I.PERAN[o.peran]}). ${arah} Profil lain bisa dipilih lagi lewat Ganti profil.`
+      : terkunci ? `Contoh ini milik ${I.orang(c.profil).pendek}, yang memakai PIN; Anda tetap sebagai ${o.pendek}. ${arah}` : arah);
   }
 
   /* Kotak langkah selama mencoba; tak tampil di halaman Panduan sendiri. */
@@ -4460,9 +5611,7 @@
   }
 
   /* ---------- Modal & formulir ---------- */
-
-  const PLATFORM = ['ASN', 'Sekdin', 'TPA', 'PPPK', 'PPG', 'BUMN', 'OJK', 'PCPM', 'Psikotes Kerja', 'Cerebrum', 'Polisi', 'Prajurit', 'TOEFL', 'Beasiswa', 'All Platform'];
-  const PRIORITAS = [['Normal', 'Normal'], ['High', 'Penting'], ['Urgent', 'Mendesak'], ['Low', 'Rendah']];
+  /* Platform, prioritas, kategori, satuan, dan sub-stage diambil dari Inti, yang mengikuti Master. */
 
   function bukaModal(konteks, html) {
     S.modal = konteks;
@@ -4496,19 +5645,21 @@
 
   /* ----- Form task: sub-stage menentukan tahap, tim pemilik, dan siapa yang boleh jadi PIC ----- */
 
-  /* Pilihan sub-stage. Task proyek: kode ADDIE per tahap. Di luar proyek: R1–R4; kode ADDIE
+  /* Pilihan sub-stage. Task proyek: kode ADDIE per tahap. Di luar proyek: kode R; kode ADDIE
      task "lepas" warisan v1 tetap ditawarkan supaya tak hilang saat task diubah. */
-  function opsiSub(jenis, terpilih) {
+  /* baru = form task baru: tanpa pilihan bawaan, sub-stage wajib dipilih sendiri (0.14.0). */
+  function opsiSub(jenis, terpilih, baru = false) {
     const grup = (label, daftar) => `<optgroup label="${esc(label)}">${daftar.map(s =>
       `<option value="${s.kode}" ${s.kode === terpilih ? 'selected' : ''}>${s.kode} · ${esc(s.nama)}${s.tim ? ' (' + s.tim + ')' : ''}</option>`).join('')}</optgroup>`;
+    const tampil = s => s.aktif !== false || s.kode === terpilih;
     if (jenis === 'proyek') {
       const boleh = s => s.kode === terpilih || I.subBolehBagi(S.me, s.kode);
       return (I.subTahap(terpilih) ? '' : '<option value="" selected disabled>— pilih sub-stage —</option>')
-        + I.TAHAP.map(x => { const isi = I.SUB_TAHAP.filter(s => s.tahap === x.id && boleh(s)); return isi.length ? grup(x.nama, isi) : ''; }).join('');
+        + I.TAHAP.map(x => { const isi = I.SUB_TAHAP.filter(s => s.tahap === x.id && boleh(s) && tampil(s)); return isi.length ? grup(x.nama, isi) : ''; }).join('');
     }
     const lama = I.subTahap(terpilih);
-    return (terpilih ? '' : '<option value="" selected>— belum ber-sub-stage —</option>')
-      + grup('Rutin', I.SUB_TAHAP.filter(s => s.tahap === 'R'))
+    return (terpilih ? '' : baru ? '<option value="" selected disabled>— pilih jenis rutin —</option>' : '<option value="" selected>— belum ber-sub-stage —</option>')
+      + grup('Rutin', I.SUB_TAHAP.filter(s => s.tahap === 'R' && tampil(s)))
       + (lama && lama.tahap !== 'R' ? grup('Kode lama (lepas, warisan v1)', [lama]) : '');
   }
   function hintSub(kode) {
@@ -4534,15 +5685,6 @@
     const rutin = (I.subTahap(kode) || {}).tahap === 'R';
     return peran === 'lead' && pemilik && pemilik !== S.me && !rutin ? pemilik : S.me;
   }
-  /* Sub-stage bawaan task proyek baru: kode pertama tahap itu yang boleh dipakai profil ini;
-     bagi staff yang timnya tak punya kode di tahap itu, kode tahap berikutnya yang boleh. */
-  function subAwal(tahap) {
-    const boleh = I.SUB_TAHAP.filter(s => s.tahap !== 'R' && I.subBolehBagi(S.me, s.kode));
-    const urut = id => I.TAHAP.findIndex(x => x.id === id);
-    return (boleh.find(s => s.tahap === tahap) || boleh.find(s => urut(s.tahap) > urut(tahap)) || boleh[0] || I.SUB_TAHAP[0]).kode;
-  }
-  /* Jenis rutin bawaan: yang dipegang tim sendiri, kalau ada. */
-  const rutinAwal = () => (I.SUB_TAHAP.find(s => s.tahap === 'R' && s.tim === (I.timOrang(S.me) || {}).kode) || I.subTahap('R1')).kode;
   const opsiPic = (daftar, terpilih, kode) => daftar.map(id => {
     const pemilik = id !== S.me && id === I.leadSub(kode) && I.orang(id).peran === 'lead';
     return `<option value="${esc(id)}" ${id === terpilih ? 'selected' : ''}>${esc(I.orang(id).nama)}${pemilik ? ' · Lead tim pemilik' : ''}</option>`;
@@ -4572,9 +5714,8 @@
     const proyekAktif = S.data.projects.filter(p => !p.arsip);
     const pProyek = preset.proyek || (proyekAktif[0] || {}).id || '';
     const jalur = preset.jalur || (preset.proyek || proyekAktif.length ? 'proyek' : 'rutin');
-    const tahap = preset.tahap || ((proyekDari(pProyek) || {}).stage || 'A');
-    const subProyek = preset.sub && I.subBolehBagi(S.me, preset.sub) ? preset.sub : subAwal(tahap);
-    const subRutin = rutinAwal();
+    const subProyek = preset.sub && I.subBolehBagi(S.me, preset.sub) ? preset.sub : '';
+    const subRutin = '';
     const kode = jalur === 'proyek' ? subProyek : subRutin;
     const staff = I.orang(S.me).peran === 'staff';
     return `<form data-form="modal" data-task="baru" novalidate>
@@ -4585,22 +5726,22 @@
           <button type="button" data-aksi="pilih-jalur" data-jalur="proyek" aria-pressed="${jalur === 'proyek'}" ${proyekAktif.length ? '' : 'disabled'}>Proyek</button>
           <button type="button" data-aksi="pilih-jalur" data-jalur="rutin" aria-pressed="${jalur === 'rutin'}">Rutin</button>
         </div>
-        <small>Proyek: sub-stage ADDIE, wajib output & bukti, ditinjau sebelum selesai. Rutin (R1–R4): di luar proyek, langsung selesai.</small>
+        <small>Proyek: sub-stage ADDIE, wajib output & bukti, ditinjau sebelum selesai. Rutin (kode R): di luar proyek, langsung selesai.</small>
       </div>
       ${staff ? `<p class="banner biru">Task ini untuk Anda sendiri. Sub-stage proyek yang tersedia hanya milik tim Anda; task proyek ditinjau ${esc(I.orang(I.orang(S.me).lead || I.MANAGER).pendek)} sebelum selesai, dan ia mendapat notifikasi.</p>` : ''}
       <input type="hidden" name="jalur" value="${jalur}">
       <div class="dua-isian" data-bagian="proyek" ${jalur === 'proyek' ? '' : 'hidden'}>
         <label class="isian">Proyek <select name="project">${opsiHtml(proyekAktif.map(p => [p.id, p.name]), pProyek)}</select></label>
-        <label class="isian">Sub-stage <select name="subProyek" data-sub>${opsiSub('proyek', subProyek)}</select></label>
+        <label class="isian">Sub-stage <select name="subProyek" data-sub>${opsiSub('proyek', subProyek, true)}</select></label>
       </div>
-      <label class="isian" data-bagian="rutin" ${jalur === 'rutin' ? '' : 'hidden'}>Jenis rutin <select name="subRutin" data-sub>${opsiSub('rutin', subRutin)}</select></label>
+      <label class="isian" data-bagian="rutin" ${jalur === 'rutin' ? '' : 'hidden'}>Jenis rutin <select name="subRutin" data-sub>${opsiSub('rutin', subRutin, true)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(kode))}</p>
       <div class="dua-isian">
         <label class="isian">PIC <select name="pic" data-otomatis="1">${opsiPic(pilihanPic(kode), picBawaan(kode), kode)}</select></label>
         <label class="isian">Tenggat <input type="date" name="due"></label>
       </div>
       <div class="dua-isian">
-        <label class="isian">Prioritas <select name="priority">${opsiHtml(PRIORITAS, 'Normal')}</select></label>
+        <label class="isian">Prioritas <select name="priority">${opsiHtml(I.PRIORITAS, 'Normal')}</select></label>
         <label class="isian">Output <input name="output" maxlength="200" placeholder="mis. 40 soal lolos QC"></label>
       </div>
       <label class="isian">Keterangan <textarea name="detail" maxlength="4000">${esc(preset.detail || '')}</textarea></label>
@@ -4622,7 +5763,7 @@
         <label class="isian">Tenggat <input type="date" name="due" value="${esc(t.due || '')}"></label>
       </div>
       <div class="dua-isian">
-        <label class="isian">Prioritas <select name="priority">${opsiHtml(PRIORITAS, t.priority || 'Normal')}</select></label>
+        <label class="isian">Prioritas <select name="priority">${opsiHtml(I.PRIORITAS, t.priority || 'Normal')}</select></label>
         <label class="isian">Output <input name="output" maxlength="200" value="${esc(t.output || '')}"></label>
       </div>
       <label class="isian">Keterangan <textarea name="detail" maxlength="4000">${esc(t.detail || '')}</textarea></label>
@@ -4634,7 +5775,7 @@
     return `<form data-form="modal" novalidate>
       <h2>Proyek baru</h2>
       <label class="isian">Nama proyek <input name="name" required maxlength="200" placeholder="mis. PCPM Tahap III · 10 TO"></label>
-      <label class="isian">Platform <select name="platform">${PLATFORM.map(x => `<option>${esc(x)}</option>`).join('')}</select></label>
+      <label class="isian">Platform <select name="platform">${I.PLATFORM.map(x => `<option>${esc(x)}</option>`).join('')}</select></label>
       <label class="isian">Tujuan <textarea name="goal" maxlength="2000" placeholder="Apa yang ingin dicapai proyek ini?"></textarea></label>
       <p class="hint">Proyek tidak punya Lead tetap: tiap task dipegang tim pemilik sub-stage-nya. Tahapnya dihitung dari task terbuka paling awal, dan siklus ditutup lewat E12 · Final approval.</p>
       ${kakiModal('Buat proyek')}
@@ -4649,7 +5790,7 @@
     const pengisi = I.proyekPengisi(S.data, p.id).filter(x => !x.arsip);
     const tujuan = pengisi.length ? pengisi[0].id : '';
     const terbuka = new Set();
-    const blok = I.KATEGORI_PAKET.map(([label]) => {
+    const blok = I.KATEGORI_SEMUA.map(([label]) => {
       const items = p.items.filter(i => i.kategori === label);
       if (!items.length) return '';
       return `<fieldset class="pilih-target"><legend>${esc(label)}</legend>${items.map(it => {
@@ -4723,11 +5864,7 @@
     return `<form data-form="modal" novalidate>
       <h2>Rancangan paket baru</h2>
       <label class="isian">Nama paket <input name="namaPaket" required maxlength="200" placeholder="mis. PCPM Tahap III"></label>
-      <label class="isian">Program <input name="program" maxlength="300" placeholder="mis. Program Super Intensif Lolos PCPM 2026"></label>
-      <div class="dua-isian">
-        <label class="isian">Platform <select name="platform">${opsiHtml([['', '—'], ...PLATFORM.map(x => [x, x])], '')}</select></label>
-        <label class="isian">PIC produk <select name="produkPic">${opsiHtml([['', '—'], ...I.ORANG.map(o => [o.id, o.nama])], '')}</select></label>
-      </div>
+      <label class="isian">Platform <select name="platform">${opsiHtml([['', '—'], ...I.PLATFORM.map(x => [x, x])], '')}</select></label>
       <p class="hint">Isi produk dan target per kategori diisi setelah paket dibuat.</p>
       ${kakiModal('Buat paket')}
     </form>`;
@@ -4808,6 +5945,7 @@
       switch (m.jenis) {
         case 'tambah': {
           const proyek = f.jalur === 'proyek';
+          if (!(proyek ? f.subProyek : f.subRutin)) throw new Error(proyek ? 'Pilih sub-stage dulu.' : 'Pilih jenis rutin dulu.');
           const t = I.taskBaru(S.data, {
             title: f.title, project: proyek ? f.project : '', sub: proyek ? f.subProyek : f.subRutin,
             pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail,
@@ -4981,13 +6119,9 @@
       for (const x of $$('.km-psn.aktif')) if (x !== psn) x.classList.remove('aktif');
       if (psn) psn.classList.toggle('aktif');
     }
-    // Mode Baca catatan: klik di teks (bukan tombol, tautan, atau sesudah memblok teks) = Sunting di baris itu.
-    const baca = e.target.closest('.ctt-baca');
-    if (baca && !e.target.closest('a, button') && !String(window.getSelection() || '')) {
-      const b = e.target.closest('[data-baris]');
-      gantiModeCatatan('sunting', b ? Number(b.dataset.baris) : -1);
-      return;
-    }
+    // Tautan di blok catatan yang tak sedang diketik: dibuka di tab baru (bukan menaruh kursor).
+    const tautanBlok = e.target.closest('.ne-teks a[href]');
+    if (tautanBlok) { e.preventDefault(); window.open(tautanBlok.href, '_blank', 'noopener'); return; }
     const kartu = e.target.closest('.kartu');
     const el = e.target.closest('[data-aksi]') || (kartu ? { dataset: { aksi: 'buka-task', id: kartu.dataset.id } } : null);
     if (!el || el.tagName === 'INPUT' || el.tagName === 'SELECT') return;
@@ -5079,12 +6213,51 @@
       case 'pratinjau-akhiri': akhiriPratinjau(); break;
       case 'dev-foto-hapus': hapusFotoOrang(d.id); break;
       case 'psn-moderasi': moderasiPesan(d.id); break;
+      /* Master */
+      case 'mst-tab': {
+        S.mst.tab = d.nilai;
+        render();
+        // Di ponsel deretan tab digeser ke samping: yang dipilih tetap terlihat.
+        const aktif = $('.mst-tab [aria-pressed="true"]');
+        if (aktif) aktif.scrollIntoView({ block: 'nearest', inline: 'center' });
+        break;
+      }
+      case 'mst-sub-baru': bukaModal({ jenis: 'mst-sub', kunci: '' }, formMasterSub(null)); break;
+      case 'mst-sub-ubah': {
+        const s = I.daftarMaster('substage').find(x => x.kunci === d.kunci);
+        if (s) bukaModal({ jenis: 'mst-sub', kunci: s.kunci }, formMasterSub(s));
+        break;
+      }
+      case 'mst-kat-baru': bukaModal({ jenis: 'mst-kat', kunci: '' }, formMasterKategori(null)); break;
+      case 'mst-kat-ubah': {
+        const k = I.daftarMaster('kategori').find(x => x.kunci === d.kunci);
+        if (k) bukaModal({ jenis: 'mst-kat', kunci: k.kunci }, formMasterKategori(k));
+        break;
+      }
+      case 'mst-langkah-tambah': {
+        const ol = $('.mst-langkah-daftar', el.closest('form'));
+        if ($$('[data-langkah]', ol).length >= 14) return toast('Alur paling banyak 14 langkah.', true);
+        ol.insertAdjacentHTML('beforeend', barisLangkah(''));
+        $$('[data-langkah]', ol).pop().querySelector('select').focus();
+        break;
+      }
+      case 'mst-langkah-naik': {
+        const li = el.closest('[data-langkah]');
+        if (li.previousElementSibling) li.parentNode.insertBefore(li, li.previousElementSibling);
+        break;
+      }
+      case 'mst-langkah-hapus': {
+        const li = el.closest('[data-langkah]');
+        if (li.parentNode.children.length > 1) li.remove(); else toast('Alur berisi paling sedikit satu langkah.', true);
+        break;
+      }
+      case 'mst-urut': urutMaster(d.jenis, d.kunci, Number(d.arah)); break;
+      case 'mst-aktif': aktifkanMaster(d.jenis, d.kunci, d.nilai === '1'); break;
+      case 'mst-pin-atur': bukaModal({ jenis: 'mst-pin', id: d.id }, formPin(d.id)); break;
+      case 'mst-pin-hapus': hapusPin(d.id); break;
       case 'pilih-profil':
         if (d.id === I.DEV && !S.dev) { bukaMasukDev(); break; }
-        if (S.pratinjau) S.pratinjau = null;
-        gantiIdentitas(d.id);
-        masukApp();
-        toast(d.id === I.DEV ? `Mode Dev${S.devSampai ? ' sampai ' + jamDev() : ''}.` : `Masuk sebagai ${I.orang(S.me).pendek} (${I.PERAN[I.orang(S.me).peran]}).`);
+        pilihProfil(d.id, el);
         break;
       case 'reset-data': resetData(); break;
       case 'keluar':
@@ -5388,16 +6561,11 @@
         try { I.warnaiCatatan(S.data, S.me, n.id, d.warna); simpanData(); gambarUlangEditor(); } catch (err) { toast(err.message, true); }
         break;
       }
-      case 'ctt-mode': gantiModeCatatan(d.nilai); break;
-      case 'ctt-format': formatSunting(d.jenis); break;
-      case 'ctt-centang': {
-        const ta = $('#catatan-isi');
-        if (!ta) break;
-        ta.value = I.centangBaris(ta.value, Number(d.baris));
-        simpanCatatanSekarang();
-        gambarUlangEditor();
-        break;
-      }
+      case 'ctt-format': alatEditor(d.jenis); break;
+      case 'ne-cek': centangBlok(el); break;
+      case 'ne-tabel': opTabel(d.op, el); break;
+      case 'ne-slash': pakaiMenuBlok(d.jenis); break;
+      case 'ne-bawah': klikBawah(); break;
       case 'ctt-task': jadikanTask(d.baris === undefined ? undefined : Number(d.baris)); break;
       case 'ctt-templat': S.ctt.folderBaru = ''; bukaModal({ jenis: 'templat' }, formTemplat()); break;
       case 'ctt-templat-pakai': pakaiTemplat(Number(d.i)); break;
@@ -5466,6 +6634,14 @@
       el.closest('form').querySelectorAll('[data-bagian-orang]').forEach(b => { b.hidden = b.dataset.bagianOrang !== el.value; });
       return;
     }
+    // Master, sub-stage baru: kode ikut tahap yang dipilih; pekerjaan rutin tak ditinjau.
+    if (el.name === 'tahap' && el.closest('form[data-form="mst-sub"]')) {
+      const form = el.closest('form');
+      form.elements.namedItem('kunci').value = kodeSubBerikut(el.value);
+      const review = $('[data-bagian-sub="review"]', form);
+      if (review) review.hidden = el.value === 'R';
+      return;
+    }
     if (el.id === 'foto-berkas') {
       mulaiPotong(el.files && el.files[0]);
       el.value = '';
@@ -5498,11 +6674,6 @@
     } else if (el.closest('form[data-task]')) {
       const form = el.closest('form');
       if (el.name === 'pic') { el.dataset.otomatis = ''; return; }
-      if (el.name === 'project') {
-        // Proyek lain: sub-stage bawaan ikut tahap proyek itu.
-        const p = proyekDari(el.value);
-        if (p) isianForm(form, 'subProyek').value = subAwal(p.stage);
-      }
       segarkanFormTask(form);
     }
   });
@@ -5523,6 +6694,10 @@
     }
     if (form.dataset.form === 'masuk-dev') { e.preventDefault(); kirimMasukDev(form); return; }
     if (form.dataset.form === 'orang') { e.preventDefault(); kirimOrang(form); return; }
+    // PIN profil dan halaman Master (0.14.0).
+    const khusus = { 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-kat': kirimMasterKategori,
+      'mst-tambah': kirimMasterTambah, 'mst-label': kirimMasterLabel, 'mst-pin': kirimFormPin }[form.dataset.form];
+    if (khusus) { e.preventDefault(); khusus(form); return; }
     const jenis = form.dataset.form;
     if (!jenis) return;
     e.preventDefault();
@@ -5593,6 +6768,7 @@
 
   document.addEventListener('input', e => {
     const el = e.target;
+    if (el.classList && el.classList.contains('ne-teks')) { inputBlok(el, e); return; }
     if (el.id === 'foto-zoom') { if (kerat) aturZoom(Number(el.value)); return; }
     if (el.id === 'palet-q') { S.palet.q = el.value; S.palet.pilih = 0; $('#palet-hasil').innerHTML = hasilPalet(); return; }
     if (el.classList.contains('km-isian')) {
@@ -5616,6 +6792,13 @@
 
   /* Di Link Saya, menempel alamat di mana saja (bukan di kotak isian) langsung menambah link. */
   document.addEventListener('paste', e => {
+    // Editor catatan: hanya teks biasa (format dari halaman lain tak ikut); beberapa baris jadi blok.
+    const blokTempel = e.target.closest && e.target.closest('.ne-teks');
+    if (blokTempel) {
+      e.preventDefault();
+      keMentah(blokTempel);
+      return tempelBlok(blokTempel, e.clipboardData ? e.clipboardData.getData('text/plain') : '');
+    }
     const berkas = e.clipboardData && [...e.clipboardData.files].find(f => /^image\//.test(f.type));
     if (S.modal && S.modal.jenis === 'foto' && berkas) { e.preventDefault(); return mulaiPotong(berkas); }
     if (S.view !== 'link' || $('#app').hidden || !$('#modal').hidden) return;
@@ -5632,6 +6815,10 @@
   document.addEventListener('keydown', e => {
     const tombol = String(e.key || '').toLowerCase();
     const aplikasi = !$('#app').hidden && !!S.data;
+    // Editor blok Catatan: panah, Tab, menu "/", format, dan urungkan (Enter/Backspace lewat beforeinput).
+    if (e.target.closest && e.target.closest('.ne[data-ne]') && tombolEditor(e)) return;
+    // Judul catatan: Enter atau panah bawah turun ke blok pertama.
+    if (e.target.id === 'catatan-judul' && (e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); fokusKe({ i: 0 }); return; }
     // Panggung potong foto: panah menggeser, + dan − memperbesar, Enter menyimpan.
     if (e.target.id === 'foto-panggung' && kerat) {
       const d = e.shiftKey ? 30 : 8;
@@ -5668,11 +6855,7 @@
       if (simpanCatatanSekarang()) toast('Catatan disimpan.');
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && tombol === 'e' && aplikasi && S.view === 'catatan' && $('[data-catatan]')) {
-      e.preventDefault();
-      if ($('[data-catatan]').dataset.catatan !== '__baru') gantiModeCatatan(S.ctt.mode === 'baca' ? 'sunting' : 'baca');
-      return;
-    }
+
     if (S.modal && S.modal.jenis === 'palet') {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); geserPalet(e.key === 'ArrowDown' ? 1 : -1); return; }
       if (e.key === 'Enter') { e.preventDefault(); jalankanPalet(S.palet.pilih); return; }
@@ -5685,13 +6868,59 @@
       if (S.pilih && !$('#laci').hidden) { S.pilih = null; return render(); }
       if (S.navBuka) { S.navBuka = false; return render(); }
     }
-    const mengetik = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    const mengetik = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
     if (e.key === '/' && !mengetik && aplikasi && !S.modal) { e.preventDefault(); bukaPalet(); }
   });
 
-  // Toolbar format catatan: kursor dan blok teks di kotak isi tetap di tempatnya saat tombol ditekan.
+  /* Tombol toolbar catatan, alat tabel, dan menu "/": kursor dan blok teks tetap di tempatnya saat
+     ditekan. Blok berformat yang diklik berganti ke teks mentahnya SEBELUM peramban menaruh kursor,
+     jadi kursornya jatuh di tempat yang diklik. Tautan dan tombol di dalam blok tak memulai sunting. */
   document.addEventListener('mousedown', e => {
-    if (e.target.closest && e.target.closest('.ctt-toolbar button')) e.preventDefault();
+    if (!e.target.closest) return;
+    if (e.target.closest('.ctt-toolbar button, .ne-tabel-alat button, .ne-menu button')) { e.preventDefault(); return; }
+    const el = e.target.closest('.ne-teks');
+    if (!el || el === document.activeElement) return;
+    if (e.target.closest('a, button')) { e.preventDefault(); return; }
+    if (el.dataset.tampil !== 'format') return;
+    // Isinya berganti, jadi titik klik lama tak berlaku lagi: kursor ditaruh sendiri di titik klik.
+    e.preventDefault();
+    tampilMentah(el);
+    el.focus();
+    if (!letakkanDiTitik(el, e.clientX, e.clientY)) aturKursor(el, bacaTeks(el).length);
+  });
+  /* Enter dan Backspace/Delete di tepi blok diatur editor (juga papan ketik ponsel, yang sering tak
+     mengirim keydown yang jelas); format bawaan peramban (Ctrl+B dll.) dan seret-lepas ditolak. */
+  document.addEventListener('beforeinput', e => {
+    const el = e.target.closest && e.target.closest('.ne-teks');
+    if (!el) return;
+    keMentah(el);   // jaga-jaga: ketikan tak boleh mendarat di teks berformat (tanda formatnya hilang)
+    const t = e.inputType || '';
+    if (t === 'insertParagraph' || t === 'insertLineBreak') { e.preventDefault(); enterBlok(el); return; }
+    if (t === 'historyUndo' || t === 'historyRedo') { e.preventDefault(); undoEditor(t === 'historyUndo' ? -1 : 1); return; }
+    if (t.startsWith('format') || t === 'insertFromDrop') { e.preventDefault(); return; }
+    if (t.startsWith('delete')) {
+      const [a, z] = rentangKursor(el);
+      if (a !== z) return;
+      if (/Backward$/.test(t) && a === 0) { e.preventDefault(); hapusDiAwal(el); return; }
+      if (/Forward$/.test(t) && a === bacaTeks(el).length) { e.preventDefault(); hapusDiAkhir(el); }
+    }
+  });
+  document.addEventListener('drop', e => { if (e.target.closest && e.target.closest('.ne[data-ne]')) e.preventDefault(); });
+  // Blok yang sedang diketik menampilkan teks mentah; yang ditinggalkan kembali berformat.
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains('ne-teks')) return;
+    keMentah(el);
+    ED.fokus = posisiEl(el);
+  });
+  document.addEventListener('focusout', e => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains('ne-teks') || !el.isConnected) return;
+    if (!document.hasFocus()) return;   // pindah jendela atau aplikasi: kursor tetap di tempatnya
+    const [a, z] = rentangKursor(el);
+    ED.kursorAkhir = { p: posisiEl(el), a, z };
+    if (ED.slash && ED.slash.el === el) tutupMenuBlok();
+    tampilFormat(el);
   });
 
   // Catatan yang masih menunggu simpan otomatis ikut tersimpan saat tab ditutup atau dimuat ulang.

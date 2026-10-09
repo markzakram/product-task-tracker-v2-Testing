@@ -16,8 +16,9 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM,
-  dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris, rakit, nomorTerbesar,
+  TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
+  dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
+  masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, rakit, nomorTerbesar,
 } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
@@ -351,7 +352,8 @@ async function bacaContoh(k, id) {
   }
   const nama = semua.filter(n => keadaan.tab.includes(n));
   const adaOrang = keadaan.tab.includes(TAB_ORANG);
-  const ranges = [...nama.map(n => rentang(n, 'A:Z')), ...(adaOrang ? [rentang(TAB_ORANG, 'A:I')] : [])];
+  const adaMaster = keadaan.tab.includes(TAB_MASTER);
+  const ranges = [...nama.map(n => rentang(n, 'A:Z')), ...(adaOrang ? [rentang(TAB_ORANG, 'A:I')] : []), ...(adaMaster ? [rentang(TAB_MASTER, 'A:F')] : [])];
   const r = await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges }));
   const tabs = Object.fromEntries(kurang.map(n => [n, []]));
   const hasil = r.data.valueRanges || [];
@@ -365,6 +367,7 @@ async function bacaContoh(k, id) {
     sumber: keadaan.contoh.sumber,
     data,
     orang: adaOrang ? barisOrangDari((hasil[nama.length] || {}).values) : [],
+    master: adaMaster ? barisMasterDari((hasil[nama.length + (adaOrang ? 1 : 0)] || {}).values) : [],
     seq: {
       task: nomorTerbesar(data.tasks, 'PRD'),
       prj: nomorTerbesar(data.projects, 'PRJ'),
@@ -596,6 +599,83 @@ async function tulisOrang(k, id, o) {
   return bacaOrang(k, id, { segar: true });
 }
 
+/* ---------- Master & PIN (0.14.0) --------------------------------------
+   Tab `master`: satu baris per isian daftar pilihan (jenis + kunci), ditimpa seperti orang.
+   Tab `pin`: PIN tiap profil sebagai hash scrypt bergaram; hanya dibaca server, tak pernah
+   dikirim ke browser. Keduanya bukan data contoh: impor ulang tak menyentuhnya. */
+function barisMasterDari(nilai) {
+  const [judul = [], ...isi] = nilai || [];
+  return isi.filter(b => b.some(sel => String(sel).trim())).map(b => masterDariBaris(judul, b)).filter(m => m.jenis && m.kunci);
+}
+const tabAplikasi = async (k, id, nama, kolom) => {
+  try {
+    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(nama, 'A:' + String.fromCharCode(64 + kolom.length)) }));
+    return r.data.values || [];
+  } catch (err) {
+    if (tabBelumAda(err)) return null;
+    throw err;
+  }
+};
+/* Timpa baris yang cocok (cocok(barisTab)), atau tambah di bawah; tab dibuat kalau belum ada. */
+async function timpaAtauTambah(k, id, nama, kolom, cocok, nilaiBaris) {
+  let nilai = await tabAplikasi(k, id, nama, kolom);
+  if (!nilai) {
+    await buatTabAplikasi(k, id, nama, kolom, 200);
+    nilai = [kolom];
+  }
+  const judul = nilai[0] || kolom;
+  let n = -1;
+  nilai.forEach((b, i) => { if (i > 0 && cocok(judul, b)) n = i; });
+  const akhir = String.fromCharCode(64 + kolom.length);
+  if (n > 0) {
+    await panggil(() => k.api.spreadsheets.values.update({
+      spreadsheetId: id, range: rentang(nama, `A${n + 1}:${akhir}${n + 1}`), valueInputOption: 'RAW', requestBody: { values: [nilaiBaris] },
+    }), { tulis: true });
+  } else {
+    await panggil(() => k.api.spreadsheets.values.append({
+      spreadsheetId: id, range: rentang(nama, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', requestBody: { values: [nilaiBaris] },
+    }), { tulis: true });
+  }
+}
+
+async function bacaMaster(k, id) {
+  await pastikanV2(k, id);
+  return barisMasterDari(await tabAplikasi(k, id, TAB_MASTER, MASTER_KOLOM));
+}
+/* m sudah dibersihkan Inti.periksaMaster. Mengembalikan semua baris sesudah ditulis. */
+async function tulisMaster(k, id, m) {
+  await pastikanV2(k, id);
+  const baris = { ...m, diperbarui: Date.now() };
+  const sama = (judul, b) => { const x = masterDariBaris(judul, b); return x.jenis === m.jenis && x.kunci.toLowerCase() === String(m.kunci).toLowerCase(); };
+  await timpaAtauTambah(k, id, TAB_MASTER, MASTER_KOLOM, sama, masterKeBaris(baris));
+  return bacaMaster(k, id);
+}
+
+const UMUR_PIN = 60 * 1000;
+let pinHangat = null;
+/* Map orang → { hash, garam }; hanya yang PIN-nya terisi. */
+async function bacaPin(k, id, { segar = false } = {}) {
+  const h = pinHangat;
+  if (!segar && h && h.k === k && h.id === id && Date.now() - h.waktu < UMUR_PIN) return h.isi;
+  await pastikanV2(k, id);
+  const [judul = [], ...isi] = (await tabAplikasi(k, id, TAB_PIN, PIN_KOLOM)) || [];
+  const peta = new Map();
+  for (const b of isi) {
+    const p = pinDariBaris(judul, b);
+    if (p.orang && p.hash) peta.set(p.orang, p);
+  }
+  pinHangat = { k, id, waktu: Date.now(), isi: peta };
+  return peta;
+}
+/* hash kosong = PIN profil itu dihapus. */
+async function tulisPin(k, id, orang, hash, garam) {
+  await pastikanV2(k, id);
+  const sama = (judul, b) => pinDariBaris(judul, b).orang === orang;
+  await timpaAtauTambah(k, id, TAB_PIN, PIN_KOLOM, sama, pinKeBaris({ orang, hash, garam, diperbarui: Date.now() }));
+  pinHangat = null;
+  return bacaPin(k, id, { segar: true });
+}
+
 /* Panel Sistem mode Dev: isi tiap tab (baris berisi, tanpa judul), dalam satu batchGet. */
 async function hitungTab(k, id) {
   const keadaan = await bacaKeadaan(k, id);
@@ -637,5 +717,5 @@ module.exports = {
   setelanAda, idSpreadsheet, kredensial, emailAkun, klien,
   panggil, kenaKuota, gangguanSesaat,
   periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto,
-  bacaOrang, tulisOrang, hitungTab, jelaskanGalat,
+  bacaOrang, tulisOrang, bacaMaster, tulisMaster, bacaPin, tulisPin, hitungTab, jelaskanGalat,
 };
