@@ -531,6 +531,7 @@ test('sub-stage & tim: kode → tahap, tim pemilik, Lead pendelegasi; saringan p
   assert.equal(I.peninjau(task({ lane: 'proyek', sub: 'D1', pic: 'kiki' })), 'nynda', 'D1 direview Manager walau PIC staff');
   assert.deepEqual([I.timOrang('kiki').kode, I.timOrang('ali').kode, I.timOrang('nynda').kode], ['LA', 'SI', 'MG']);
   assert.equal(I.rumpunDari, undefined, 'rumpun dihapus (0.14.0)');
+  assert.ok(I.ORANG_BAWAAN.every(o => !/rumpun/i.test(o.jabatan)), 'jabatan bawaan tanpa rumpun (2.16.1)');
   assert.deepEqual([I.jenisJalur(task({ lane: 'proyek' })), I.jenisJalur(task({ sub: 'R3' })), I.jenisJalur(task({ sub: 'E4' })), I.jenisJalur(task({}))], ['proyek', 'rutin', 'lepas', 'rutin']);
   const d = data([task({ sub: 'E4', platform: 'OJK' }), task({ sub: 'DV1', pic: 'uma', platform: 'ASN' }), task({ sub: 'R2', platform: 'OJK' })]);
   const judul = f => I.daftarTask(d, f, HARI).map(t => t.sub);

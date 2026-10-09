@@ -1,5 +1,14 @@
 # Changelog — ProductTrack v2
 
+## 2.16.1 — Jabatan bawaan tanpa "Rumpun" (2026-10-09)
+
+- Jabatan bawaan Uma, Tri, dan Wildan kini "Akademik". Saat rumpun dihapus di 0.14.0, yang
+  dibuang hanya saringan, kolom CSV, dan bagian Dashboard-nya. Teks "Akademik · Rumpun …" di
+  jabatan ketiganya tertinggal dan masih tampil di pemilih profil, kaki sidebar, dan Panel Dev.
+  Jabatan yang pernah disimpan lewat Panel Dev → Pengguna (tab `orang`) tetap dipakai; ubah di
+  sana kalau perlu.
+- Tes: jabatan bawaan tak lagi memuat "rumpun". 213 tes.
+
 ## 2.16.0 — Data real tersimpan bersama, logo seperti v1 (2026-10-09)
 
 Nomor versi kini berawal 2 (v2), lanjutan dari 0.15.2, dan tag rilisnya `v2.16.0`. Keputusan
