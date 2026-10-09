@@ -27,6 +27,13 @@ function sheetPalsu(tabs, { judul = 'Sheet Uji', email = 'producttrack-v2@contoh
     const m = /!([A-Z]+)(\d+)/.exec(range);
     return m ? Number(m[2]) - 1 : 0;
   };
+  /* Seperti aslinya, bacaan hanya mengembalikan baris di dalam rentang: 'A5:H' mulai baris 5,
+     'A1:H2' dua baris pertama, 'A:J' semuanya. (Kolom tak dipotong; tes tak memerlukannya.) */
+  const dalamRentang = (range, values) => {
+    const m = /!([A-Z]+)(\d+)?(?::([A-Z]+)(\d+)?)?$/.exec(range);
+    if (!m || !m[2]) return values;
+    return values.slice(Number(m[2]) - 1, m[4] ? Number(m[4]) : values.length);
+  };
 
   const api = {
     spreadsheets: {
@@ -35,11 +42,11 @@ function sheetPalsu(tabs, { judul = 'Sheet Uji', email = 'producttrack-v2@contoh
       },
       values: {
         async get({ range }) {
-          const t = tabDari(range);
-          return { data: t.values.length ? { values: t.values } : {} };
+          const isi = dalamRentang(range, tabDari(range).values);
+          return { data: isi.length ? { values: isi } : {} };
         },
         async batchGet({ ranges }) {
-          return { data: { valueRanges: ranges.map(range => { const t = tabDari(range); return t.values.length ? { range, values: t.values } : { range }; }) } };
+          return { data: { valueRanges: ranges.map(range => { const isi = dalamRentang(range, tabDari(range).values); return isi.length ? { range, values: isi } : { range }; }) } };
         },
         async update({ range, requestBody }) {
           tulisan.push({ jenis: 'values.update', range });

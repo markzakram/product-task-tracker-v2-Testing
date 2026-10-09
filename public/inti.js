@@ -621,6 +621,15 @@
     catatLog(data, 'update', `${t.id} · ${t.title}`, 'Sub-task dihapus: ' + s.title, me, waktu);
     return s;
   }
+  /* Mencentang juga boleh PIC sub-task itu sendiri. */
+  function centangSubtask(data, t, id, done, me, waktu) {
+    const s = cariSubtask(t, id);
+    if (!bolehUbah(t, me) && s.pic !== me) throw new Error('Hanya PIC sub-task, PIC task, Lead-nya, atau Manager yang mencentangnya.');
+    s.done = !!done;
+    t.updatedAt = waktu;
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Sub-task ${s.done ? 'selesai' : 'dibuka lagi'}: ${s.title}`, me, waktu);
+    return s;
+  }
 
   /* Output dan tautan bukti diisi PIC sendiri (staff juga), Lead timnya, atau Manager. */
   function isiOutput(data, t, isi, me, waktu) {
@@ -2323,6 +2332,140 @@
   const labelPrioritas = kunci => (PRIORITAS.find(([k]) => k === kunci) || [kunci, kunci])[1];
   for (const jenis of JENIS_MASTER) MASTER_KINI[jenis] = susunMaster(jenis, []);
 
+  /* ---------- Data real: perintah dan perubahan (2.16.0) ----------
+     Data contoh hidup di browser masing-masing. Data real dipakai bersama: setiap perubahan
+     dikirim ke server sebagai PERINTAH { id, aksi, isi, oleh, at, hari } — isi hanya berisi ID dan
+     isian form. Server menjalankannya dengan aturan yang sama (jalankanPerintah) di atas data real
+     terkini, lalu menyimpan PERUBAHANNYA (bedaData: baris yang berubah per koleksi) di spreadsheet.
+     Semua browser menerapkan perubahan itu apa adanya (terapkanUbah), tanpa menjalankan aturan
+     lagi: perubahan organogram, Master, atau aturan di versi berikutnya tak bisa menggugurkan
+     riwayat. Bentuk ini juga yang nanti dipindah ke MySQL (satu baris = satu baris tabel). */
+  const dataKosong = () => ({ projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], setoran: [], log: [] });
+  const cariDi = (daftar, id, nama) => {
+    const x = (daftar || []).find(y => y.id === id);
+    if (!x) throw new Error(`${nama} ${id || '(kosong)'} tidak ditemukan.`);
+    return x;
+  };
+  const tugas = (d, x) => cariDi(d.tasks, x.task, 'Task');
+  const proyekX = (d, x) => cariDi(d.projects, x.proyek, 'Proyek');
+  const paketX = (d, x) => cariDi(d.packages, x.paket, 'Paket');
+  /* aksi → (data, isi, me, waktu, hari). Nama aksinya = nama fungsi aturannya. */
+  const AKSI_DATA = {
+    taskBaru: (d, x, me, w, h) => taskBaru(d, x.f || {}, me, w, h),
+    taskAnak: (d, x, me, w, h) => taskAnak(d, cariDi(d.tasks, x.induk, 'Task induk'), x.f || {}, me, w, h),
+    ubahTask: (d, x, me, w) => ubahTask(d, tugas(d, x), x.f || {}, me, w),
+    terapkanAksi: (d, x, me, w) => terapkanAksi(d, tugas(d, x), x.kunci, me, w, x.catatan),
+    isiOutput: (d, x, me, w) => isiOutput(d, tugas(d, x), x.isi, me, w),
+    tambahBukti: (d, x, me, w) => tambahBukti(d, tugas(d, x), x.f || {}, me, w),
+    hapusBukti: (d, x, me, w) => hapusBukti(d, tugas(d, x), x.bukti, me, w),
+    tambahSubtask: (d, x, me, w) => tambahSubtask(d, tugas(d, x), x.f || {}, me, w),
+    ubahSubtask: (d, x, me, w) => ubahSubtask(d, tugas(d, x), x.sub, x.f || {}, me, w),
+    hapusSubtask: (d, x, me, w) => hapusSubtask(d, tugas(d, x), x.sub, me, w),
+    centangSubtask: (d, x, me, w) => centangSubtask(d, tugas(d, x), x.sub, x.done, me, w),
+    setorkan: (d, x, me, w) => setorkan(d, tugas(d, x), x.f || {}, me, w),
+    hapusSetoran: (d, x, me, w) => hapusSetoran(d, x.setoran, me, w),
+    proyekBaru: (d, x, me, w) => proyekBaru(d, x.f || {}, me, w),
+    setKeputusan: (d, x, me, w) => setKeputusan(d, proyekX(d, x), x.keputusan, me, w),
+    mulaiSiklus: (d, x, me, w) => mulaiSiklus(d, proyekX(d, x), me, w),
+    setArsip: (d, x, me, w) => setArsip(d, proyekX(d, x), !!x.arsip, me, w),
+    tautkanPaket: (d, x, me, w) => tautkanPaket(d, proyekX(d, x), x.paket || '', me, w),
+    paketBaru: (d, x, me, w) => paketBaru(d, x.f || {}, me, w),
+    simpanPaket: (d, x, me, w) => simpanPaket(d, paketX(d, x), x.f || {}, me, w),
+    hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
+    elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
+    simpanDashboard: (d, x, me, w) => simpanDashboard(d, me, x.f || {}, x.id || '', w),
+    hapusDashboard: (d, x, me, w) => hapusDashboard(d, me, x.id, w),
+  };
+  /* Menjalankan satu perintah dengan aturan, lalu menyamakan tahap proyek (seperti sesudah klik
+     di aplikasi). Tak pernah melempar: { ok, hasil, pindah } atau { ok: false, galat }. Yang gagal
+     bisa saja sudah mengubah sebagian data, jadi pemanggil menyusun ulang datanya. */
+  function jalankanPerintah(data, p) {
+    const fn = Object.prototype.hasOwnProperty.call(AKSI_DATA, p.aksi) ? AKSI_DATA[p.aksi] : null;
+    if (!fn) return { ok: false, galat: `Perubahan "${p.aksi}" tidak dikenal.` };
+    try {
+      const hasil = fn(data, p.isi || {}, p.oleh, p.at, p.hari || isoHari(p.at));
+      return { ok: true, hasil, pindah: segarkanTahap(data, p.at, p.oleh) };
+    } catch (e) {
+      return { ok: false, galat: e && e.message ? e.message : String(e) };
+    }
+  }
+  /* Perintah dari browser, diperiksa server sebelum dijalankan. Satu perintah muat di satu sel
+     spreadsheet (batas sel 50.000 karakter). */
+  const ISI_PERINTAH_MAKS = 40000;
+  function periksaPerintah(p) {
+    if (!p || typeof p !== 'object') throw new Error('Perubahan kosong.');
+    const aksi = String(p.aksi || '');
+    if (!Object.prototype.hasOwnProperty.call(AKSI_DATA, aksi)) throw new Error(`Perubahan "${aksi || '(kosong)'}" tidak dikenal.`);
+    if (!p.isi || typeof p.isi !== 'object' || Array.isArray(p.isi)) throw new Error('Isi perubahan tidak valid.');
+    const json = JSON.stringify(p.isi);
+    if (json.length > ISI_PERINTAH_MAKS) throw new Error('Perubahan ini terlalu besar untuk disimpan sekaligus.');
+    const id = String(p.id || '');
+    if (!/^[A-Za-z0-9_-]{6,40}$/.test(id)) throw new Error('ID perubahan tidak valid.');
+    const hari = String(p.hari || '');
+    if (hari && !/^\d{4}-\d{2}-\d{2}$/.test(hari)) throw new Error('Tanggal perubahan tidak valid.');
+    return { id, aksi, isi: JSON.parse(json), hari, at: Number(p.at) || 0 };
+  }
+  /* Hasil perintah dalam bentuk kecil (ID saja), untuk dikirim balik ke browser. */
+  function ringkasHasil(h) {
+    if (!h || typeof h !== 'object') return null;
+    if (h.project && Array.isArray(h.tasks)) return { project: h.project.id, tasks: h.tasks.map(t => t.id) };
+    return h.id ? { id: h.id } : null;
+  }
+  /* Koleksi data real. Link Saya dan Catatan Saya tetap pribadi di browser. DEPAN = data baru
+     ditaruh di depan, sama dengan fungsi pembuatnya (unshift); selebihnya di belakang (push). */
+  const KOLEKSI_REAL = ['projects', 'tasks', 'packages', 'setoran', 'dashboards'];
+  const DEPAN = new Set(['projects', 'tasks', 'packages']);
+  /* Perubahan dari a ke b: baris yang baru atau berubah (pasang), yang hilang (hapus), dan
+     log baru. Membandingkan per baris lewat JSON-nya. */
+  function bedaData(a, b) {
+    const ubah = {};
+    for (const k of KOLEKSI_REAL) {
+      const lama = new Map((a[k] || []).map(x => [x.id, JSON.stringify(x)]));
+      const ada = new Set();
+      const pasang = [];
+      for (const x of b[k] || []) {
+        ada.add(x.id);
+        if (lama.get(x.id) !== JSON.stringify(x)) pasang.push(x);
+      }
+      const hapus = [...lama.keys()].filter(id => !ada.has(id));
+      if (pasang.length || hapus.length) ubah[k] = { ...(pasang.length ? { pasang } : {}), ...(hapus.length ? { hapus } : {}) };
+    }
+    const logLama = new Set((a.log || []).map(l => l.id));
+    const log = (b.log || []).filter(l => !logLama.has(l.id));
+    if (log.length) ubah.log = log;
+    return ubah;
+  }
+  /* Menerapkan perubahan apa adanya: hapus, timpa di tempat, lalu yang baru di depan/belakang. */
+  function terapkanUbah(data, ubah) {
+    if (!ubah) return data;
+    for (const k of KOLEKSI_REAL) {
+      const u = ubah[k];
+      if (!u) continue;
+      const daftar = data[k] || (data[k] = []);
+      if (u.hapus && u.hapus.length) {
+        const buang = new Set(u.hapus);
+        for (let i = daftar.length - 1; i >= 0; i--) if (buang.has(daftar[i].id)) daftar.splice(i, 1);
+      }
+      const posisi = new Map(daftar.map((x, i) => [x.id, i]));
+      const baru = [];
+      for (const x of u.pasang || []) {
+        const i = posisi.get(x.id);
+        if (i === undefined) baru.push(x);
+        else daftar[i] = x;
+      }
+      if (baru.length) {
+        if (DEPAN.has(k)) daftar.unshift(...baru);
+        else daftar.push(...baru);
+      }
+    }
+    if (ubah.log && ubah.log.length) {
+      data.log = data.log || [];
+      data.log.unshift(...ubah.log);
+      if (data.log.length > 1000) data.log.length = 1000;
+    }
+    return data;
+  }
+
   return {
     MANAGER, KAPASITAS, STATUS, TAHAP, PERAN, ORANG,
     JENIS_MASTER, PLATFORM, PRIORITAS, KATEGORI_SEMUA, aturMaster, periksaMaster, susunMaster, salahMaster, daftarMaster, labelPrioritas,
@@ -2348,5 +2491,6 @@
     JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar,
     FOTO_MAKS, fotoSah, periksaFoto,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
+    centangSubtask, dataKosong, AKSI_DATA, jalankanPerintah, periksaPerintah, ringkasHasil, KOLEKSI_REAL, bedaData, terapkanUbah,
   };
 }));

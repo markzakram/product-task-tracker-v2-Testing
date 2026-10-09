@@ -9,3 +9,5 @@ kredensial*.json
 *service-account*.json
 scripts
 test
+logo
+db

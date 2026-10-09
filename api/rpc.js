@@ -20,6 +20,15 @@
      POST /api/rpc  { action: 'masukProfil', args: [orang, pin] }  pilih profil (PIN kalau profil itu ber-PIN)
      POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Manager/Dev] daftar pilihan (halaman Master)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
+     POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
+     POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
+     POST /api/rpc  { action: 'sinkron', args: [{ obrolanSejak, realSejak, generasi }] }
+                                                   sumber data aktif + obrolan & perubahan data real terbaru
+
+   Sejak 2.16.0 aplikasi punya dua sumber data, dipilih mode Dev untuk semua pengguna (tab
+   setelan): data CONTOH (tab-tab hasil impor v1, suntingannya hanya di browser) dan data REAL
+   (tab data_real, disimpan bersama). muatContoh mengirim yang sedang aktif; obrolan pun
+   terpisah per sumber (obrolan / obrolan_real).
 
    Balasan berbentuk { success, message, ... } seperti v1.
 
@@ -31,6 +40,7 @@
 const crypto = require('crypto');
 const sesi = require('./_sesi');
 const sheet = require('./_sheets');
+const dataReal = require('./_real');
 // Aturan pesan yang sama dengan browser (public/inti.js), supaya isian diperiksa di dua sisi.
 const Inti = require('../public/inti.js');
 
@@ -129,21 +139,76 @@ const AKSI = {
       message: hasil.berubah ? 'Penanda v2 terpasang.' : 'Spreadsheet ini sudah milik v2.',
     };
   },
-  /* Seluruh data contoh dalam bentuk yang langsung dipakai prototipe.
-     data null = belum pernah diimpor (npm run impor:v1). */
-  async muatContoh() {
+  /* Data yang sedang aktif (mode: 'contoh' atau 'real'), dalam bentuk yang langsung dipakai.
+     Data contoh: data null = belum pernah diimpor (npm run impor:v1). Data real: perubahan
+     sesudah opsi.realSejak (nomor urut di browser ini) kalau generasinya sama, selain itu semua. */
+  async muatContoh(opsi) {
     const k = await sheet.klien();
     const id = sheet.idSpreadsheet();
+    const o = opsi && typeof opsi === 'object' ? opsi : {};
+    if (await sheet.sumberData(k, id) === 'real') {
+      const [orang, master, pin, real] = await Promise.all([
+        sheet.bacaOrang(k, id), sheet.bacaMaster(k, id), sheet.bacaPin(k, id), dataReal.sejak(k, id, o.realSejak, o.generasi),
+      ]);
+      return { mode: 'real', versi: '', sumber: 'Data real', data: null, orang, master, berpin: [...pin.keys()], me: await meSah(this, k), real };
+    }
     const contoh = await sheet.bacaContoh(k, id);
     // Profil ber-PIN (tanpa hash-nya) dan profil yang sudah terbukti di sesi ini.
-    if (!contoh.data) return contoh;
+    if (!contoh.data) return { ...contoh, mode: 'contoh' };
     const pin = await sheet.bacaPin(k, id);
-    return { ...contoh, berpin: [...pin.keys()], me: await meSah(this, k) };
+    return { ...contoh, mode: 'contoh', berpin: [...pin.keys()], me: await meSah(this, k) };
   },
-  /* Komunikasi bersama (0.10.0): satu-satunya data yang ditulis aplikasi ke spreadsheet. */
+  /* Komunikasi bersama (0.10.0), terpisah per sumber data (2.16.0). */
   async muatObrolan(sejak) {
     const k = await sheet.klien();
-    return await sheet.bacaObrolan(k, sheet.idSpreadsheet(), sejak);
+    const id = sheet.idSpreadsheet();
+    return await sheet.bacaObrolan(k, id, sejak, await sheet.sumberData(k, id));
+  },
+  /* Tarikan berkala browser: sumber data aktif (kalau Dev menggantinya, browser memuat ulang),
+     obrolan, dan perubahan data real sejak nomor urut yang sudah dimiliki browser. */
+  async sinkron(opsi) {
+    const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
+    const o = opsi && typeof opsi === 'object' ? opsi : {};
+    const mode = await sheet.sumberData(k, id);
+    const [obrolan, real] = await Promise.all([
+      sheet.bacaObrolan(k, id, o.obrolanSejak, mode),
+      mode === 'real' ? dataReal.sejak(k, id, o.realSejak, o.generasi) : null,
+    ]);
+    return { mode, obrolan, ...(real ? { real } : {}) };
+  },
+  /* Satu perubahan data real. Pelakunya profil yang terbukti di sesi ini (bukan isian browser);
+     perintahnya dijalankan dengan aturan aplikasi dan hanya yang lolos yang disimpan. */
+  async simpanReal(perintah) {
+    const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
+    if (await sheet.sumberData(k, id, { segar: true }) !== 'real') {
+      throw Object.assign(new GalatIzin('Aplikasi sedang memakai data contoh, jadi perubahan ini tidak masuk data real. Muat ulang halaman.'), { kode: 'SUMBER' });
+    }
+    const me = await meSah(this, k);
+    if (!me) {
+      if (this.meKlaim) await wajibProfil(this, k, this.meKlaim);   // profil ber-PIN: minta PIN-nya lagi
+      throw new GalatIzin('Pilih profil dulu: setiap perubahan data real dicatat atas nama profil.');
+    }
+    await terapkanOrang(k);
+    Inti.aturMaster(await sheet.bacaMaster(k, id));
+    let bersih;
+    try { bersih = Inti.periksaPerintah(perintah); } catch (err) { throw new GalatIsian(err.message); }
+    try {
+      return { peristiwa: await dataReal.simpan(k, id, bersih, me) };
+    } catch (err) {
+      if (err instanceof dataReal.GalatAturan) throw new GalatIsian(err.message);
+      throw err;
+    }
+  },
+  /* Mode Dev: sumber data untuk semua pengguna. */
+  async aturSumber(sumber) {
+    hanyaDev(this);
+    const mode = String(sumber || '');
+    if (!['contoh', 'real'].includes(mode)) throw new GalatIsian('Sumber data hanya "contoh" atau "real".');
+    const k = await sheet.klien();
+    await sheet.tulisSetelan(k, sheet.idSpreadsheet(), 'sumber_data', mode, Inti.DEV);
+    return { mode };
   },
   async kirimObrolan(peristiwa) {
     const k = await sheet.klien();
@@ -156,7 +221,8 @@ const AKSI = {
     }
     let bersih;
     try { bersih = Inti.periksaPeristiwa(moderasi ? { ...peristiwa, oleh: Inti.DEV } : peristiwa); } catch (err) { throw new GalatIsian(err.message); }
-    return { peristiwa: await sheet.tulisObrolan(k, sheet.idSpreadsheet(), bersih) };
+    const id = sheet.idSpreadsheet();
+    return { peristiwa: await sheet.tulisObrolan(k, id, bersih, await sheet.sumberData(k, id)) };
   },
   /* Foto profil (0.12.0): tab foto di spreadsheet v2, satu baris per orang. */
   async muatFoto(sejak) {
@@ -201,10 +267,11 @@ const AKSI = {
     hanyaDev(this);
     const k = await sheet.klien();
     const id = sheet.idSpreadsheet();
-    const [spreadsheet, tab] = await Promise.all([sheet.periksa(k, id), sheet.hitungTab(k, id)]);
+    const [spreadsheet, tab, sumber, real] = await Promise.all([sheet.periksa(k, id), sheet.hitungTab(k, id), sheet.sumberData(k, id), dataReal.ringkasan(k, id)]);
     return {
       akun: k.email, spreadsheet, tab, versi: versiPaket, lingkungan: lingkungan(),
       wilayah: process.env.VERCEL_REGION || '', waktuServer: Date.now(), devSampai: this.devSampai,
+      sumber, real,
     };
   },
   async simpanOrang(baris) {

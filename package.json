@@ -1,6 +1,6 @@
 {
   "name": "product-tracker-v2",
-  "version": "0.15.2",
+  "version": "2.16.0",
   "private": true,
   "description": "ProductTrack v2 (siklus ADDIE) — aplikasi statis + API Node ke Google Spreadsheet khusus v2; jalan di Cloud Run (GitLab CI) dan sandbox Vercel.",
   "scripts": {

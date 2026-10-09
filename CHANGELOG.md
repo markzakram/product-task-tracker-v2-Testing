@@ -1,5 +1,50 @@
 # Changelog — ProductTrack v2
 
+## 2.16.0 — Data real tersimpan bersama, logo seperti v1 (2026-10-09)
+
+Nomor versi kini berawal 2 (v2), lanjutan dari 0.15.2, dan tag rilisnya `v2.16.0`. Keputusan
+user: data tetap di spreadsheet dulu; pindah ke MySQL menyusul.
+
+- **Sumber data: contoh atau real.** Panel Dev → Sistem punya pilihan Data contoh / Data real
+  yang berlaku untuk semua pengguna (tab `setelan`, aksi `aturSumber`, khusus Dev). Semua browser
+  memuat ulang aplikasinya paling lambat sekitar satu menit kemudian. Data yang sedang tak
+  dipakai tetap utuh. Bawaannya data contoh.
+- **Data real** mulai kosong. Perubahan task, proyek, paket, setoran, dan Tautan tim tersimpan
+  bersama di tab `data_real` dan terlihat semua orang. Browser menerapkannya seketika, server
+  memeriksanya dengan aturan yang sama atas nama profil sesi (aksi `simpanReal`), dan perubahan
+  orang lain tiba lewat tarikan berkala (aksi `sinkron`: 20 detik di Komunikasi, 30 detik di
+  halaman lain). Yang ditolak server dibatalkan dengan pesannya. Yang gagal karena jaringan
+  dicoba lagi, dengan keadaannya di kaki sidebar dan tombol **Coba simpan lagi**.
+- Yang disimpan adalah **perubahannya**, bukan hanya perintahnya: riwayat diterapkan apa adanya,
+  jadi aturan yang berubah kelak tak mengubah data lama. Perubahan besar dipecah ke beberapa
+  baris; tab yang dibuat ulang dikenali dari generasinya.
+- **Aman untuk dua instance Cloud Run** (`--max-instances 2`). Setiap baris mencatat `dasar`.
+  Baris yang tersalip perubahan dari instance lain dilewati, lalu perintahnya diperiksa ulang
+  dan ditulis lagi atau ditolak. Tanpa ini dua task baru pada detik yang sama bisa bernomor sama.
+- Komunikasi data real di tab `obrolan_real`, terpisah dari obrolan data contoh. Link Saya dan
+  Catatan Saya tetap di browser, terpisah per sumber data.
+- Di data real: **Reset data contoh** tak ada, **Coba sekarang** di Panduan diganti keterangan,
+  dan mode Dev serta Lihat sebagai tak mengubah data.
+- Panel Dev menampilkan jumlah perubahan, besar riwayatnya, baris yang diulang atau rusak, dan
+  peringatan di atas ±20 MB: saatnya pindah ke MySQL.
+- Semua perubahan data di tampilan kini lewat satu pintu, `ubahData(aksi, isi)`. Aturannya di
+  `public/inti.js`: `AKSI_DATA` (24 aksi), `jalankanPerintah`, `periksaPerintah`, `bedaData`,
+  `terapkanUbah`. Mencentang sub-task kini lewat aturan `centangSubtask` (PIC task, Lead-nya,
+  Manager, atau PIC sub-task itu) dan tercatat di Aktivitas.
+- **Logo seperti v1.** Ikon dari folder `logo/` dipakai di sidebar, layar PIN, pemilih profil,
+  favicon, dan ikon layar beranda (`public/logo/`): "Product" biru tua, "Track" biru logo, dan
+  versinya kecil di samping nama.
+- **Skema MySQL v2 disiapkan** (`db/produk_base_v2.sql`), belum dipakai aplikasi. Keputusan
+  user: tanpa skema baru, tabel v2 dibuat di `produk_base` yang sudah ada. 21 tabel berawalan
+  `v2_` — satu per koleksi model data, kolom bernama sama dengan field-nya — berdampingan dengan
+  18 tabel salinan v1, yang tak dihapus. Awalan itu juga menjauhkan tabel v2 dari `muat.js
+  --ulang` di repo v1, yang mengosongkan tabel menurut nama. Berkasnya hanya membuat (tanpa
+  DROP), aman dijalankan berulang, dan diakhiri pemeriksaan jumlah tabel.
+- README: bagian *Sumber data: contoh dan real*, penomoran 2.x dan tag rilis, logo.
+- Tes baru: `test/real.test.js`, `test/real-rpc.test.js` (termasuk dua instance yang menyimpan
+  bersamaan), dan `test/skema-mysql.test.js` (setiap koleksi dan field di `api/_skema.js` punya
+  tabel dan kolomnya). 213 tes.
+
 ## 0.15.2 — Siap jalan di Cloud Run lewat GitLab (2026-10-09)
 
 Keputusan user: v2 menggantikan isi repo GitLab `produk-cerebrum/product-task-tracker` dan

@@ -6,6 +6,11 @@ Data tetap di Google Spreadsheet khusus v2. Sejak 0.15.2 repo ini juga menjadi i
 untuk v1 dan belum dipakai tim (lihat *Deploy ke Cloud Run*). v1 tetap di Vercel dengan
 Spreadsheet sampai digantikan.
 
+Sejak **2.16.0** aplikasi bisa dipakai untuk pekerjaan sungguhan. Selain data contoh ada **data
+real**, yang mulai kosong dan tersimpan bersama di spreadsheet v2. Mode Dev memilih sumbernya
+untuk semua pengguna (lihat *Sumber data: contoh dan real*). Sejak versi itu nomornya juga
+berawal 2, lanjutan dari 0.15.2, supaya terbaca sebagai v2 di samping v1 (v1.121.0).
+
 | | v1 (sedang dipakai) | v2 (repo ini) |
 |---|---|---|
 | Repo | GitHub `product-task-tracker` | GitLab `produk-cerebrum/product-task-tracker` (riwayat v1 tetap tersimpan di sana) |
@@ -252,7 +257,8 @@ saling menimpa.
 - **Waktu.** id dan waktu diberikan server, supaya tarikan bertahap tak melewatkan pesan dari
   browser yang jamnya meleset.
 - **Tarikan berkala.** Browser menarik pesan baru tiap 20 detik di Komunikasi dan tiap 60
-  detik di halaman lain, berhenti saat tab tak terlihat, dan melambat saat gagal.
+  detik di halaman lain (30 detik di data real, karena perubahan data ikut tarikan yang sama),
+  berhenti saat tab tak terlihat, dan melambat saat gagal.
 - **Kuota.** Kuota baca Google Sheets dihitung per service account, jadi server juga memakai
   ulang bacaan yang berdekatan selama 3 detik.
 - **Aman dari impor ulang.** `npm run impor:v1` tak pernah menyentuh tab `obrolan`
@@ -311,6 +317,8 @@ PIC dan tak muncul di laporan, dashboard, atau @sebut; hak lihatnya setara Manag
   `DEV_PIN` kosong berarti mode Dev tertutup (v1 memakai 3108 kalau kosong). PIN Dev yang salah
   diperlambat seperti PIN biasa.
 - **Panel Dev** (`#/dev`):
+  - **Sumber data** (2.16.0, paling atas di Sistem): Data contoh atau Data real, berlaku untuk
+    semua pengguna. Lihat *Sumber data: contoh dan real*.
   - **Sistem**: lingkungan, versi server dan browser (beda = muat ulang Ctrl+Shift+R), akun
     service account, kepemilikan spreadsheet, data contoh, isi tiap tab, keadaan browser
     (penyimpanan, pesan, foto), dan galat terakhir. Tombol periksa ulang, tarik ulang pesan &
@@ -324,7 +332,7 @@ PIC dan tak muncul di laporan, dashboard, atau @sebut; hak lihatnya setara Manag
     manual diabaikan (kembali ke bawaan) dan alasannya tampil di sini.
   - **Lihat sebagai**: layar persis milik orang itu, dengan spanduk kuning **Kembali jadi Dev**.
     Tampilan saja: yang terlanjur diubah dibuang saat kembali, dan pesan, foto, serta perubahan
-    orang tidak dikirim.
+    orang tidak dikirim. Di data real perubahan data langsung ditolak.
   - **Moderasi**: hapus pesan siapa pun (tampil "Pesan dihapus oleh Dev"; isi aslinya tetap di
     tab `obrolan`) dan foto profil siapa pun. Di Komunikasi, Dev membaca dan memoderasi langsung
     dari gelembung pesan, tapi tidak menulis.
@@ -334,6 +342,78 @@ Server: aksi `masukDev`, `keluarDev`, `sistem`, `simpanOrang`, dan peristiwa obr
 `moderasi`; tiga yang terakhir khusus sesi Dev (403 untuk sesi biasa). Aturannya di
 `public/inti.js` (`periksaOrang`, `aturOrang`, `salahOrganogram`), diuji di
 `test/orang.test.js`, `test/sesi.test.js`, dan `test/rpc.test.js`.
+
+### Sumber data: contoh dan real
+
+Sejak 2.16.0 aplikasi punya dua sumber data. Mode Dev memilihnya di **Panel Dev → Sistem**, dan
+pilihan itu **berlaku untuk semua pengguna**. Pilihannya disimpan di tab `setelan`
+(`sumber_data`), lalu setiap browser memuat ulang aplikasinya paling lambat sekitar satu menit
+kemudian; tab yang tak terlihat menyusul saat dibuka lagi. Perubahan data real yang terkirim
+sesudah sumbernya diganti ditolak server, jadi ganti sumber saat tim tak sedang mengisi. Data
+yang sedang tak dipakai tetap utuh, jadi sumbernya bisa dipindah bolak-balik.
+
+| | Data contoh (bawaan) | Data real |
+|---|---|---|
+| Isi awal | impor v1 dan skenario contoh (*Data contoh dari v1*) | kosong |
+| Task, proyek, paket, setoran, Tautan tim | diubah di browser masing-masing; **Reset data contoh** membuangnya | tersimpan bersama di tab `data_real`, terlihat semua orang |
+| Komunikasi | tab `obrolan` | tab `obrolan_real`, karena nomor task-nya bisa sama |
+| Link Saya & Catatan Saya | di browser itu | tetap di browser itu, terpisah dari milik data contoh |
+| Panduan · **Coba sekarang** | membuka contoh nyata | diganti keterangan, karena mencoba berarti mengubah pekerjaan sungguhan |
+
+Kaki sidebar (di ponsel: Menu) menunjukkan sumber yang dipakai dan keadaan simpanannya: semua
+tersimpan, "Menyimpan N perubahan…", atau "N perubahan belum tersimpan" dengan tombol **Coba
+simpan lagi**. Di data real tak ada tombol Reset. Yang boleh mengubah data real hanya profil yang
+dipilih di sesi itu, dan profil ber-PIN harus terbukti. Mode Dev dan Lihat sebagai tidak
+mengubah data real. Seperti `obrolan`, tab `setelan`, `data_real`, dan `obrolan_real` tak
+disentuh `npm run impor:v1` maupun Reset data contoh.
+
+**Cara kerjanya.**
+
+- **Satu pintu.** Setiap perubahan data bersama lewat `ubahData(aksi, isi)` di `public/app.js`.
+  `aksi` adalah nama aturan di `Inti.AKSI_DATA` (24 aksi: task baru dan task anak, ubah task,
+  aksi status, output dan bukti, sub-task, setoran, proyek, keputusan, siklus, arsip, paket,
+  elaborasi, Tautan tim).
+- **Seketika, lalu diperiksa server.** Browser menjalankan perintahnya dulu supaya terasa
+  langsung, lalu mengirimnya (`simpanReal`). Server menjalankan aturan yang sama
+  (`Inti.jalankanPerintah`) terhadap keadaan terkini, atas nama profil sesi itu, bukan isian
+  browser. Yang lolos disimpan sebagai satu baris di `data_real`: perintahnya sebagai jejak, dan
+  **perubahannya** (`Inti.bedaData`: baris data yang berubah). Nomor task atau proyek baru
+  ditentukan server; nomor sementara di browser ikut diganti.
+- **Riwayat diterapkan, bukan dijalankan ulang.** Keadaan disusun dengan menerapkan perubahan
+  itu berurutan (`Inti.terapkanUbah`), jadi aturan, organogram, atau Master yang berubah kelak
+  tak mengubah riwayat.
+- **Ditolak atau gagal.** Yang ditolak server, biasanya karena orang lain lebih dulu mengubah
+  hal yang sama, dibatalkan di browser dengan pesannya, lalu data terbaru dimuat. Yang gagal
+  karena jaringan atau server tetap tampil dan dicoba lagi dengan jeda yang berlipat (5 detik
+  sampai ±80 detik). Kiriman ulang tak tersimpan dua kali karena setiap perintah ber-ID.
+- **Tarikan.** Perubahan orang lain ikut tarikan pesan Komunikasi (`sinkron`): tiap 20 detik di
+  Komunikasi dan 30 detik di halaman lain, hanya yang sesudah nomor terakhir di browser itu.
+  Halaman tak digambar ulang selagi orang mengetik.
+- **Dua instance.** Server memeriksa perintah satu per satu, tetapi antrean itu hanya berlaku di
+  satu instance, sedangkan Cloud Run boleh menjalankan dua. Karena itu setiap baris mencatat
+  `dasar`: banyaknya perubahan yang sudah dilihat server saat memeriksanya. Baris yang tersalip
+  perubahan dari instance lain dilewati di server maupun browser, dan servernya memeriksa ulang
+  perintah itu terhadap keadaan terbaru, lalu menulis lagi atau menolaknya. Tanpa ini, dua task
+  yang dibuat pada detik yang sama bisa mendapat nomor yang sama. Panel Dev menghitungnya sebagai
+  "diulang".
+- **Baris.** Perubahan yang lebih panjang dari satu sel dipecah ke beberapa baris (`bagian` 1/3,
+  2/3, …). `generasi` (ID baris pertama) menandai tab yang dibuat ulang; browser lalu membaca
+  dari awal.
+
+**Jangan menyunting `data_real` dengan tangan.** Baris yang rusak dilewati dan dihitung di Panel
+Dev. Untuk memulai data real dari kosong lagi, hapus tab `data_real`, dan `obrolan_real` kalau
+obrolannya juga mau dikosongkan.
+
+**Nanti di MySQL.** Tab `data_real` hanya bertambah, dan seluruh riwayatnya dibaca setiap kali
+instance server menyala dan setiap kali browser baru pertama membuka data real. Satu perubahan
+rata-rata ±1 KB, jadi misalnya 300 perubahan sehari menjadi ±8 MB sebulan. Panel Dev
+menampilkan besarnya dan memberi peringatan di atas ±20 MB: saatnya pindah ke MySQL. Keadaan
+terkini cukup disusun sekali dari `data_real` lalu ditulis ke tabel `v2_` di
+`db/produk_base_v2.sql`; aksi API-nya (`simpanReal`, `sinkron`) bisa tetap.
+
+Aturannya di `public/inti.js` (`AKSI_DATA`, `jalankanPerintah`, `periksaPerintah`, `bedaData`,
+`terapkanUbah`), `api/_real.js`, dan `api/_sheets.js` (`bacaReal`, `tulisReal`, `bacaSetelan`),
+diuji di `test/real.test.js` dan `test/real-rpc.test.js`.
 
 ### Master & PIN profil
 
@@ -411,19 +491,27 @@ contohnya, diuji di `test/panduan.test.js`.
 public/index.html     kerangka halaman (layar PIN, pilih profil, aplikasi)
 public/app.js         tampilan: sidebar, semua halaman, detail task, formulir
 public/app.css        gaya tampilan, warna dari logo ProductTrack
+public/logo/          ikon ProductTrack (favicon, sidebar, layar PIN), dibuat dari logo/
 public/inti.js        aturan alur v2, dipakai browser dan tes
 public/panduan.js     isi halaman Panduan + pencari contoh untuk "Coba sekarang"
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
-api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh, obrolan, foto, mode Dev, Master, PIN profil
+api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh, sinkron, data real, obrolan, foto, mode Dev, Master, PIN profil
+api/_real.js          data real: perintah diperiksa berurutan, keadaan dari tab data_real
 api/_sesi.js          gerbang PIN + cookie sesi (mode Dev, profil terbukti)
-api/_sheets.js        Google Sheets + aturan kepemilikan + data contoh + tab obrolan, foto, orang, master, pin
+api/_sheets.js        Google Sheets + aturan kepemilikan + data contoh + tab obrolan, foto, orang, master, pin, setelan, data_real
 api/_skema.js         bentuk tab spreadsheet v2, baris ↔ objek prototipe
 scripts/impor-v1.js   npm run impor:v1 — tarikan v1 → data contoh di spreadsheet v2
 scripts/_v1ke2.js     semua aturan pemetaan v1 → v2 (tabel yang bisa diubah)
 scripts/dev.js        server lokal yang meniru Vercel (tanpa Vercel CLI)
 server.js             server Node untuk Cloud Run (npm start); Dockerfile + .gitlab-ci.yml membangunnya
 test/                 npm test — Google Sheets ditiru, tanpa koneksi
+db/produk_base_v2.sql rancangan tabel MySQL v2 (belum dipakai aplikasi)
+logo/                 berkas logo asli (tak ikut image Docker)
 ```
+
+Ikon di `public/logo/` dibuat dari `logo/logo product track.png`: margin putih dipotong, latarnya
+dibuat transparan, lalu dijadikan persegi 32, 64, dan 192 px. Header memakai ikon itu di alas
+putih dengan tulisan "Product" biru tua (#002870) dan "Track" biru logo (#00A8E8), seperti v1.
 
 ---
 
@@ -512,9 +600,11 @@ tim IT untuk v1, dengan Node 22 dan tanpa penjaga `gas/Index.html` milik v1.
 |---|---|---|---|---|
 | tag git | otomatis | manual | manual | `production` |
 
-Push ke branch tidak menjalankan apa pun. Rilis = buat tag, misalnya `v2-0.15.2`, push tag-nya,
-lalu jalankan **build-app-prod** dan **deploy-prod** dari halaman pipeline di GitLab.
-Awalan `v2-` membedakannya dari tag v1 (`v1.0.0`, `v1.0.1`) yang sudah ada di repo itu.
+Push ke branch tidak menjalankan apa pun. Rilis = buat tag `v` + versi di `package.json`,
+misalnya `v2.16.0`, push tag-nya, lalu jalankan **build-app-prod** dan **deploy-prod** dari
+halaman pipeline di GitLab. Sejak 2.16.0 versi v2 berawal 2, jadi tagnya tak tertukar dengan tag
+v1 (`v1.0.0`, `v1.0.1`) yang sudah ada di repo itu. Sebelumnya tag v2 diberi awalan `v2-`
+(mis. `v2-0.15.2`).
 
 **Env di service Cloud Run** `product-task-tracker-service` diisi sekali (Edit & Deploy New
 Revision → Variables). Deploy dari CI hanya mengubah `APP_ENV`; env lain dipertahankan.
@@ -532,6 +622,10 @@ Service itu sebelumnya menjalankan v1, jadi env lamanya masih berisi spreadsheet
 baca-tulis v2 memeriksa penanda `_meta` lebih dulu (lihat *Dua pengaman*), jadi aplikasinya
 hanya menampilkan galat. Variabel khusus v1 (`MAGANG_PIN`, `VIEW_PIN`, `DATA_SOURCE`, `MYSQL_*`,
 `METRICS_*`, `OKR_*`, dst.) tak dibaca v2 dan sebaiknya dihapus dari service itu.
+
+Data real tak butuh env baru: tab `setelan`, `data_real`, dan `obrolan_real` dibuat sendiri di
+spreadsheet v2 saat pertama dipakai. Deploy memakai `--max-instances 2`, dan data real memang
+dibuat aman untuk dua instance (lihat *Sumber data*, Dua instance).
 
 Untuk mencoba server yang sama dengan Cloud Run di komputer sendiri: isi env di shell, lalu
 `npm start` → <http://localhost:8080>. Kerja sehari-hari tetap `npm run dev`, yang memuat `.env`.
@@ -643,22 +737,35 @@ ratusan aksi sungguhan (status, output & bukti, task anak, ganti PIC dan sub-sta
 oleh orang yang berganti-ganti. Tiap langkah memeriksa hirarki task anak, urutan tahap, dan
 bahwa semua hitungan tampilan tetap jalan.
 
+Data real diuji di dua tingkat. `test/real.test.js` memastikan perubahan yang disimpan selalu
+sama dengan menjalankan perintahnya, termasuk simulasi acak 2 × 400 perintah.
+`test/real-rpc.test.js` menguji jalur server: sumber data hanya diganti Dev, aturan berlaku di
+server atas nama profil sesi, kiriman ulang, tarikan bertahap, perubahan besar yang terpecah, tab
+yang dibuat ulang, dan dua instance yang menyimpan bersamaan.
+
 **Setiap rilis:** naikkan versi di `package.json` **dan** `?v=` di `public/index.html` (tes
 `berkas` menolak kalau berbeda). Dengan begitu browser atau proxy kantor tak mencampur `inti.js`
-lama dengan `app.js` baru.
+lama dengan `app.js` baru. Catat rilisnya di `CHANGELOG.md` dan perbarui README. Sejak 2.16.0
+versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbaikan.
 
 ## Batasan yang disadari
 
-- **Suntingan belum tersimpan ke spreadsheet.** Data contoh dimuat dari server, tetapi yang
-  diubah orang (status, tinjauan, sub-task, gate proyek, paket, link, catatan) tersimpan di
-  browser masing-masing (localStorage). Pengecualiannya pesan Komunikasi dan foto profil, yang
-  sudah tersimpan bersama di spreadsheet (lihat *Komunikasi bersama* dan *Foto profil*). Tombol **Reset data contoh** di kaki
-  sidebar (di ponsel: Menu) membuang semua perubahan itu dan memuat ulang data contoh dari
-  spreadsheet. Data contoh di spreadsheet tak pernah diubah aplikasi, jadi selalu utuh. Karena
-  itu pula Catatan Saya belum terbagi antarperangkat. Jejak dan tombol aksi task di percakapan
-  mengikuti data task di browser masing-masing, dan **tautan ke
-  task yang dibuat di browser lain tidak ditemukan** (aplikasi memberi tahu "tidak ada di data
-  browser ini"). Tautan ke apa pun yang sudah ada di data contoh selalu jalan.
+- **Di data contoh, suntingan hanya di browser itu.** Data contoh dimuat dari server, tetapi
+  yang diubah orang (status, tinjauan, sub-task, gate proyek, paket) tersimpan di browser
+  masing-masing (localStorage). Pengecualiannya pesan Komunikasi dan foto profil, yang tersimpan
+  bersama di spreadsheet (lihat *Komunikasi bersama* dan *Foto profil*). Tombol **Reset data
+  contoh** di kaki sidebar (di ponsel: Menu) membuang semua perubahan itu dan memuat ulang data
+  contoh dari spreadsheet. Data contoh di spreadsheet tak pernah diubah aplikasi, jadi selalu
+  utuh. Jejak dan tombol aksi task di percakapan mengikuti data task di browser masing-masing,
+  dan **tautan ke task yang dibuat di browser lain tidak ditemukan** (aplikasi memberi tahu
+  "tidak ada di data browser ini"). Di **data real** semua itu tersimpan bersama (lihat *Sumber
+  data*).
+- **Link Saya dan Catatan Saya tetap di browser itu**, di data contoh maupun data real, jadi
+  belum terbagi antarperangkat.
+- **Data real tiba di browser lain paling lambat 20–30 detik kemudian**, dan tarikannya berhenti
+  selama tab tak terlihat. Riwayat `data_real` hanya bertambah dan dibaca utuh setiap kali
+  instance server menyala dan setiap kali browser baru pertama membukanya (lihat *Nanti di
+  MySQL* di bagian *Sumber data*).
 - **Profil tanpa PIN pribadi masih bisa dipakai siapa pun.** Foto profil dan pesan atas nama
   profil ber-PIN terlindungi sejak 0.14.0 (lihat *Master & PIN profil*); profil tanpa PIN tetap
   dipilih bebas, sama seperti data lain di prototipe. Login per orang sungguhan belum ada.
@@ -698,12 +805,14 @@ lama dengan `app.js` baru.
 
 ## Langkah berikutnya
 
-1. Simpan suntingan task, proyek, dan paket di server, menggantikan localStorage — langsung ke
-   MySQL (schema sendiri, mis. `produk_v2`, diminta ke tim IT dengan nama persis), bukan ke
-   spreadsheet dulu. Komunikasi (0.10.0) sudah memakai pola peristiwa yang hanya bertambah; pola
-   yang sama bisa dipakai untuk status dan tinjauan task. Aturan alurnya sudah ada di
-   `public/inti.js` dan bisa dipakai juga di server. MySQL hanya terjangkau dari jaringan
-   kantor dan Cloud Run, tidak dari Vercel.
+1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
+   Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 21 tabel berawalan `v2_` di skema
+   `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
+   salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
+   dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru
+   sudah ditentukan server. MySQL hanya terjangkau dari jaringan kantor dan Cloud Run, tidak dari
+   Vercel.
 2. Login per orang, supaya profil berasal dari login, data bisa disaring per peran, dan Link
    Saya kembali pribadi.
 3. Sebelum menggantikan v1: endpoint metrics dan MCP (dipakai sistem OKR manager), lalu migrasi

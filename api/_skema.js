@@ -163,6 +163,68 @@ function pinDariBaris(judul, baris) {
   return { orang: sel('orang'), hash: sel('hash'), garam: sel('garam'), diperbarui: dariSel('at', sel('diperbarui')) };
 }
 
+/* ---------- Sumber data dan data real (2.16.0) -------------------------------
+   Tab `setelan`: setelan aplikasi yang diatur mode Dev, satu baris per kunci (ditimpa), mis.
+   sumber_data = contoh | real. Tab `data_real`: SATU PERUBAHAN = satu baris, hanya bertambah,
+   tak pernah disunting — urutan baris adalah urutan perubahan. `perintah` = isian dari browser
+   (jejak), `ubah` = baris data yang berubah (Inti.bedaData), `dasar` = banyaknya perubahan yang
+   sudah dilihat server saat memeriksanya (lihat api/_real.js). Perubahan yang lebih panjang dari
+   satu sel (batas 50.000 karakter) dipecah ke beberapa baris berurutan: bagian "1/3", "2/3", ….
+   Tab `obrolan_real`: obrolan data real, terpisah dari obrolan data contoh karena nomor task-nya
+   bisa sama (PRD-001). Ketiganya bukan data contoh: impor ulang tak menyentuhnya. */
+const TAB_SETELAN = 'setelan';
+const SETELAN_KOLOM = ['kunci', 'nilai', 'oleh', 'diperbarui'];
+const TAB_REAL = 'data_real';
+const REAL_KOLOM = ['id', 'bagian', 'at', 'oleh', 'aksi', 'hari', 'perintah', 'ubah', 'dasar'];
+const TAB_OBROLAN_REAL = 'obrolan_real';
+const SEL_MAKS = 45000;
+
+const setelanKeBaris = s => [String(s.kunci || ''), String(s.nilai == null ? '' : s.nilai), String(s.oleh || ''), keSel('at', s.diperbarui)];
+function setelanDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  return { kunci: sel('kunci').trim(), nilai: sel('nilai').trim(), oleh: sel('oleh'), diperbarui: dariSel('at', sel('diperbarui')) };
+}
+
+/* Satu perubahan → satu baris atau lebih (lihat di atas). */
+function realKeBaris(p) {
+  const ubah = JSON.stringify(p.ubah || {});
+  const potongan = [];
+  for (let i = 0; i < ubah.length; i += SEL_MAKS) potongan.push(ubah.slice(i, i + SEL_MAKS));
+  return potongan.map((u, i) => [String(p.id), `${i + 1}/${potongan.length}`, keSel('at', p.at), String(p.oleh || ''), String(p.aksi || ''),
+    String(p.hari || ''), i ? '' : JSON.stringify(p.isi || {}), u, !i && Number.isInteger(p.dasar) ? String(p.dasar) : '']);
+}
+/* Baris → perubahan utuh. Baris yang potongannya tak lengkap atau isinya rusak (mis. disunting
+   tangan) dilewati dan dihitung di `rusak`, supaya Panel Dev bisa menunjukkannya. */
+function realDariBaris(judul, daftar) {
+  const sel = (b, k) => { const i = judul.indexOf(k); return i >= 0 && b[i] != null ? String(b[i]) : ''; };
+  const peristiwa = [];
+  let rusak = 0;
+  let kumpul = null;
+  for (const b of daftar || []) {
+    if (!b || !b.some(s => String(s).trim())) continue;
+    const id = sel(b, 'id');
+    const [ke, dari] = sel(b, 'bagian').split('/').map(Number);
+    if (ke === 1) kumpul = { id, dari, potongan: [], awal: b };
+    if (!kumpul || kumpul.id !== id || kumpul.potongan.length !== ke - 1) { rusak++; kumpul = null; continue; }
+    kumpul.potongan.push(sel(b, 'ubah'));
+    if (ke !== kumpul.dari) continue;
+    const { awal: a, potongan } = kumpul;
+    kumpul = null;
+    const dasar = sel(a, 'dasar').trim();
+    try {
+      peristiwa.push({
+        id, at: dariSel('at', sel(a, 'at')), oleh: sel(a, 'oleh'), aksi: sel(a, 'aksi'), hari: sel(a, 'hari'),
+        isi: JSON.parse(sel(a, 'perintah') || '{}'), ubah: JSON.parse(potongan.join('') || '{}'),
+        dasar: /^\d+$/.test(dasar) ? Number(dasar) : null,
+        panjang: potongan.reduce((n, u) => n + u.length, 0) + sel(a, 'perintah').length,   // karakter di sel, untuk Panel Dev
+      });
+    } catch (e) {
+      rusak++;
+    }
+  }
+  return { peristiwa, rusak };
+}
+
 /* Data aplikasi → baris per tab, judul kolom di baris pertama. */
 function urai(data) {
   const isi = Object.fromEntries(Object.keys(TAB).map(t => [t, []]));
@@ -231,7 +293,8 @@ function nomorTerbesar(daftar, awalan) {
 
 module.exports = {
   TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
+  TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, SEL_MAKS,
   keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
-  masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris,
+  masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   urai, rakit, nomorTerbesar,
 };

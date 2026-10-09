@@ -115,6 +115,13 @@
     tahapBuka: null,
     /* Sub-task yang sedang diubah di detail task: { task, sub }. */
     ubahSub: null,
+    /* Sumber data (2.16.0): 'contoh' atau 'real', dipilih mode Dev untuk semua pengguna. */
+    mode: 'contoh',
+    /* Data real (lihat ubahData): dasar = yang sudah tersimpan di server; tertunda = perintah
+       browser ini yang belum diterapkan di dasar. pribadi = Link Saya dan Catatan Saya di data
+       real, yang tetap di browser ini. */
+    real: { generasi: '', seq: 0, dasar: null, tertunda: [], mengirim: false, gagal: 0, galat: '' },
+    pribadi: { links: [], notes: [] },
     proyekArsip: false,
     task: Object.assign({ tampilan: 'daftar', lingkup: '', fokus: '', proyek: '', ...SARING_KOSONG, status: 'aktif', urut: 'due', arah: 1 },
       prefTask(), { q: '', hal: 1, saringBuka: false }),
@@ -165,7 +172,232 @@
   }
 
   /* Selama "Lihat sebagai" (mode Dev) tak ada yang disimpan: perubahannya dibuang saat kembali. */
-  function simpanData() { if (!S.pratinjau) simpan('data', { versi: S.versi, dimuat: S.dimuat, data: S.data }); }
+  function simpanData() {
+    if (S.pratinjau) return;
+    if (S.mode === 'real') {
+      // Data bersama sudah dikirim lewat ubahData; di sini hanya salinan cepatnya dan data pribadi.
+      S.pribadi = { links: S.data.links || [], notes: S.data.notes || [] };
+      return simpanCacheReal();
+    }
+    simpan('data', { versi: S.versi, dimuat: S.dimuat, data: S.data });
+  }
+
+  /* ---------- Data real (2.16.0) ----------
+     Satu pintu semua perubahan data bersama: ubahData(aksi, isi), dengan aksi = nama aturan di
+     inti (Inti.AKSI_DATA). Data contoh: perintahnya dijalankan di browser ini saja. Data real:
+     dijalankan di sini dulu supaya terasa seketika, lalu dikirim ke server; server memeriksanya
+     dengan aturan yang sama dan menyimpan perubahannya untuk semua orang. Yang ditolak server
+     dibatalkan di sini. S.real.dasar = keadaan yang sudah tersimpan (hanya diubah perubahan dari
+     server); S.data = dasar + perintah yang belum tersimpan + Link/Catatan pribadi. */
+  let urutPerintah = 0;
+  const idPerintah = () => 'b' + Date.now().toString(36) + (urutPerintah++ % 1296).toString(36).padStart(2, '0') + Math.random().toString(36).slice(2, 6);
+  function ubahData(aksi, isi) {
+    const real = S.mode === 'real';
+    if (real && S.pratinjau) throw new Error('Mode Lihat sebagai: tampilan saja, perubahan data real tidak dikirim.');
+    if (real && S.me === I.DEV) throw new Error('Mode Dev tidak mengubah data real. Pilih profil untuk mengerjakannya.');
+    const p = { id: idPerintah(), aksi, isi, oleh: S.me, at: Date.now(), hari: hariIni() };
+    if (real && S.data === S.real.dasar) S.data = salinanDasar();
+    const r = I.jalankanPerintah(S.data, p);
+    if (!r.ok) {
+      if (real) susunReal();
+      throw new Error(r.galat);
+    }
+    S.pindah = (S.pindah || []).concat(r.pindah || []);
+    if (real) {
+      S.real.tertunda.push({ ...p, hasilLokal: I.ringkasHasil(r.hasil) });
+      simpanCacheReal();
+      setTimeout(kirimTertunda, 0);
+    }
+    return r.hasil;
+  }
+  /* Salinan dasar, dengan data pribadi (yang tak pernah ikut perubahan server). */
+  function salinanDasar() {
+    const { links, notes, ...bersama } = S.real.dasar;
+    return { ...structuredClone(bersama), links: S.pribadi.links, notes: S.pribadi.notes };
+  }
+  /* Perintah tertunda yang kini tak lolos aturan (mis. orang lain lebih dulu menyetujui task itu)
+     dibatalkan; yang sudah diterima server tinggal menunggu perubahannya tiba. */
+  function susunReal() {
+    const R = S.real;
+    if (!R.dasar) return;
+    let d = R.dasar;
+    d.links = S.pribadi.links;
+    d.notes = S.pribadi.notes;
+    if (R.tertunda.length) {
+      d = salinanDasar();
+      R.tertunda = R.tertunda.filter(p => {
+        const r = I.jalankanPerintah(d, p);
+        if (!r.ok && !p.terkirim) toast(`Perubahan dibatalkan: ${r.galat}`, true);
+        return r.ok || p.terkirim;
+      });
+    }
+    S.data = d;
+  }
+  function simpanCacheReal() {
+    const R = S.real;
+    if (S.pratinjau || !R.dasar) return;
+    const { links, notes, ...dasar } = R.dasar;
+    simpan('real', { generasi: R.generasi, seq: R.seq, dasar, tertunda: R.tertunda });
+    simpan('pribadi_real', S.pribadi);
+  }
+  /* Saat dibuka di data real: salinan cepat dari browser ini (kalau generasinya sama), lalu
+     perubahan sesudahnya dari server. Perintah yang belum terkirim dikirim lagi; server membuang
+     yang ternyata sudah tersimpan (ID-nya sama). */
+  function mulaiReal(b) {
+    const cache = ambil('real', null);
+    const sama = !!(cache && cache.dasar && b && !b.dariAwal && cache.generasi === b.generasi);
+    S.pribadi = ambil('pribadi_real', null) || { links: [], notes: [] };
+    Object.assign(S.real, {
+      generasi: sama ? cache.generasi : '',
+      seq: sama ? cache.seq : 0,
+      dasar: sama ? { ...I.dataKosong(), ...cache.dasar } : I.dataKosong(),
+      tertunda: cache && Array.isArray(cache.tertunda) ? cache.tertunda.map(p => ({ ...p, terkirim: false })) : [],
+      mengirim: false, gagal: 0, galat: '',
+    });
+    terimaReal(b, false);
+    susunReal();
+    if (S.real.tertunda.length) setTimeout(kirimTertunda, 0);
+    return S.data.tasks.length || S.data.projects.length ? '' : 'Data real masih kosong. Mulai dari Proyek atau Rancangan Paket.';
+  }
+  /* Perubahan dari server, berurutan menurut nomornya. Ada yang terlewat: tarik dari awal.
+     Yang bertanda sah: false kalah dari perubahan lain yang bersamaan (lihat api/_real.js):
+     nomornya dilewati, dan perintahnya diperiksa ulang server lalu tiba lagi di nomor lain. */
+  function terimaReal(b, gambar = true) {
+    const R = S.real;
+    if (!b) return;
+    let berubah = false;
+    if (b.dariAwal || (R.generasi && b.generasi !== R.generasi)) {
+      R.dasar = I.dataKosong();
+      R.seq = 0;
+      berubah = true;
+    }
+    R.generasi = b.generasi || '';
+    for (const e of b.peristiwa || []) {
+      if (e.seq <= R.seq) continue;
+      if (e.seq !== R.seq + 1) {
+        Object.assign(R, { seq: 0, generasi: '', dasar: I.dataKosong() });
+        setTimeout(() => tarikObrolan(), 0);
+        return;
+      }
+      R.seq = e.seq;
+      berubah = true;
+      if (e.sah === false) continue;
+      I.terapkanUbah(R.dasar, e.ubah);
+      R.tertunda = R.tertunda.filter(p => p.id !== e.id);   // perintah sendiri yang sudah tersimpan
+    }
+    if (!berubah) return;
+    susunReal();
+    simpanCacheReal();
+    if (gambar) gambarUlangAman();
+  }
+  /* Kirim perintah tertunda satu per satu, berurutan. Yang ditolak server dibatalkan di sini;
+     yang gagal karena jaringan, server, atau sesi dicoba lagi nanti — perubahannya tetap tampil,
+     dengan tanda "belum tersimpan" di kaki sidebar. */
+  let jamKirim = null;
+  async function kirimTertunda() {
+    const R = S.real;
+    if (R.mengirim || S.mode !== 'real' || S.pratinjau) return;
+    R.mengirim = true;
+    clearTimeout(jamKirim);
+    try {
+      for (let p = R.tertunda.find(x => !x.terkirim); p && S.mode === 'real'; p = R.tertunda.find(x => !x.terkirim)) {
+        perbaruiStatusReal();
+        const { hasilLokal, terkirim, ...perintah } = p;
+        const h = await api('simpanReal', [perintah]);
+        if (h.success) { terimaKonfirmasi(p, h.peristiwa); continue; }
+        if (h.kode === 'SUMBER') { R.tertunda = []; simpanCacheReal(); return gantiSumber('contoh'); }
+        if (h.http === 400 || (h.http === 403 && h.kode !== 'PERLU_PIN')) {
+          R.tertunda = R.tertunda.filter(x => x !== p);
+          susunReal();
+          simpanCacheReal();
+          render();
+          // Biasanya karena orang lain lebih dulu mengubah hal yang sama: ambil keadaan terbarunya.
+          toast(`Perubahan dibatalkan: ${h.message} Data terbaru sedang dimuat.`, true);
+          setTimeout(() => tarikObrolan(), 0);
+          continue;
+        }
+        R.gagal = Math.min(R.gagal + 1, 5);
+        R.galat = h.message || 'Gagal menyimpan ke server.';
+        jamKirim = setTimeout(kirimTertunda, Math.min(5000 * 2 ** (R.gagal - 1), 120000));
+        return;
+      }
+      R.gagal = 0;
+      R.galat = '';
+    } finally {
+      R.mengirim = false;
+      perbaruiStatusReal();
+    }
+  }
+  /* Server menyimpan perintah p sebagai perubahan e. Langsung sesudah yang sudah ada di browser
+     ini: diterapkan di dasar. Ada perubahan orang lain di antaranya: semua ditarik dulu supaya
+     urutannya sama dengan di server. */
+  function terimaKonfirmasi(p, e) {
+    const R = S.real;
+    gantiIdHasil(p.hasilLokal, e.hasil);
+    if (!R.generasi && !R.seq) R.generasi = e.generasi || '';
+    if (e.kosong || (e.generasi === R.generasi && e.seq <= R.seq)) {
+      R.tertunda = R.tertunda.filter(x => x !== p);
+    } else if (e.generasi === R.generasi && e.seq === R.seq + 1) {
+      I.terapkanUbah(R.dasar, e.ubah);
+      R.seq = e.seq;
+      R.tertunda = R.tertunda.filter(x => x !== p);
+    } else {
+      p.terkirim = true;
+      setTimeout(() => tarikObrolan(), 0);
+    }
+    susunReal();
+    simpanCacheReal();
+    gambarUlangAman();
+  }
+  /* Nomor yang dipakai di browser ini bisa berbeda dengan nomor dari server (ada perubahan orang
+     lain lebih dulu): pilihan yang sedang terbuka mengikuti nomor server. */
+  function gantiIdHasil(lokal, server) {
+    if (!lokal || !server) return;
+    const peta = new Map();
+    if (lokal.id && server.id && lokal.id !== server.id) peta.set(lokal.id, server.id);
+    if (lokal.project && server.project && lokal.project !== server.project) peta.set(lokal.project, server.project);
+    (lokal.tasks || []).forEach((id, i) => { if (server.tasks && server.tasks[i] && server.tasks[i] !== id) peta.set(id, server.tasks[i]); });
+    if (!peta.size) return;
+    if (peta.has(S.pilih)) S.pilih = peta.get(S.pilih);
+    if (peta.has(S.proyek)) S.proyek = peta.get(S.proyek);
+    if (peta.has(S.pkt.pilih)) S.pkt.pilih = peta.get(S.pkt.pilih);
+  }
+  /* Perubahan dari orang lain tak menggambar ulang halaman selagi orang mengetik di sana
+     (ketikannya bisa hilang): ditunda sampai isian itu ditinggalkan. */
+  let perluGambar = false;
+  const sedangMengetik = () => {
+    const a = document.activeElement;
+    return !!a && !!a.closest && !!a.closest('#app') && a.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, select, [contenteditable="true"]');
+  };
+  function gambarUlangAman() {
+    perbaruiStatusReal();
+    if (!S.data || $('#app').hidden) return;
+    if (sedangMengetik()) { perluGambar = true; return; }
+    perluGambar = false;
+    render();
+  }
+  document.addEventListener('focusout', () => setTimeout(() => { if (perluGambar && !sedangMengetik()) gambarUlangAman(); }, 0));
+  function teksStatusData() {
+    if (S.mode !== 'real') return 'Data contoh. Perubahan hanya tersimpan di browser ini.';
+    const n = S.real.tertunda.length;
+    if (!n) return 'Data real. Semua perubahan tersimpan bersama di spreadsheet.';
+    if (S.real.galat && !S.real.mengirim) return `${n} perubahan belum tersimpan: ${S.real.galat}`;
+    return `Menyimpan ${n} perubahan…`;
+  }
+  function perbaruiStatusReal() {
+    const el = $('#status-data');
+    if (el) {
+      el.textContent = teksStatusData();
+      el.classList.toggle('merah', S.mode === 'real' && !!S.real.galat && S.real.tertunda.length > 0);
+    }
+    const b = $('#coba-simpan');
+    if (b) b.hidden = !(S.mode === 'real' && S.real.galat && S.real.tertunda.length && !S.real.mengirim);
+  }
+  /* Dev mengganti sumber data: semua browser memuat ulang aplikasinya. */
+  function gantiSumber(mode) {
+    toast(mode === 'real' ? 'Sumber data diganti ke Data real. Memuat ulang…' : 'Sumber data diganti ke Data contoh. Memuat ulang…');
+    setTimeout(() => location.reload(), 1500);
+  }
   function simpanPref(ruang) {
     if (ruang === 'task') { const { q, hal, saringBuka, ...sisa } = S.task; simpan('task', { ...sisa, lk: 2 }); }
     if (ruang === 'pnd') simpan('pnd_tab', S.pnd.tab);
@@ -284,7 +516,9 @@
   const ikon = (nama, ukuran = 18) => `<svg width="${ukuran}" height="${ukuran}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${JALUR_IKON[nama] || ''}</svg>`;
   /* Nama ikon Dashboard Lain berasal dari v1 (Material Icons). */
   const IKON_DASH = { dashboard: 'jendela', bar_chart: 'grafik', timeline: 'aktivitas', table_chart: 'tabel', description: 'laporan', assignment: 'papanKlip', school: 'toga', event: 'kalender' };
-  const LOGO = '<span class="merek-ikon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5CC6F7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>';
+  /* Logo ProductTrack (folder logo/ → public/logo, seperti v1) di alas putih. */
+  const LOGO = '<span class="merek-ikon"><img src="/logo/icon-64.png" alt="" width="26" height="26" draggable="false"></span>';
+  const NAMA_MEREK = '<span class="merek-nama">Product<b>Track</b></span>';
 
   /* ---------- Potongan tampilan ---------- */
 
@@ -585,7 +819,7 @@
   /* batasMs: tanpa batas waktu, layar "Memuat data…" menunggu selamanya kalau server tak menjawab. */
   async function api(action, args = [], batasMs = 30000) {
     // "Lihat sebagai" hanya tampilan: tak ada pesan, foto, perubahan orang, atau Master yang terkirim.
-    if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang', 'simpanMaster', 'aturPin'].includes(action)) {
+    if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang', 'simpanMaster', 'aturPin', 'simpanReal', 'aturSumber'].includes(action)) {
       return { http: 0, success: false, message: 'Mode Lihat sebagai: tampilan saja, tidak ada yang dikirim. Kembali jadi Dev dulu.' };
     }
     const henti = new AbortController();
@@ -676,7 +910,7 @@
       </div>`).join('');
     // Mode Dev sengaja tak tampil di sini (0.14.3): masuknya hanya lewat tekan-tahan logo.
     $('#profil').innerHTML = `<div class="kartu-layar lebar">
-      <span class="merek">${LOGO}ProductTrack</span>
+      <span class="merek">${LOGO}${NAMA_MEREK}</span>
       <div><h1 style="margin:0;font-size:22px;color:var(--navy)">Masuk sebagai siapa?</h1>
       <p class="pesan-info" style="margin-top:6px">PIN aplikasi dipakai bersama, jadi pilih profil Anda sendiri${S.berpin.size ? '; profil bergembok meminta PIN pribadinya' : ''}. Tampilan menyesuaikan peran: Staff dan Lead mulai di Hari Ini, Manager di Proyek.</p></div>
       ${kelompok}
@@ -782,14 +1016,16 @@
     render();
     bukaEditorDariAlamat();
     if (hasil.ditolak) toast(hasil.ditolak, true);
-    else if (hasil.hilang) toast(`${hasil.hilang} tidak ada di data browser ini. Data contoh tersimpan per browser, jadi yang dibuat di browser lain tidak ikut.`, true);
+    else if (hasil.hilang) toast(S.mode === 'real' ? `${hasil.hilang} tidak ditemukan di data real.` : `${hasil.hilang} tidak ada di data browser ini. Data contoh tersimpan per browser, jadi yang dibuat di browser lain tidak ikut.`, true);
   }
 
   /* reset = sesudah "Reset data contoh": data lokal sudah dibuang, jadi yang dimuat pasti
      data contoh dari spreadsheet (spreadsheet tak pernah diubah aplikasi). */
   async function muat(reset = false) {
     tampilKunci(reset ? 'Mengembalikan data contoh…' : 'Memuat data…', true);
-    const h = await api('muatContoh', [], 45000);
+    // Data real: cukup perubahan sesudah salinan cepat di browser ini (kalau generasinya sama).
+    const cacheReal = ambil('real', null);
+    const h = await api('muatContoh', [{ realSejak: cacheReal ? cacheReal.seq || 0 : 0, generasi: cacheReal ? cacheReal.generasi || '' : '' }], 45000);
     if (h.http === 401) return tampilKunci('Masukkan PIN untuk melanjutkan.', false);
     if (!h.success) {
       const pesan = h.message || `Gagal memuat data (HTTP ${h.http}).`;
@@ -809,21 +1045,27 @@
       for (const [jenis, alasan] of Object.entries(S.masterSalah)) catatGalat(`Master ${jenis} diabaikan: ${alasan}`, 'master');
       S.berpin = new Set(Array.isArray(h.berpin) ? h.berpin : []);
       S.meSesi = h.me || '';
-      const lokal = ambil('data', null);
-      if (h.data && lokal && lokal.versi === h.versi && lokal.data) {
-        S.data = rapikan(lokal.data);
-        S.dimuat = Number(lokal.dimuat) || Date.now();
-      } else if (h.data) {
-        S.data = rapikan(h.data);
+      S.mode = h.mode === 'real' ? 'real' : 'contoh';
+      if (S.mode === 'real') {
+        pesan = mulaiReal(h.real);
         S.dimuat = Date.now();
-        pesan = `${reset ? 'Data contoh kembali ke awal' : 'Data contoh dimuat'}: ${S.data.tasks.length} task, ${S.data.projects.length} proyek, ${S.data.packages.length} paket.`;
       } else {
-        S.data = rapikan({});
-        S.dimuat = Date.now();
-        pesan = 'Data contoh belum diimpor ke spreadsheet v2.';
+        const lokal = ambil('data', null);
+        if (h.data && lokal && lokal.versi === h.versi && lokal.data) {
+          S.data = rapikan(lokal.data);
+          S.dimuat = Number(lokal.dimuat) || Date.now();
+        } else if (h.data) {
+          S.data = rapikan(h.data);
+          S.dimuat = Date.now();
+          pesan = `${reset ? 'Data contoh kembali ke awal' : 'Data contoh dimuat'}: ${S.data.tasks.length} task, ${S.data.projects.length} proyek, ${S.data.packages.length} paket.`;
+        } else {
+          S.data = rapikan({});
+          S.dimuat = Date.now();
+          pesan = 'Data contoh belum diimpor ke spreadsheet v2.';
+        }
+        // Tahap proyek dihitung dari task-nya; samakan dulu tanpa menulis riwayat.
+        I.segarkanTahap(S.data);
       }
-      // Tahap proyek dihitung dari task-nya; samakan dulu tanpa menulis riwayat.
-      I.segarkanTahap(S.data);
       S.versi = h.versi || '';
       S.sumber = h.sumber || '';
       simpanData();
@@ -956,7 +1198,7 @@
     const grup = [...new Set(HALAMAN.map(h => h.grup))];
     $('#samping').innerHTML = `
       <div class="samping-merek">
-        <a class="merek" href="#" data-aksi="ke" data-view="awal">${LOGO}<span>ProductTrack<small>Divisi Produk · v2</small></span></a>
+        <a class="merek" href="#" data-aksi="ke" data-view="awal">${LOGO}<span class="merek-teks">${NAMA_MEREK}${versiBerkas() ? `<span class="merek-versi">v${esc(versiBerkas())}</span>` : ''}<small>Divisi Produk</small></span></a>
         <button type="button" class="ikon-tombol samping-tutup" data-aksi="tutup-nav" aria-label="Tutup menu">${ikon('tutup', 20)}</button>
       </div>
       <nav class="samping-nav" aria-label="Menu utama">${grup.map(g => {
@@ -974,9 +1216,11 @@
     : `<button type="button" class="ikon-tombol" data-aksi="keluar" title="Keluar" aria-label="Keluar">${ikon('keluar')}</button>`}
           </div>
         </div>
-        <div class="kotak-data">
-          <p class="samping-catatan">Data contoh. Perubahan hanya tersimpan di browser ini.</p>
-          <button type="button" class="tombol kecil tombol-reset" data-aksi="reset-data">${ikon('ulang', 16)} Reset data contoh</button>
+        <div class="kotak-data ${S.mode === 'real' ? 'data-real' : ''}">
+          <p class="samping-catatan" id="status-data">${esc(teksStatusData())}</p>
+          ${S.mode === 'real'
+    ? `<button type="button" class="tombol kecil" id="coba-simpan" data-aksi="coba-simpan" ${S.real.galat && S.real.tertunda.length ? '' : 'hidden'}>${ikon('ulang', 16)} Coba simpan lagi</button>`
+    : `<button type="button" class="tombol kecil tombol-reset" data-aksi="reset-data">${ikon('ulang', 16)} Reset data contoh</button>`}
         </div>
       </div>`;
     $('#samping').classList.toggle('buka', S.navBuka);
@@ -1186,7 +1430,7 @@
       ['orang', 'Ganti profil', () => tampilProfil()],
       ['kamera', 'Foto profil', () => bukaFoto()],
       ['buku', 'Buka Panduan', () => pindahHalaman('panduan')],
-      ['ulang', 'Reset data contoh', () => resetData()],
+      S.mode !== 'real' && ['ulang', 'Reset data contoh', () => resetData()],
     ].filter(Boolean);
     for (const [ik, label, jalan] of aksi) if (cocok(label)) isi.push({ grup: 'Aksi', ikon: ik, label, jalan });
     if (!kata) return isi;
@@ -2432,8 +2676,11 @@
     if (S.obr.menarik || !S.data) return;
     S.obr.menarik = true;
     const awal = penuh || !S.obr.diperbarui;
-    const h = await api('muatObrolan', [awal ? 0 : S.obr.sejak]);
+    const h = await api('sinkron', [{ obrolanSejak: awal ? 0 : S.obr.sejak, realSejak: S.real.seq, generasi: S.real.generasi }]);
     S.obr.menarik = false;
+    if (h.success && h.mode && h.mode !== S.mode) return gantiSumber(h.mode);
+    if (h.success && S.mode === 'real' && h.real) terimaReal(h.real);
+    if (h.success) Object.assign(h, h.obrolan || { peristiwa: [] });
     if (!h.success) {
       S.obr.galat = h.http === 401 ? 'Sesi berakhir; muat ulang halaman lalu masukkan PIN.' : (h.message || 'Pesan gagal dimuat.');
       S.obr.gagal = Math.min((S.obr.gagal || 0) + 1, 4);
@@ -2459,7 +2706,8 @@
   let jamTarik = null;
   function jadwalkanTarik() {
     clearTimeout(jamTarik);
-    const dasar = S.view === 'komunikasi' ? 20000 : 60000;
+    // Data real ikut ditarik di sini, jadi di halaman lain lebih sering (30 detik).
+    const dasar = S.view === 'komunikasi' ? 20000 : S.mode === 'real' ? 30000 : 60000;
     jamTarik = setTimeout(async () => {
       if (!document.hidden && S.data && !$('#app').hidden) await tarikObrolan();
       jadwalkanTarik();
@@ -4964,8 +5212,13 @@
     if (!S.pratinjau) return;
     S.pratinjau = null;
     S.obr.peristiwa = S.obr.peristiwa.filter(e => !e.tertunda && !e.gagal);
-    const lokal = ambil('data', null);
-    if (lokal && lokal.data) { S.data = rapikan(lokal.data); I.segarkanTahap(S.data); }
+    if (S.mode === 'real') {
+      S.pribadi = ambil('pribadi_real', null) || { links: [], notes: [] };
+      susunReal();
+    } else {
+      const lokal = ambil('data', null);
+      if (lokal && lokal.data) { S.data = rapikan(lokal.data); I.segarkanTahap(S.data); }
+    }
     gantiIdentitas(I.DEV, { ingat: false });
     if (!kembali) return;
     S.devTab = 'pengguna';
@@ -5005,6 +5258,7 @@
     const server = !st || st.memuat ? '<p class="hint">Memeriksa server…</p>'
       : st.galat ? `<p class="pesan-galat">${esc(st.galat)}</p>` : kartuServer(st.isi);
     return `<div class="dev-grid">
+        <section class="kartu-polos dev-kartu dev-lebar"><h2 class="judul-ikon">${ikon('lapis', 18)} Sumber data · berlaku untuk semua pengguna</h2>${kartuSumber(st && st.isi)}</section>
         <section class="kartu-polos dev-kartu"><h2 class="judul-ikon">${ikon('jendela', 18)} Server & spreadsheet</h2>${server}</section>
         <section class="kartu-polos dev-kartu"><h2 class="judul-ikon">${ikon('lapis', 18)} Browser ini</h2>${kartuBrowser()}</section>
         <section class="kartu-polos dev-kartu dev-lebar"><h2 class="judul-ikon">${ikon('info', 18)} Galat terakhir di browser ini</h2>${daftarGalat()}</section>
@@ -5015,6 +5269,19 @@
         <button type="button" class="tombol" data-aksi="dev-siapkan">${ikon('centang', 16)} Siapkan spreadsheet</button>
         <button type="button" class="tombol" data-aksi="dev-salin">${ikon('salin', 16)} Salin laporan diagnosa</button>
       </div>`;
+  }
+  /* Sumber data aplikasi (2.16.0): pilihan mode Dev, berlaku untuk semua pengguna. */
+  const RIWAYAT_BESAR = 20 * 1048576;   // ±20 MB riwayat data_real: peringatan pindah ke MySQL
+  function kartuSumber(x) {
+    const r = x && x.real;
+    const pilihan = (mode, judul, ket) => `<button type="button" class="pilihan-sumber" data-aksi="dev-sumber" data-nilai="${mode}" aria-pressed="${S.mode === mode}">
+        <strong>${judul}${S.mode === mode ? ' · aktif' : ''}</strong><span>${ket}</span></button>`;
+    return `<div class="sumber-data">
+        ${pilihan('contoh', 'Data contoh', 'Hasil impor v1 dan skenario contoh. Perubahan hanya tersimpan di browser masing-masing dan bisa di-reset.')}
+        ${pilihan('real', 'Data real', `Mulai kosong. Setiap perubahan tersimpan bersama di spreadsheet (tab data_real) dan terlihat semua orang.${r ? ` Tersimpan ${fmtAngka(r.perubahan)} perubahan${r.ukuran ? ` (±${fmtUkuran(r.ukuran)})` : ''}${r.diulang ? `; ${r.diulang} kalah dari perubahan yang bersamaan dan sudah diulang server` : ''}${r.rusak ? `; ${r.rusak} baris rusak dilewati` : ''}.` : ''}`)}
+      </div>
+      ${r && r.ukuran > RIWAYAT_BESAR ? `<p class="hint teks-merah">Riwayat data real sudah ±${fmtUkuran(r.ukuran)}. Riwayat itu dibaca utuh setiap server menyala dan setiap browser baru membuka data real, jadi pemuatan makin lambat: saatnya pindah ke MySQL (lihat README, Sumber data).</p>` : ''}
+      <p class="hint">Mengganti sumber data memuat ulang aplikasi di semua browser, paling lambat sekitar satu menit kemudian (tab yang tak terlihat menyusul saat dibuka lagi). Perubahan data real yang terkirim sesudah sumbernya diganti ditolak, jadi pilih saat tim tak sedang mengisi. Obrolan Komunikasi juga terpisah per sumber data. Data yang tidak sedang dipakai tetap utuh.</p>`;
   }
   function versiBerkas() {
     const s = document.querySelector('script[src*="app.js"]');
@@ -5062,7 +5329,9 @@
     const foto = Object.values(S.foto.isi || {}).filter(f => f && I.fotoSah(f.gambar)).length;
     return `<dl class="dev-daftar">
         <dt>Versi berkas</dt><dd>${esc(versiBerkas() || '—')}</dd>
-        <dt>Data contoh</dt><dd>${S.versi ? esc(fmtWaktu(Date.parse(S.versi)) || S.versi) : '—'} · dimuat ${esc(relatif(S.dimuat))} · ${fmtAngka(S.data.tasks.length)} task</dd>
+        ${S.mode === 'real'
+    ? `<dt>Data real</dt><dd>sampai perubahan nomor ${fmtAngka(S.real.seq)} · ${fmtAngka(S.data.tasks.length)} task${S.real.tertunda.length ? ` · <b class="teks-merah">${S.real.tertunda.length} belum tersimpan</b>` : ''}</dd>`
+    : `<dt>Data contoh</dt><dd>${S.versi ? esc(fmtWaktu(Date.parse(S.versi)) || S.versi) : '—'} · dimuat ${esc(relatif(S.dimuat))} · ${fmtAngka(S.data.tasks.length)} task</dd>`}
         <dt>Pesan</dt><dd>${fmtAngka(S.obr.peristiwa.length)} peristiwa · ditarik ${S.obr.diperbarui ? esc(relatif(S.obr.diperbarui)) : 'belum'}${S.obr.gagal ? ` · <b class="teks-merah">${S.obr.gagal}× gagal</b>` : ''}</dd>
         <dt>Foto</dt><dd>${foto} foto tersimpan di browser</dd>
         <dt>Penyimpanan</dt><dd>${fmtUkuran(total)}${simpanan.length ? ` (${simpanan.slice(0, 4).map(([k, b]) => `${esc(k)} ${fmtUkuran(b)}`).join(', ')})` : ''}</dd>
@@ -5619,7 +5888,9 @@
         <ol class="pnd-langkah">${g.langkah.map(l => `<li>${tebal(l)}</li>`).join('')}</ol>
         ${gambar}
       </div>
-      ${g.coba ? `<div class="pnd-coba">${c
+      ${g.coba ? `<div class="pnd-coba">${S.mode === 'real'
+        ? '<p class="hint"><strong>Coba sekarang</strong> hanya untuk data contoh. Aplikasi sedang memakai data real, jadi langkah ini langsung dikerjakan pada pekerjaan sungguhan.</p>'
+        : c
         ? `<button type="button" class="tombol utama" data-aksi="coba" data-id="${esc(g.id)}">${ikon('kanan', 16)} Coba sekarang${esc(siapa)}</button><small>${esc(c.ket || '')}</small>`
         : '<p class="hint">Contohnya sudah terpakai di data ini. Tekan <strong>Reset data contoh</strong> di kaki sidebar untuk mengembalikannya.</p>'}</div>` : ''}
     </details>`;
@@ -5660,6 +5931,8 @@
   }
 
   function cobaPanduan(id) {
+    // Di data real, mencoba berarti mengubah pekerjaan sungguhan (bisa atas nama profil lain).
+    if (S.mode === 'real') return toast('Coba sekarang hanya untuk data contoh.', true);
     const c = P.cariContoh(id, S.data, I, hariIni(), S.me);
     if (!c) return toast('Contohnya sudah terpakai di data ini. Tekan Reset data contoh di kaki sidebar untuk mengembalikannya.', true);
     if (!bolehTinggalkanPaket()) return;
@@ -6090,10 +6363,10 @@
         case 'tambah': {
           const proyek = f.jalur === 'proyek';
           if (!(proyek ? f.subProyek : f.subRutin)) throw new Error(proyek ? 'Pilih sub-stage dulu.' : 'Pilih jenis rutin dulu.');
-          const t = I.taskBaru(S.data, {
+          const t = ubahData('taskBaru', { f: {
             title: f.title, project: proyek ? f.project : '', sub: proyek ? f.subProyek : f.subRutin,
             pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, induk: proyek ? f.induk || '' : '',
-          }, S.me, waktu, hariIni());
+          } });
           // Dibuat dari baris catatan: nomor task-nya ditempel di ujung baris itu.
           const asal = m.catatan && S.data.notes.find(x => x.id === m.catatan && x.user === S.me);
           if (asal) I.simpanCatatan(S.data, S.me, { title: asal.title, body: I.tandaiBarisTask(asal.body, m.baris, t.id), folder: asal.folder }, asal.id, waktu);
@@ -6102,22 +6375,22 @@
           return selesaiUbah(`${t.id} · ${t.sub} ditambahkan untuk ${I.orang(t.pic).pendek}${t.induk ? ` sebagai task anak ${t.induk}` : ''}.${asal ? ' Nomornya ditempel di baris catatan.' : ''}`);
         }
         case 'ubah': {
+          const lama = (S.data.tasks.find(x => x.id === m.id) || {}).pic;
+          ubahData('ubahTask', { task: m.id, f: { title: f.title, sub: f.sub, pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail } });
           const t = S.data.tasks.find(x => x.id === m.id);
-          const lama = t.pic;
-          I.ubahTask(S.data, t, { title: f.title, sub: f.sub, pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail }, S.me, waktu);
           tutupModal();
           return selesaiUbah(t.pic !== lama ? `Task disimpan; PIC-nya kini ${I.orang(t.pic).pendek}.` : 'Task disimpan.');
         }
         case 'proyek': {
-          const p = I.proyekBaru(S.data, f, S.me, waktu);
+          const p = ubahData('proyekBaru', { f });
           tutupModal();
           S.view = 'proyek';
           S.proyek = p.id;
           return selesaiUbah(`${p.name} dibuat. Tambahkan task pertamanya; tahap proyek mengikuti task terbuka paling awal.`);
         }
         case 'catatan': {
+          ubahData('terapkanAksi', { task: m.id, kunci: m.kunci, catatan: f.catatan });
           const t = S.data.tasks.find(x => x.id === m.id);
-          I.terapkanAksi(S.data, t, m.kunci, S.me, waktu, f.catatan);
           tutupModal();
           return selesaiUbah(m.kunci === 'kembalikan' ? `Dikembalikan ke ${I.orang(t.pic).pendek}.` : 'Ditandai tertahan.');
         }
@@ -6128,7 +6401,7 @@
           // Semua jenis yang tampil ikut dikirim, juga yang dicoret habis: aturannya menolak batch tanpa langkah.
           const langkah = Object.fromEntries($$('[data-alur]', form).map(fs => [fs.dataset.alur, $$('[name="langkah"]:checked', fs).map(el => el.value.split('|')[1])]));
           const ada = !!f.proyek;
-          const { project, tasks } = I.elaborasiPaket(S.data, p, { proyek: f.proyek, name: f.name, mode: f.mode, langkah, items, jumlah, due: f.due }, S.me, waktu, hariIni());
+          const { project, tasks } = ubahData('elaborasiPaket', { paket: p.id, f: { proyek: f.proyek, name: f.name, mode: f.mode, langkah, items, jumlah, due: f.due } });
           tutupModal();
           Object.assign(S.pkt, { pilih: null, sunting: false });
           Object.assign(S, { view: 'proyek', proyek: project.id, pilih: null });
@@ -6136,7 +6409,7 @@
           return selesaiUbah(`${tasks.length} task untuk ${items.length} target ${ada ? 'ditambahkan ke' : 'dibuat di'} ${project.id}. Langkahnya menunggu di antrean Lead tim pemiliknya dan dikerjakan per tahap ADDIE; progres ${judulPaket(p)} naik per capaian.`);
         }
         case 'paket-baru': {
-          const p = I.paketBaru(S.data, f, S.me, waktu);
+          const p = ubahData('paketBaru', { f });
           tutupModal();
           Object.assign(S.pkt, { pilih: p.id, sunting: true });
           return selesaiUbah(`${p.namaPaket} dibuat. Isi produk dan targetnya.`);
@@ -6165,7 +6438,7 @@
           return selesaiUbah(`Folder diganti nama (${n} isi).`);
         }
         case 'dashboard':
-          I.simpanDashboard(S.data, S.me, f, m.id, waktu);
+          ubahData('simpanDashboard', { f, id: m.id || '' });
           tutupModal();
           return selesaiUbah('Tautan tim disimpan.');
       }
@@ -6177,7 +6450,9 @@
   /* Setiap perubahan: tahap proyek dihitung ulang (dan perpindahannya dicatat atas nama orang
      yang memicunya), disimpan, lalu digambar ulang. */
   function selesaiUbah(pesan) {
-    const pindah = I.segarkanTahap(S.data, Date.now(), S.me);
+    // Tahap yang berpindah karena perintah sudah dihitung di ubahData; data real tak diubah di luar perintah.
+    const pindah = [...(S.pindah || []), ...(S.mode === 'real' ? [] : I.segarkanTahap(S.data, Date.now(), S.me))];
+    S.pindah = null;
     simpanData();
     render();
     const tahap = pindah.map(p => `${p.name} kini di tahap ${I.namaTahap(p.stage)}.`).join(' ');
@@ -6205,8 +6480,8 @@
     const a = I.aksiUntuk(t, S.me, I.indeks(S.data)).find(x => x.kunci === kunci);
     if (a && a.perluCatatan) return mintaCatatan(t, kunci);
     try {
-      I.terapkanAksi(S.data, t, kunci, S.me, Date.now());
-      selesaiUbah(PESAN_AKSI[kunci] + pesanSetoran(t, kunci));
+      ubahData('terapkanAksi', { task: t.id, kunci });
+      selesaiUbah(PESAN_AKSI[kunci] + pesanSetoran(S.data.tasks.find(x => x.id === t.id) || t, kunci));
     } catch (e) {
       toast(e.message, true);
     }
@@ -6224,6 +6499,7 @@
   function resetData() {
     S.navBuka = false;
     if (S.pratinjau) return toast('Tidak tersedia saat Lihat sebagai. Kembali jadi Dev dulu.', true);
+    if (S.mode === 'real') return toast('Data real tersimpan bersama; tidak ada yang di-reset dari browser.', true);
     if (!confirm('Reset ke data contoh awal?\n\nSemua perubahan di browser ini dihapus: task, status, proyek, paket, link, dan catatan. '
       + 'Data contoh dimuat lagi dari spreadsheet, persis seperti saat diimpor. Profil lain di browser ini ikut kembali ke awal.\n\n'
       + 'Pesan Komunikasi tersimpan bersama di spreadsheet, jadi tidak ikut terhapus.')) return render();
@@ -6347,6 +6623,17 @@
       case 'dev-keluar': keluarDev(); break;
       case 'dev-tab': S.devTab = d.nilai; render(); break;
       case 'dev-sistem-segarkan': S.devSistem = null; segarkanDev(); break;
+      case 'dev-sumber': {
+        const mode = d.nilai === 'real' ? 'real' : 'contoh';
+        if (mode === S.mode) return;
+        const tanya = mode === 'real'
+          ? 'Pindahkan aplikasi ke DATA REAL untuk semua pengguna?\n\nSemua orang akan melihat data real (masih kosong sampai diisi), dan setiap perubahan tersimpan bersama di spreadsheet. Data contoh tetap utuh dan bisa dipakai lagi kapan saja.'
+          : 'Kembalikan aplikasi ke DATA CONTOH untuk semua pengguna?\n\nData real tetap tersimpan di spreadsheet dan muncul lagi saat dipindah kembali.';
+        if (!confirm(tanya)) return;
+        api('aturSumber', [mode]).then(h => (h.success ? gantiSumber(mode) : toast(h.message || 'Gagal mengganti sumber data.', true)));
+        break;
+      }
+      case 'coba-simpan': S.real.gagal = 0; kirimTertunda(); break;
       case 'dev-tarik-ulang': tarikUlangBersama(); break;
       case 'dev-siapkan':
         api('siapkan').then(h => toast(h.message || (h.success ? 'Spreadsheet siap.' : 'Gagal menyiapkan spreadsheet.'), !h.success));
@@ -6474,15 +6761,16 @@
       case 'mulai-siklus': {
         const p = proyekDari(d.id);
         try {
-          I.mulaiSiklus(S.data, p, S.me, Date.now());
-          selesaiUbah(`${p.name}: siklus ${p.cycle} dimulai di Analysis. Tambahkan task-nya.`);
+          ubahData('mulaiSiklus', { proyek: p.id });
+          const q = proyekDari(p.id) || p;
+          selesaiUbah(`${q.name}: siklus ${q.cycle} dimulai di Analysis. Tambahkan task-nya.`);
         } catch (err) { toast(err.message, true); }
         break;
       }
       case 'tahan-proyek': case 'lanjutkan-proyek': {
         const p = proyekDari(d.id);
         try {
-          I.setKeputusan(S.data, p, d.aksi === 'tahan-proyek' ? 'Hold' : 'Build', S.me, Date.now());
+          ubahData('setKeputusan', { proyek: p.id, keputusan: d.aksi === 'tahan-proyek' ? 'Hold' : 'Build' });
           selesaiUbah(d.aksi === 'tahan-proyek' ? 'Proyek ditahan.' : 'Proyek dilanjutkan.');
         } catch (err) { toast(err.message, true); }
         break;
@@ -6490,7 +6778,7 @@
       case 'arsip-proyek': {
         const p = proyekDari(d.id || S.proyek);
         if (!p) return;
-        try { I.setArsip(S.data, p, d.nilai === '1', S.me, Date.now()); selesaiUbah(d.nilai === '1' ? `${p.name} diarsipkan.` : `${p.name} aktif lagi.`); } catch (err) { toast(err.message, true); }
+        try { ubahData('setArsip', { proyek: p.id, arsip: d.nilai === '1' }); selesaiUbah(d.nilai === '1' ? `${p.name} diarsipkan.` : `${p.name} aktif lagi.`); } catch (err) { toast(err.message, true); }
         break;
       }
       /* Rancangan Paket */
@@ -6504,7 +6792,7 @@
       }
       case 'bukti-hapus':
         if (!t || !confirm('Hapus tautan bukti ini dari task?')) return;
-        try { I.hapusBukti(S.data, t, d.bukti, S.me, Date.now()); selesaiUbah('Bukti dihapus.'); } catch (err) { toast(err.message, true); }
+        try { ubahData('hapusBukti', { task: t.id, bukti: d.bukti }); selesaiUbah('Bukti dihapus.'); } catch (err) { toast(err.message, true); }
         break;
       case 'sub-ubah':
         S.ubahSub = { task: d.id, sub: d.sub };
@@ -6515,12 +6803,12 @@
       case 'sub-hapus': {
         const s = t && t.subtasks.find(x => x.id === d.sub);
         if (!s || !confirm(`Hapus sub-task "${s.title}"?`)) return;
-        try { I.hapusSubtask(S.data, t, s.id, S.me, Date.now()); selesaiUbah('Sub-task dihapus.'); } catch (err) { toast(err.message, true); }
+        try { ubahData('hapusSubtask', { task: t.id, sub: s.id }); selesaiUbah('Sub-task dihapus.'); } catch (err) { toast(err.message, true); }
         break;
       }
       case 'setoran-hapus':
         if (!confirm('Hapus setoran ini? Progres paket tidak lagi menghitung task ini untuk target tersebut.')) return;
-        try { I.hapusSetoran(S.data, d.id, S.me, Date.now()); selesaiUbah('Setoran dihapus.'); } catch (err) { toast(err.message, true); }
+        try { ubahData('hapusSetoran', { setoran: d.id }); selesaiUbah('Setoran dihapus.'); } catch (err) { toast(err.message, true); }
         break;
       case 'paket-tutup': Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false }); render(); break;
       case 'paket-baru': bukaModal({ jenis: 'paket-baru' }, formPaketBaru()); break;
@@ -6533,7 +6821,7 @@
       case 'paket-hapus': {
         const p = S.data.packages.find(x => x.id === S.pkt.pilih);
         if (!p || !confirm(`Hapus rancangan paket "${judulPaket(p)}"? Ini tidak bisa dibatalkan.`)) return;
-        try { I.hapusPaket(S.data, p, S.me, Date.now()); Object.assign(S.pkt, { pilih: null, sunting: false }); selesaiUbah('Paket dihapus.'); } catch (err) { toast(err.message, true); }
+        try { ubahData('hapusPaket', { paket: p.id }); Object.assign(S.pkt, { pilih: null, sunting: false }); selesaiUbah('Paket dihapus.'); } catch (err) { toast(err.message, true); }
         break;
       }
       case 'paket-salin':
@@ -6766,8 +7054,8 @@
       case 'dashlain-ubah': { const x = S.data.dashboards.find(y => y.id === d.id); if (x) bukaModal({ jenis: 'dashboard', id: x.id }, formDashboard(x)); break; }
       case 'dashlain-hapus': {
         const x = S.data.dashboards.find(y => y.id === d.id);
-        if (!x || !confirm(`Hapus tautan tim "${x.title}"? Tautan ini hilang untuk semua orang di browser ini.`)) return;
-        try { I.hapusDashboard(S.data, S.me, x.id, Date.now()); selesaiUbah('Tautan tim dihapus.'); } catch (err) { toast(err.message, true); }
+        if (!x || !confirm(`Hapus tautan tim "${x.title}"? Tautan ini hilang untuk ${S.mode === 'real' ? 'semua orang' : 'semua profil di browser ini'}.`)) return;
+        try { ubahData('hapusDashboard', { id: x.id }); selesaiUbah('Tautan tim dihapus.'); } catch (err) { toast(err.message, true); }
         break;
       }
       case 'rwy-lagi': S.rwy.batas += 100; $('#hasil').innerHTML = hasilRiwayat(); break;
@@ -6806,21 +7094,15 @@
       return;
     }
     if (el.dataset.aksi === 'centang-sub') {
-      const t = S.data.tasks.find(x => x.id === el.dataset.id);
-      const s = t && t.subtasks.find(x => x.id === el.dataset.sub);
-      if (!s) return;
-      s.done = el.checked;
-      t.updatedAt = Date.now();
-      I.catatLog(S.data, 'update', `${t.id} · ${t.title}`, `Sub-task ${s.done ? 'selesai' : 'dibuka lagi'}: ${s.title}`, S.me, t.updatedAt);
-      selesaiUbah();
+      try { ubahData('centangSubtask', { task: el.dataset.id, sub: el.dataset.sub, done: el.checked }); selesaiUbah(); } catch (err) { toast(err.message, true); render(); }
     } else if (el.dataset.aksi === 'saring') {
       aturNilai(el.dataset.ruang, el.dataset.kunci, el.value);
     } else if (el.dataset.aksi === 'tautkan-paket') {
       const proj = proyekDari(el.dataset.id);
-      try { I.tautkanPaket(S.data, proj, el.value, S.me, Date.now()); selesaiUbah(el.value ? 'Proyek ditautkan ke rancangan paket.' : 'Tautan paket dilepas.'); } catch (err) { toast(err.message, true); render(); }
+      try { ubahData('tautkanPaket', { proyek: proj.id, paket: el.value }); selesaiUbah(el.value ? 'Proyek ditautkan ke rancangan paket.' : 'Tautan paket dilepas.'); } catch (err) { toast(err.message, true); render(); }
     } else if (el.dataset.aksi === 'keputusan') {
       const p = proyekDari(el.dataset.id);
-      try { I.setKeputusan(S.data, p, el.value, S.me, Date.now()); selesaiUbah(el.value === 'Hold' ? 'Proyek ditahan.' : `Keputusan proyek: ${el.value}.`); } catch (err) { toast(err.message, true); render(); }
+      try { ubahData('setKeputusan', { proyek: p.id, keputusan: el.value }); selesaiUbah(el.value === 'Hold' ? 'Proyek ditahan.' : `Keputusan proyek: ${el.value}.`); } catch (err) { toast(err.message, true); render(); }
     } else if (el.closest('.form-elaborasi')) {
       if (el.name === 'item') {
         const baris = el.closest('.pilih-baris');
@@ -6863,9 +7145,8 @@
     const waktu = Date.now();
     if (jenis === 'modal') return kirimModal(form);
     if (jenis === 'paket') {
-      const p = S.data.packages.find(x => x.id === form.dataset.id);
       try {
-        I.simpanPaket(S.data, p, bacaFormPaket(form), S.me, waktu);
+        ubahData('simpanPaket', { paket: form.dataset.id, f: bacaFormPaket(form) });
         Object.assign(S.pkt, { sunting: false, kotor: false });
         selesaiUbah('Rancangan paket disimpan.');
         window.scrollTo(0, 0);
@@ -6881,7 +7162,7 @@
       const t = S.data.tasks.find(x => x.id === form.dataset.id);
       const [paket, item] = String(isianForm(form, 'sasaran').value).split('|');
       const isi = { paket, item, jumlah: isianForm(form, 'jumlah').value, tahap: isianForm(form, 'tahap').value };
-      try { I.setorkan(S.data, t, isi, S.me, waktu); selesaiUbah('Setoran disimpan.'); } catch (err) { toast(err.message, true); }
+      try { ubahData('setorkan', { task: t.id, f: isi }); selesaiUbah('Setoran disimpan.'); } catch (err) { toast(err.message, true); }
       return;
     }
     if (jenis === 'output' || jenis === 'bukti') {
@@ -6889,10 +7170,10 @@
       if (!t) return;
       try {
         if (jenis === 'output') {
-          I.isiOutput(S.data, t, isianForm(form, 'output').value, S.me, waktu);
+          ubahData('isiOutput', { task: t.id, isi: isianForm(form, 'output').value });
           selesaiUbah('Output disimpan.');
         } else {
-          I.tambahBukti(S.data, t, { url: isianForm(form, 'url').value, label: isianForm(form, 'label').value }, S.me, waktu);
+          ubahData('tambahBukti', { task: t.id, f: { url: isianForm(form, 'url').value, label: isianForm(form, 'label').value } });
           selesaiUbah('Bukti ditambahkan.');
         }
       } catch (err) { toast(err.message, true); }
@@ -6914,14 +7195,14 @@
     if (!t) return;
     try {
       if (jenis === 'sub-tambah') {
-        I.tambahSubtask(S.data, t, { title: form.judul.value, pic: form.pic.value }, S.me, waktu);
+        ubahData('tambahSubtask', { task: t.id, f: { title: form.judul.value, pic: form.pic.value } });
         selesaiUbah();
       } else if (jenis === 'sub-ubah') {
-        I.ubahSubtask(S.data, t, form.dataset.sub, { title: form.judul.value, pic: form.pic.value }, S.me, waktu);
+        ubahData('ubahSubtask', { task: t.id, sub: form.dataset.sub, f: { title: form.judul.value, pic: form.pic.value } });
         S.ubahSub = null;
         selesaiUbah('Sub-task disimpan.');
       } else if (jenis === 'anak') {
-        const a = I.taskAnak(S.data, t, { title: form.judul.value, pic: form.pic.value, due: form.due.value }, S.me, waktu, hariIni());
+        const a = ubahData('taskAnak', { induk: t.id, f: { title: form.judul.value, pic: form.pic.value, due: form.due.value } });
         selesaiUbah(`${a.id} dibuat untuk ${I.orang(a.pic).pendek} di bawah ${t.id}.`);
       }
     } catch (err) { toast(err.message, true); }

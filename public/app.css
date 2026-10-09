@@ -108,7 +108,14 @@ svg { flex: 0 0 auto; }
 .kartu-layar { width: 100%; max-width: 400px; background: var(--muka); border: 1px solid var(--garis); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--bayang); }
 .kartu-layar.lebar { max-width: 720px; }
 .merek { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--navy); text-decoration: none; }
-.merek-ikon { width: 32px; height: 32px; border-radius: 8px; background: var(--navy); display: inline-flex; align-items: center; justify-content: center; }
+/* Logo seperti v1 (2.16.0): ikon di alas putih, "Product" navy dan "Track" biru logo, versi kecil. */
+.merek-ikon { flex: none; width: 34px; height: 34px; border-radius: 9px; background: #fff; box-shadow: inset 0 0 0 1px var(--garis), 0 0 0 0 rgba(92, 198, 247, 0); display: inline-flex; align-items: center; justify-content: center; }
+.merek-ikon img { display: block; width: 26px; height: 26px; }
+.merek-nama { color: #002870; letter-spacing: -0.01em; }
+.merek-nama b { color: #00A8E8; font-weight: 700; }
+.merek-teks { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 5px; min-width: 0; }
+.merek-teks small { flex-basis: 100%; }
+.merek-versi { align-self: flex-start; margin-top: 1px; font-size: 10px; font-weight: 600; color: var(--samar); letter-spacing: 0; }
 .kunci-input { text-align: center; letter-spacing: 0.4em; font-size: 18px; }
 .pesan-galat { margin: 0; color: var(--merah); font-size: 14px; }
 .pesan-info { margin: 0; color: var(--redup); font-size: 14px; }
@@ -290,7 +297,7 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .merek { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 /* Cincin yang tumbuh selama logo ditahan; lamanya sama dengan TAHAN_LOGO_MS di app.js. */
 .merek-ikon { transition: box-shadow 3s linear; }
-.merek.ditahan .merek-ikon { box-shadow: 0 0 0 5px rgba(92, 198, 247, .55); }
+.merek.ditahan .merek-ikon { box-shadow: inset 0 0 0 1px var(--garis), 0 0 0 5px rgba(92, 198, 247, .55); }
 /* Isian PIN Dev bisa dibuka dari layar PIN, yang lapisannya di atas jendela biasa. */
 .modal.atas { z-index: 95; }
 .judul-ikon { display: flex; align-items: center; gap: 8px; }
@@ -1619,3 +1626,14 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
   .baris.anak::before, .baris.anak::after { left: -12px; }
   .baris.anak::after { width: 9px; }
 }
+
+/* ---------- Sumber data (2.16.0) ---------- */
+.sumber-data { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; }
+.pilihan-sumber { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; text-align: left; font-size: 13px; color: var(--tinta); background: var(--muka); border: 1px solid var(--garis); border-radius: 12px; }
+.pilihan-sumber strong { font-size: 15px; color: var(--navy); }
+.pilihan-sumber span { color: var(--redup); line-height: 1.5; }
+.pilihan-sumber:hover { border-color: var(--biru-garis); }
+.pilihan-sumber[aria-pressed="true"] { background: var(--biru-muda); border-color: var(--biru); box-shadow: inset 0 0 0 1px var(--biru); }
+.kotak-data.data-real .samping-catatan::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #1A9E5C; vertical-align: 1px; }
+#status-data.merah { color: var(--merah); }
+#status-data.merah::before { background: var(--merah); }

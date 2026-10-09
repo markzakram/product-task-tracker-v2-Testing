@@ -19,6 +19,7 @@ const {
   TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
   dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
   masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, rakit, nomorTerbesar,
+  TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
 } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
@@ -405,29 +406,31 @@ async function pastikanV2(k, id) {
 const UMUR_BACAAN = 3000;
 let bacaanHangat = null;
 const tabBelumAda = err => /unable to parse range/.test(jejak(err));
+/* Obrolan data real terpisah dari obrolan data contoh (2.16.0): nomor task-nya bisa sama. */
+const tabObrolan = sumber => (sumber === 'real' ? TAB_OBROLAN_REAL : TAB_OBROLAN);
 
-async function semuaObrolan(k, id) {
+async function semuaObrolan(k, id, tab = TAB_OBROLAN) {
   const h = bacaanHangat;
-  if (h && h.k === k && h.id === id && Date.now() - h.waktu < UMUR_BACAAN) return h.isi;
+  if (h && h.k === k && h.id === id && h.tab === tab && Date.now() - h.waktu < UMUR_BACAAN) return h.isi;
   let nilai = [];
   try {
-    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(TAB_OBROLAN, 'A:J') }));
+    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(tab, 'A:J') }));
     nilai = r.data.values || [];
   } catch (err) {
     if (!tabBelumAda(err)) throw err;   // tab belum ada: belum pernah ada yang menulis
   }
   const [judul = [], ...isi] = nilai;
   const peristiwa = isi.filter(b => b.some(sel => String(sel).trim())).map(b => obrolanDariBaris(judul, b));
-  bacaanHangat = { k, id, waktu: Date.now(), isi: peristiwa };
+  bacaanHangat = { k, id, tab, waktu: Date.now(), isi: peristiwa };
   return peristiwa;
 }
 
 /* sejak = waktu (ms) peristiwa terbaru yang sudah dimiliki browser. Yang sama persis ikut
    dikirim lagi (dua baris bisa bertanggal sama); browser membuang yang id-nya sudah ada. */
-async function bacaObrolan(k, id, sejak = 0) {
+async function bacaObrolan(k, id, sejak = 0, sumber = 'contoh') {
   await pastikanV2(k, id);
   const batas = Number(sejak) || 0;
-  const semua = await semuaObrolan(k, id);
+  const semua = await semuaObrolan(k, id, tabObrolan(sumber));
   return { peristiwa: batas ? semua.filter(e => e.at >= batas) : semua, waktu: Date.now() };
 }
 
@@ -460,18 +463,19 @@ let urutId = 0;
 const idPeristiwa = () => 'o' + Date.now().toString(36) + (urutId++ % 1296).toString(36).padStart(2, '0') + Math.random().toString(36).slice(2, 6);
 
 /* e sudah dibersihkan Inti.periksaPeristiwa. */
-async function tulisObrolan(k, id, e) {
+async function tulisObrolan(k, id, e, sumber = 'contoh') {
   await pastikanV2(k, id);
+  const tab = tabObrolan(sumber);
   const baris = { ...e, id: idPeristiwa(), at: Date.now() };
   const tambah = () => panggil(() => k.api.spreadsheets.values.append({
-    spreadsheetId: id, range: rentang(TAB_OBROLAN, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+    spreadsheetId: id, range: rentang(tab, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [obrolanKeBaris(baris)] },
   }), { tulis: true });
   try {
     await tambah();
   } catch (err) {
     if (!tabBelumAda(err)) throw err;
-    await buatTabAplikasi(k, id, TAB_OBROLAN, OBROLAN);
+    await buatTabAplikasi(k, id, tab, OBROLAN);
     await tambah();
   }
   bacaanHangat = null;
@@ -676,6 +680,97 @@ async function tulisPin(k, id, orang, hash, garam) {
   return bacaPin(k, id, { segar: true });
 }
 
+/* ---------- Sumber data dan data real (2.16.0) --------------------------
+   Sumber data (contoh atau real) diatur mode Dev untuk SEMUA pengguna, di tab `setelan`.
+   Data real ada di tab `data_real` (lihat _skema.js): hanya bertambah, dibaca bertahap. */
+const UMUR_SETELAN = 15 * 1000;
+let setelanHangat = null;
+/* Map kunci → { kunci, nilai, oleh, diperbarui }. */
+async function bacaSetelan(k, id, { segar = false } = {}) {
+  const h = setelanHangat;
+  if (!segar && h && h.k === k && h.id === id && Date.now() - h.waktu < UMUR_SETELAN) return h.isi;
+  await pastikanV2(k, id);
+  const [judul = [], ...isi] = (await tabAplikasi(k, id, TAB_SETELAN, SETELAN_KOLOM)) || [];
+  const peta = new Map();
+  for (const b of isi) {
+    const s = setelanDariBaris(judul, b);
+    if (s.kunci) peta.set(s.kunci, s);
+  }
+  setelanHangat = { k, id, waktu: Date.now(), isi: peta };
+  return peta;
+}
+async function tulisSetelan(k, id, kunci, nilai, oleh) {
+  await pastikanV2(k, id);
+  const sama = (judul, b) => setelanDariBaris(judul, b).kunci === kunci;
+  await timpaAtauTambah(k, id, TAB_SETELAN, SETELAN_KOLOM, sama, setelanKeBaris({ kunci, nilai, oleh, diperbarui: Date.now() }));
+  setelanHangat = null;
+  return bacaSetelan(k, id, { segar: true });
+}
+/* 'contoh' (bawaan) atau 'real'. */
+async function sumberData(k, id, opsi) {
+  const s = (await bacaSetelan(k, id, opsi)).get('sumber_data');
+  return s && s.nilai === 'real' ? 'real' : 'contoh';
+}
+
+/* Instance ini mengingat baris data_real yang sudah dibacanya dan hanya mengambil yang
+   sesudahnya, bersama baris pertamanya dalam satu batchGet. generasi = ID perubahan pertama:
+   kalau tab itu dihapus lalu terisi lagi, generasinya berganti, dan salinan di server maupun
+   browser dibaca ulang dari awal. Bacaan dipakai bersama selama UMUR_BACAAN. */
+let realHangat = null;
+const realKosong = (k, id) => ({ k, id, waktu: Date.now(), baris: 0, judul: REAL_KOLOM, generasi: '', peristiwa: [], rusak: 0 });
+const AKHIR_REAL = String.fromCharCode(64 + REAL_KOLOM.length);   // kolom terakhir data_real
+async function bacaReal(k, id, { segar = false } = {}) {
+  const h = realHangat;
+  const hangat = !!h && h.k === k && h.id === id;
+  if (!segar && hangat && Date.now() - h.waktu < UMUR_BACAAN) return h;
+  await pastikanV2(k, id);
+  const lanjut = hangat && h.baris > 0;
+  let awal, baru;
+  try {
+    const r = await panggil(() => k.api.spreadsheets.values.batchGet({
+      spreadsheetId: id, ranges: [rentang(TAB_REAL, `A1:${AKHIR_REAL}2`), rentang(TAB_REAL, lanjut ? `A${h.baris + 1}:${AKHIR_REAL}` : `A1:${AKHIR_REAL}`)],
+    }));
+    const vr = r.data.valueRanges || [];
+    awal = (vr[0] || {}).values || [];
+    baru = (vr[1] || {}).values || [];
+  } catch (err) {
+    if (!tabBelumAda(err)) throw err;
+    realHangat = realKosong(k, id);   // belum ada yang menulis data real
+    return realHangat;
+  }
+  const judul = awal[0] || REAL_KOLOM;
+  const generasi = awal[1] ? String(awal[1][judul.indexOf('id')] || '') : '';
+  if (lanjut && generasi === h.generasi) {
+    const tambahan = realDariBaris(judul, baru);
+    realHangat = { ...h, waktu: Date.now(), baris: h.baris + baru.length, peristiwa: h.peristiwa.concat(tambahan.peristiwa), rusak: h.rusak + tambahan.rusak };
+    return realHangat;
+  }
+  // Pertama kali, atau generasinya berganti: semua baris dibaca ulang.
+  const semua = lanjut ? (await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(TAB_REAL, `A1:${AKHIR_REAL}`) }))).data.values || [] : baru;
+  const isi = realDariBaris(judul, semua.slice(1));
+  realHangat = { k, id, waktu: Date.now(), baris: semua.length, judul, generasi, peristiwa: isi.peristiwa, rusak: isi.rusak };
+  return realHangat;
+}
+/* p = perintah yang sudah lolos aturan, beserta ubah dan dasar-nya. Mengembalikan bacaan segar
+   sesudahnya, yang memuat perubahan ini; sah-tidaknya diperiksa api/_real.js. Baris dua perubahan
+   dari instance berbeda tak bisa bertumpuk: append menaruh semua baris satu perubahan berurutan
+   sekaligus. */
+async function tulisReal(k, id, p) {
+  await pastikanV2(k, id);
+  const tambah = () => panggil(() => k.api.spreadsheets.values.append({
+    spreadsheetId: id, range: rentang(TAB_REAL, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: realKeBaris(p) },
+  }), { tulis: true });
+  try {
+    await tambah();
+  } catch (err) {
+    if (!tabBelumAda(err)) throw err;
+    await buatTabAplikasi(k, id, TAB_REAL, REAL_KOLOM);
+    await tambah();
+  }
+  return bacaReal(k, id, { segar: true });
+}
+
 /* Panel Sistem mode Dev: isi tiap tab (baris berisi, tanpa judul), dalam satu batchGet. */
 async function hitungTab(k, id) {
   const keadaan = await bacaKeadaan(k, id);
@@ -717,5 +812,6 @@ module.exports = {
   setelanAda, idSpreadsheet, kredensial, emailAkun, klien,
   panggil, kenaKuota, gangguanSesaat,
   periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto,
+  bacaSetelan, tulisSetelan, sumberData, bacaReal, tulisReal,
   bacaOrang, tulisOrang, bacaMaster, tulisMaster, bacaPin, tulisPin, hitungTab, jelaskanGalat,
 };
