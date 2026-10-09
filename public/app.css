@@ -254,7 +254,7 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 
 .ceklis { display: flex; flex-direction: column; }
 .ceklis label { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 4px; border-bottom: 1px solid #F0F1F4; font-size: 14px; }
-.ceklis input { width: 20px; height: 20px; accent-color: var(--biru); margin: 0; }
+.ceklis input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--biru); margin: 0; }
 .ceklis .beres span:first-of-type { color: var(--redup); text-decoration: line-through; }
 .ceklis small { margin-left: auto; color: var(--redup); font-size: 12px; }
 .baris-form { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -681,7 +681,6 @@ button.chip-setoran:hover { text-decoration: underline; }
 .bukti-baris a { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .bukti-baris .ikon-tombol { width: 36px; height: 36px; }
 .baris-form .label-bukti { flex: 0 1 160px; }
-.serahkan { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--garis-2); }
 .grup.antrean h2 { color: var(--biru-tua); }
 /* Pilihan sesudah siklus ditutup E12: tombol di kiri, akibatnya di kanan. */
 .daftar-pilihan { display: flex; flex-direction: column; gap: 10px; }
@@ -1587,4 +1586,35 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
   .ne-blok { padding-left: calc(6px + var(--tingkat, 0) * 18px); }
   .ctt-toolbar-garis { display: none; }
   .ne-tabel th, .ne-tabel td { min-width: 96px; }
+}
+
+/* ---------- Hirarki task (0.15.0) ----------
+   Task anak menjorok di bawah induknya, dengan garis penghubung; di tabel, bertanda ↳. */
+.baris.anak { position: relative; margin-left: 28px; width: calc(100% - 28px); }
+.baris.anak::before { content: ''; position: absolute; left: -17px; top: -8px; bottom: -8px; border-left: 2px solid var(--garis); }
+.baris.anak::after { content: ''; position: absolute; left: -17px; top: 50%; width: 13px; border-top: 2px solid var(--garis); }
+.baris.anak:not(:has(+ .baris.anak))::before { bottom: 50%; }
+.tabel-task tr.anak td:nth-child(2) { position: relative; padding-left: 34px; }
+.tabel-task tr.anak td:nth-child(2)::before { content: '↳'; position: absolute; left: 14px; top: 10px; color: var(--redup); font-weight: 700; }
+.chip-induk { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 5px; background: var(--abu); color: var(--tinta-2); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kartu-anak { font-size: 12px; color: var(--redup); }
+.detail-induk { margin: 4px 0 0; font-size: 13px; color: var(--redup); }
+.detail-induk button { border: 0; background: transparent; padding: 0; color: var(--biru); font-weight: 600; font-size: 13px; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.daftar-anak { margin-bottom: 10px; }
+.form-anak .tenggat-anak { flex: 0 1 160px; }
+.hint.tunggu-tahap { color: var(--kuning); font-weight: 600; }
+.ceklis-baris { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid #F0F1F4; }
+.ceklis-baris label { flex: 1; min-width: 0; border-bottom: 0; }
+.ceklis-aksi { display: flex; flex: none; }
+.ceklis-aksi .ikon-tombol { color: var(--redup); }
+.ceklis-ubah { padding: 8px 0; border-bottom: 1px solid #F0F1F4; }
+.ceklis-ubah .input[name="judul"] { flex-basis: 140px; }
+.ilu-task.ilu-anak { margin-left: 24px; }
+@media (min-width: 900px) {
+  .ceklis-aksi .ikon-tombol { width: 36px; height: 36px; }
+}
+@media (max-width: 899px) {
+  .baris.anak { margin-left: 18px; width: calc(100% - 18px); }
+  .baris.anak::before, .baris.anak::after { left: -12px; }
+  .baris.anak::after { width: 9px; }
 }

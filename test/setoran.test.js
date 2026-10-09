@@ -2,7 +2,8 @@
    per target: rangkaian langkah sesuai jenisnya (mis. Latsol: DV1 › E1 › DV8 › I1 › E4 › E5 ›
    E6 › I4), diserahkan ke Lead tim pemilik tiap sub-stage. Progres paket dihitung dari status
    task — naik per capaian (konten siap, ter-input, lolos QC, tayang) dan turun lagi bila
-   langkahnya dibuka kembali. Semua langkah dijalankan dengan aturan sungguhan (terapkanAksi). */
+   langkahnya dibuka kembali. Sejak 0.15.0 langkah dikerjakan menurut tahap ADDIE (yang setahap
+   paralel), bukan menurut urutan alurnya. Semua langkah dijalankan dengan aturan sungguhan. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const I = require('../public/inti');
@@ -55,7 +56,10 @@ test('elaborasi beralur: satu batch per target terbuka, langkah sesuai jenis, di
   assert.deepEqual(fisika.map(t => t.pic), ['andika', 'andika', 'alya', 'alya', 'alya', 'alya', 'alya', 'alya']);
   assert.deepEqual(fisika.map(t => t.stage), ['V', 'E', 'V', 'I', 'E', 'E', 'E', 'I']);
   assert.equal(fisika[0].title, 'DV1 · Latsol Fisika — 3 Paket');
-  assert.deepEqual(fisika.slice(1).map((t, i) => t.deps), fisika.slice(0, -1).map(t => [t.id]), 'tiap langkah menunggu langkah sebelumnya');
+  assert.deepEqual(fisika.slice(1).map((t, i) => t.deps), fisika.slice(0, -1).map(t => [t.id]), 'urutan langkah tercatat (untuk menemukan batch-nya)');
+  const perId = I.indeks(d);
+  assert.deepEqual(fisika.map(t => I.depsBelum(t, perId).length > 0), [false, true, false, true, true, true, true, true],
+    'yang menahan hanya tahap ADDIE: DV1 dan DV8 jalan bersamaan, Implementation & Evaluation menunggu');
   const kelas = tasks.filter(t => /Kelas Strategi/.test(t.title));
   assert.deepEqual(kelas.map(t => [t.sub, t.pic]), [['I6', 'dhea'], ['I7', 'alya']]);
   const st = d.setoran.filter(s => s.item === 'ITM-A');
@@ -65,28 +69,27 @@ test('elaborasi beralur: satu batch per target terbuka, langkah sesuai jenis, di
   assert.throws(() => elaborasi(d), /Tidak ada target terbuka/, 'yang sedang digarap tak dibuatkan batch kedua');
 });
 
-test('progres per capaian: E1 → 40%, DV8 → 60%, QC terakhir → 85%, I4 → tayang; dibuka kembali turun lagi', () => {
+test('progres per capaian mengikuti tahap ADDIE: DV8 → 60%, I4 → tayang; dibuka kembali turun ke capaian yang masih lolos', () => {
   const d = data();
   const { project, tasks } = elaborasi(d, { items: ['ITM-A'] });
   const langkah = kode => tasks.find(t => t.sub === kode);
   const persen = () => target(d, 'ITM-A').persen;
   assert.deepEqual([persen(), target(d, 'ITM-A').digarap, target(d, 'ITM-A').status], [40, 3, 'digarap'], 'sudah ada 2 dari 5');
-  lolos(d, langkah('DV1'));
-  assert.equal(persen(), 40, 'produksi saja belum menaikkan progres');
-  lolos(d, langkah('E1'));
-  assert.equal(persen(), 64, 'konten siap: 2 + 3×40%');
+  assert.throws(() => lolos(d, langkah('E1')), /Menunggu tahap Development selesai/, 'QC soal (Evaluation) menunggu tahap sebelumnya');
   lolos(d, langkah('DV8'));
-  assert.equal(persen(), 76, 'ter-input: 2 + 3×60%');
+  assert.equal(persen(), 76, 'ter-input: 2 + 3×60% — DV8 tak menunggu DV1 yang setahap');
+  lolos(d, langkah('DV1'));
+  assert.equal(persen(), 76, 'produksi saja tak menaikkan progres');
   I.segarkanTahap(d);
   assert.equal(project.stage, 'I', 'tahap proyek ikut task terbuka paling awal');
-  for (const k of ['I1', 'E4', 'E5']) lolos(d, langkah(k));
+  lolos(d, langkah('I1'));
   assert.equal(persen(), 76);
-  lolos(d, langkah('E6'));
-  assert.equal(persen(), 91, 'lolos QC output: 2 + 3×85%');
   lolos(d, langkah('I4'));
   assert.deepEqual([persen(), target(d, 'ITM-A').terpenuhi, target(d, 'ITM-A').status], [100, 5, 'penuh'], 'tayang');
+  for (const k of ['E1', 'E4', 'E5', 'E6']) lolos(d, langkah(k));
+  assert.equal(persen(), 100, 'QC di Evaluation sesudah tayang tak mengubah progres');
   I.terapkanAksi(d, langkah('I4'), 'buka', 'nynda', WAKTU);
-  assert.deepEqual([persen(), target(d, 'ITM-A').status], [91, 'digarap'], 'show/hide dibuka kembali: turun ke capaian sebelumnya');
+  assert.deepEqual([persen(), target(d, 'ITM-A').status], [91, 'digarap'], 'show/hide dibuka kembali: turun ke capaian tertinggi yang masih lolos (QC 85%)');
 });
 
 test('mode satu task, dan langkah yang dicoret per jenis', () => {

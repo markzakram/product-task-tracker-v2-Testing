@@ -291,14 +291,15 @@ test('staff menambah task untuk dirinya: rutin, atau proyek di sub-stage timnya;
   assert.deepEqual(tambah('nynda'), []);
 });
 
-test('ubah task: delegasi dari antrean tim, sub-stage menentukan tahap, batas PIC & jalur', () => {
+test('ubah task: task Lead tak diserahkan ke staff, sub-stage menentukan tahap, batas PIC & jalur', () => {
   const t = task({ lane: 'proyek', project: 'PRJ-1', stage: 'V', sub: 'DV8', pic: 'alya', assignedBy: 'andika' });
   const d = data([t], [proyek({ lead: '' })]);
-  assert.equal(I.pekerjaanSaya(d, 'alya', HARI).grup.find(g => g.kunci === 'antrean').isi.length, 1);
-  I.ubahTask(d, t, { pic: 'kiki' }, 'alya', WAKTU);
-  assert.equal(t.pic, 'kiki');
-  assert.match(d.log[0].detail, /diserahkan ke Kiki/);
-  assert.equal(I.pekerjaanSaya(d, 'alya', HARI).grup.find(g => g.kunci === 'antrean'), undefined, 'keluar dari antrean');
+  const antrean = I.pekerjaanSaya(d, 'alya', HARI).grup.find(g => g.kunci === 'antrean');
+  assert.equal(antrean.isi.length, 1);
+  assert.match(antrean.judul + ' ' + antrean.isi[0].alasan, /siap dibagi.*task anak/);
+  assert.throws(() => I.ubahTask(d, t, { pic: 'kiki' }, 'alya', WAKTU), /Task Lead tak diserahkan ke staff/);
+  assert.throws(() => I.ubahTask(d, t, { pic: 'kiki' }, 'nynda', WAKTU), /Task Lead tak diserahkan ke staff/, 'Manager pun tidak');
+  assert.equal(t.pic, 'alya');
   assert.throws(() => I.ubahTask(d, t, { pic: 'uma' }, 'alya', WAKTU), /di luar tim/);
   assert.throws(() => I.ubahTask(d, t, { sub: 'R3' }, 'alya', WAKTU), /ADDIE/);
   assert.throws(() => I.ubahTask(d, t, { title: ' ' }, 'alya', WAKTU), /Judul/);
@@ -316,13 +317,13 @@ test('ubah task: delegasi dari antrean tim, sub-stage menentukan tahap, batas PI
   assert.deepEqual(I.cari(d, 'r2').map(x => x.id), [lepas.id], 'kode sub-stage ikut dicari');
 });
 
-test('notifikasi: task baru, siap, tinjauan, disetujui, delegasi, komentar, dikembalikan, siklus selesai', () => {
+test('notifikasi: task baru, siap, tinjauan, disetujui, task anak, serah, komentar, dikembalikan, siklus selesai', () => {
   const d = data([], [proyek({ lead: '' })]);
   const dv1 = I.taskBaru(d, { title: 'DV1 soal', project: 'PRJ-1', sub: 'DV1', pic: 'uma' }, 'andika', WAKTU, HARI);
-  const dv8 = I.taskBaru(d, { title: 'DV8 input', project: 'PRJ-1', sub: 'DV8', pic: 'alya', deps: [dv1.id] }, 'andika', WAKTU + 1, HARI);
+  const i1 = I.taskBaru(d, { title: 'I1 generate', project: 'PRJ-1', sub: 'I1', pic: 'alya' }, 'andika', WAKTU + 1, HARI);
   const jenis = me => I.notifikasi(d, me).map(n => `${n.jenis}:${n.task}`);
   assert.deepEqual(jenis('uma'), [`baru:${dv1.id}`]);
-  assert.deepEqual(jenis('alya'), [`baru:${dv8.id}`]);
+  assert.deepEqual(jenis('alya'), [`baru:${i1.id}`]);
   assert.deepEqual(jenis('andika'), [], 'pembuatnya sendiri tak diberi tahu');
 
   Object.assign(dv1, { output: 'Soal', evidence: [{ id: 'e1', label: 'Bukti', url: 'https://contoh.id/b' }] });
@@ -332,23 +333,26 @@ test('notifikasi: task baru, siap, tinjauan, disetujui, delegasi, komentar, dike
   I.terapkanAksi(d, dv1, 'setujui', 'andika', WAKTU + 4);
   assert.deepEqual(jenis('andika'), [], 'sudah ditinjau: tak lagi ditagih');
   assert.equal(jenis('uma')[0], `setuju:${dv1.id}`);
-  assert.equal(jenis('alya')[0], `siap:${dv8.id}`, 'langkah berikutnya masuk antrean Alya');
+  assert.equal(jenis('alya')[0], `siap:${i1.id}`, 'tahap Development tuntas: langkah Implementation masuk antrean Alya');
 
-  I.ubahTask(d, dv8, { pic: 'kiki' }, 'alya', WAKTU + 5);
-  assert.deepEqual(jenis('kiki').slice(0, 2), [`serah:${dv8.id}`, `siap:${dv8.id}`]);
-  assert.ok(!jenis('kiki').includes(`baru:${dv8.id}`), 'dibuat untuk Alya, bukan untuk Kiki');
+  const anak = I.taskAnak(d, i1, { title: 'Generate paket 1–5', pic: 'kiki' }, 'alya', WAKTU + 5, HARI);
+  assert.deepEqual(jenis('kiki'), [`baru:${anak.id}`], 'task anak dibuat untuk Kiki');
   assert.ok(!jenis('ali').length, 'nama mirip (Ali / Alya) tak tertukar');
+  I.ubahTask(d, anak, { pic: 'bilar' }, 'alya', WAKTU + 5);
+  assert.equal(jenis('bilar')[0], `serah:${anak.id}`, 'task anak boleh pindah ke staff lain di tim yang sama');
+  I.ubahTask(d, anak, { pic: 'kiki' }, 'alya', WAKTU + 5);
 
-  dv8.comments.push({ id: 'k1', author: 'alya', text: 'Cek kisi-kisi dulu', at: WAKTU + 6 });
+  anak.comments.push({ id: 'k1', author: 'alya', text: 'Cek kisi-kisi dulu', at: WAKTU + 6 });
   assert.deepEqual(I.notifikasi(d, 'kiki')[0], {
-    id: 'komentar-k1', jenis: 'komentar', ruang: `task:${dv8.id}`, pesan: 'k1', task: dv8.id, proyek: '', at: WAKTU + 6, oleh: 'alya', teks: 'Cek kisi-kisi dulu',
+    id: 'komentar-k1', jenis: 'komentar', ruang: `task:${anak.id}`, pesan: 'k1', task: anak.id, proyek: '', at: WAKTU + 6, oleh: 'alya', teks: 'Cek kisi-kisi dulu',
   });
   assert.ok(!jenis('alya').some(x => x.startsWith('komentar')), 'komentar sendiri tak jadi notifikasi');
 
-  Object.assign(dv8, { output: 'Input', evidence: [{ id: 'e2', label: 'Bukti', url: 'https://contoh.id/c' }] });
-  I.terapkanAksi(d, dv8, 'mulai', 'kiki', WAKTU + 7);
-  I.terapkanAksi(d, dv8, 'ajukan', 'kiki', WAKTU + 8);
-  I.terapkanAksi(d, dv8, 'kembalikan', 'alya', WAKTU + 9, 'Urutan soal tertukar');
+  Object.assign(anak, { output: 'Input', evidence: [{ id: 'e2', label: 'Bukti', url: 'https://contoh.id/c' }] });
+  I.terapkanAksi(d, anak, 'mulai', 'kiki', WAKTU + 7);
+  I.terapkanAksi(d, anak, 'ajukan', 'kiki', WAKTU + 8);
+  assert.equal(jenis('alya')[0], `tinjau:${anak.id}`, 'task anak ditinjau Lead yang membaginya');
+  I.terapkanAksi(d, anak, 'kembalikan', 'alya', WAKTU + 9, 'Urutan soal tertukar');
   assert.equal(I.notifikasi(d, 'kiki')[0].jenis, 'kembali');
   assert.equal(I.notifikasi(d, 'kiki')[0].teks, 'Urutan soal tertukar');
 
@@ -356,6 +360,112 @@ test('notifikasi: task baru, siap, tinjauan, disetujui, delegasi, komentar, dike
   d.tasks.push(e12);
   I.terapkanAksi(d, e12, 'setujui', 'nynda', WAKTU + 10);
   assert.deepEqual(I.notifikasi(d, 'nynda').filter(n => n.jenis === 'siklus').map(n => n.proyek), ['PRJ-1'], 'Manager: siklus selesai, perlu keputusan');
+});
+
+test('tahap ADDIE: task setahap jalan paralel; tahap berikutnya menunggu tahap sebelumnya di siklus yang sama', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const baru = (sub, pic, me, deps = []) => I.taskBaru(d, { title: sub + ' uji', project: 'PRJ-1', sub, pic, deps }, me, WAKTU, HARI);
+  const a2 = baru('A2', 'uma', 'andika');
+  const dv1 = baru('DV1', 'uma', 'andika');
+  const dv8 = baru('DV8', 'alya', 'nynda', [dv1.id]);
+  const i1 = baru('I1', 'alya', 'nynda');
+  const tunggu = t => I.depsBelum(t, I.indeks(d)).map(x => x.id).sort();
+  assert.deepEqual(tunggu(a2), []);
+  assert.deepEqual(tunggu(dv1), [a2.id], 'Development menunggu Analysis');
+  assert.deepEqual(tunggu(dv8), [a2.id], 'deps ke DV1 (setahap) tak lagi ditunggu: paralel');
+  assert.deepEqual(tunggu(i1), [a2.id, dv1.id, dv8.id].sort());
+  assert.equal(I.alasanTunggu(i1, I.indeks(d)), `Menunggu tahap Analysis selesai: ${a2.id} "A2 uji" (Uma) dan 2 task lain`);
+  assert.equal(I.labelKeadaan(dv8, I.indeks(d)), 'Menunggu');
+  assert.equal(I.laporan(d, HARI).perOrang.find(o => o.id === 'uma').menahan, 3, 'A2 menahan seluruh tahap sesudahnya');
+
+  Object.assign(a2, { status: 'Selesai', selesaiAt: WAKTU + 1 });
+  assert.deepEqual([tunggu(dv1), tunggu(dv8)], [[], []], 'Analysis tuntas: semua task Development bisa mulai bersamaan');
+  I.terapkanAksi(d, dv8, 'mulai', 'alya', WAKTU + 2);
+  assert.equal(I.alasanTunggu(i1, I.indeks(d)), `Menunggu tahap Development selesai: ${dv8.id} "DV8 uji" (Alya) dan 1 task lain`);
+  const ajukan = I.aksiUntuk(siap({ project: 'PRJ-1', stage: 'I', sub: 'I4', pic: 'kiki', status: 'Dikerjakan' }), 'kiki', I.indeks(d)).find(a => a.kunci === 'ajukan');
+  assert.equal(ajukan.alasan, 'Lengkapi dulu: tahap sebelumnya sudah selesai');
+
+  // Siklus lain tak ditunggu; task rutin tetap memakai deps-nya.
+  const lama = task({ lane: 'proyek', project: 'PRJ-1', stage: 'A', sub: 'A3', pic: 'ali', cycle: 1, status: 'Dikerjakan' });
+  const siklus2 = task({ lane: 'proyek', project: 'PRJ-1', stage: 'V', sub: 'DV1', pic: 'uma', cycle: 2 });
+  const rutin = task({ sub: 'R3', pic: 'kiki', deps: [dv1.id] });
+  d.tasks.push(lama, siklus2, rutin);
+  assert.deepEqual([tunggu(siklus2), tunggu(rutin)], [[], [dv1.id]]);
+
+  // E12 menutup siklus: menunggu semua task lain di siklusnya, juga yang setahap; task anaknya tak menutup siklus.
+  const e1 = baru('E1', 'andika', 'nynda');
+  const e12 = baru('E12', 'alya', 'nynda');
+  assert.ok(tunggu(e12).includes(e1.id) && !tunggu(e1).includes(e12.id), 'E12 menunggu E1 walau setahap');
+  const anakE12 = I.taskAnak(d, e12, { title: 'Rekap penutupan', pic: 'kiki' }, 'alya', WAKTU + 3, HARI);
+  assert.ok(!tunggu(e12).includes(anakE12.id) && !tunggu(anakE12).includes(e12.id), 'induk dan anak E12 tak saling menunggu');
+  Object.assign(anakE12, { status: 'Selesai', selesaiAt: WAKTU + 4 });
+  assert.equal(I.siklusTutup(d, d.projects[0]), false, 'task anak E12 tak menutup siklus');
+});
+
+test('task anak: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, induk menunggu anak-anaknya', () => {
+  const d = data([], [proyek({ lead: '' }), proyek({ id: 'PRJ-2', lead: '' })]);
+  const induk = I.taskBaru(d, { title: 'DV1 soal', project: 'PRJ-1', sub: 'DV1', pic: 'andika', priority: 'High' }, 'nynda', WAKTU, HARI);
+  assert.deepEqual(['andika', 'nynda', 'uma', 'alya'].map(me => I.bolehBuatAnak(induk, me)), [true, false, false, false], 'hanya Lead yang memegangnya');
+  const anak = I.taskAnak(d, induk, { title: 'Soal Fisika 1–20', pic: 'uma', due: '2026-10-12' }, 'andika', WAKTU + 1, HARI);
+  assert.deepEqual([anak.induk, anak.project, anak.sub, anak.stage, anak.cycle, anak.pic, anak.assignedBy, anak.priority, anak.due],
+    [induk.id, 'PRJ-1', 'DV1', 'V', 1, 'uma', 'andika', 'High', '2026-10-12']);
+  assert.equal(induk.status, 'Dikerjakan', 'induk yang antre ikut mulai begitu dibagi');
+  assert.deepEqual(I.anakTask(I.indeks(d), induk.id).map(x => x.id), [anak.id]);
+  assert.deepEqual([I.peninjau(anak), I.peninjau(induk)], ['andika', 'nynda']);
+  const e1 = I.taskBaru(d, { title: 'E1 QC', project: 'PRJ-1', sub: 'E1', pic: 'andika' }, 'nynda', WAKTU, HARI);
+  assert.equal(I.peninjau(I.taskAnak(d, e1, { title: 'QC paket 1', pic: 'tri' }, 'andika', WAKTU + 1, HARI)), 'andika');
+  assert.equal(e1.status, 'Antre', 'induk yang masih menunggu tahap sebelumnya tetap antre');
+  const a1 = I.taskBaru(d, { title: 'A1 intake', project: 'PRJ-2', sub: 'A1', pic: 'andika' }, 'nynda', WAKTU, HARI);
+  assert.equal(I.peninjau(a1), 'nynda');
+  assert.equal(I.peninjau(I.taskAnak(d, a1, { title: 'Rekap request', pic: 'wildan' }, 'andika', WAKTU + 1, HARI)), 'andika',
+    'anak di sub-stage bertanda Manager pun ditinjau Lead yang membaginya');
+  assert.ok(!I.bolehBuatAnak(anak, 'andika'), 'task anak tak beranak lagi');
+  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'andika', WAKTU + 2, HARI), /staff tim Anda/);
+  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'alya', WAKTU + 2, HARI), /task yang ia pegang/);
+
+  // Induk baru bisa diajukan setelah semua anaknya selesai.
+  Object.assign(induk, { output: 'Soal', evidence: [{ id: 'e1', label: 'Bukti', url: 'https://contoh.id/b' }] });
+  const ajukan = () => I.aksiUntuk(induk, 'andika', I.indeks(d)).find(a => a.kunci === 'ajukan');
+  assert.equal(ajukan().alasan, 'Lengkapi dulu: semua task anak selesai (0/1)');
+  Object.assign(anak, { output: 'Soal 1–20', evidence: [{ id: 'e2', label: 'Bukti', url: 'https://contoh.id/c' }] });
+  I.terapkanAksi(d, anak, 'mulai', 'uma', WAKTU + 3);
+  I.terapkanAksi(d, anak, 'ajukan', 'uma', WAKTU + 4);
+  assert.throws(() => I.terapkanAksi(d, anak, 'setujui', 'alya', WAKTU + 5));
+  I.terapkanAksi(d, anak, 'setujui', 'andika', WAKTU + 5);
+  assert.equal(ajukan().nonaktif, false);
+
+  // PIC anak hanya staff tim induknya; induk yang sudah dibagi tetap dipegang PIC-nya; tahap keduanya tetap.
+  assert.throws(() => I.ubahTask(d, anak, { pic: 'kiki' }, 'nynda', WAKTU + 6), /staff tim Andika/);
+  I.ubahTask(d, anak, { pic: 'tri' }, 'andika', WAKTU + 6);
+  assert.throws(() => I.ubahTask(d, induk, { pic: 'alya' }, 'nynda', WAKTU + 7), /sudah dibagi/);
+  assert.throws(() => I.ubahTask(d, anak, { sub: 'E1' }, 'andika', WAKTU + 7), /tetap di tahap Development/);
+  assert.throws(() => I.ubahTask(d, induk, { sub: 'E1' }, 'andika', WAKTU + 7), /tetap di tahap Development/);
+  // Form Tambah dengan task induk memakai aturan yang sama.
+  const lain = I.taskBaru(d, { title: 'Soal Kimia', project: 'PRJ-1', sub: 'DV2', pic: 'wildan', induk: induk.id }, 'andika', WAKTU + 8, HARI);
+  assert.equal(lain.induk, induk.id);
+  assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'E1', pic: 'wildan', induk: induk.id }, 'andika', WAKTU + 9, HARI), /tahap yang sama/);
+  // Task anak rutin: Lead menandai induknya selesai setelah anaknya beres.
+  const r = I.taskBaru(d, { title: 'Show/hide harian', sub: 'R3', pic: 'alya' }, 'alya', WAKTU, HARI);
+  const ra = I.taskAnak(d, r, { title: 'Show/hide Senin', pic: 'kiki' }, 'alya', WAKTU + 1, HARI);
+  assert.equal(I.peninjau(ra), null, 'jalur rutin tanpa tinjauan');
+  assert.equal(I.aksiUntuk(r, 'alya', I.indeks(d)).find(a => a.kunci === 'selesai').alasan, 'Selesaikan dulu task anaknya: ' + ra.id);
+});
+
+test('sub-task: PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus', () => {
+  const t = task({ lane: 'proyek', pic: 'kiki', status: 'Dikerjakan' });
+  const d = data([t]);
+  const s = I.tambahSubtask(d, t, { title: ' Cek urutan soal ', pic: 'kiki' }, 'kiki', WAKTU);
+  assert.deepEqual([s.title, s.pic, s.done, t.subtasks.length], ['Cek urutan soal', 'kiki', false, 1]);
+  assert.throws(() => I.tambahSubtask(d, t, { title: ' ' }, 'kiki', WAKTU), /wajib/);
+  assert.throws(() => I.tambahSubtask(d, t, { title: 'x' }, 'uma', WAKTU), /Hanya PIC/);
+  I.ubahSubtask(d, t, s.id, { title: 'Cek urutan & kunci', pic: 'bilar' }, 'alya', WAKTU + 1);
+  assert.deepEqual([s.title, s.pic], ['Cek urutan & kunci', 'bilar']);
+  assert.match(d.log[0].detail, /Cek urutan soal → Cek urutan & kunci/);
+  assert.throws(() => I.ubahSubtask(d, t, 'tak-ada', { title: 'x' }, 'kiki', WAKTU), /tidak ditemukan/);
+  assert.throws(() => I.hapusSubtask(d, t, s.id, 'uma', WAKTU), /Hanya PIC/);
+  I.hapusSubtask(d, t, s.id, 'nynda', WAKTU + 2);
+  assert.equal(t.subtasks.length, 0);
+  assert.match(d.log[0].detail, /Sub-task dihapus: Cek urutan & kunci/);
 });
 
 test('link favorit dan catatan yang disematkan: hanya milik sendiri', () => {

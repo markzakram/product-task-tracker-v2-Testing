@@ -1,5 +1,40 @@
 # Changelog — ProductTrack v2
 
+## 0.15.0 — Task anak, paralel per tahap, sub-task bisa diubah (2026-10-09)
+
+- **Task anak menggantikan "Serahkan ke staff".** Task yang dipegang Lead tak lagi bisa
+  diserahkan ke staff (juga lewat Ubah, juga oleh Manager). Lead membaginya dengan membuat task
+  anak untuk staff timnya: dari bagian **Task anak** di detail task, atau dari kolom **Task
+  induk** di form Tambah task (muncul saat Lead memilih staff sebagai PIC). Task anak ada di
+  proyek, siklus, dan tahap yang sama dengan induknya, ditinjau Lead itu (juga di sub-stage
+  bertanda Manager), dan tak beranak lagi.
+- **Tampil menjorok.** Di halaman proyek dan Task (Daftar, juga di ponsel), task anak tepat di
+  bawah induknya dengan garis penghubung; di tabel bertanda ↳. Di daftar lain (Hari Ini, Kanban,
+  Kalender, Timeline di ponsel) task anak membawa chip **↳ PRD-…** induknya, dan induk
+  menampilkan "N/M task anak". Detail task anak menautkan ke induknya. Ekspor CSV mendapat kolom
+  Task induk.
+- **Induk menunggu anaknya.** Syarat ajukan bertambah "Semua task anak selesai"; task rutin yang
+  punya task anak baru bisa ditandai selesai setelah anaknya beres. Induk yang masih antre
+  ikut mulai begitu dibagi. Induk yang sudah dibagi tetap dipegang PIC-nya, dan tahap induk-anak
+  tak bisa diganti lewat Ubah.
+- **Paralel per tahap.** Task proyek di tahap ADDIE yang sama dalam satu siklus tak lagi saling
+  menunggu, siapa pun Lead-nya; yang berurutan hanya tahapnya (A → D → DV → I → E). Pesannya
+  "Menunggu tahap Development selesai: …", dan di halaman proyek cukup satu keterangan per
+  bagian tahap. E12 menunggu semua task lain di siklusnya, dan hanya E12 yang bukan task anak
+  yang menutup siklus. Notifikasi "siap" muncul saat tahap sebelumnya tuntas. Task rutin tetap
+  memakai `deps`. Langkah elaborasi tetap mencatat urutannya di `deps`, hanya untuk menemukan
+  batch-nya.
+- **Sub-task bisa diubah dan dihapus.** Ikon pensil mengubah judul dan PIC di tempat, ikon
+  tempat sampah menghapus (dengan konfirmasi). Aturannya pindah ke `public/inti.js`
+  (`tambahSubtask`, `ubahSubtask`, `hapusSubtask`) dan tercatat di Aktivitas.
+- **"Tambah task di Development"** di halaman proyek langsung memakai jalur Proyek dan hanya
+  menawarkan sub-stage tahap itu (juga untuk tahap lain).
+- Skenario contoh (`scripts/_demo.js`) ditulis ulang untuk aturan baru: TKA di Development
+  dengan task anak di berbagai keadaan, OJK satu siklus penuh tahap demi tahap. Panduan, README,
+  dan teks aplikasi tak lagi menyebut delegasi.
+- Kolom baru `induk` di tab `tasks` (hanya menambah; versi live lama mengabaikannya).
+- 186 tes.
+
 ## 0.14.3 — Mode Dev tersembunyi (2026-10-09)
 
 - Kartu **Dev** tak lagi tampil di pemilih profil ("Masuk sebagai siapa?"), juga saat sesi Dev

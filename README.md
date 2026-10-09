@@ -44,22 +44,36 @@ Sejak 0.6.0 alurnya mengikuti PRD v3 dari Manager (*ProductTrack v3 Product Oper
 dengan satu penyederhanaan: tetap empat status.
 
 - **Empat status:** Antre → Dikerjakan → Ditinjau → Selesai. Keadaan lain di PRD tidak jadi
-  status sendiri; ia dihitung dan tampil sebagai label: **Siap** (task yang ditunggu sudah
-  selesai), **Menunggu** (masih menunggu task lain), **Revisi** (dikembalikan peninjau), dan
-  **Tertahan** (tanda yang disertai alasan).
+  status sendiri; ia dihitung dan tampil sebagai label: **Siap** (tahap sebelumnya sudah
+  selesai), **Menunggu** (tahap sebelumnya belum selesai), **Revisi** (dikembalikan peninjau),
+  dan **Tertahan** (tanda yang disertai alasan).
 - **Sub-stage.** Setiap task berkode: A1–A6, D1–D7, DV1–DV9, I1–I8, E1–E12 di dalam proyek;
   R1–R4 untuk pekerjaan rutin. Kode menentukan tahap task dan **tim pemiliknya** (MG Manager,
   AK Akademik, LA Learning Architecture, CO Content Ops, SI Sistem). A1, A6, D1, I8, dan E12
   selalu direview Manager. Itu daftar bawaan PRD; sejak 0.14.0 Manager mengaturnya di halaman
   **Master**, dan form task tak lagi memilihkan sub-stage: harus dipilih sendiri.
-- **Delegasi lewat Lead tim pemilik.** Lead memberi task ke timnya sendiri, atau ke Lead tim
-  pemilik sub-stage-nya (mis. Andika menyerahkan DV8 Input ke Alya). Langkah yang sudah siap
-  masuk **Antrean tim** di Hari Ini Lead itu, lalu ia **serahkan ke staff** dari detail task.
+- **Task anak (0.15.0).** Lead memberi task ke timnya sendiri, atau ke Lead tim pemilik
+  sub-stage-nya (mis. Andika memberi DV8 Input ke Alya). Task yang dipegang Lead **tidak
+  diserahkan ke staff**: langkah yang sudah bisa dimulai masuk **Antrean tim** di Hari Ini Lead
+  itu, dan ia membaginya dengan membuat **task anak** untuk staff timnya, dari bagian Task anak
+  di detail task atau dari kolom **Task induk** di form Tambah task. Task anak ada di proyek,
+  siklus, dan tahap yang sama dengan induknya, tampil menjorok di bawahnya di halaman proyek dan
+  di Task, ditinjau Lead itu (juga di sub-stage bertanda Manager), dan tak beranak lagi.
+  Induknya baru bisa diajukan atau ditandai selesai setelah semua task anaknya selesai; induk
+  yang masih antre ikut mulai begitu dibagi. Induk yang sudah dibagi tetap dipegang PIC-nya.
+- **Paralel per tahap (0.15.0).** Task proyek di tahap ADDIE yang sama dalam satu siklus
+  dikerjakan bersamaan, siapa pun Lead-nya, dan tak saling menunggu. Yang berurutan hanya
+  tahapnya: task Design baru bisa dimulai setelah semua task Analysis di siklus itu selesai, dan
+  seterusnya. Pengecualian: **E12** menunggu semua task lain di siklusnya, supaya siklus tak
+  tertutup selagi masih ada pekerjaan. Task rutin tetap menunggu task di `deps`-nya.
+- **Sub-task** bisa ditambah, diubah (judul dan PIC), dan dihapus oleh PIC task, Lead-nya, atau
+  Manager; PIC sub-task boleh mencentangnya.
 - **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, ada minimal satu
-  tautan bukti, semua sub-task selesai, task yang ditunggu selesai, dan tidak tertahan. Staff
-  mengisi output dan bukti sendiri dari detail task; daftar periksanya tampil di sana.
-- **Tinjauan:** task staff oleh Lead-nya, task Lead oleh Manager, sub-stage bertanda Manager oleh
-  Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
+  tautan bukti, semua sub-task selesai, semua task anak selesai (kalau ada), tahap sebelumnya
+  selesai, dan tidak tertahan. Staff mengisi output dan bukti sendiri dari detail task; daftar
+  periksanya tampil di sana.
+- **Tinjauan:** task staff oleh Lead-nya (termasuk task anak), task Lead oleh Manager, sub-stage
+  bertanda Manager oleh Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
 - **Proyek tanpa Lead tetap.** Yang tampil adalah tim pemegang task terbukanya.
 - **Tahap proyek dihitung, bukan diputuskan:** tahap task terbuka paling awal di siklus aktif.
   Tahap pindah sendiri dan tercatat di riwayat tahap. **Siklus ditutup** oleh task E12 · Final
@@ -92,9 +106,11 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
    tercentang dari awal: targetnya dipilih sendiri (ada tombol **Centang semua**), dan tombol
    Buat task baru aktif sesudahnya. Setiap target yang dipilih menjadi satu **batch**: rangkaian task sesuai alur jenisnya. Contoh Latsol: DV1
    Produksi soal → E1 QC soal → DV8 Input → I1 Generate → E4 QC SIADU → E5 QC Web → E6 QC
-   Android → I4 Show/hide. Setiap langkah menunggu langkah sebelumnya dan diserahkan ke Lead tim
-   pemilik sub-stage-nya. Langkah yang tak perlu bisa dicoret. Mode **Satu task per target**
-   (cara 0.5.0) tetap ada.
+   Android → I4 Show/hide. Setiap langkah dipegang Lead tim pemilik sub-stage-nya, yang
+   membaginya ke staff lewat task anak. Sejak 0.15.0 langkahnya dikerjakan **per tahap ADDIE**,
+   bukan satu per satu: DV1 dan DV8 berjalan bersamaan, I1 dan I4 setelah Development selesai,
+   dan QC (E1, E4–E7) setelah Implementation selesai. Langkah yang tak perlu bisa dicoret. Mode
+   **Satu task per target** (cara 0.5.0) tetap ada.
 2. Jumlah per target bisa dikecilkan bila proyek ini hanya mengerjakan sebagian (target 10,
    proyek ini 5); sisanya tetap terbuka untuk elaborasi berikutnya. Tujuannya boleh proyek baru
    atau proyek yang sudah ada.
@@ -102,7 +118,9 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
    ter-input 60% (DV8), lolos QC output 85% (QC aplikasi terakhir), tayang 100% (I4). Setiap
    batch dinilai dari langkah bercapaian tertinggi yang sudah disetujui; target baru dihitung
    **terpenuhi** saat batch-nya tayang. Bobot itu bawaan dari usulan PRD; sejak 0.14.0 nama dan
-   bobotnya diatur Manager di halaman **Master** (tayang tetap 100%).
+   bobotnya diatur Manager di halaman **Master** (tayang tetap 100%). Karena sejak 0.15.0 QC
+   (Evaluation) dikerjakan sesudah Implementation, batch dengan alur bawaan biasanya naik dari
+   ter-input (60%) langsung ke tayang (100%) begitu I4 disetujui.
 4. Progres **dihitung, bukan dipicu**: tak ada yang ditulis saat task selesai. Task yang dibuka
    kembali otomatis menurunkan progresnya lagi.
 
@@ -552,14 +570,15 @@ npm run impor:v1 -- --demo
 Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di aplikasi
 (`scripts/_demo.js`):
 
-- **TKA_CEREBRUM** (target asli v1) dielaborasi dua minggu lalu dengan alur lengkap: 11 batch
-  di capaian yang berbeda (tayang, lolos QC, ter-input, konten siap, baru mulai). Ada langkah
-  yang ditinjau, dikembalikan (Revisi), terlambat, tertahan, dan yang menunggu di antrean Lead.
-  Setiap langkah yang lolos punya output dan bukti, dan sebagian besar dikerjakan staff hasil
-  delegasi.
-- **OJK** diberi target contoh dan menjalani satu siklus penuh: A1/A6 oleh Manager, keputusan
-  Build, semua batch sampai tayang, lalu E12 disetujui. Siklusnya tertutup dan menunggu
-  keputusan Manager.
+- **TKA_CEREBRUM** (target asli v1) dielaborasi dua minggu lalu dengan alur lengkap. Design
+  sudah tuntas dan proyeknya di Development: ada batch yang sudah ter-input, langkah Lead yang
+  menunggu tinjauan Manager, task anak yang dikerjakan, dikembalikan (Revisi), terlambat,
+  tertahan, dan menunggu tinjauan Lead, serta langkah yang masih di antrean Lead.
+  Implementation dan Evaluation menunggu Development selesai. Setiap langkah yang lolos punya
+  output dan bukti, dan pekerjaannya dibagi ke staff lewat task anak.
+- **OJK** diberi target contoh dan menjalani satu siklus penuh, tahap demi tahap: A1/A6 oleh
+  Manager, keputusan Build, Development, Implementation (semua batch tayang), Evaluation, lalu
+  E12 disetujui. Siklusnya tertutup dan menunggu keputusan Manager.
 - **UTBK** diberi target contoh tanpa dielaborasi, untuk mencoba tombol **Elaborasi jadi
   proyek** sendiri.
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
@@ -609,6 +628,15 @@ lama dengan `app.js` baru.
   tetapi seluruh data contoh tetap dikirim ke browser dan profil dipilih sendiri. v1 menyaring
   data di server untuk magang dan Lintas Divisi; v2 belum. Siapa pun yang tahu PIN v2 bisa
   melihat seluruh data contoh, jadi jangan bagikan PIN v2 ke magang atau Lintas Divisi.
+- **Urutan tahap menggantikan urutan langkah alur (0.15.0).** Dengan alur bawaan, QC (E1,
+  E4–E7) baru berjalan setelah I4 Show/hide, dan task Analysis yang terlambat menahan seluruh
+  tahap sesudahnya di siklus itu.
+- **Data contoh yang diimpor sebelum 0.15.0** dijalankan dengan aturan lama: langkah batch
+  berurutan, dan langkah Lead diserahkan ke staff (PIC staff, bukan task anak). Di 0.15.0 task
+  tahap berikutnya di sana yang sudah berjalan ikut menunggu tahap sebelumnya selesai. Impor
+  ulang `npm run impor:v1 -- --demo` memasang skenario contoh baru; kolom `induk` di tab `tasks`
+  hanya menambah, jadi versi live lama tetap membacanya.
+- Task anak hanya satu tingkat dan tak bisa dipindah ke induk lain.
 - Task belum bisa dihapus.
 - Satu task hanya menyetor saat task-nya Selesai; setoran per sub-task belum ada.
 - Bobot capaian bawaan (40/60/85/100) serta alur Dibimbing dan Live Class masih usulan PRD;

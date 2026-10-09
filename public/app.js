@@ -113,6 +113,8 @@
     proyek: null,
     /* Tahap yang diklik di jalur ADDIE: { proyek, tahap } — bagiannya dibuka di halaman proyek. */
     tahapBuka: null,
+    /* Sub-task yang sedang diubah di detail task: { task, sub }. */
+    ubahSub: null,
     proyekArsip: false,
     task: Object.assign({ tampilan: 'daftar', lingkup: '', fokus: '', proyek: '', ...SARING_KOSONG, status: 'aktif', urut: 'due', arah: 1 },
       prefTask(), { q: '', hal: 1, saringBuka: false }),
@@ -375,8 +377,8 @@
   /* Keadaan turunan (PRD: Ready, Revision, Waiting, Blocked) di samping empat status. */
   const LABEL = {
     Revisi: ['lb-revisi', 'Dikembalikan peninjau: perbaiki, lalu ajukan lagi'],
-    Siap: ['lb-siap', 'Bisa dimulai: task yang ditunggu sudah selesai'],
-    Menunggu: ['lb-menunggu', 'Menunggu task lain selesai'],
+    Siap: ['lb-siap', 'Bisa dimulai: tahap sebelumnya sudah selesai'],
+    Menunggu: ['lb-menunggu', 'Menunggu tahap sebelumnya (atau task lain) selesai'],
     Tertahan: ['kd-risiko', 'Ditandai tertahan'],
   };
   function chipLabel(t, sembunyi = []) {
@@ -437,16 +439,48 @@
   };
   const chipKeadaan = k => `<span class="pill kd-${k}">${KEADAAN[k]}</span>`;
 
-  function barisTask(t, alasan = '') {
+  /* ---------- Hirarki task (0.15.0) ----------
+     Lead tak menyerahkan task yang ia pegang ke staff; ia membuat task anak untuk staff timnya
+     di bawah task itu. Di daftar, anak tampil menjorok tepat di bawah induknya. */
+  function ringkasAnak(t) {
+    const anak = I.anakTask(perIdKini(), t.id);
+    return anak.length ? `${anak.filter(I.selesai).length}/${anak.length} task anak` : '';
+  }
+  function chipInduk(t) {
+    const induk = perIdKini().get(t.induk);
+    return `<span class="chip-induk" title="${esc(`Task anak dari ${t.induk}${induk ? ' · ' + induk.title : ''}`)}">↳ ${esc(t.induk)}</span>`;
+  }
+  /* Anak diletakkan tepat sesudah induknya bila induknya ada di daftar yang sama; kalau tidak,
+     ia tetap di tempatnya dengan tanda ↳ induknya. */
+  function susunHirarki(daftar) {
+    const ada = new Set(daftar.map(t => t.id));
+    const anakDari = new Map();
+    for (const t of daftar) {
+      if (!t.induk || !ada.has(t.induk)) continue;
+      if (!anakDari.has(t.induk)) anakDari.set(t.induk, []);
+      anakDari.get(t.induk).push(t);
+    }
+    const out = [];
+    for (const t of daftar) {
+      if (t.induk && ada.has(t.induk)) continue;
+      out.push({ t, anak: false });
+      for (const a of anakDari.get(t.id) || []) out.push({ t: a, anak: true });
+    }
+    return out;
+  }
+
+  /* posisi: 'anak' = menjorok di bawah induknya; 'di-induk' = di dalam detail induknya. */
+  function barisTask(t, alasan = '', posisi = '') {
     const sub = ringkasSub(t);
+    const keluarga = ringkasAnak(t);
     // Siap tak perlu ditandai di daftar; Menunggu/Tertahan sudah terbaca dari alasannya.
     const lb = I.labelKeadaan(t, perIdKini());
     const label = lb && lb !== 'Siap' && !String(alasan).startsWith(lb) ? chipLabel(t) : '';
-    return `<button type="button" class="baris ${S.pilih === t.id ? 'dipilih' : ''}" data-aksi="buka-task" data-id="${esc(t.id)}">
+    return `<button type="button" class="baris ${posisi === 'anak' ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}" data-aksi="buka-task" data-id="${esc(t.id)}">
       ${pillStatus(t.status)}
       <span class="baris-isi">
         <span class="baris-judul">${esc(t.title)}</span>
-        <span class="baris-meta">${chipJalur(t)} ${esc(asal(t))}${sub ? ' · ' + sub : ''} ${label} ${chipSetor(t)} ${chipPenting(t)}</span>
+        <span class="baris-meta">${t.induk && !posisi ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${esc(asal(t))}${sub ? ' · ' + sub : ''}${keluarga ? ' · ' + keluarga : ''} ${label} ${chipSetor(t)} ${chipPenting(t)}</span>
         ${alasan ? `<span class="baris-alasan ${/^Tertahan/.test(alasan) ? 'merah' : /^Selesai/.test(alasan) && !/lewat tenggat/.test(alasan) ? 'redup' : ''}">${esc(alasan)}</span>` : ''}
       </span>
       ${chipTenggat(t)}
@@ -459,11 +493,17 @@
     const beres = t.subtasks.filter(s => s.done).length;
     const dep = I.depsBelum(t, perId);
     const telat = I.telat(t, hariIni());
+    const keluarga = ringkasAnak(t);
+    // Task proyek menunggu tahap; task lain menunggu task yang tercatat di deps-nya.
+    const tunggu = !dep.length || I.selesai(t) ? ''
+      : I.tungguTahap(t) ? 'Menunggu tahap ' + I.namaTahap(I.TAHAP.map(x => x.id).find(s => dep.some(d => d.stage === s)))
+      : 'Menunggu ' + dep[0].id;
     return `<div class="kartu ${telat ? 'telat' : ''}" draggable="true" data-id="${esc(t.id)}">
-      <span class="kartu-atas">${chipJalur(t)} ${chipLabel(t, ['Siap', 'Menunggu', 'Tertahan'])} ${chipSetor(t)} <span>${esc(asal(t))}</span></span>
+      <span class="kartu-atas">${t.induk ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${chipLabel(t, ['Siap', 'Menunggu', 'Tertahan'])} ${chipSetor(t)} <span>${esc(asal(t))}</span></span>
       <button type="button" class="kartu-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(t.title)}</button>
       ${sub ? `<span class="kartu-sub"><span class="batang"><span style="width:${Math.round(beres / sub * 100)}%"></span></span>${beres}/${sub}</span>` : ''}
-      ${t.tertahan ? `<span class="tanda-tahan">Tertahan: ${esc(t.alasanTertahan || 'tanpa alasan')}</span>` : dep.length && !I.selesai(t) ? `<span class="kartu-tunggu">Menunggu ${esc(dep[0].id)}</span>` : ''}
+      ${keluarga ? `<span class="kartu-anak">${esc(keluarga)}</span>` : ''}
+      ${t.tertahan ? `<span class="tanda-tahan">Tertahan: ${esc(t.alasanTertahan || 'tanpa alasan')}</span>` : tunggu ? `<span class="kartu-tunggu">${esc(tunggu)}</span>` : ''}
       <span class="kartu-bawah">${avatar(t.pic, 'kecil')} <span>${nama(t.pic)}</span> ${chipTenggat(t)}</span>
     </div>`;
   }
@@ -588,6 +628,7 @@
       tasks: daftar(d.tasks).map(t => ({
         ...t, sub: t.sub || '', support: daftar(t.support), deps: daftar(t.deps), subtasks: daftar(t.subtasks), comments: daftar(t.comments),
         tinjauan: daftar(t.tinjauan), evidence: daftar(t.evidence), output: t.output || '', selesaiAt: Number(t.selesaiAt) || 0,
+        induk: t.induk || '',
       })),
       packages: daftar(d.packages).map(p => ({
         ...p, namaPaket: p.namaPaket || p.name || '', mirror: !!p.mirror,
@@ -1082,7 +1123,7 @@
       case 'tambah': return `${siapa}menambah task untuk dirinya sendiri: ${judul}`;
       case 'serah': return `${siapa}menyerahkan ${judul} ke Anda`;
       case 'siap': return t && I.orang(S.me).peran === 'lead' && t.lane === 'proyek' && I.timDari(S.me).length
-        ? `${judul} masuk antrean tim Anda, siap didelegasikan` : `${judul} siap dikerjakan: task yang ditunggunya sudah selesai`;
+        ? `${judul} siap: kerjakan, atau bagi ke staff lewat task anak` : `${judul} siap dikerjakan: ${t && I.tungguTahap(t) ? 'tahap sebelumnya sudah selesai' : 'task yang ditunggunya sudah selesai'}`;
       case 'tinjau': return `${siapa}mengajukan ${judul} untuk Anda tinjau`;
       case 'kembali': return `${siapa}mengembalikan ${judul}.${kutip(n.teks)}`;
       case 'setuju': return `${siapa}menyetujui ${judul}`;
@@ -1245,7 +1286,7 @@
       nHari ? `<strong>${nHari} task</strong> untuk hari ini` : '',
       nTelat ? `<strong>${nTelat}</strong> terlambat` : '',
       nTinjau ? `<strong>${nTinjau}</strong> menunggu tinjauan Anda` : '',
-      nAntre ? `<strong>${nAntre}</strong> langkah di antrean tim, siap didelegasikan` : '',
+      nAntre ? `<strong>${nAntre}</strong> langkah di antrean tim, siap dibagi` : '',
     ].filter(Boolean);
     const bantu = { antrean: ['lead-antrean', 'antrean tim'], tinjau: ['lead-tinjau', 'meninjau'] };
     const daftar = kerja.grup.map(g => `<section class="grup ${g.kunci}">
@@ -1276,7 +1317,8 @@
   /* Setoran task ini ke rancangan paket. Lead/Manager task ini bisa menambah atau menghapus;
      untuk task proyek yang tertaut paket, pilihan targetnya dari paket itu saja. */
   /* Langkah tanpa setoran sendiri (mis. I1, E4) tetap bagian dari batch elaborasi: telusuri
-     task yang ditunggunya sampai langkah pertama, lalu ambil setoran batch itu. */
+     langkah sebelumnya yang tercatat di deps sampai langkah pertama, lalu ambil setoran batch
+     itu. (Sejak 0.15.0 deps langkah elaborasi hanya catatan urutan, bukan penahan.) */
   function setoranBatch(t) {
     const perId = perIdKini();
     let akar = t;
@@ -1369,16 +1411,40 @@
     </section>`;
   }
 
-  /* Lead menyerahkan task yang ia pegang (mis. langkah di antrean timnya) ke staff-nya. */
-  function formSerahkan(t) {
-    if (I.orang(S.me).peran !== 'lead' || t.pic !== S.me || I.selesai(t) || t.status === 'Ditinjau') return '';
-    const staf = I.timDari(S.me);
-    if (!staf.length) return '';
+  /* Task anak: Lead membagi task yang ia pegang ke staff timnya (0.15.0, pengganti "Serahkan
+     ke staff"). Anak ditinjau Lead itu; induknya baru bisa diajukan setelah semua anaknya selesai. */
+  function bagianAnak(t, perId) {
+    const anak = I.anakTask(perId, t.id).slice().sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+    const bisa = I.bolehBuatAnak(t, S.me);
+    if (!anak.length && !bisa) return '';
     const id = esc(t.id);
-    return `<form class="baris-form serahkan" data-form="serahkan" data-id="${id}">
-      <label class="sr" for="serah-${id}">Serahkan ke</label>
-      <select class="input" id="serah-${id}" name="pic">${opsiHtml(staf.map(x => [x, I.orang(x).nama]), staf[0])}</select>
-      <button class="tombol">${ikon('serah', 16)} Serahkan ke staff</button>
+    const staf = I.timDari(S.me);
+    const beres = anak.filter(I.selesai).length;
+    return `<section><p class="subjudul">Task anak ${anak.length ? `· ${beres}/${anak.length} selesai` : ''}${tanya('lead-antrean', 'membagi task ke staff')}</p>
+      ${anak.length ? `<div class="grup daftar-anak">${anak.map(x => barisTask(x, x.tertahan ? I.alasanTunggu(x, perId) : '', 'di-induk')).join('')}</div>` : ''}
+      ${bisa ? `<form class="baris-form form-anak" data-form="anak" data-id="${id}">
+          <label class="sr" for="anak-${id}">Judul task anak</label>
+          <input class="input" id="anak-${id}" name="judul" placeholder="Bagian untuk staff, mis. Soal paket 1–2" required maxlength="200" autocomplete="off">
+          <label class="sr" for="anakpic-${id}">PIC task anak</label>
+          <select class="input" id="anakpic-${id}" name="pic">${opsiHtml(staf.map(x => [x, I.orang(x).nama]), staf[0])}</select>
+          <label class="sr" for="anakdue-${id}">Tenggat task anak</label>
+          <input class="input tenggat-anak" type="date" id="anakdue-${id}" name="due" value="${esc(t.due || '')}" title="Tenggat">
+          <button class="tombol">${ikon('tambah', 16)} Buat task anak</button>
+        </form>
+        <p class="hint">Bagi pekerjaan task ini ke staff tim Anda. Task anak tampil menjorok di bawah task ini dan ditinjau Anda; task ini baru bisa ${I.peninjau(t) ? 'diajukan' : 'ditandai selesai'} setelah semua task anaknya selesai.</p>` : ''}
+    </section>`;
+  }
+
+  /* Sub-task yang sedang diubah: judul dan PIC-nya, di tempat. */
+  function formUbahSub(t, s, pilihan) {
+    const id = esc(t.id + '-' + s.id);
+    return `<form class="baris-form ceklis-ubah" data-form="sub-ubah" data-id="${esc(t.id)}" data-sub="${esc(s.id)}">
+      <label class="sr" for="subu-${id}">Judul sub-task</label>
+      <input class="input" id="subu-${id}" name="judul" value="${esc(s.title)}" required maxlength="200" autocomplete="off">
+      <label class="sr" for="subupic-${id}">PIC sub-task</label>
+      <select class="input" id="subupic-${id}" name="pic">${[...new Set([...pilihan, s.pic])].map(x => `<option value="${esc(x)}" ${x === s.pic ? 'selected' : ''}>${nama(x)}</option>`).join('')}</select>
+      <button class="tombol utama">Simpan</button>
+      <button type="button" class="tombol" data-aksi="sub-batal">Batal</button>
     </form>`;
   }
 
@@ -1398,12 +1464,13 @@
     const jenis = I.jenisJalur(t);
     const s = I.subTahap(t.sub);
     const tim = I.TIM[I.timTask(t)];
-    const serahkan = formSerahkan(t);
+    const induk = t.induk ? perId.get(t.induk) : null;
 
     return `<div class="detail">
       <div class="detail-atas"><div>
         <p class="detail-asal">${p ? `<button type="button" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button>` : `${jenis === 'lepas' ? 'Lepas' : 'Rutin'} · ${esc(t.kategori || 'Umum')}`} · ${esc(t.id)}</p>
         <h2>${esc(t.title)}</h2>
+        ${induk ? `<p class="detail-induk">↳ Task anak dari <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
         <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : '<span class="pill lb-menunggu">Belum ber-sub-stage</span>'}${tim ? ` · Tim ${esc(tim.nama)}` : ''}${s && s.reviewManager ? ' · direview Manager' : ''}${tanya('konsep-kode', 'sub-stage dan tim')}</p>
         <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}</div>
         <div class="detail-orang">${avatar(t.pic)} PIC ${nama(t.pic)}
@@ -1418,25 +1485,30 @@
       ${p ? `<section><p class="subjudul">Tahap proyek${t.stage !== p.stage ? ` · task ini di ${esc(I.namaTahap(t.stage))}` : ''}</p>${jalurTahap(p, t.stage, I.siklusTutup(S.data, p), true)}</section>` : ''}
       ${tunggu ? `<div class="banner ${t.tertahan ? 'merah' : 'kuning'}">${esc(tunggu)}</div>` : ''}
 
-      ${aksi.length || bisaUbah || serahkan ? `<section>
+      ${aksi.length || bisaUbah ? `<section>
         <div class="detail-aksi">
           ${utama.map(a => `<button type="button" class="tombol utama" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}
           ${lain.map(a => `<button type="button" class="tombol ${['tahan', 'kembalikan'].includes(a.kunci) ? 'bahaya' : ''}" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}">${esc(a.label)}</button>`).join('')}
           ${bisaUbah ? `<button type="button" class="tombol" data-aksi="ubah-task" data-id="${esc(t.id)}">Ubah</button>` : ''}
         </div>
         ${utama.filter(a => a.nonaktif).map(a => `<p class="hint">${esc(a.alasan)}</p>`).join('')}
-        ${serahkan}
       </section>` : ''}
 
       ${bagianSyarat(t, perId)}
+      ${bagianAnak(t, perId)}
       ${bagianOutput(t, bisaSub)}
 
       <section>
         <p class="subjudul">Sub-task ${t.subtasks.length ? `· ${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}` : ''}</p>
         ${t.subtasks.length ? `<div class="ceklis">${t.subtasks.map(s => {
           const boleh = bisaSub || s.pic === me;
-          return `<label class="${s.done ? 'beres' : ''}"><input type="checkbox" data-aksi="centang-sub" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" ${s.done ? 'checked' : ''} ${boleh ? '' : 'disabled'}>
-            <span>${esc(s.title)}</span><small>${nama(s.pic)}</small></label>`;
+          if (bisaSub && S.ubahSub && S.ubahSub.task === t.id && S.ubahSub.sub === s.id) return formUbahSub(t, s, pilihanPic);
+          return `<div class="ceklis-baris"><label class="${s.done ? 'beres' : ''}"><input type="checkbox" data-aksi="centang-sub" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" ${s.done ? 'checked' : ''} ${boleh ? '' : 'disabled'}>
+            <span>${esc(s.title)}</span><small>${nama(s.pic)}</small></label>
+            ${bisaSub ? `<span class="ceklis-aksi">
+              <button type="button" class="ikon-tombol" data-aksi="sub-ubah" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="Ubah sub-task" aria-label="Ubah sub-task ${esc(s.title)}">${ikon('sunting', 16)}</button>
+              <button type="button" class="ikon-tombol" data-aksi="sub-hapus" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="Hapus sub-task" aria-label="Hapus sub-task ${esc(s.title)}">${ikon('hapus', 16)}</button>
+            </span>` : ''}</div>`;
         }).join('')}</div>` : '<p class="hint">Belum ada sub-task.</p>'}
         ${bisaSub ? `<form class="baris-form" data-form="sub-tambah" data-id="${esc(t.id)}">
           <label class="sr" for="sub-${esc(t.id)}">Sub-task baru</label>
@@ -1662,16 +1734,18 @@
   function badanDaftar() {
     const f = S.task;
     const semua = daftarSaring();
-    const jumlahHal = Math.max(1, Math.ceil(semua.length / PER_HAL));
+    // Task anak tepat di bawah induknya, sebelum dibagi per halaman.
+    const tersusun = susunHirarki(semua);
+    const jumlahHal = Math.max(1, Math.ceil(tersusun.length / PER_HAL));
     f.hal = Math.min(Math.max(1, f.hal), jumlahHal);
-    const isi = semua.slice((f.hal - 1) * PER_HAL, f.hal * PER_HAL);
+    const isi = tersusun.slice((f.hal - 1) * PER_HAL, f.hal * PER_HAL);
     const kolom = [['id', 'ID'], ['title', 'Task'], ['pic', 'PIC'], ['status', 'Status'], ['due', 'Tenggat'], ['platform', 'Platform']];
     const kepala = kolom.map(([k, l]) => `<th aria-sort="${f.urut === k ? (f.arah === -1 ? 'descending' : 'ascending') : 'none'}"><button type="button" class="urut" data-aksi="daftar-urut" data-kunci="${k}">${l}<span aria-hidden="true">${f.urut === k ? (f.arah === -1 ? ' ↓' : ' ↑') : ''}</span></button></th>`).join('');
-    const tabel = `<div class="tabel-gulir kartu-polos rapat"><table class="tabel tabel-task"><thead><tr>${kepala}</tr></thead><tbody>${isi.map(t => `
-      <tr class="${S.pilih === t.id ? 'dipilih' : ''}">
+    const tabel = `<div class="tabel-gulir kartu-polos rapat"><table class="tabel tabel-task"><thead><tr>${kepala}</tr></thead><tbody>${isi.map(({ t, anak }) => `
+      <tr class="${anak ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}">
         <td class="kecil">${esc(t.id)}</td>
         <td><button type="button" class="tautan-task" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(t.title)}</button>
-          <span class="baris-meta">${chipJalur(t)} ${esc(asal(t))} ${chipLabel(t, ['Siap'])} ${chipPenting(t)}</span></td>
+          <span class="baris-meta">${t.induk && !anak ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${esc(asal(t))}${ringkasAnak(t) ? ' · ' + ringkasAnak(t) : ''} ${chipLabel(t, ['Siap'])} ${chipPenting(t)}</span></td>
         <td class="nowrap">${avatar(t.pic, 'kecil')} ${nama(t.pic)}</td>
         <td>${pillStatus(t.status)}</td>
         <td>${chipTenggat(t)}</td>
@@ -1686,7 +1760,7 @@
         <span class="spasi"></span>
         ${pilihan('task', 'status', f.status, [['aktif', 'Aktif'], SEMUA, ...I.STATUS.map(s => [s, s])], 'Status')}
         <button type="button" class="tombol kecil" data-aksi="ekspor" ${semua.length ? '' : 'disabled'}>${ikon('unduh', 16)} Ekspor CSV</button></div>
-      ${semua.length ? (hp() ? `<div class="grup">${isi.map(t => barisTask(t)).join('')}</div>` : tabel) : '<div class="kosong-isi">Tidak ada task yang cocok dengan saringan ini.</div>'}
+      ${semua.length ? (hp() ? `<div class="grup">${isi.map(x => barisTask(x.t, '', x.anak ? 'anak' : '')).join('')}</div>` : tabel) : '<div class="kosong-isi">Tidak ada task yang cocok dengan saringan ini.</div>'}
       ${nav}`;
   }
 
@@ -1845,12 +1919,12 @@
   function eksporCsv(daftar) {
     const sel = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
     const perId = perIdKini();
-    const judul = ['ID', 'Judul', 'Jalur', 'Proyek', 'Kategori', 'Tahap', 'Sub-stage', 'Tim', 'Platform', 'PIC', 'Status', 'Keadaan', 'Tenggat', 'Selesai'];
+    const judul = ['ID', 'Judul', 'Jalur', 'Proyek', 'Kategori', 'Tahap', 'Sub-stage', 'Tim', 'Platform', 'PIC', 'Status', 'Keadaan', 'Tenggat', 'Selesai', 'Task induk'];
     const baris = daftar.map(t => {
       const s = I.subTahap(t.sub);
       return [t.id, t.title, I.jenisJalur(t), t.project ? asal(t) : '', t.kategori, s && s.tahap !== 'R' ? I.namaTahap(s.tahap) : t.stage ? I.namaTahap(t.stage) : '',
         s ? I.namaSub(s.kode) : '', I.timTask(t), t.platform, I.orang(t.pic).nama, t.status, I.labelKeadaan(t, perId),
-        t.due, t.selesaiAt ? I.isoHari(t.selesaiAt) : ''];
+        t.due, t.selesaiAt ? I.isoHari(t.selesaiAt) : '', t.induk || ''];
     });
     const csv = '﻿' + [judul, ...baris].map(b => b.map(sel).join(',')).join('\n');
     const a = document.createElement('a');
@@ -2009,19 +2083,29 @@
     }
 
     const buka = S.tahapBuka && S.tahapBuka.proyek === p.id ? S.tahapBuka.tahap : '';
-    const bagian = I.TAHAP.map(x => x.id).map(st => {
+    const urutTahap = I.TAHAP.map(x => x.id);
+    // Task yang hanya menunggu tahap sebelumnya: satu keterangan per bagian, bukan di tiap baris.
+    const tungguTahapLalu = t => {
+      if (!I.aktif(t) || t.tertahan || !I.tungguTahap(t)) return false;
+      const dep = I.depsBelum(t, perId);
+      return dep.length > 0 && dep.every(d => urutTahap.indexOf(d.stage) < urutTahap.indexOf(t.stage));
+    };
+    const bagian = urutTahap.map(st => {
       const isi = kini.filter(t => t.stage === st).sort(urutTaskProyek);
       if (!isi.length && st !== p.stage && st !== buka) return '';
       const aktif = isi.filter(I.aktif).length;
+      const tunggu = isi.filter(tungguTahapLalu).flatMap(t => I.depsBelum(t, perId));
+      const tahapTunggu = urutTahap.find(s => tunggu.some(d => d.stage === s));
       return `<details class="tahap-bagian" id="tahap-${st}" ${st === p.stage || st === buka ? 'open' : ''}>
         <summary><span class="huruf-tahap">${st}</span> ${esc(I.namaTahap(st))} <span class="pesan-info">· ${isi.length} task${aktif ? `, ${aktif} aktif` : isi.length ? ', selesai' : ''}</span>${st === p.stage && !r.tutup ? ' <span class="pill st-dikerjakan">Tahap sekarang</span>' : ''}</summary>
-        <div class="grup">${isi.map(t => barisTask(t, I.aktif(t) ? I.alasanTunggu(t, perId) : '')).join('') || `<p class="hint">Belum ada task di tahap ${esc(I.namaTahap(st))}${(p.cycle || 1) > 1 ? ' pada siklus ini' : ''}.</p>`}
+        <div class="grup">${tahapTunggu ? `<p class="hint tunggu-tahap">Menunggu tahap ${esc(I.namaTahap(tahapTunggu))} selesai. Task di tahap ini dikerjakan bersamaan setelahnya.</p>` : ''}
+          ${susunHirarki(isi).map(x => barisTask(x.t, !I.aktif(x.t) || tungguTahapLalu(x.t) ? '' : I.alasanTunggu(x.t, perId), x.anak ? 'anak' : '')).join('') || `<p class="hint">Belum ada task di tahap ${esc(I.namaTahap(st))}${(p.cycle || 1) > 1 ? ' pada siklus ini' : ''}.</p>`}
           ${tambah(st, '', 'Tambah task di ' + I.namaTahap(st))}
         </div>
       </details>`;
     }).join('');
     const bagianLama = lama.length ? `<details class="tahap-bagian"><summary>Siklus sebelumnya <span class="pesan-info">· ${lama.length} task</span></summary>
-      <div class="grup">${lama.map(t => barisTask(t)).join('')}</div></details>` : '';
+      <div class="grup">${susunHirarki(lama).map(x => barisTask(x.t, '', x.anak ? 'anak' : '')).join('')}</div></details>` : '';
     const keputusan = isM && !p.arsip
       ? `<label class="label-kecil keputusan">Keputusan <select data-aksi="keputusan" data-id="${esc(p.id)}">${opsiHtml(I.KEPUTUSAN.map(k => [k, k]), p.decision || 'Build')}</select></label>`
       : `<span class="pill kd-kosong" title="Keputusan Manager untuk proyek ini">${esc(p.decision || 'Build')}</span>`;
@@ -2049,7 +2133,7 @@
           <section class="kartu-polos samping-tumpuk"><p class="subjudul">Ringkasan</p>
             <p class="hint">${r.semuaSelesai} dari ${r.semua} task selesai${(p.cycle || 1) > 1 ? ' (semua siklus)' : ''}.</p>
             ${r.tenggat ? `<p class="hint">Tenggat task aktif terjauh: ${esc(fmtTanggal(r.tenggat))}.</p>` : ''}
-            <p class="hint">Tanpa Lead tetap: tiap task dipegang tim pemilik sub-stage-nya, didelegasikan Lead tim itu.</p>
+            <p class="hint">Tanpa Lead tetap: tiap task dipegang Lead tim pemilik sub-stage-nya, yang membaginya ke staff lewat task anak. Task setahap dikerjakan bersamaan; tahap berikutnya dimulai setelah tahap sebelumnya selesai.</p>
           </section>
           ${(p.history || []).length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Riwayat tahap</p><ul class="riwayat">${p.history.slice(0, 20).map(x => `
             <li>${teksRiwayat(x)} <small>· ${esc(relatif(x.at))}</small></li>`).join('')}</ul></section>` : ''}
@@ -5215,7 +5299,7 @@
           <label class="isian">Kode<input name="kunci" value="${esc(kodeSubBerikut(tahap))}" maxlength="4" autocomplete="off" required><small>Terisi sendiri: nomor berikutnya di tahap itu.</small></label></div>`}
       <label class="isian">Nama<input name="nama" value="${esc(x.nama)}" maxlength="80" required></label>
       <label class="isian">Tim pemilik<select name="tim">${opsiHtml([['', '— tim pemilik output yang dikerjakan —'], ...Object.values(I.TIM).map(t => [t.kode, `${t.kode} · ${t.nama}`])], x.tim || '')}</select>
-        <small>Lead tim ini menerima task-nya di antrean untuk didelegasikan. Kosong: dipegang tim pemilik output yang dikerjakan, mis. revisi.</small></label>
+        <small>Lead tim ini memegang task-nya (masuk antrean di Hari Ini-nya) dan membaginya ke staff lewat task anak. Kosong: dipegang tim pemilik output yang dikerjakan, mis. revisi.</small></label>
       <label class="dev-cek" data-bagian-sub="review" ${tahap === 'R' ? 'hidden' : ''}><input type="checkbox" name="reviewManager" ${x.reviewManager ? 'checked' : ''}> Direview Manager sebelum selesai</label>
       ${s ? `<label class="dev-cek"><input type="checkbox" name="aktif" ${x.aktif ? 'checked' : ''}> Aktif — ditawarkan untuk task baru</label>` : ''}
       ${kakiModal(s ? 'Simpan' : 'Tambah')}
@@ -5487,9 +5571,10 @@
       <ul class="riwayat"><li><strong>Dikembalikan</strong> oleh Andika <small>· 2 hari lalu</small><br>Bobot soal nomor 12–15 belum sesuai kisi-kisi.</li>
         <li><strong>Diajukan</strong> oleh Wildan <small>· 3 hari lalu</small></li></ul>`,
     tahan: () => `<div class="banner merah">Tertahan: Menunggu akses SIADU untuk tahun ajaran baru.</div><div class="ilu-baris">${tombolPalsu('Lepas tanda tertahan')}</div>`,
-    antrean: () => `<p class="subjudul">Antrean tim · siap didelegasikan</p>
-      <div class="ilu-task">${pillStatus('Antre')}<span><b>DV8 · Latsol Fisika — 3 Paket</b><small><span class="chip-sub">DV8</span> Input ke SIADU/Markaz siap</small></span></div>
-      <div class="ilu-baris">${tombolPalsu('Kiki ▾', 'input-palsu')}${tombolPalsu(`${ikon('serah', 16)} Serahkan ke staff`)}</div>`,
+    antrean: () => `<p class="subjudul">Task anak</p>
+      <div class="ilu-task">${pillStatus('Dikerjakan')}<span><b>DV8 · Latsol Fisika — 3 Paket</b><small><span class="chip-sub">DV8</span> Input ke SIADU/Markaz · 0/1 task anak</small></span></div>
+      <div class="ilu-task ilu-anak">${pillStatus('Antre')}<span><b>Input paket 1–3</b><small>Kiki · ditinjau Alya</small></span></div>
+      <div class="ilu-baris">${tombolPalsu('Kiki ▾', 'input-palsu')}${tombolPalsu(`${ikon('tambah', 16)} Buat task anak`)}</div>`,
     tinjau: () => `<p class="subjudul">Output & bukti</p><p class="teks-panjang">40 soal Latsol Fisika lolos QC</p>
       <p class="ilu-tautan">${ikon('tautan', 16)} Google Sheets · hasil QC</p>
       <div class="ilu-baris">${tombolPalsu('Setujui', 'utama')}${tombolPalsu('Kembalikan', 'bahaya')}</div>`,
@@ -5641,15 +5726,18 @@
 
   /* Pilihan sub-stage. Task proyek: kode ADDIE per tahap. Di luar proyek: kode R; kode ADDIE
      task "lepas" warisan v1 tetap ditawarkan supaya tak hilang saat task diubah. */
-  /* baru = form task baru: tanpa pilihan bawaan, sub-stage wajib dipilih sendiri (0.14.0). */
-  function opsiSub(jenis, terpilih, baru = false) {
+  /* baru = form task baru: tanpa pilihan bawaan, sub-stage wajib dipilih sendiri (0.14.0).
+     tahap = hanya sub-stage tahap itu (mis. "Tambah task di Development", atau task induk/anak
+     yang tahapnya tetap). */
+  function opsiSub(jenis, terpilih, baru = false, tahap = '') {
     const grup = (label, daftar) => `<optgroup label="${esc(label)}">${daftar.map(s =>
       `<option value="${s.kode}" ${s.kode === terpilih ? 'selected' : ''}>${s.kode} · ${esc(s.nama)}${s.tim ? ' (' + s.tim + ')' : ''}</option>`).join('')}</optgroup>`;
     const tampil = s => s.aktif !== false || s.kode === terpilih;
     if (jenis === 'proyek') {
       const boleh = s => s.kode === terpilih || I.subBolehBagi(S.me, s.kode);
       return (I.subTahap(terpilih) ? '' : '<option value="" selected disabled>— pilih sub-stage —</option>')
-        + I.TAHAP.map(x => { const isi = I.SUB_TAHAP.filter(s => s.tahap === x.id && boleh(s) && tampil(s)); return isi.length ? grup(x.nama, isi) : ''; }).join('');
+        + I.TAHAP.filter(x => !tahap || x.id === tahap)
+          .map(x => { const isi = I.SUB_TAHAP.filter(s => s.tahap === x.id && boleh(s) && tampil(s)); return isi.length ? grup(x.nama, isi) : ''; }).join('');
     }
     const lama = I.subTahap(terpilih);
     return (terpilih ? '' : baru ? '<option value="" selected disabled>— pilih jenis rutin —</option>' : '<option value="" selected>— belum ber-sub-stage —</option>')
@@ -5669,9 +5757,19 @@
     const pemilik = I.orang(S.me).peran === 'lead' ? I.leadSub(kode) : '';
     return [...new Set([...I.picBoleh(S.me), ...(pemilik ? [pemilik] : []), ...(sekarang ? [sekarang] : [])])];
   }
+  /* PIC yang boleh dipilih saat mengubah task (0.15.0): task anak → staff tim Lead induknya;
+     task yang sudah dibagi ke task anak → tetap; task Lead → tanpa staff (dibagi lewat task anak). */
+  function pilihanPicUbah(t, kode) {
+    const perId = perIdKini();
+    const induk = t.induk ? perId.get(t.induk) : null;
+    if (induk) return [...new Set([...I.timDari(induk.pic), t.pic])];
+    if (I.anakTask(perId, t.id).length) return [t.pic];
+    const daftar = pilihanPic(kode, t.pic);
+    return I.orang(t.pic).peran === 'lead' ? daftar.filter(id => I.orang(id).peran !== 'staff') : daftar;
+  }
   /* PIC bawaan task baru: Manager → Lead tim pemilik; Lead → dirinya, atau Lead tim pemilik
-     kalau pekerjaan proyek itu milik tim lain (lalu ia yang mendelegasikan ke staff-nya).
-     Pekerjaan rutin dikerjakan tim sendiri. */
+     kalau pekerjaan proyek itu milik tim lain (lalu ia yang membaginya ke staff-nya lewat task
+     anak). Pekerjaan rutin dikerjakan tim sendiri. */
   function picBawaan(kode) {
     const pemilik = I.leadSub(kode);
     const peran = I.orang(S.me).peran;
@@ -5699,34 +5797,60 @@
     const pic = isianForm(form, 'pic');
     if (!pic) return;
     const pilih = pic.dataset.otomatis === '1' ? picBawaan(kode) : pic.value;
-    const daftar = pilihanPic(kode, form.dataset.picLama || '');
+    const lama = form.dataset.task === 'ubah' ? S.data.tasks.find(x => x.id === form.dataset.id) : null;
+    const daftar = lama ? pilihanPicUbah(lama, kode) : pilihanPic(kode, form.dataset.picLama || '');
     pic.innerHTML = opsiPic(daftar, daftar.includes(pilih) ? pilih : daftar[0], kode);
+    segarkanInduk(form);
+  }
+  /* Lead yang memberi task proyek ke staff-nya bisa memasangnya sebagai task anak dari task yang
+     ia pegang di proyek, siklus, dan tahap yang sama. */
+  function calonInduk(form) {
+    if (form.dataset.task !== 'baru' || I.orang(S.me).peran !== 'lead' || isianForm(form, 'jalur').value !== 'proyek') return [];
+    if (!I.timDari(S.me).includes(isianForm(form, 'pic').value)) return [];
+    const s = I.subTahap(isianForm(form, 'subProyek').value);
+    const p = proyekDari(isianForm(form, 'project').value);
+    if (!s || !p) return [];
+    return S.data.tasks.filter(t => t.project === p.id && (t.cycle || 1) === (p.cycle || 1) && t.stage === s.tahap && I.bolehBuatAnak(t, S.me));
+  }
+  function segarkanInduk(form) {
+    const kotak = $('[data-bagian-induk]', form);
+    if (!kotak) return;
+    const calon = calonInduk(form);
+    const sel = isianForm(form, 'induk');
+    const lama = sel.value;
+    kotak.hidden = !calon.length;
+    // Satu calon: langsung terpilih, kecuali orang sudah memilih "tanpa task induk" sendiri.
+    const pilih = calon.some(t => t.id === lama) ? lama : calon.length === 1 && !(sel.dataset.disentuh && !lama) ? calon[0].id : '';
+    sel.innerHTML = opsiHtml([['', '— tanpa task induk —'], ...calon.map(t => [t.id, `${t.id} · ${potong(t.title, 60)}`])], pilih);
   }
 
   function formTask(t, preset = {}) {
     if (t) return formUbahTask(t);
     const proyekAktif = S.data.projects.filter(p => !p.arsip);
     const pProyek = preset.proyek || (proyekAktif[0] || {}).id || '';
-    const jalur = preset.jalur || (preset.proyek || proyekAktif.length ? 'proyek' : 'rutin');
+    // Dari bagian tahap di halaman proyek: task proyek, sub-stage tahap itu saja.
+    const tahap = preset.proyek && I.TAHAP.some(x => x.id === preset.tahap) ? preset.tahap : '';
+    const jalur = tahap ? 'proyek' : preset.jalur || (preset.proyek || proyekAktif.length ? 'proyek' : 'rutin');
     const subProyek = preset.sub && I.subBolehBagi(S.me, preset.sub) ? preset.sub : '';
     const subRutin = '';
     const kode = jalur === 'proyek' ? subProyek : subRutin;
     const staff = I.orang(S.me).peran === 'staff';
+    const lead = I.orang(S.me).peran === 'lead';
     return `<form data-form="modal" data-task="baru" novalidate>
-      <h2>Tambah task</h2>
+      <h2>Tambah task${tahap ? ' di ' + esc(I.namaTahap(tahap)) : ''}</h2>
       <label class="isian">Judul task <input name="title" required maxlength="200" placeholder="mis. QC output paket TO 3" value="${esc(preset.judul || '')}"></label>
-      <div class="isian"><span>Jalur</span>
+      ${tahap ? `<p class="hint">Task proyek di tahap <strong>${esc(I.namaTahap(tahap))}</strong>: sub-stage yang tersedia hanya milik tahap ini.</p>` : `<div class="isian"><span>Jalur</span>
         <div class="segmen" role="group" aria-label="Jalur">
           <button type="button" data-aksi="pilih-jalur" data-jalur="proyek" aria-pressed="${jalur === 'proyek'}" ${proyekAktif.length ? '' : 'disabled'}>Proyek</button>
           <button type="button" data-aksi="pilih-jalur" data-jalur="rutin" aria-pressed="${jalur === 'rutin'}">Rutin</button>
         </div>
         <small>Proyek: sub-stage ADDIE, wajib output & bukti, ditinjau sebelum selesai. Rutin (kode R): di luar proyek, langsung selesai.</small>
-      </div>
+      </div>`}
       ${staff ? `<p class="banner biru">Task ini untuk Anda sendiri. Sub-stage proyek yang tersedia hanya milik tim Anda; task proyek ditinjau ${esc(I.orang(I.orang(S.me).lead || I.MANAGER).pendek)} sebelum selesai, dan ia mendapat notifikasi.</p>` : ''}
       <input type="hidden" name="jalur" value="${jalur}">
       <div class="dua-isian" data-bagian="proyek" ${jalur === 'proyek' ? '' : 'hidden'}>
         <label class="isian">Proyek <select name="project">${opsiHtml(proyekAktif.map(p => [p.id, p.name]), pProyek)}</select></label>
-        <label class="isian">Sub-stage <select name="subProyek" data-sub>${opsiSub('proyek', subProyek, true)}</select></label>
+        <label class="isian">Sub-stage <select name="subProyek" data-sub>${opsiSub('proyek', subProyek, true, tahap)}</select></label>
       </div>
       <label class="isian" data-bagian="rutin" ${jalur === 'rutin' ? '' : 'hidden'}>Jenis rutin <select name="subRutin" data-sub>${opsiSub('rutin', subRutin, true)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(kode))}</p>
@@ -5734,6 +5858,8 @@
         <label class="isian">PIC <select name="pic" data-otomatis="1">${opsiPic(pilihanPic(kode), picBawaan(kode), kode)}</select></label>
         <label class="isian">Tenggat <input type="date" name="due"></label>
       </div>
+      ${lead ? `<label class="isian" data-bagian-induk hidden>Task induk <select name="induk"><option value="">— tanpa task induk —</option></select>
+        <small>Task untuk staff Anda bisa dipasang di bawah task yang Anda pegang di tahap ini: tampil menjorok di bawahnya dan ditinjau Anda; task induknya baru bisa diajukan setelah semua task anaknya selesai.</small></label>` : ''}
       <div class="dua-isian">
         <label class="isian">Prioritas <select name="priority">${opsiHtml(I.PRIORITAS, 'Normal')}</select></label>
         <label class="isian">Output <input name="output" maxlength="200" placeholder="mis. 40 soal lolos QC"></label>
@@ -5746,14 +5872,20 @@
   function formUbahTask(t) {
     const jenis = t.lane === 'proyek' ? 'proyek' : 'rutin';
     const lepas = I.jenisJalur(t) === 'lepas';
-    return `<form data-form="modal" data-task="ubah" data-pic-lama="${esc(t.pic)}" novalidate>
+    const induk = t.induk ? perIdKini().get(t.induk) : null;
+    const dibagi = I.anakTask(perIdKini(), t.id).length > 0;
+    // Induk dan anaknya tetap di tahap yang sama.
+    const tahap = t.lane === 'proyek' && (induk || dibagi) ? t.stage : '';
+    return `<form data-form="modal" data-task="ubah" data-id="${esc(t.id)}" data-pic-lama="${esc(t.pic)}" novalidate>
       <h2>Ubah task</h2>
       <p class="hint">${t.project ? 'Proyek ' + esc(asal(t)) : (lepas ? 'Lepas' : 'Rutin') + ' · ' + esc(t.kategori || 'Umum')} · ${esc(t.id)}</p>
+      ${induk ? `<p class="hint">Task anak dari ${esc(induk.id)} · ${esc(potong(induk.title, 70))}: PIC-nya staff tim ${esc(I.orang(induk.pic).pendek)}${tahap ? `, tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>`
+        : dibagi ? `<p class="hint">Task ini sudah dibagi ke task anak: PIC-nya tetap${tahap ? ` dan tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>` : ''}
       <label class="isian">Judul task <input name="title" required maxlength="200" value="${esc(t.title)}"></label>
-      <label class="isian">Sub-stage <select name="sub" data-sub>${opsiSub(jenis, t.sub)}</select></label>
+      <label class="isian">Sub-stage <select name="sub" data-sub>${opsiSub(jenis, t.sub, false, tahap)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(t.sub))}</p>
       <div class="dua-isian">
-        <label class="isian">PIC <select name="pic">${opsiPic(pilihanPic(t.sub, t.pic), t.pic, t.sub)}</select></label>
+        <label class="isian">PIC <select name="pic">${opsiPic(pilihanPicUbah(t, t.sub), t.pic, t.sub)}</select></label>
         <label class="isian">Tenggat <input type="date" name="due" value="${esc(t.due || '')}"></label>
       </div>
       <div class="dua-isian">
@@ -5815,7 +5947,7 @@
       }).join('')}</ol></fieldset>`).join('');
     return `<form data-form="modal" class="form-elaborasi" novalidate>
       <h2>Elaborasi jadi proyek</h2>
-      <p class="hint">Setiap target terpilih menjadi satu <b>batch</b>: rangkaian langkah sesuai jenisnya. Tiap langkah menunggu langkah sebelumnya dan masuk ke <b>antrean Lead tim pemilik</b> sub-stage-nya untuk didelegasikan. Progres ${esc(judulPaket(p))} naik bertahap setiap langkah bercapaian disetujui.</p>
+      <p class="hint">Setiap target terpilih menjadi satu <b>batch</b>: rangkaian langkah sesuai jenisnya. Tiap langkah dipegang <b>Lead tim pemilik</b> sub-stage-nya, yang membaginya ke staff lewat task anak. Langkah dikerjakan per tahap ADDIE: yang setahap berjalan bersamaan, tahap berikutnya dimulai setelah tahap sebelumnya selesai. Progres ${esc(judulPaket(p))} naik setiap langkah bercapaian disetujui.</p>
       <div class="isian"><span class="judul-pilih-target">Target yang dikerjakan
           ${terbuka.size ? '<button type="button" class="tombol kecil" data-aksi="elab-semua">Centang semua</button>' : ''}</span>${blok}
         <small>Centang target yang dikerjakan proyek ini; belum ada yang tercentang. Jumlahnya bisa dikecilkan bila proyek ini hanya mengerjakan sebagian; sisanya tetap terbuka untuk elaborasi berikutnya.</small></div>
@@ -5942,21 +6074,21 @@
           if (!(proyek ? f.subProyek : f.subRutin)) throw new Error(proyek ? 'Pilih sub-stage dulu.' : 'Pilih jenis rutin dulu.');
           const t = I.taskBaru(S.data, {
             title: f.title, project: proyek ? f.project : '', sub: proyek ? f.subProyek : f.subRutin,
-            pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail,
+            pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, induk: proyek ? f.induk || '' : '',
           }, S.me, waktu, hariIni());
           // Dibuat dari baris catatan: nomor task-nya ditempel di ujung baris itu.
           const asal = m.catatan && S.data.notes.find(x => x.id === m.catatan && x.user === S.me);
           if (asal) I.simpanCatatan(S.data, S.me, { title: asal.title, body: I.tandaiBarisTask(asal.body, m.baris, t.id), folder: asal.folder }, asal.id, waktu);
           tutupModal();
           if (!asal) S.pilih = t.id;
-          return selesaiUbah(`${t.id} · ${t.sub} ditambahkan untuk ${I.orang(t.pic).pendek}.${asal ? ' Nomornya ditempel di baris catatan.' : ''}`);
+          return selesaiUbah(`${t.id} · ${t.sub} ditambahkan untuk ${I.orang(t.pic).pendek}${t.induk ? ` sebagai task anak ${t.induk}` : ''}.${asal ? ' Nomornya ditempel di baris catatan.' : ''}`);
         }
         case 'ubah': {
           const t = S.data.tasks.find(x => x.id === m.id);
           const lama = t.pic;
           I.ubahTask(S.data, t, { title: f.title, sub: f.sub, pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail }, S.me, waktu);
           tutupModal();
-          return selesaiUbah(t.pic !== lama ? `Task disimpan dan diserahkan ke ${I.orang(t.pic).pendek}.` : 'Task disimpan.');
+          return selesaiUbah(t.pic !== lama ? `Task disimpan; PIC-nya kini ${I.orang(t.pic).pendek}.` : 'Task disimpan.');
         }
         case 'proyek': {
           const p = I.proyekBaru(S.data, f, S.me, waktu);
@@ -5983,7 +6115,7 @@
           Object.assign(S.pkt, { pilih: null, sunting: false });
           Object.assign(S, { view: 'proyek', proyek: project.id, pilih: null });
           simpan('halaman', 'proyek');
-          return selesaiUbah(`${tasks.length} task untuk ${items.length} target ${ada ? 'ditambahkan ke' : 'dibuat di'} ${project.id}. Langkah pertama tiap target menunggu di antrean Lead tim pemiliknya; progres ${judulPaket(p)} naik per capaian.`);
+          return selesaiUbah(`${tasks.length} task untuk ${items.length} target ${ada ? 'ditambahkan ke' : 'dibuat di'} ${project.id}. Langkahnya menunggu di antrean Lead tim pemiliknya dan dikerjakan per tahap ADDIE; progres ${judulPaket(p)} naik per capaian.`);
         }
         case 'paket-baru': {
           const p = I.paketBaru(S.data, f, S.me, waktu);
@@ -6300,7 +6432,7 @@
         $('#hasil').innerHTML = hasilTask();
         $('#hasil').scrollIntoView({ block: 'start' });
         break;
-      case 'ekspor': eksporCsv(daftarSaring()); break;
+      case 'ekspor': eksporCsv(susunHirarki(daftarSaring()).map(x => x.t)); break;
       case 'jadwal-geser': {
         const awal = S.jadwal.mulai || I.tambahHari(I.rentang('minggu', hariIni()).dari, -7);
         S.jadwal.mulai = Number(d.n) ? I.tambahHari(awal, Number(d.n)) : '';
@@ -6355,6 +6487,18 @@
         if (!t || !confirm('Hapus tautan bukti ini dari task?')) return;
         try { I.hapusBukti(S.data, t, d.bukti, S.me, Date.now()); selesaiUbah('Bukti dihapus.'); } catch (err) { toast(err.message, true); }
         break;
+      case 'sub-ubah':
+        S.ubahSub = { task: d.id, sub: d.sub };
+        render();
+        { const isian = $('form[data-form="sub-ubah"] input[name="judul"]'); if (isian) { isian.focus(); isian.select(); } }
+        break;
+      case 'sub-batal': S.ubahSub = null; render(); break;
+      case 'sub-hapus': {
+        const s = t && t.subtasks.find(x => x.id === d.sub);
+        if (!s || !confirm(`Hapus sub-task "${s.title}"?`)) return;
+        try { I.hapusSubtask(S.data, t, s.id, S.me, Date.now()); selesaiUbah('Sub-task dihapus.'); } catch (err) { toast(err.message, true); }
+        break;
+      }
       case 'setoran-hapus':
         if (!confirm('Hapus setoran ini? Progres paket tidak lagi menghitung task ini untuk target tersebut.')) return;
         try { I.hapusSetoran(S.data, d.id, S.me, Date.now()); selesaiUbah('Setoran dihapus.'); } catch (err) { toast(err.message, true); }
@@ -6668,7 +6812,8 @@
       segarkanFormElaborasi(el.closest('form'));
     } else if (el.closest('form[data-task]')) {
       const form = el.closest('form');
-      if (el.name === 'pic') { el.dataset.otomatis = ''; return; }
+      if (el.name === 'pic') { el.dataset.otomatis = ''; segarkanInduk(form); return; }
+      if (el.name === 'induk') { el.dataset.disentuh = '1'; return; }
       segarkanFormTask(form);
     }
   });
@@ -6720,19 +6865,16 @@
       try { I.setorkan(S.data, t, isi, S.me, waktu); selesaiUbah('Setoran disimpan.'); } catch (err) { toast(err.message, true); }
       return;
     }
-    if (jenis === 'output' || jenis === 'bukti' || jenis === 'serahkan') {
+    if (jenis === 'output' || jenis === 'bukti') {
       const t = S.data.tasks.find(x => x.id === form.dataset.id);
       if (!t) return;
       try {
         if (jenis === 'output') {
           I.isiOutput(S.data, t, isianForm(form, 'output').value, S.me, waktu);
           selesaiUbah('Output disimpan.');
-        } else if (jenis === 'bukti') {
+        } else {
           I.tambahBukti(S.data, t, { url: isianForm(form, 'url').value, label: isianForm(form, 'label').value }, S.me, waktu);
           selesaiUbah('Bukti ditambahkan.');
-        } else {
-          I.ubahTask(S.data, t, { pic: isianForm(form, 'pic').value }, S.me, waktu);
-          selesaiUbah(`${t.id} diserahkan ke ${I.orang(t.pic).pendek}.`);
         }
       } catch (err) { toast(err.message, true); }
       return;
@@ -6751,14 +6893,19 @@
     }
     const t = S.data.tasks.find(x => x.id === form.dataset.id);
     if (!t) return;
-    if (jenis === 'sub-tambah') {
-      const judul = form.judul.value.trim();
-      if (!judul) return;
-      t.subtasks.push({ id: 's' + waktu, title: judul, pic: form.pic.value || t.pic, due: '', done: false });
-      t.updatedAt = waktu;
-      I.catatLog(S.data, 'update', `${t.id} · ${t.title}`, 'Sub-task ditambah: ' + judul, S.me, waktu);
-      selesaiUbah();
-    }
+    try {
+      if (jenis === 'sub-tambah') {
+        I.tambahSubtask(S.data, t, { title: form.judul.value, pic: form.pic.value }, S.me, waktu);
+        selesaiUbah();
+      } else if (jenis === 'sub-ubah') {
+        I.ubahSubtask(S.data, t, form.dataset.sub, { title: form.judul.value, pic: form.pic.value }, S.me, waktu);
+        S.ubahSub = null;
+        selesaiUbah('Sub-task disimpan.');
+      } else if (jenis === 'anak') {
+        const a = I.taskAnak(S.data, t, { title: form.judul.value, pic: form.pic.value, due: form.due.value }, S.me, waktu, hariIni());
+        selesaiUbah(`${a.id} dibuat untuk ${I.orang(a.pic).pendek} di bawah ${t.id}.`);
+      }
+    } catch (err) { toast(err.message, true); }
   });
 
   document.addEventListener('input', e => {

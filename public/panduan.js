@@ -103,7 +103,7 @@
       id: 'konsep-status', peran: 'konsep', judul: 'Empat status dan labelnya', tujuan: 'Membaca keadaan task sekilas.', ilustrasi: 'status', coba: true,
       langkah: [
         'Setiap task berjalan lewat empat status: **Antre → Dikerjakan → Ditinjau → Selesai**.',
-        'Label di sebelahnya dihitung sendiri: **Siap** (boleh dimulai), **Menunggu** (task yang ditunggu belum selesai), **Revisi** (dikembalikan peninjau), dan **Tertahan** (ada hambatan, disertai alasan).',
+        'Label di sebelahnya dihitung sendiri: **Siap** (boleh dimulai), **Menunggu** (tahap sebelumnya belum selesai), **Revisi** (dikembalikan peninjau), dan **Tertahan** (ada hambatan, disertai alasan).',
         'Task proyek baru **Selesai** setelah disetujui peninjau. Task rutin langsung ditandai selesai oleh PIC-nya.',
       ],
     },
@@ -112,7 +112,7 @@
       langkah: [
         'Setiap task berkode **sub-stage**. Awalannya menunjukkan tahap: **A** Analysis, **D** Design, **DV** Development, **I** Implementation, **E** Evaluation. Kode **R** (R1–R4) untuk pekerjaan rutin di luar proyek.',
         'Kode menentukan **tim pemilik**: MG Manager, AK Akademik, LA Learning Architecture, CO Content Ops, SI Sistem. Arahkan kursor ke kode untuk melihat nama lengkapnya.',
-        'Peninjau: task staff ditinjau Lead-nya, task Lead ditinjau Manager. Kode **A1, A6, D1, I8, dan E12** selalu ditinjau Manager.',
+        'Peninjau: task staff ditinjau Lead-nya, task Lead ditinjau Manager. Kode **A1, A6, D1, I8, dan E12** selalu ditinjau Manager, kecuali task anak: itu ditinjau Lead yang membaginya.',
         'Daftar sub-stage diatur Manager di halaman **Master**: kode baru bisa ditambah, nama, tim pemilik, dan tinjauannya diubah, dan yang tak dipakai lagi dinonaktifkan.',
         'Kode berwarna biru muda menandai pekerjaan **lepas** warisan v1: pekerjaan produk yang tidak masuk proyek mana pun.',
       ],
@@ -121,6 +121,7 @@
       id: 'konsep-tahap', peran: 'konsep', judul: 'Tahap proyek dan siklus', tujuan: 'Tahu kenapa tahap proyek berpindah sendiri.', ilustrasi: 'tahap', coba: true,
       langkah: [
         'Tahap proyek **dihitung**, bukan diputuskan: tahap dari task terbuka yang paling awal. Begitu task Development selesai semua, proyek pindah sendiri ke tahap berikutnya.',
+        'Task di tahap yang sama dikerjakan **bersamaan**, siapa pun Lead-nya. Yang berurutan hanya tahapnya: task Design baru bisa dimulai setelah semua task Analysis di siklus itu selesai, dan seterusnya. Pengecualian: **E12** menunggu semua task lain di siklusnya.',
         'Proyek tidak punya Lead tetap. Kode tim di proyek menunjukkan tim yang sedang memegang task terbukanya.',
         'Klik salah satu tahap di jalur **A D V I E** untuk membuka daftar task tahap itu di halaman proyek.',
         'Siklus ditutup oleh task **E12 · Final approval** yang disetujui Manager.',
@@ -130,7 +131,7 @@
     {
       id: 'konsep-progres', peran: 'konsep', judul: 'Progres rancangan paket', tujuan: 'Membaca angka progres paket.', ilustrasi: 'progres', coba: true,
       langkah: [
-        'Setiap target paket yang dielaborasi menjadi satu **batch**: rangkaian langkah kerja. Contoh Latsol: DV1 → E1 → DV8 → I1 → E4 → E5 → E6 → I4.',
+        'Setiap target paket yang dielaborasi menjadi satu **batch**: rangkaian langkah kerja. Contoh Latsol: DV1 → E1 → DV8 → I1 → E4 → E5 → E6 → I4. Langkahnya dikerjakan per tahap ADDIE: yang setahap (mis. DV1 dan DV8) berjalan bersamaan.',
         'Progres naik per **capaian**, saat langkahnya disetujui: konten siap **40%**, ter-input **60%**, lolos QC **85%**, tayang **100%** (bawaan PRD; nama dan bobotnya diatur Manager di **Master**).',
         'Batang progres: biru = sudah tayang, biru muda = sebagian jalan, arsir ungu = sedang digarap.',
         'Di tabel target, satu chip = satu batch. Klik chip untuk membuka langkah bercapaian berikutnya.',
@@ -202,11 +203,12 @@
     },
 
     {
-      id: 'lead-antrean', peran: 'lead', judul: 'Mendelegasikan dari antrean tim', tujuan: 'Membagi langkah yang sudah siap ke staff.', ilustrasi: 'antrean', coba: true,
+      id: 'lead-antrean', peran: 'lead', judul: 'Membagi langkah ke staff (task anak)', tujuan: 'Membagi pekerjaan langkah yang Anda pegang ke staff tim.', ilustrasi: 'antrean', coba: true,
       langkah: [
-        'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah siap dikerjakan masuk **Antrean tim · siap didelegasikan** di Hari Ini.',
-        'Buka langkahnya, pilih staff di **Serahkan ke staff**, lalu tekan tombolnya.',
-        'Langkah pindah ke staff itu, dan Anda yang meninjau hasilnya (kecuali kode bertanda Manager). Bisa juga dikerjakan sendiri dengan **Mulai kerjakan**.',
+        'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Antrean tim · siap dibagi** di Hari Ini.',
+        'Buka langkahnya. Di bagian **Task anak**, tulis bagian pekerjaannya, pilih staff dan tenggat, lalu tekan **Buat task anak**. Ulangi untuk staff lain.',
+        'Task anak tampil menjorok di bawah langkah Anda, dan Anda yang meninjaunya. Langkahnya sendiri tetap Anda pegang: task Lead tidak diserahkan ke staff.',
+        'Setelah semua task anak disetujui, lengkapi output & bukti langkah Anda, lalu ajukan ke Manager. Tanpa task anak pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
       ],
     },
     {
@@ -221,9 +223,10 @@
     {
       id: 'lead-buat', peran: 'lead', judul: 'Membuat task', tujuan: 'Menambah pekerjaan dengan kode dan PIC yang tepat.', ilustrasi: 'formtask', coba: true,
       langkah: [
-        'Tekan **Tambah task** (di halaman proyek: **Tambah task di …**), lalu pilih jalur **Proyek** atau **Rutin**.',
+        'Tekan **Tambah task**, lalu pilih jalur **Proyek** atau **Rutin**. Dari halaman proyek, **Tambah task di …** langsung memakai jalur Proyek dan hanya menawarkan sub-stage tahap itu.',
         'Pilih proyek dan **sub-stage**-nya (wajib; tidak ada pilihan bawaan). Keterangan di bawahnya menyebut tahap dan tim pemiliknya.',
-        'Pilih **PIC**: anggota tim Anda, atau Lead tim pemilik kalau sub-stage itu milik tim lain (mis. DV8 Input diserahkan ke Lead LA).',
+        'Pilih **PIC**: anggota tim Anda, atau Lead tim pemilik kalau sub-stage itu milik tim lain (mis. DV8 Input dipegang Lead LA).',
+        'Kalau PIC-nya staff Anda dan Anda memegang task di tahap yang sama, pilih **Task induk** supaya task ini menjadi task anaknya.',
         'Isi tenggat dan keterangan, lalu tekan **Tambah task**.',
       ],
     },
@@ -234,7 +237,7 @@
         'Centang target yang dikerjakan; awalnya belum ada yang tercentang (**Centang semua** bila semuanya). Jumlahnya boleh dikecilkan, mis. target 10 tapi proyek ini 5.',
         'Pilih **Alur lengkap per jenis**, lalu coret langkah yang tidak perlu.',
         'Pilih **proyek tujuan** (baru atau yang sudah ada) dan tenggat, lalu tekan **Buat task**.',
-        'Langkah pertama tiap target langsung masuk antrean Lead tim pemiliknya.',
+        'Langkah-langkahnya masuk antrean Lead tim pemiliknya dan dikerjakan per tahap ADDIE: yang setahap bersamaan, tahap berikutnya setelah tahap sebelumnya selesai.',
       ],
     },
     {
@@ -306,11 +309,12 @@
     ['Label', 'Keadaan yang dihitung dari status: **Siap**, **Menunggu**, **Revisi**, dan **Tertahan**.'],
     ['Sub-stage', 'Kode langkah kerja: A, D, DV, I, dan E di dalam proyek; R untuk rutin. Daftarnya diatur Manager di Master.'],
     ['Tim pemilik', 'Tim yang memegang sebuah sub-stage: MG, AK, LA, CO, atau SI.'],
-    ['Antrean tim', 'Langkah yang sudah siap di Hari Ini Lead tim pemilik, menunggu diserahkan ke staff.'],
-    ['Syarat ajukan', 'Lima syarat sebelum task proyek diajukan: output, tautan bukti, sub-task, task yang ditunggu, dan tidak tertahan.'],
-    ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya, Manager untuk task Lead dan kode bertanda Manager.'],
+    ['Antrean tim', 'Langkah proyek yang sudah bisa dimulai, di Hari Ini Lead tim pemiliknya: dikerjakan sendiri atau dibagi ke staff lewat task anak.'],
+    ['Task anak', 'Task yang dibuat Lead untuk staff timnya di bawah task yang ia pegang. Tampil menjorok di bawah induknya dan ditinjau Lead itu; induknya baru bisa diajukan setelah semua anaknya selesai.'],
+    ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, tautan bukti, sub-task, task anak (kalau ada), tahap sebelumnya selesai, dan tidak tertahan.'],
+    ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task anak), Manager untuk task Lead dan kode bertanda Manager.'],
     ['Jalur', '**Proyek** (bertahap ADDIE), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1).'],
-    ['Tahap', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation.'],
+    ['Tahap', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation. Task setahap dikerjakan bersamaan; tahap berikutnya menunggu tahap sebelumnya selesai.'],
     ['Siklus', 'Satu putaran ADDIE. Ditutup task E12 yang disetujui; siklus berikutnya opsional.'],
     ['Keputusan proyek', 'Build, Improve, Maintain, atau Hold (ditahan).'],
     ['Rancangan paket', 'Isi produk dan target per kategori sebuah paket (Latsol, Tryout, Materi, dan lainnya; kategorinya diatur di Master).'],
