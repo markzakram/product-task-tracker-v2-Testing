@@ -598,6 +598,11 @@ npm test
 Google Sheets ditiru di dalam tes, jadi tak butuh kredensial maupun jaringan. Tes yang paling
 penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
+Selain tes per aturan, `test/acak.test.js` menjalankan simulasi acak dengan benih tetap:
+ratusan aksi sungguhan (status, output & bukti, task anak, ganti PIC dan sub-stage, sub-task)
+oleh orang yang berganti-ganti. Tiap langkah memeriksa hirarki task anak, urutan tahap, dan
+bahwa semua hitungan tampilan tetap jalan.
+
 **Setiap rilis:** naikkan versi di `package.json` **dan** `?v=` di `public/index.html` (tes
 `berkas` menolak kalau berbeda). Dengan begitu browser atau proxy kantor tak mencampur `inti.js`
 lama dengan `app.js` baru.

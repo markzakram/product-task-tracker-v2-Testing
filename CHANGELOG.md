@@ -1,5 +1,25 @@
 # Changelog — ProductTrack v2
 
+## 0.15.1 — Hasil QC menyeluruh (2026-10-09)
+
+Dari QC menyeluruh: simulasi acak di data v1 sungguhan, smoke test 11 profil × 4 lebar layar,
+dan alur task anak dari dibagi sampai disetujui Manager.
+
+- Task anak tak bisa dibuka kembali selagi induknya ditinjau atau sudah selesai; tombolnya
+  nonaktif dengan alasan. Tombol aksi sekunder yang nonaktif kini memang tampil nonaktif.
+- Langkah yang sudah dibagi ke task anak tak lagi muncul di "Antrean tim · siap dibagi".
+- Task Daftar: task anak yang induknya ada di halaman sebelumnya tampil dengan chip ↳, bukan
+  menjorok tanpa induk.
+- Timeline dan tabel Task Daftar kini bisa digulir mendatar. Sebelumnya ujung kanannya
+  terpotong di layar sempit karena `.kartu-polos.rapat` menimpa `overflow-x: auto`.
+- Panduan di ponsel: kartu "Mulai cepat" tak lagi melebar keluar layar. Grid satu kolom di
+  tampilan ponsel kini `minmax(0, 1fr)`.
+- Catatan: mengetik "- [ ] " (gaya GitHub) langsung menjadi checklist, sama dengan cara
+  teksnya dibaca ulang. Sebelumnya tampil sebagai butir daftar berteks "[ ]" dan baru berubah
+  jadi checklist saat catatan dibuka lagi.
+- Tes baru: simulasi acak dengan benih tetap (`test/acak.test.js`), antrean, dan kunci buka
+  kembali. 189 tes.
+
 ## 0.15.0 — Task anak, paralel per tahap, sub-task bisa diubah (2026-10-09)
 
 - **Task anak menggantikan "Serahkan ke staff".** Task yang dipegang Lead tak lagi bisa

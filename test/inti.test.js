@@ -468,6 +468,39 @@ test('sub-task: PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus', 
   assert.match(d.log[0].detail, /Sub-task dihapus: Cek urutan & kunci/);
 });
 
+test('antrean tim: langkah yang sudah dibagi ke task anak tak lagi "siap dibagi"', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const dv = I.taskBaru(d, { title: 'DV8 input', project: 'PRJ-1', sub: 'DV8', pic: 'kiki' }, 'alya', WAKTU, HARI);
+  const i1 = I.taskBaru(d, { title: 'I1 generate', project: 'PRJ-1', sub: 'I1', pic: 'alya' }, 'nynda', WAKTU, HARI);
+  I.taskAnak(d, i1, { title: 'Generate 1–5', pic: 'kiki' }, 'alya', WAKTU + 1, HARI);
+  assert.equal(i1.status, 'Antre', 'dibagi selagi menunggu Development: tetap antre');
+  Object.assign(dv, { status: 'Selesai', selesaiAt: WAKTU + 2 });
+  const grup = I.pekerjaanSaya(d, 'alya', HARI).grup;
+  assert.equal(grup.find(g => g.kunci === 'antrean'), undefined, 'sudah dibagi, bukan antrean');
+  assert.ok(grup.some(g => g.isi.some(x => x.t === i1)), 'tetap tampil di Hari Ini Alya');
+});
+
+test('task anak tak dibuka lagi selagi induknya ditinjau atau sudah selesai', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const induk = I.taskBaru(d, { title: 'DV1 soal', project: 'PRJ-1', sub: 'DV1', pic: 'andika' }, 'nynda', WAKTU, HARI);
+  const anak = I.taskAnak(d, induk, { title: 'Soal 1–20', pic: 'uma' }, 'andika', WAKTU + 1, HARI);
+  for (const t of [anak, induk]) Object.assign(t, { output: 'Hasil', evidence: [{ id: 'e' + t.id, label: 'Bukti', url: 'https://contoh.id/' + t.id }] });
+  I.terapkanAksi(d, anak, 'mulai', 'uma', WAKTU + 2);
+  I.terapkanAksi(d, anak, 'ajukan', 'uma', WAKTU + 3);
+  I.terapkanAksi(d, anak, 'setujui', 'andika', WAKTU + 4);
+  I.terapkanAksi(d, induk, 'ajukan', 'andika', WAKTU + 5);
+  const buka = () => I.aksiUntuk(anak, 'andika', I.indeks(d)).find(a => a.kunci === 'buka');
+  assert.equal(buka().alasan, `Induknya ${induk.id} sedang ditinjau: buka kembali atau kembalikan induknya dulu.`);
+  assert.throws(() => I.terapkanAksi(d, anak, 'buka', 'andika', WAKTU + 6), /sedang ditinjau/);
+  I.terapkanAksi(d, induk, 'setujui', 'nynda', WAKTU + 7);
+  assert.match(buka().alasan, /sudah selesai/);
+  I.terapkanAksi(d, induk, 'buka', 'nynda', WAKTU + 8);
+  assert.equal(buka().nonaktif, false);
+  I.terapkanAksi(d, anak, 'buka', 'andika', WAKTU + 9);
+  assert.equal(anak.status, 'Dikerjakan');
+  assert.equal(I.aksiUntuk(induk, 'andika', I.indeks(d)).find(a => a.kunci === 'ajukan').alasan, 'Lengkapi dulu: semua task anak selesai (0/1)');
+});
+
 test('link favorit dan catatan yang disematkan: hanya milik sendiri', () => {
   const d = data([]);
   const l = I.simpanLink(d, 'kiki', { url: 'docs.google.com/spreadsheets/d/x' }, '', WAKTU);

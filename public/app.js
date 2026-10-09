@@ -1488,10 +1488,10 @@
       ${aksi.length || bisaUbah ? `<section>
         <div class="detail-aksi">
           ${utama.map(a => `<button type="button" class="tombol utama" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}
-          ${lain.map(a => `<button type="button" class="tombol ${['tahan', 'kembalikan'].includes(a.kunci) ? 'bahaya' : ''}" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}">${esc(a.label)}</button>`).join('')}
+          ${lain.map(a => `<button type="button" class="tombol ${['tahan', 'kembalikan'].includes(a.kunci) ? 'bahaya' : ''}" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}
           ${bisaUbah ? `<button type="button" class="tombol" data-aksi="ubah-task" data-id="${esc(t.id)}">Ubah</button>` : ''}
         </div>
-        ${utama.filter(a => a.nonaktif).map(a => `<p class="hint">${esc(a.alasan)}</p>`).join('')}
+        ${aksi.filter(a => a.nonaktif && a.alasan).map(a => `<p class="hint">${esc(a.alasan)}</p>`).join('')}
       </section>` : ''}
 
       ${bagianSyarat(t, perId)}
@@ -1738,7 +1738,10 @@
     const tersusun = susunHirarki(semua);
     const jumlahHal = Math.max(1, Math.ceil(tersusun.length / PER_HAL));
     f.hal = Math.min(Math.max(1, f.hal), jumlahHal);
-    const isi = tersusun.slice((f.hal - 1) * PER_HAL, f.hal * PER_HAL);
+    // Task anak yang induknya tertinggal di halaman sebelumnya tampil dengan tanda ↳, tak menjorok.
+    const potongan = tersusun.slice((f.hal - 1) * PER_HAL, f.hal * PER_HAL);
+    const diHalaman = new Set(potongan.map(x => x.t.id));
+    const isi = potongan.map(x => (x.anak && !diHalaman.has(x.t.induk) ? { ...x, anak: false } : x));
     const kolom = [['id', 'ID'], ['title', 'Task'], ['pic', 'PIC'], ['status', 'Status'], ['due', 'Tenggat'], ['platform', 'Platform']];
     const kepala = kolom.map(([k, l]) => `<th aria-sort="${f.urut === k ? (f.arah === -1 ? 'descending' : 'ascending') : 'none'}"><button type="button" class="urut" data-aksi="daftar-urut" data-kunci="${k}">${l}<span aria-hidden="true">${f.urut === k ? (f.arah === -1 ? ' ↓' : ' ↑') : ''}</span></button></th>`).join('');
     const tabel = `<div class="tabel-gulir kartu-polos rapat"><table class="tabel tabel-task"><thead><tr>${kepala}</tr></thead><tbody>${isi.map(({ t, anak }) => `
@@ -3843,9 +3846,16 @@
     b.teks = teks;
     // Pintasan markdown di awal paragraf: "# ", "## ", "- ", "1. ", "[] ", "[x] ", "> ", "---".
     if (b.jenis === 'p' && !e.isComposing) {
+      const tugas = /^[-*]\s\[([ xX]?)\]\s/.exec(teks);
+      if (tugas) return jadiCeklis(el, p.i, b, teks, tugas);
       const m = /^(#{1,3}|[-*]|\d{1,3}[.)]|\[[ xX]?\]|>)\s/.exec(teks);
       if (m) return pintasan(el, p.i, m[1], m[0].length);
       if (teks === '---') { catatRiwayatSekarang(); ED.blok[p.i] = { jenis: 'p', teks: '' }; return sisipkanKhusus(p.i, 'hr'); }
+    }
+    // Diketik satu per satu, "- " lebih dulu menjadikannya butir daftar; kotak sesudahnya tetap checklist.
+    if (b.jenis === 'li' && !e.isComposing) {
+      const tugas = /^\[([ xX]?)\]\s/.exec(teks);
+      if (tugas) return jadiCeklis(el, p.i, b, teks, tugas);
     }
     const [a] = rentangKursor(el);
     if (ED.slash) perbaruiMenuBlok(el);
@@ -3858,6 +3868,14 @@
       }
     }
     selaraskan();
+  }
+  /* "- [ ] " gaya GitHub → checklist, sama dengan cara teksnya dibaca ulang (blokCatatan): tingkat
+     dan "- "-nya tetap. */
+  function jadiCeklis(el, i, b, teks, m) {
+    const [a] = rentangKursor(el);
+    catatRiwayatSekarang();
+    ED.blok[i] = { jenis: 'todo', teks: teks.slice(m[0].length), tingkat: b.tingkat || 0, cek: /x/i.test(m[1]), titik: true };
+    gambarBlok({ i, offset: Math.max(0, a - m[0].length) });
   }
   function pintasan(el, i, tanda, panjang) {
     const [a] = rentangKursor(el);
@@ -5563,7 +5581,7 @@
       ${legendaPaket}<ul class="bobot-capaian">${I.CAPAIAN.map(c => `<li><b>${Math.round(c.bobot * 100)}%</b> ${esc(c.nama)}</li>`).join('')}</ul>`,
     // Label syaratnya diambil dari aturan, supaya ilustrasi tak bisa berbeda dari layar sungguhan.
     syarat: () => `<p class="subjudul">Syarat ajukan <span class="pill lb-revisi">2 belum</span></p>
-      <ul class="syarat">${I.syaratAjukan({ output: '', evidence: [], subtasks: [], deps: [], tertahan: false }, new Map())
+      <ul class="syarat">${I.syaratAjukan({ lane: 'proyek', project: 'contoh', stage: 'V', output: '', evidence: [], subtasks: [], deps: [], tertahan: false }, new Map())
         .map(x => `<li class="${x.ok ? 'ok' : 'kurang'}">${ikon(x.ok ? 'centang' : 'bulat', 18)}<span>${esc(x.label)}</span></li>`).join('')}</ul>
       ${tombolPalsu('Ajukan tinjau ke Alya', 'utama mati')}`,
     revisi: () => `<div class="ilu-baris">${pillStatus('Dikerjakan')}<span class="pill lb-revisi">Revisi</span></div>
@@ -6197,6 +6215,7 @@
   /* ---------- Peristiwa ---------- */
 
   function bukaTask(id) {
+    if (S.pilih !== id) S.ubahSub = null;
     S.pilih = id;
     S.notif.buka = false;
     render();

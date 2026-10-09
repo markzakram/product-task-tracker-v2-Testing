@@ -416,7 +416,14 @@
   /* Daftar aksi yang tersedia bagi `me`, sudah dengan alasan kalau nonaktif. */
   function aksiUntuk(t, me, perId) {
     const tinjau = peninjau(t);
-    if (selesai(t)) return bolehUbah(t, me) ? [{ kunci: 'buka', label: 'Buka kembali' }] : [];
+    if (selesai(t)) {
+      if (!bolehUbah(t, me)) return [];
+      // Task anak tak dibuka lagi selagi induknya sedang ditinjau atau sudah selesai.
+      const induk = t.induk ? perId.get(t.induk) : null;
+      const kunci = !!induk && (selesai(induk) || induk.status === 'Ditinjau');
+      return [{ kunci: 'buka', label: 'Buka kembali', nonaktif: kunci,
+        alasan: kunci ? `Induknya ${induk.id} ${selesai(induk) ? 'sudah selesai' : 'sedang ditinjau'}: buka kembali atau kembalikan induknya dulu.` : '' }];
+    }
     if (t.status === 'Ditinjau') {
       const daftar = [];
       if (me === tinjau || orang(me).peran === 'manager') {
@@ -818,10 +825,11 @@
     const mau = (t, alasan = '') => ({ t, alasan });
     const milik = data.tasks.filter(t => t.pic === me && aktif(t));
     const tunggu = milik.filter(t => terhambat(t, perId) || t.status === 'Ditinjau');
-    /* Antrean tim (PRD): langkah yang sudah siap dan diserahkan ke Lead tim pemilik
-       sub-stage-nya, menunggu didelegasikan ke staff. */
+    /* Antrean tim (PRD): langkah proyek milik tim Lead ini yang sudah bisa dimulai, tetapi
+       belum dimulai dan belum dibagi ke staff lewat task anak. */
     const antrean = orang(me).peran === 'lead' && timDari(me).length
-      ? milik.filter(t => t.lane === 'proyek' && t.status === 'Antre' && !tunggu.includes(t) && leadSub(t.sub) === me) : [];
+      ? milik.filter(t => t.lane === 'proyek' && t.status === 'Antre' && !tunggu.includes(t) && leadSub(t.sub) === me
+        && !anakTask(perId, t.id).length) : [];
     const jalan = milik.filter(t => !tunggu.includes(t) && !antrean.includes(t));
     const batasMinggu = tambahHari(hariIni, 7);
 
