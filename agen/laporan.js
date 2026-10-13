@@ -38,7 +38,6 @@ function ringkasanPagi(k) {
   bagian('Tenggat hari ini', ambil('hari'), x => K.barisTask(x.t, k));
   bagian('7 hari ke depan', ambil('minggu'), x => K.barisTask(x.t, k));
   bagian('Antrean tim · siap dibagi', ambil('antrean'), x => K.barisTask(x.t, k));
-  bagian('Sub-task untuk Anda', ambil('sub'), x => `${x.t.id} · ${x.alasan}`);
   bagian('Pertanyaan menunggu jawaban Anda', tanya, x => K.barisPesan(x, k));
   bagian('Sebutan yang belum Anda balas', sebut, x => K.barisPesan(x, k));
   const tunggu = ambil('tunggu').length;

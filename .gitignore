@@ -26,3 +26,5 @@ Thumbs.db
 
 # Salinan cepat dan jejak agen AI (agen/.data); setelannya di agen/.env (pola .env di atas)
 agen/.data/
+# Laporan mingguan agen (berisi data tim): dibuat ulang kapan saja
+agen/laporan/

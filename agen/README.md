@@ -10,12 +10,15 @@ di README utama, bagian *Agen AI Ali*.
 | `klien.js` | masuk dengan kunci agen, menyusun data real seperti browser, menulis lewat `simpanReal` dan `kirimObrolan` |
 | `laporan.js` | isi ringkasan pagi dan pengingat (tanpa jaringan, tanpa AI) |
 | `ringkasan.js`, `pengingat.js` | pekerjaan tanpa token untuk Agent Office |
+| `tim.js` | pekerjaan Lead: rekap tim, laporan mingguan, antrean + saran PIC, cek kerapian data (tanpa jaringan, tanpa AI) |
+| `rekap-tim.js`, `mingguan.js`, `antrean.js`, `cek-data.js` | pekerjaan tanpa token Lead untuk Agent Office |
 | `mcp.js`, `.mcp.json` | alat ProductTrack untuk sesi AI (server MCP lewat stdio) |
 | `.claude/settings.json` | alat baca langsung jalan; alat tulis selalu minta persetujuan; Bash, Write, dan Edit ditolak |
 | `CLAUDE.md` | aturan kerja agen: jujur, tidak mengarang, laporan akhir |
 | `agent-office.json` | daftar pekerjaan tanpa token yang dibaca Agent Office |
 | `.env` | setelan di komputer ini (salin dari `.env.example`, tidak ikut git) |
 | `.data/` | salinan cepat data dan jejak pengingat (tidak ikut git) |
+| `laporan/` | laporan mingguan (HTML & Markdown) dari `mingguan.js` (tidak ikut git) |
 
 ## Menyiapkan
 
@@ -44,6 +47,12 @@ di README utama, bagian *Agen AI Ali*.
    `G:\Ali\code\product-tracker-v2\agen`. Jadwal yang disarankan:
    - **Ringkasan pagi**: Senin–Jumat 07.30.
    - **Pengingat**: Senin–Jumat 10.00, 13.30, dan 16.00.
+   - **Rekap tim**: Senin 08.00 (bahan rapat awal pekan).
+   - **Laporan mingguan**: Jumat 16.00.
+   - **Cek data tim**: Senin 08.15. Tanpa temuan = tanpa notifikasi (`senyap`).
+   - **Antrean + saran PIC** cukup dijalankan saat akan membagi pekerjaan. Antrean kosong =
+     tanpa notifikasi. Antrean tim hanya ada kalau tim punya staff di ProductTrack (Panel Dev →
+     Pengguna).
 
    Pengingat yang tidak menemukan hal baru tetap tercatat di obrolan, tapi tidak mengirim
    notifikasi (`senyap`).
@@ -54,6 +63,9 @@ di README utama, bagian *Agen AI Ali*.
 ## Memakai
 
 - **Tanpa token**: tombol *Ringkasan pagi* dan *Pengingat*, atau ketik "@Ali ringkasan pagi".
+  Untuk Lead: *Rekap tim*, *Laporan mingguan* ("@Ali laporan mingguan minggu lalu"),
+  *Antrean & saran PIC*, dan *Cek data tim*. Semuanya hanya membaca; tak ada yang ditulis ke
+  ProductTrack.
 - **Dengan AI** (kredit API, kartu *Butuh token*):
   - "@Ali jawab pesan yang menunggu"
   - "@Ali PRD-123 sudah selesai: hasilnya …, buktinya https://…, ajukan tinjauan"

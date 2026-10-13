@@ -220,6 +220,50 @@ test('klien agen: ringkasan pagi, pengingat tanpa ulangan, pesan dan perubahan a
   }
 });
 
+/* Skrip pekerjaan Agent Office sebagai proses sendiri (server uji jalan di proses ini, jadi
+   tak boleh spawnSync). */
+function jalankanSkrip(nama, args, env) {
+  return new Promise(resolve => {
+    const anak = spawn(process.execPath, [path.join(AKAR, 'agen', nama), ...args], { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let keluar = '';
+    anak.stdout.on('data', d => { keluar += d; });
+    anak.stderr.on('data', d => { keluar += d; });
+    anak.on('close', kode => resolve({ kode, keluar }));
+  });
+}
+
+test('pekerjaan Lead: rekap tim, antrean, cek data, dan laporan mingguan jalan sebagai skrip', async () => {
+  sheetV2();
+  await siapkanReal({ due: I.tambahHari(I.isoHari(Date.now()), 3) });
+  const { srv, alamat } = await nyalakanServer();
+  const folder = folderSementara();
+  const laporan = folderSementara();
+  try {
+    const env = { PT_ALAMAT: alamat, AGEN_KUNCI: KUNCI, AGEN_DATA: folder, AGEN_LAPORAN: laporan };
+    const hasil = {};
+    for (const [nama, args] of [['rekap-tim.js', []], ['antrean.js', []], ['cek-data.js', []], ['mingguan.js', []], ['mingguan.js', ['--lalu']]]) {
+      const r = await jalankanSkrip(nama, args, env);
+      assert.equal(r.kode, 0, `${nama}: ${r.keluar}`);
+      assert.match(r.keluar, /\nRINGKAS: .+\n$/, nama);
+      hasil[nama + args.join('')] = r.keluar;
+    }
+    assert.match(hasil['rekap-tim.js'], /^Rekap tim DAE · .+ · data real\n\nAnggota: Ali \(belum ada staff di ProductTrack\)\nAktif 1 · telat 0/);
+    assert.match(hasil['rekap-tim.js'], /PRJ-1 · Otomasi laporan · siklus 1\n {2}Development: 0\/1 selesai · PRD-001 DV6 \(Ali/);
+    assert.match(hasil['antrean.js'], /RINGKAS: antrean tim kosong \(tim belum punya staff\)/);
+    assert.match(hasil['cek-data.js'], /RINGKAS: tidak ada temuan di data tim DAE/);
+    const berkas = [...hasil['mingguan.js'].matchAll(/^BERKAS: (.+)$/gm)].map(m => m[1].trim());
+    assert.deepEqual(berkas.map(f => path.extname(f)), ['.html', '.md']);
+    for (const f of berkas) assert.ok(fs.existsSync(f) && path.dirname(f) === laporan, f);
+    assert.match(fs.readFileSync(berkas[1], 'utf8'), /^# Laporan mingguan tim DAE\n/);
+    assert.match(hasil['mingguan.js'], /Rencana 7 hari ke depan \(sampai [^)]+\) \(1\)\n {2}• PRD-001 · DV6 · Skrip tarik data/);
+    assert.match(hasil['mingguan.js--lalu'], /RINGKAS: minggu .+: 0 selesai/);
+  } finally {
+    srv.close();
+    fs.rmSync(folder, { recursive: true, force: true });
+    fs.rmSync(laporan, { recursive: true, force: true });
+  }
+});
+
 /* Satu sesi MCP lewat stdio: kirim permintaan, tunggu balasan dengan id yang sama. */
 function sesiMcp(env) {
   const anak = spawn(process.execPath, [path.join(AKAR, 'agen', 'mcp.js')], { env: { ...process.env, ...env }, stdio: ['pipe', 'pipe', 'pipe'] });

@@ -27,6 +27,59 @@
       "ringkasan": "Pengingat ProductTrack",
       "senyap": "tidak ada pengingat baru",
       "batas_menit": 2
+    },
+    {
+      "id": "rekap",
+      "judul": "Rekap tim DAE",
+      "singkat": "Rekap tim",
+      "kata_kunci": ["rekap", "rekap tim", "tim", "dae", "status tim", "kondisi tim", "beban", "producttrack"],
+      "wajib_salah_satu": ["rekap", "status tim", "kondisi tim", "beban tim"],
+      "perintah": ["rekap-tim.js"],
+      "catatan": ["hanya membaca ProductTrack: status task tim per proyek & fase ADDIE, yang macet, beban per orang, dan task turunan"],
+      "hasil": "^RINGKAS: (.+)$",
+      "ringkasan": "Rekap tim ProductTrack",
+      "batas_menit": 2
+    },
+    {
+      "id": "mingguan",
+      "judul": "Laporan mingguan tim",
+      "singkat": "Laporan mingguan",
+      "kata_kunci": ["laporan mingguan", "mingguan", "weekly", "laporan minggu", "minggu ini", "minggu lalu", "laporan tim"],
+      "wajib_salah_satu": ["mingguan", "weekly", "laporan minggu", "laporan tim"],
+      "perintah": ["mingguan.js", "{lalu?--lalu}"],
+      "parameter": {
+        "lalu": { "jenis": "tanda", "jika_disebut": ["minggu lalu", "pekan lalu"], "label": "Minggu lalu", "bantuan": "Senin–Minggu pekan lalu. Tanpa centang: minggu ini, Senin sampai hari ini." }
+      },
+      "catatan": ["hanya membaca ProductTrack; berkas HTML (bisa dicetak jadi PDF) dan Markdown di agen/laporan/"],
+      "hasil": "^(?:RINGKAS|BERKAS): (.+)$",
+      "ringkasan": "Laporan mingguan",
+      "batas_menit": 2
+    },
+    {
+      "id": "antrean",
+      "judul": "Antrean tim + saran PIC",
+      "singkat": "Antrean & saran PIC",
+      "kata_kunci": ["antrean", "antre", "dibagi", "bagi", "saran pic", "pembagian", "siapa yang mengerjakan", "turunan"],
+      "wajib_salah_satu": ["antrean", "dibagi", "saran pic", "pembagian"],
+      "perintah": ["antrean.js"],
+      "catatan": ["hanya saran dari beban kerja; membagi task tetap dari ProductTrack (bagian Task turunan)"],
+      "hasil": "^RINGKAS: (.+)$",
+      "ringkasan": "Antrean tim",
+      "senyap": "antrean tim kosong",
+      "batas_menit": 2
+    },
+    {
+      "id": "cekdata",
+      "judul": "Cek kerapian data tim",
+      "singkat": "Cek data tim",
+      "kata_kunci": ["cek data", "kerapian", "rapikan data", "data tim", "periksa data", "audit data", "data rapi"],
+      "wajib_salah_satu": ["cek data", "kerapian", "periksa data", "audit data", "data rapi"],
+      "perintah": ["cek-data.js"],
+      "catatan": ["hanya membaca; perbaikannya tetap dilakukan di ProductTrack"],
+      "hasil": "^RINGKAS: (.+)$",
+      "ringkasan": "Cek data tim",
+      "senyap": "tidak ada temuan",
+      "batas_menit": 2
     }
   ]
 }
