@@ -145,6 +145,8 @@
     proyek: null,
     /* Tahap yang diklik di jalur ADDIE: { proyek, tahap } — bagiannya dibuka di halaman proyek. */
     tahapBuka: null,
+    /* Mode pilih task untuk dihapus di tab tim proyek (2.23.0): { proyek, tab, ids }. */
+    pilihTask: null,
     /* Sub-task yang sedang diubah di detail task: { task, sub }. */
     ubahSub: null,
     /* Sumber data (2.16.0): 'contoh' atau 'real', dipilih mode Dev untuk semua pengguna. */
@@ -708,12 +710,12 @@
       ? `<div class="jalur-tahap bisa-klik" role="group" aria-label="${esc(label)}. Klik fase untuk melihat task-nya.">${isi}</div>`
       : `<div class="jalur-tahap" role="img" aria-label="${esc(label)}">${isi}</div>`;
   }
-  /* Tab yang terbuka di halaman proyek: pilihan terakhir untuk proyek ini; kalau belum ada, tab
-     tim sendiri (Lead dan staff) atau Ringkasan (Manager). */
+  /* Tab yang terbuka di halaman proyek: tab yang dipilih selama proyek ini terbuka; setiap kali
+     proyek dibuka dari luar (bukaProyek), kembali ke tab tim sendiri untuk Lead dan staff atau
+     Ringkasan untuk Manager (2.23.0, I.tabAwalProyek). */
   function tabProyek(p) {
     if (S.tabProyek && S.tabProyek.proyek === p.id) return S.tabProyek.tab;
-    const milik = (I.timOrang(S.me) || {}).kode;
-    return I.TIM_PROYEK.includes(milik) ? milik : 'ringkas';
+    return I.tabAwalProyek(S.me);
   }
   /* Klik fase di jalur ADDIE: tab tim itu di halaman proyek, bagian fasenya terbuka, lalu digulir ke sana. */
   function lihatTahap(id, tahap, tim = '') {
@@ -722,7 +724,8 @@
     const kini = tabProyek(p);
     const tab = I.TIM_PROYEK.includes(tim) ? tim : I.TIM_PROYEK.includes(kini) ? kini
       : (I.faseTim(S.data, p, perIdKini()).find(f => f.total) || { kode: I.TIM_PROYEK[0] }).kode;
-    Object.assign(S, { tahapBuka: { proyek: id, tahap, tim: tab }, tabProyek: { proyek: id, tab }, pilih: null });
+    Object.assign(S, { tahapBuka: { proyek: id, tahap, tim: tab }, tabProyek: { proyek: id, tab }, pilih: null,
+      pilihTask: S.pilihTask && S.pilihTask.proyek === id && S.pilihTask.tab === tab ? S.pilihTask : null });
     render();
     const el = document.getElementById(`tahap-${tab}-${tahap}`);
     if (!el) return;
@@ -767,13 +770,15 @@
   }
 
   /* posisi: 'anak' = menjorok di bawah induknya; 'di-induk' = di dalam detail induknya. */
-  function barisTask(t, alasan = '', posisi = '') {
+  /* aksi 'centang-task' (mode pilih untuk dihapus, 2.23.0): klik baris mencentang kotaknya;
+     barisnya dilewati Tab karena kotak centangnya sudah bisa dijangkau keyboard. */
+  function barisTask(t, alasan = '', posisi = '', aksi = 'buka-task') {
     const sub = ringkasSub(t);
     const keluarga = ringkasAnak(t);
     // Siap tak perlu ditandai di daftar; Menunggu/Tertahan sudah terbaca dari alasannya.
     const lb = I.labelKeadaan(t, perIdKini());
     const label = lb && lb !== 'Siap' && !String(alasan).startsWith(lb) ? chipLabel(t) : '';
-    return `<button type="button" class="baris ${posisi === 'anak' ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}" data-aksi="buka-task" data-id="${esc(t.id)}">
+    return `<button type="button" class="baris ${posisi === 'anak' ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}" data-aksi="${aksi}" data-id="${esc(t.id)}"${aksi === 'buka-task' ? '' : ' tabindex="-1"'}>
       ${pillStatus(t.status)}
       <span class="baris-isi">
         <span class="baris-judul">${esc(t.title)}</span>
@@ -1485,7 +1490,8 @@
   }
   function bukaProyek(id) {
     if (!bolehTinggalkanPaket()) return;
-    Object.assign(S, { proyek: id, pilih: null, view: 'proyek', navBuka: false, tahapBuka: null });
+    // Selalu mulai dari tab bawaan: tim sendiri, atau Ringkasan untuk Manager (2.23.0).
+    Object.assign(S, { proyek: id, pilih: null, view: 'proyek', navBuka: false, tahapBuka: null, tabProyek: null, pilihTask: null });
     simpan('halaman', 'proyek');
     render();
     window.scrollTo(0, 0);
@@ -1903,6 +1909,7 @@
       </div>
       <div class="detail-tombol">
         <button type="button" class="ikon-tombol" data-aksi="salin-tautan" data-alamat="#/task/${esc(t.id)}" title="Salin tautan task ini" aria-label="Salin tautan task">${ikon('tautan', 18)}</button>
+        ${I.bolehHapusTask(t, me, perId) ? `<button type="button" class="ikon-tombol bahaya" data-aksi="hapus-task" data-id="${esc(t.id)}" title="Hapus task ini" aria-label="Hapus task ${esc(t.id)}">${ikon('hapus', 18)}</button>` : ''}
         ${diLaci ? `<button type="button" class="ikon-tombol" data-aksi="tutup-detail" aria-label="Tutup">${ikon('tutup', 20)}</button>` : ''}
       </div></div>
 
@@ -2587,6 +2594,19 @@
       };
       const tombolUrut = t => (I.bolehAturTunggu(t, S.me, perId) && I.aktif(t)
         ? `<button type="button" class="ikon-tombol" data-aksi="atur-tunggu" data-id="${esc(t.id)}" title="Atur urutan tunggu ${esc(t.id)}" aria-label="Atur urutan tunggu ${esc(t.id)}">${ikon('timeline', 16)}</button>` : '');
+      /* Pilih banyak untuk dihapus (2.23.0): kotak centang di tiap baris yang boleh dihapus;
+         turunan dari induk yang dipilih ikut tercentang dan terkunci. */
+      const bisaHapus = milik.filter(t => I.bolehHapusTask(t, S.me, perId));
+      const pt = S.pilihTask && S.pilihTask.proyek === p.id && S.pilihTask.tab === tab ? S.pilihTask : null;
+      const terpilih = new Set(pt ? pt.ids : []);
+      const ikutInduk = t => !!t.induk && terpilih.has(t.induk);
+      const barisPilih = (t, alasan, anak) => {
+        const boleh = bisaHapus.includes(t);
+        const ikut = ikutInduk(t);
+        const cek = terpilih.has(t.id) || ikut;
+        const ket = ikut ? 'Ikut terhapus bersama induknya' : boleh ? `Pilih ${t.id} untuk dihapus` : 'Anda tak boleh menghapus task ini';
+        return `<div class="baris-pilih ${cek ? 'terpilih' : ''}"><input type="checkbox" class="centang-hapus" data-id="${esc(t.id)}" ${cek ? 'checked' : ''} ${boleh && !ikut ? '' : 'disabled'} title="${esc(ket)}" aria-label="${esc(ket)}: ${esc(t.title)}">${barisTask(t, alasan, anak ? 'anak' : '', boleh && !ikut ? 'centang-task' : 'buka-task')}</div>`;
+      };
       const bagian = urutTahap.map(st => {
         const isi = milik.filter(t => t.stage === st).sort(urutTaskProyek);
         // Fase tanpa task dan tanpa sub-stage milik tim ini (mis. Analysis LNA) tak ditampilkan.
@@ -2595,21 +2615,42 @@
         const tunggu = isi.filter(tungguFase).flatMap(t => I.depsBelum(t, perId));
         const tahapTunggu = urutTahap.find(s => tunggu.some(d => d.stage === s));
         const baris = susunHirarki(isi).map(x => {
-          const row = barisTask(x.t, !I.aktif(x.t) || tungguFase(x.t) ? '' : I.alasanTunggu(x.t, perId), x.anak ? 'anak' : '');
+          const alasan = !I.aktif(x.t) || tungguFase(x.t) ? '' : I.alasanTunggu(x.t, perId);
+          if (pt) return barisPilih(x.t, alasan, x.anak);
+          const row = barisTask(x.t, alasan, x.anak ? 'anak' : '');
           const urut = x.anak ? '' : tombolUrut(x.t);
           return urut ? `<div class="baris-aksi">${row}${urut}</div>` : row;
         }).join('');
+        const bolehFase = pt ? isi.filter(t => bisaHapus.includes(t) && !ikutInduk(t)) : [];
+        const semuaFase = bolehFase.length > 0 && bolehFase.every(t => terpilih.has(t.id));
+        const pilihFase = bolehFase.length ? `<button type="button" class="tautan-kecil pilih-fase" data-aksi="pilih-fase" data-tahap="${st}" data-nilai="${semuaFase ? '' : '1'}">${semuaFase ? `Batalkan pilihan di ${esc(I.namaTahap(st))}` : `Pilih semua di ${esc(I.namaTahap(st))} (${bolehFase.length})`}</button>` : '';
         return `<details class="tahap-bagian" id="tahap-${tab}-${st}" ${st === f.fase || st === buka ? 'open' : ''}>
           <summary><span class="huruf-tahap">${st}</span> ${esc(I.namaTahap(st))} <span class="pesan-info">· ${isi.length ? `${isi.length} task${aktif ? `, ${aktif} aktif` : ', selesai'}` : 'kosong'}</span>${st === f.fase ? ' <span class="pill st-dikerjakan">Fase sekarang</span>' : ''}</summary>
           <div class="grup">${tahapTunggu ? `<p class="hint tunggu-tahap">Menunggu fase ${esc(I.namaTahap(tahapTunggu))} ${esc(I.singkatTim(tab))} selesai. Task di fase ini dikerjakan bersamaan setelahnya.</p>` : ''}
+            ${pilihFase}
             ${baris || `<p class="hint">Belum ada task ${esc(I.singkatTim(tab))} di ${esc(I.namaTahap(st))}${(p.cycle || 1) > 1 ? ' pada siklus ini' : ''}.</p>`}
-            ${tambah(st, '', 'Tambah task di ' + I.namaTahap(st), 'kecil', tab)}
+            ${pt ? '' : tambah(st, '', 'Tambah task di ' + I.namaTahap(st), 'kecil', tab)}
           </div>
         </details>`;
       }).join('');
+      let bilah = '';
+      if (pt) {
+        const r = I.ringkasHapusTask(S.data, pt.ids);
+        const semua = bisaHapus.every(t => terpilih.has(t.id) || ikutInduk(t));
+        bilah = `<div class="bilah-pilih" role="region" aria-label="Pilih task ${esc(I.singkatTim(tab))} untuk dihapus">
+          <span class="bilah-pilih-angka" aria-live="polite">${r.tasks.length ? `<strong>${r.dipilih}</strong> task dipilih${r.turunan ? ` + ${r.turunan} turunan` : ''}` : 'Centang task yang akan dihapus'}</span>
+          <span class="bilah-pilih-tombol">
+            <button type="button" class="tombol kecil" data-aksi="pilih-semua-task" data-nilai="${semua ? '' : '1'}">${semua ? 'Kosongkan' : `Pilih semua (${bisaHapus.length})`}</button>
+            <button type="button" class="tombol kecil" data-aksi="pilih-task-batal">Batal</button>
+            <button type="button" class="tombol kecil bahaya" data-aksi="hapus-task-pilihan" ${r.tasks.length ? '' : 'disabled'}>${ikon('hapus', 16)} Hapus${r.tasks.length ? ` ${r.tasks.length}` : ''} task</button>
+          </span>
+        </div>`;
+      }
       isiTab = `<section class="kartu-polos kartu-tim">${kepalaTim(f)}${jalurTahap(p, '', false, true, f)}<p class="hint">${angkaTim(f)}</p>
           <p class="hint">${bolehAtur ? `Anda mengatur urutan tim ini: tombol ${ikon('timeline', 14)} di samping task memilih apa yang ditunggunya, termasuk serah-terima dari tim lain.`
-            : `Urutan tim ini diatur ${nama(I.TIM[tab].lead)} sebagai Lead.`} Bawaannya: task menunggu task ${esc(I.singkatTim(tab))} di fase yang lebih awal.</p></section>
+            : `Urutan tim ini diatur ${nama(I.TIM[tab].lead)} sebagai Lead.`} Bawaannya: task menunggu task ${esc(I.singkatTim(tab))} di fase yang lebih awal.</p>
+          ${bisaHapus.length && !pt ? `<div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="pilih-task-mulai" data-id="${esc(p.id)}" data-tab="${tab}">${ikon('centangKotak', 16)} Pilih task untuk dihapus</button></div>` : ''}</section>
+        ${bilah}
         ${bagian}`;
     }
     const bagianLama = lama.length ? `<details class="tahap-bagian"><summary>Siklus sebelumnya <span class="pesan-info">· ${lama.length} task</span></summary>
@@ -6958,6 +6999,49 @@
     </form>`;
   }
 
+  /* Hapus task (2.23.0): satu dari detail task, atau banyak yang dicentang di tab tim proyek.
+     taskPilihan = task di tab tim yang sedang dipilih (satu fase, atau semua) yang boleh
+     dihapus; turunan dari induk yang dipilih tak perlu dicentang sendiri. */
+  function taskPilihan(tahap) {
+    const pt = S.pilihTask;
+    const p = pt && proyekDari(pt.proyek);
+    if (!p) return [];
+    const perId = perIdKini();
+    return S.data.tasks.filter(t => t.project === p.id && (t.cycle || 1) === (p.cycle || 1) && (!tahap || t.stage === tahap)
+      && I.timJalur(t, perId) === pt.tab && I.bolehHapusTask(t, S.me, perId)).map(t => t.id);
+  }
+  function pilihTaskHapus(ids, pilih) {
+    const pt = S.pilihTask;
+    if (!pt) return;
+    const set = new Set(pt.ids);
+    for (const id of ids) pilih ? set.add(id) : set.delete(id);
+    // Yang induknya juga dipilih cukup diwakili induknya.
+    const perId = perIdKini();
+    pt.ids = [...set].filter(id => { const t = perId.get(id); return t && !(t.induk && set.has(t.induk)); });
+    render();
+  }
+  function formHapusTask(ids) {
+    const r = I.ringkasHapusTask(S.data, ids);
+    // Turunan tepat di bawah induknya.
+    const urut = r.tasks.filter(t => !t.induk || !r.tasks.some(x => x.id === t.induk))
+      .flatMap(t => [t, ...r.tasks.filter(x => x.induk === t.id)]);
+    const tampil = urut.slice(0, 8);
+    return `<form data-form="modal" class="form-hapus-proyek" novalidate>
+      <h2>Hapus ${r.tasks.length > 1 ? `${r.tasks.length} task` : 'task'}?</h2>
+      <p>${r.tasks.length > 1 ? 'Task berikut dihapus permanen' : 'Task ini dihapus permanen'}, beserta sub-task, komentar, tinjauan, dan buktinya:</p>
+      <ul class="daftar-hapus">${tampil.map(t => `<li><b>${esc(t.id)}</b> · ${esc(potong(t.title, 90))}${t.induk && r.tasks.some(x => x.id === t.induk) ? ' <small>(turunan)</small>' : ''}</li>`).join('')}
+        ${r.tasks.length > tampil.length ? `<li>dan ${r.tasks.length - tampil.length} task lainnya</li>` : ''}</ul>
+      ${r.turunan || r.selesai || r.setoran ? `<ul class="daftar-hapus">
+        ${r.turunan ? `<li>${r.turunan} task turunan ikut terhapus bersama induknya</li>` : ''}
+        ${r.selesai ? `<li>${r.selesai} di antaranya sudah selesai</li>` : ''}
+        ${r.setoran ? `<li>${r.setoran} setoran ke rancangan paket ikut hilang, jadi progres paketnya turun</li>` : ''}
+      </ul>` : ''}
+      <p class="hint">Task lain yang menunggu ${r.tasks.length > 1 ? 'task-task ini' : 'task ini'} tak lagi menunggunya. Riwayat Aktivitas mencatat penghapusannya. Tindakan ini tak bisa dibatalkan.</p>
+      <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
+      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">Batal</button><button class="tombol bahaya" id="hapus-task-tombol">${ikon('hapus', 16)} Hapus permanen</button></div>
+    </form>`;
+  }
+
   /* Hapus proyek (2.22.0): ringkasan apa saja yang ikut hilang, arsip sebagai jalan aman, dan
      ID proyek diketik ulang sebelum tombolnya aktif. Aturannya di I.hapusProyek. */
   function formHapusProyek(p) {
@@ -7273,6 +7357,13 @@
           tutupModal();
           Object.assign(S, { proyek: null, tabProyek: null, tahapBuka: null, pilih: null });
           return selesaiUbah(`${p.name} dihapus beserta ${h.task} task.`);
+        }
+        case 'hapus-task': {
+          const h = ubahData('hapusTask', { tasks: m.ids });
+          tutupModal();
+          if (S.pilih && !S.data.tasks.some(t => t.id === S.pilih)) S.pilih = null;
+          S.pilihTask = null;
+          return selesaiUbah(`${h.task} task dihapus${h.setoran ? `; ${h.setoran} setoran paket ikut hilang` : ''}.`);
         }
         case 'catatan': {
           ubahData('terapkanAksi', { task: m.id, kunci: m.kunci, catatan: f.catatan });
@@ -7678,7 +7769,15 @@
       case 'buka-proyek': bukaProyek(d.id); break;
       case 'tutup-proyek': S.proyek = null; S.tahapBuka = null; render(); break;
       case 'tahap-proyek': lihatTahap(d.id, d.tahap, d.tim); break;
-      case 'tab-proyek': Object.assign(S, { tabProyek: { proyek: d.id, tab: d.tab }, tahapBuka: null }); render(); break;
+      case 'tab-proyek': Object.assign(S, { tabProyek: { proyek: d.id, tab: d.tab }, tahapBuka: null, pilihTask: null }); render(); break;
+      /* Pilih banyak task untuk dihapus (2.23.0) */
+      case 'pilih-task-mulai': S.pilihTask = { proyek: d.id, tab: d.tab, ids: [] }; render(); break;
+      case 'pilih-task-batal': S.pilihTask = null; render(); break;
+      case 'centang-task': pilihTaskHapus([d.id], !(S.pilihTask && S.pilihTask.ids.includes(d.id))); break;
+      case 'pilih-fase': pilihTaskHapus(taskPilihan(d.tahap), d.nilai === '1'); break;
+      case 'pilih-semua-task': pilihTaskHapus(taskPilihan(''), d.nilai === '1'); break;
+      case 'hapus-task-pilihan': if (S.pilihTask && S.pilihTask.ids.length) bukaModal({ jenis: 'hapus-task', ids: S.pilihTask.ids.slice() }, formHapusTask(S.pilihTask.ids)); break;
+      case 'hapus-task': if (t) bukaModal({ jenis: 'hapus-task', ids: [t.id] }, formHapusTask([t.id])); break;
       case 'proyek-arsip': S.proyekArsip = d.nilai === '1'; render(); break;
       case 'proyek-baru': bukaModal({ jenis: 'proyek' }, formProyek()); break;
       case 'mulai-siklus': {
@@ -8036,6 +8135,7 @@
     }
     if (el.id === 'tpl-awal') { ubahDraf({ awal: el.value }); return; }
     if (el.id === 'tpl-aksen-sendiri') { ubahDraf({ aksen: el.value }, true); return; }
+    if (el.classList.contains('centang-hapus')) { pilihTaskHapus([el.dataset.id], el.checked); return; }
     if (el.dataset.aksi === 'centang-sub') {
       try { ubahData('centangSubtask', { task: el.dataset.id, sub: el.dataset.sub, done: el.checked }); selesaiUbah(); } catch (err) { toast(err.message, true); render(); }
     } else if (el.dataset.slicer) {

@@ -127,6 +127,8 @@
         'Tim yang berbeda **tidak saling menunggu**, kecuali lewat **serah-terima** yang diatur Lead (mis. input LNA menunggu soal dari RAD) dan **gerbang Manager**: task Manager di Analysis (A1, A6) ditunggu fase Design dan sesudahnya di semua tim.',
         '**Lead mengatur urutan timnya** lewat tombol **Atur urutan tunggu** (di tab tim atau detail task): task mana yang ditunggu, termasuk dari tim lain, dan apakah ikut urutan fase timnya. Elaborasi paket sudah memasang serah-terima antartim dan urutan alurnya (mis. tayang menunggu QC). Urutan yang membuat task saling menunggu ditolak.',
         'Klik fase di jalur **A D V I E** sebuah tim untuk membuka task fase itu di tab timnya.',
+        'Proyek selalu terbuka di **tab tim Anda**; Manager di **Ringkasan**.',
+        '**Hapus task**: di tab tim, tekan **Pilih task untuk dihapus**, centang task-nya (atau **Pilih semua** per fase), lalu **Hapus**. Turunan ikut terhapus bersama induknya. Satu task juga bisa dihapus dari tombol tempat sampah di detail task. Yang boleh: Manager, Lead untuk task timnya, dan staff untuk task yang ia buat sendiri.',
         'Siklus ditutup oleh task **E12 · Final approval** yang disetujui Manager; E12 menunggu semua task lain di siklusnya.',
         'Sesudah Evaluation tidak ada tahap keenam. Manager memilih: **arsipkan** (tuntas), **mulai siklus berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau **tahan**.',
       ],

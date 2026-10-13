@@ -104,6 +104,9 @@ dengan satu penyederhanaan: tetap empat status.
   periksanya tampil di sana.
 - **Tinjauan:** task staff oleh Lead-nya (termasuk task turunan), task Lead oleh Manager, sub-stage
   bertanda Manager oleh Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
+- **Tab bawaan (2.23.0).** Setiap kali proyek dibuka, halaman proyek langsung terbuka di tab
+  tim sendiri (Lead dan staff, mis. Lead dan staff RAD di tab RAD); Manager di **Ringkasan**. Tab
+  yang dipilih bertahan selama proyek itu terbuka.
 - **Proyek tanpa Lead tetap.** Yang tampil adalah tim yang punya task di siklus ini beserta
   fasenya, mis. **RAD V**, **CLO ✓**.
 - **Fase tim dihitung, bukan diputuskan:** fase task terbuka tim itu yang paling awal. Jalur
@@ -125,6 +128,20 @@ dengan satu penyederhanaan: tetap empat status.
   tersimpan. Untuk proyek yang sudah selesai, **arsipkan saja** (tautan di jendela yang sama):
   semuanya tetap ada dan bisa diaktifkan lagi. Aturannya `Inti.hapusProyek`; di data real
   perubahannya hanya daftar baris yang dihapus.
+- **Hapus task (2.23.0).** Di tab tim proyek, tombol **Pilih task untuk dihapus** memunculkan
+  kotak centang di tiap task:
+  - centang satu per satu (klik barisnya juga mencentang), **Pilih semua di <fase>**, atau
+    **Pilih semua** di bilah yang tetap terlihat saat daftar digulir;
+  - task turunan ikut tercentang dan terkunci bila induknya dipilih;
+  - **Hapus N task** membuka jendela konfirmasi berisi daftar task, jumlah turunan, yang sudah
+    selesai, dan setoran paket yang ikut hilang.
+
+  Satu task juga bisa dihapus dari tombol tempat sampah di detail task. Yang boleh: Manager
+  (semua task), Lead (task di tab timnya dan task yang boleh ia ubah), staff (hanya task yang ia
+  buat untuk dirinya sendiri). Agen AI tidak boleh. Ikut terhapus: task turunannya, sub-task,
+  komentar, tinjauan, bukti, dan setorannya (progres paket turun). Task lain yang menunggu task
+  itu tak lagi menunggunya. Riwayat Aktivitas mencatat tiap task yang dipilih. Aturannya
+  `Inti.hapusTask`; satu permintaan ditolak utuh bila ada satu saja task yang tak boleh dihapus.
 - **Dashboard:** task aktif per status, tahap, tim pemilik, dan platform; per orang
   ditambah sub-task terbuka dan **skor bottleneck** (task orang lain yang menunggu dia × 2 +
   tinjauan yang menunggu dia × 2 + task telatnya).
@@ -984,7 +1001,6 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
   ulang `npm run impor:v1 -- --demo` memasang skenario contoh baru; kolom `induk` di tab `tasks`
   hanya menambah, jadi versi live lama tetap membacanya.
 - Task turunan hanya satu tingkat dan tak bisa dipindah ke induk lain.
-- Task belum bisa dihapus.
 - Satu task hanya menyetor saat task-nya Selesai; setoran per sub-task belum ada.
 - Bobot capaian bawaan (40/60/85/100) serta alur Dibimbing dan Live Class masih usulan PRD;
   sejak 0.14.0 bisa diubah di Master.

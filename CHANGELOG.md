@@ -1,5 +1,35 @@
 # Changelog — ProductTrack v2
 
+## 2.23.0 — Hapus banyak task di tab tim; tab bawaan proyek (2026-10-13)
+
+Permintaan user: task di tab tim proyek bisa dipilih untuk menentukan mana yang dihapus kalau
+banyak; dan halaman proyek langsung terbuka di tab tim sendiri, Manager di Ringkasan.
+
+- **Pilih task untuk dihapus** (tab tim proyek): tombol di kartu tim memunculkan kotak centang
+  di tiap task.
+  - Klik baris juga mencentang; **Pilih semua di <fase>** per bagian fase; **Pilih semua** /
+    **Kosongkan** di bilah yang menempel di bawah kepala saat daftar digulir (dua baris di
+    ponsel).
+  - Task turunan ikut tercentang dan terkunci bila induknya dipilih. Task yang tak boleh Anda
+    hapus kotaknya nonaktif.
+  - **Hapus N task** membuka jendela konfirmasi: daftar task (turunan di bawah induknya), jumlah
+    turunan, yang sudah selesai, dan setoran paket yang ikut hilang.
+- **Hapus satu task** dari tombol tempat sampah di detail task, dengan jendela yang sama.
+- **Aturan** (`Inti.bolehHapusTask`, `ringkasHapusTask`, `hapusTask`, aksi data `hapusTask`):
+  - boleh: Manager; Lead untuk task di tab timnya dan task yang boleh ia ubah; staff hanya task
+    yang ia buat untuk dirinya sendiri; agen AI tidak;
+  - ikut terhapus: task turunan, sub-task, komentar, tinjauan, bukti, dan setorannya;
+  - task lain yang menunggu task itu (deps, tunggu) dibersihkan rujukannya;
+  - satu permintaan ditolak utuh bila ada task yang tak boleh; task yang sudah dihapus orang lain
+    dilewati; paling banyak 500 task sekali hapus;
+  - Riwayat Aktivitas mencatat tiap task yang dipilih ("Task dihapus beserta N task turunan").
+    Di data real perubahannya baris yang dihapus ditambah task yang rujukannya berubah.
+- **Tab bawaan proyek** (`Inti.tabAwalProyek`): setiap kali proyek dibuka (dari daftar proyek,
+  pencarian, notifikasi, atau detail task), tab tim sendiri untuk Lead dan staff, **Ringkasan**
+  untuk Manager. Sebelumnya tab terakhir yang dipilih terbawa saat proyek dibuka lagi.
+- README (batasan "Task belum bisa dihapus" dihapus) dan Panduan (ADDIE per tim dan siklus)
+  menyebutnya. Tes baru `test/hapus-task.test.js`, termasuk lewat perintah data real. 241 tes.
+
 ## 2.22.0 — Hapus proyek (2026-10-13)
 
 Permintaan user: proyek yang sudah dibuat bisa dihapus juga.

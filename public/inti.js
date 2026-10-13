@@ -108,6 +108,12 @@
     const lead = o.peran === 'manager' ? o.id : o.peran === 'lead' ? o.id : o.lead;
     return Object.values(TIM).find(x => x.lead === lead) || null;
   };
+  /* Tab yang terbuka saat halaman proyek dibuka (2.23.0, permintaan user): tab tim sendiri untuk
+     Lead dan staff; Ringkasan untuk Manager dan orang yang timnya tak punya tab proyek. */
+  const tabAwalProyek = me => {
+    const t = timOrang(me);
+    return orang(me).peran !== 'manager' && t && TIM_PROYEK.includes(t.kode) ? t.kode : 'ringkas';
+  };
 
   /* ---------- Kelola orang (mode Dev, 0.13.0) ----------
      Satu baris tab `orang` = satu orang lengkap (bawaan yang diubah, atau orang baru):
@@ -1940,6 +1946,60 @@
     return { proyek: p.id, ...r };
   }
 
+  /* Hapus task (2.23.0, permintaan user): satu atau banyak sekaligus, mis. dipilih di tab tim
+     proyek. Yang boleh: Manager; Lead untuk task yang boleh ia ubah dan semua task di tab timnya;
+     staff hanya task yang ia buat untuk dirinya sendiri. Task turunan ikut terhapus bersama
+     induknya, setorannya ikut hilang (progres paket turun), dan rujukan di task lain (deps,
+     tunggu) dibersihkan. Riwayat Aktivitas mencatat tiap task yang dipilih. */
+  const MAKS_HAPUS_TASK = 500;
+  function bolehHapusTask(t, me, perId) {
+    if (!t) return false;
+    const r = orang(me).peran;
+    if (r === 'manager' || bolehUbahTask(t, me)) return true;
+    if (r !== 'lead' || !t.project) return false;
+    const tim = TIM[timJalur(t, perId)];
+    return !!tim && tim.lead === me;
+  }
+  /* Yang akan hilang bila task-task ini dihapus (untuk jendela konfirmasi). */
+  function ringkasHapusTask(data, ids) {
+    const perId = indeks(data);
+    const pilih = [...new Set(ids || [])].map(id => perId.get(id)).filter(Boolean);
+    const dipilih = new Set(pilih.map(t => t.id));
+    const turunan = data.tasks.filter(t => t.induk && dipilih.has(t.induk) && !dipilih.has(t.id));
+    const semua = [...pilih, ...turunan];
+    const idSemua = new Set(semua.map(t => t.id));
+    return {
+      tasks: semua, dipilih: pilih.length, turunan: turunan.length, selesai: semua.filter(selesai).length,
+      setoran: (data.setoran || []).filter(s => idSemua.has(s.task)).length,
+    };
+  }
+  function hapusTask(data, ids, me, waktu) {
+    const daftar = [...new Set((Array.isArray(ids) ? ids : [ids]).map(teks).filter(Boolean))];
+    if (!daftar.length) throw new Error('Pilih dulu task yang dihapus.');
+    if (daftar.length > MAKS_HAPUS_TASK) throw new Error(`Paling banyak ${MAKS_HAPUS_TASK} task sekali hapus.`);
+    const perId = indeks(data);
+    // Yang sudah dihapus orang lain lebih dulu dilewati; sisanya harus boleh semua.
+    const ada = daftar.filter(id => perId.has(id));
+    if (!ada.length) throw new Error('Task yang dipilih sudah tidak ada.');
+    const tolak = ada.map(id => perId.get(id)).filter(t => !bolehHapusTask(t, me, perId));
+    if (tolak.length) {
+      throw new Error(`Anda tak boleh menghapus ${tolak.map(t => t.id).join(', ')}: hanya Manager, Lead tim pemiliknya, atau staff yang membuatnya untuk dirinya sendiri.`);
+    }
+    const r = ringkasHapusTask(data, ada);
+    const idSemua = new Set(r.tasks.map(t => t.id));
+    for (let i = data.tasks.length - 1; i >= 0; i--) if (idSemua.has(data.tasks[i].id)) data.tasks.splice(i, 1);
+    if (data.setoran) for (let i = data.setoran.length - 1; i >= 0; i--) if (idSemua.has(data.setoran[i].task)) data.setoran.splice(i, 1);
+    for (const t of data.tasks) {
+      if ((t.deps || []).some(id => idSemua.has(id))) t.deps = t.deps.filter(id => !idSemua.has(id));
+      if ((t.tunggu || []).some(id => idSemua.has(id))) t.tunggu = t.tunggu.filter(id => !idSemua.has(id));
+    }
+    for (const t of r.tasks.filter(x => !x.induk || !idSemua.has(x.induk))) {
+      const anak = r.tasks.filter(x => x.induk === t.id).length;
+      catatLog(data, 'delete', `${t.id} · ${t.title}`, `Task dihapus${anak ? ` beserta ${anak} task turunan` : ''}`, me, waktu);
+    }
+    return { task: r.tasks.length, dipilih: r.dipilih, turunan: r.turunan, setoran: r.setoran };
+  }
+
   /* ---------- Rancangan paket → proyek ---------- */
 
   const fmtJumlah = n => (Number.isInteger(n) ? String(n) : String(n).replace('.', ','));
@@ -2819,6 +2879,7 @@
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
     aturTunggu: (d, x, me, w) => aturTunggu(d, tugas(d, x), x, me, w),
     hapusProyek: (d, x, me, w) => hapusProyek(d, proyekX(d, x), me, w),
+    hapusTask: (d, x, me, w) => hapusTask(d, x.tasks || x.task, me, w),
     ubahNamaPaket: (d, x, me, w) => ubahNamaPaket(d, paketX(d, x), x.nama, me, w),
     elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
     simpanDashboard: (d, x, me, w) => simpanDashboard(d, me, x.f || {}, x.id || '', w),
@@ -2945,6 +3006,6 @@
     KODE_AI, AKSI_AGEN, PESAN_AGEN,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
     SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
-    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek,
+    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, tabAwalProyek, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
   };
 }));
