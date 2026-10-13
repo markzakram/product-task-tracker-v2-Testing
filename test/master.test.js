@@ -174,3 +174,35 @@ test('salahHapusSub: kode yang dipakai task ditolak dengan jumlah dan sumbernya'
   assert.match(I.salahHapusSub('E4', [{ label: 'data contoh', tasks: [{ sub: 'E4' }, { sub: 'E4' }] }, { label: 'data real', tasks: [{ sub: 'E4' }] }]),
     /^E4 dipakai 2 task di data contoh dan 1 task di data real, jadi tak bisa dihapus\. Nonaktifkan saja/);
 });
+
+test('pindahSub (2.25.0): kegiatan pindah ke kode baru, alur ikut, kode lama dihapus atau dinonaktifkan', () => {
+  // Belum dipakai task: kode lama dihapus (tak dipakai ulang).
+  let tulis = I.pindahSub('E9', 'I9', [], 0);
+  assert.deepEqual(tulis.map(x => [x.kunci, x.aktif, !!x.dihapus]), [['I9', true, false], ['E9', false, true]]);
+  assert.deepEqual([I.subTahap('I9').nama, I.subTahap('I9').tim, I.subTahap('I9').tahap], ['Monitoring dan evaluasi guru', 'CO', 'I']);
+  assert.equal(I.SUB_TAHAP.some(s => s.kode === 'E9'), false);
+  assert.equal(I.kodeSubBerikut('E'), 'E13', 'nomor lain tak bergeser');
+  I.aturMaster([]);
+
+  // Dipakai task dan alur paket: alur ikut kode baru, kode lama dinonaktifkan (task lama tetap terbaca).
+  tulis = I.pindahSub('E1', 'E13', [], 3);
+  assert.deepEqual(tulis.map(x => x.kunci), ['E13', 'latsol', 'tryout', 'drilling', 'E1']);
+  assert.deepEqual([I.subTahap('E1').aktif, I.subTahap('E1').nama, I.subTahap('E13').nama], [false, 'QC soal', 'QC soal']);
+  assert.ok(I.ALUR_PAKET.Latsol.includes('E13:konten') && !I.ALUR_PAKET.Latsol.some(l => l.startsWith('E1:')));
+  const baris = tulis.slice();
+  I.aturMaster(baris);
+  assert.deepEqual(I.aturMaster(baris), {}, 'baris hasilnya utuh saat dimuat ulang');
+  I.aturMaster([]);
+
+  // Ditolak, dan daftar hidup kembali seperti semula.
+  for (const [dari, ke, pesan] of [
+    ['E12', 'E13', /menutup siklus/], ['E9', 'E1', /E1 sudah dipakai sub-stage "QC soal"/], ['E9', 'E9', /selain E9/],
+    ['X1', 'E13', /tidak ditemukan/], ['DV1', 'R5', /harus sub-stage ADDIE/], ['E9', 'Q1', /Kode sub-stage diawali/], ['E9', ' ', /Isi kode tujuan/],
+  ]) assert.throws(() => I.pindahSub(dari, ke, [], 0), pesan);
+  assert.equal(I.SUB_TAHAP.length, 46);
+  assert.ok(I.ALUR_PAKET.Latsol.includes('E1:konten'));
+  // Kode yang pernah dihapus juga tak bisa jadi tujuan.
+  const hapus = I.periksaMaster('substage', { kunci: 'E8', dihapus: true }, []);
+  I.aturMaster([hapus]);
+  assert.throws(() => I.pindahSub('E9', 'E8', [hapus], 0), /tak dipakai ulang/);
+});

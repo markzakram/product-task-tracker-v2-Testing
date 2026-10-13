@@ -200,6 +200,10 @@
        sedang "Lihat sebagai" (S.me sementara orang itu); orangBaris = baris tab orang dari
        server (organogram terkini), orangSalah = alasan tab itu diabaikan. */
     dev: false, devSampai: 0, devSistem: null, devTab: 'sistem', pratinjau: null, orangBaris: [], orangSalah: '',
+    /* Mode uji Dev (2.25.0): uji = browser ini memakai data contoh selama sesi Dev, sementara
+       pengguna lain tetap di sumber global (modeGlobal). Master yang diubah di mode uji hanya
+       tersimpan di browser ini (pt2_uji_master). */
+    uji: false, modeGlobal: '',
     /* Master & PIN profil (0.14.0): masterBaris = baris tab master dari server, masterSalah = jenis
        yang diabaikan karena rusak (beserta alasannya), berpin = profil yang memakai PIN pribadi,
        meSesi = profil yang sudah terbukti di sesi server ini (lewat PIN-nya, atau tak ber-PIN). */
@@ -214,7 +218,8 @@
 
   /* Selama "Lihat sebagai" (mode Dev) tak ada yang disimpan: perubahannya dibuang saat kembali. */
   function simpanData() {
-    if (S.pratinjau) return;
+    // Mode uji: "Lihat sebagai" ikut tersimpan, karena data uji memang hanya milik browser ini.
+    if (S.pratinjau && !S.uji) return;
     if (S.mode === 'real') {
       // Data bersama sudah dikirim lewat ubahData; di sini hanya salinan cepatnya dan data pribadi.
       S.pribadi = { links: S.data.links || [], notes: S.data.notes || [] };
@@ -419,6 +424,7 @@
   }
   document.addEventListener('focusout', () => setTimeout(() => { if (perluGambar && !sedangMengetik()) gambarUlangAman(); }, 0));
   function teksStatusData() {
+    if (S.uji) return `Mode uji Dev: data contoh di browser ini saja. Pengguna lain tetap di data ${S.modeGlobal === 'real' ? 'real' : 'contoh'}.`;
     if (S.mode !== 'real') return 'Data contoh. Perubahan hanya tersimpan di browser ini.';
     const n = S.real.tertunda.length;
     if (!n) return 'Data real. Semua perubahan tersimpan bersama di spreadsheet.';
@@ -436,7 +442,15 @@
   }
   /* Dev mengganti sumber data: semua browser memuat ulang aplikasinya. */
   function gantiSumber(mode) {
-    toast(mode === 'real' ? 'Sumber data diganti ke Data real. Memuat ulang…' : 'Sumber data diganti ke Data contoh. Memuat ulang…');
+    toast(mode === 'uji' ? 'Masuk mode uji Dev. Memuat ulang…' : mode === 'real' ? 'Sumber data diganti ke Data real. Memuat ulang…' : 'Sumber data diganti ke Data contoh. Memuat ulang…');
+    setTimeout(() => location.reload(), 1500);
+  }
+  /* Keluar dari mode uji Dev: kembali ke sumber yang dipakai semua orang. Data uji (data contoh
+     browser ini) tetap ada; Master uji dibuang. */
+  function keluarUji(pesan) {
+    hapus('uji');
+    hapus('uji_master');
+    toast(pesan || 'Keluar dari mode uji Dev. Memuat ulang…');
     setTimeout(() => location.reload(), 1500);
   }
   function simpanPref(ruang) {
@@ -884,8 +898,12 @@
   /* batasMs: tanpa batas waktu, layar "Memuat data…" menunggu selamanya kalau server tak menjawab. */
   async function api(action, args = [], batasMs = 30000) {
     // "Lihat sebagai" hanya tampilan: tak ada pesan, foto, perubahan orang, atau Master yang terkirim.
-    if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang', 'simpanMaster', 'aturPin', 'simpanReal', 'aturSumber'].includes(action)) {
+    if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang', 'simpanMaster', 'pindahSub', 'aturPin', 'simpanReal', 'aturSumber'].includes(action)) {
       return { http: 0, success: false, message: 'Mode Lihat sebagai: tampilan saja, tidak ada yang dikirim. Kembali jadi Dev dulu.' };
+    }
+    // Mode uji Dev: yang berlaku untuk pengguna lain (orang, PIN, foto, tampilan) tak dikirim.
+    if (S.uji && ['simpanFoto', 'simpanOrang', 'aturPin', 'simpanTampilan', 'simpanReal'].includes(action)) {
+      return { http: 0, success: false, message: 'Mode uji Dev: perubahan ini tidak dikirim, supaya pengguna lain tak terganggu. Keluar dari mode uji dulu.' };
     }
     const henti = new AbortController();
     const jam = setTimeout(() => henti.abort(), batasMs);
@@ -1094,7 +1112,8 @@
     tampilKunci(reset ? 'Mengembalikan data contoh…' : 'Memuat data…', true);
     // Data real: cukup perubahan sesudah salinan cepat di browser ini (kalau generasinya sama).
     const cacheReal = ambil('real', null);
-    const h = await api('muatContoh', [{ realSejak: cacheReal ? cacheReal.seq || 0 : 0, generasi: cacheReal ? cacheReal.generasi || '' : '' }], 45000);
+    const ujiMinta = !!ambil('uji', false);
+    const h = await api('muatContoh', [{ realSejak: cacheReal ? cacheReal.seq || 0 : 0, generasi: cacheReal ? cacheReal.generasi || '' : '', uji: ujiMinta }], 45000);
     if (h.http === 401) return tampilKunci('Masukkan PIN untuk melanjutkan.', false);
     if (!h.success) {
       const pesan = h.message || `Gagal memuat data (HTTP ${h.http}).`;
@@ -1105,11 +1124,16 @@
       // Organogram terkini (tab orang, diubah mode Dev) diterapkan sebelum layar pertama.
       S.dev = !!h.dev;
       S.devSampai = Number(h.devSampai) || 0;
+      // Mode uji hanya berlaku selama sesi Dev; server mengabaikannya dari sesi lain.
+      S.uji = !!h.uji;
+      S.modeGlobal = h.global === 'real' ? 'real' : h.global === 'contoh' ? 'contoh' : (h.mode === 'real' ? 'real' : 'contoh');
+      if (ujiMinta && !S.uji) { hapus('uji'); hapus('uji_master'); setTimeout(() => toast('Mode uji Dev berakhir karena sesi Dev sudah habis.', true), 0); }
       S.orangBaris = Array.isArray(h.orang) ? h.orang : [];
       S.orangSalah = I.aturOrang(S.orangBaris);
       if (S.orangSalah) catatGalat('Tab orang diabaikan: ' + S.orangSalah, 'organogram');
       // Master (0.14.0): daftar pilihan bersama, juga diterapkan sebelum layar pertama.
-      S.masterBaris = Array.isArray(h.master) ? h.master : [];
+      const masterUji = S.uji ? ambil('uji_master', null) : null;
+      S.masterBaris = Array.isArray(masterUji) ? masterUji : Array.isArray(h.master) ? h.master : [];
       S.masterSalah = I.aturMaster(S.masterBaris);
       for (const [jenis, alasan] of Object.entries(S.masterSalah)) catatGalat(`Master ${jenis} diabaikan: ${alasan}`, 'master');
       S.berpin = new Set(Array.isArray(h.berpin) ? h.berpin : []);
@@ -1293,6 +1317,10 @@
   }
 
   const PINTASAN = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘K' : 'Ctrl K';
+  /* Tinggi kepala (bertambah saat ada spanduk Lihat sebagai atau mode uji), untuk unsur yang
+     menempel di bawahnya, mis. bilah pilih task (2.25.0). */
+  const aturTinggiKepala = () => { const k = $('#kepala'); if (k) document.documentElement.style.setProperty('--tinggi-kepala', Math.round(k.getBoundingClientRect().height) + 'px'); };
+  if (window.ResizeObserver && $('#kepala')) new ResizeObserver(aturTinggiKepala).observe($('#kepala'));
   function renderKepala() {
     const h = HALAMAN.find(x => x.id === S.view);
     const baru = jumlahNotifBaru();
@@ -1312,7 +1340,8 @@
         <button type="button" class="tombol-akun" data-aksi="akun" aria-expanded="${S.akun.buka}" aria-label="Akun ${esc(I.orang(S.me).pendek)}: foto, ganti profil, tema, keluar">${avatar(S.me, 'kecil')}</button>
         ${S.akun.buka ? panelAkun() : ''}
       </div>
-    </div>${spandukPratinjau()}`;
+    </div>${spandukUji()}${spandukPratinjau()}`;
+    aturTinggiKepala();
   }
   /* Tombol tema di samping lonceng (2.20.2): sekali klik pindah terang ↔ gelap. Ikonnya tema
      tujuan (bulan saat terang, matahari saat gelap). "Ikuti sistem" ada di menu akun. */
@@ -1451,7 +1480,16 @@
     renderSamping(lencana);
     renderKepala();
     renderNavBawah(lencana);
+    // Rancangan paket yang sedang disunting dan belum disimpan (2.25.0, bug user: ketikan hilang
+    // beberapa detik kemudian): isiannya, juga baris yang ditambah, hanya ada di halaman. Gambar
+    // ulang di belakang (mis. tarikan data real berkala) memakai form yang sama, bukan
+    // menggambarnya lagi dari data.
+    const drafPaket = S.view === 'paket' && S.pkt.sunting && S.pkt.kotor ? $('#isi [data-form="paket"]') : null;
     $('#isi').innerHTML = GAMBAR[S.view]();
+    if (drafPaket) {
+      const baru = $('#isi [data-form="paket"]');
+      if (baru && baru.dataset.id === drafPaket.dataset.id) baru.replaceWith(drafPaket);
+    }
     renderLaci();
     pulihkanGulir(foto);
     renderPemandu();
@@ -1845,7 +1883,10 @@
   function bagianAnak(t, perId) {
     const anak = I.anakTask(perId, t.id).slice().sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
     const bisa = I.bolehBuatAnak(t, S.me);
-    if (!anak.length && !bisa) return '';
+    // Selalu ada di task proyek (semua tahap ADDIE, 2.25.0) bagi yang ikut mengurusnya, dengan
+    // alasannya kalau belum bisa dibagi; task turunan sendiri tak beranak lagi.
+    const tampil = anak.length || bisa || (!t.induk && I.jenisJalur(t) !== 'lepas' && (I.bolehUbah(t, S.me) || I.orang(S.me).peran !== 'staff'));
+    if (!tampil) return '';
     const id = esc(t.id);
     // PIC turunan: staff tim, atau Lead itu sendiri (2.21.0).
     const staf = [...I.timDari(S.me), S.me];
@@ -1861,7 +1902,7 @@
           <input class="input tenggat-anak" type="date" id="anakdue-${id}" name="due" value="${esc(t.due || '')}" title="Tenggat">
           <button class="tombol">${ikon('tambah', 16)} Buat task turunan</button>
         </form>
-        <p class="hint">Bagi pekerjaan task ini ke staff tim Anda, atau pecah untuk Anda kerjakan sendiri. Task turunan tampil menjorok di bawah task ini; yang dipegang staff ditinjau Anda, yang Anda pegang sendiri langsung ditandai selesai. Task ini baru bisa ${I.peninjau(t) ? 'diajukan' : 'ditandai selesai'} setelah semua task turunannya selesai.</p>` : ''}
+        <p class="hint">Bagi pekerjaan task ini ke staff tim Anda, atau pecah untuk Anda kerjakan sendiri. Task turunan tampil menjorok di bawah task ini; yang dipegang staff ditinjau Anda, yang Anda pegang sendiri langsung ditandai selesai. Task ini baru bisa ${I.peninjau(t) ? 'diajukan' : 'ditandai selesai'} setelah semua task turunannya selesai.</p>` : `<p class="hint">${anak.length ? '' : 'Belum ada task turunan. '}${esc(I.alasanTakBisaBagi(t, S.me))}</p>`}
     </section>`;
   }
 
@@ -3174,8 +3215,9 @@
     if (S.obr.menarik || !S.data) return;
     S.obr.menarik = true;
     const awal = penuh || !S.obr.diperbarui;
-    const h = await api('sinkron', [{ obrolanSejak: awal ? 0 : S.obr.sejak, realSejak: S.real.seq, generasi: S.real.generasi }]);
+    const h = await api('sinkron', [{ obrolanSejak: awal ? 0 : S.obr.sejak, realSejak: S.real.seq, generasi: S.real.generasi, uji: S.uji }]);
     S.obr.menarik = false;
+    if (h.success && S.uji && !h.uji) return keluarUji('Mode uji Dev berakhir karena sesi Dev sudah habis. Memuat ulang…');
     if (h.success && h.mode && h.mode !== S.mode) return gantiSumber(h.mode);
     if (h.success && S.mode === 'real' && h.real) terimaReal(h.real);
     if (h.success) Object.assign(h, h.obrolan || { peristiwa: [] });
@@ -3225,7 +3267,7 @@
     const sementara = { ...e, id: `tmp${++urutSementara}x${Date.now().toString(36)}`, at: Date.now(), tertunda: true, asli: e };
     S.obr.peristiwa.push(sementara);
     obrolanBerubah();
-    const h = await api('kirimObrolan', [e]);
+    const h = await api('kirimObrolan', [e, { uji: S.uji }]);
     const i = S.obr.peristiwa.indexOf(sementara);
     if (h.success && h.peristiwa) {
       if (i >= 0) S.obr.peristiwa.splice(i, 1);
@@ -6015,6 +6057,7 @@
     Object.assign(S, { dev: false, devSampai: 0, devSistem: null });
     if (S.pratinjau) akhiriPratinjau(false);
     if (S.me === I.DEV) { S.me = null; hapus('me'); }
+    if (S.uji) keluarUji('Mode uji Dev berakhir bersama sesi Dev. Memuat ulang…');
   }
   function devBerakhir() {
     const tadinya = S.me === I.DEV || !!S.pratinjau;
@@ -6034,7 +6077,7 @@
     S.pratinjau = { orang: id };
     gantiIdentitas(id, { ingat: false });
     masukApp();
-    toast(`Melihat sebagai ${I.orang(id).pendek}. Tampilan saja: perubahan tidak disimpan.`);
+    toast(S.uji ? `Melihat sebagai ${I.orang(id).pendek}. Mode uji: perubahan tersimpan di data uji browser ini.` : `Melihat sebagai ${I.orang(id).pendek}. Tampilan saja: perubahan tidak disimpan.`);
   }
   function akhiriPratinjau(kembali = true) {
     if (!S.pratinjau) return;
@@ -6043,7 +6086,7 @@
     if (S.mode === 'real') {
       S.pribadi = ambil('pribadi_real', null) || { links: [], notes: [] };
       susunReal();
-    } else {
+    } else if (!S.uji) {
       const lokal = ambil('data', null);
       if (lokal && lokal.data) { S.data = rapikan(lokal.data); I.segarkanTahap(S.data); }
     }
@@ -6053,8 +6096,12 @@
     masukApp();
     toast('Kembali jadi Dev.');
   }
+  /* Mode uji Dev selalu terlihat, supaya tak ada yang bekerja di sini sambil mengira masuk data real. */
+  const spandukUji = () => (S.uji ? `<div class="spanduk-pratinjau spanduk-uji" role="status">${ikon('kode', 18)}
+      <span><b>Mode uji Dev</b> — data contoh di browser ini saja. Pengguna lain tetap di data ${S.modeGlobal === 'real' ? 'real' : 'contoh'}, dan perubahan di sini (termasuk Master) tak sampai ke mereka.</span>
+      <button type="button" class="tombol kecil" data-aksi="uji-keluar">Keluar mode uji</button></div>` : '');
   const spandukPratinjau = () => (S.pratinjau ? `<div class="spanduk-pratinjau" role="status">${ikon('mata', 18)}
-      <span>Melihat sebagai <b>${esc(I.orang(S.me).nama)}</b> · ${esc(I.PERAN[I.orang(S.me).peran])} — tampilan saja; perubahan tidak disimpan dan tak ada yang dikirim.</span>
+      <span>Melihat sebagai <b>${esc(I.orang(S.me).nama)}</b> · ${esc(I.PERAN[I.orang(S.me).peran])} — ${S.uji ? 'perubahan tersimpan di data uji browser ini; pesan tidak dikirim.' : 'tampilan saja; perubahan tidak disimpan dan tak ada yang dikirim.'}</span>
       <button type="button" class="tombol kecil" data-aksi="pratinjau-akhiri">Kembali jadi Dev</button></div>` : '');
 
   /* ----- Panel Dev ----- */
@@ -6102,11 +6149,13 @@
   const RIWAYAT_BESAR = 20 * 1048576;   // ±20 MB riwayat data_real: peringatan pindah ke MySQL
   function kartuSumber(x) {
     const r = x && x.real;
-    const pilihan = (mode, judul, ket) => `<button type="button" class="pilihan-sumber" data-aksi="dev-sumber" data-nilai="${mode}" aria-pressed="${S.mode === mode}">
-        <strong>${judul}${S.mode === mode ? ' · aktif' : ''}</strong><span>${ket}</span></button>`;
+    const aktif = mode => (S.uji ? mode === 'uji' : mode === S.mode);
+    const pilihan = (mode, judul, ket) => `<button type="button" class="pilihan-sumber" data-aksi="dev-sumber" data-nilai="${mode}" aria-pressed="${aktif(mode)}">
+        <strong>${judul}${aktif(mode) ? ' · aktif' : S.uji && mode === S.modeGlobal ? ' · dipakai pengguna lain' : ''}</strong><span>${ket}</span></button>`;
     return `<div class="sumber-data">
         ${pilihan('contoh', 'Data contoh', 'Hasil impor v1 dan skenario contoh. Perubahan hanya tersimpan di browser masing-masing dan bisa di-reset.')}
         ${pilihan('real', 'Data real', `Mulai kosong. Setiap perubahan tersimpan bersama di spreadsheet (tab data_real) dan terlihat semua orang.${r ? ` Tersimpan ${fmtAngka(r.perubahan)} perubahan${r.ukuran ? ` (±${fmtUkuran(r.ukuran)})` : ''}${r.diulang ? `; ${r.diulang} kalah dari perubahan yang bersamaan dan sudah diulang server` : ''}${r.rusak ? `; ${r.rusak} baris rusak dilewati` : ''}.` : ''}`)}
+        ${pilihan('uji', 'Uji Dev (browser ini saja)', 'Data contoh hanya untuk sesi Dev di browser ini, untuk mencoba fitur baru. Pengguna lain tetap di sumber di atas. Master yang diubah di sini hanya berlaku di browser ini; pesan masuk obrolan data contoh; orang, PIN, foto, dan tampilan tak bisa diubah. Berakhir saat keluar dari mode Dev.')}
       </div>
       ${r && r.ukuran > RIWAYAT_BESAR ? `<p class="hint teks-merah">Riwayat data real sudah ±${fmtUkuran(r.ukuran)}. Riwayat itu dibaca utuh setiap server menyala dan setiap browser baru membuka data real, jadi pemuatan makin lambat: saatnya pindah ke MySQL (lihat README, Sumber data).</p>` : ''}
       <p class="hint">Mengganti sumber data memuat ulang aplikasi di semua browser, paling lambat sekitar satu menit kemudian (tab yang tak terlihat menyusul saat dibuka lagi). Perubahan data real yang terkirim sesudah sumbernya diganti ditolak, jadi pilih saat tim tak sedang mengisi. Obrolan Komunikasi juga terpisah per sumber data. Data yang tidak sedang dipakai tetap utuh.</p>`;
@@ -6339,7 +6388,16 @@
 
   /* Satu isian → server → semua daftar hidup diperbarui. form = tempat galatnya ditampilkan. */
   async function simpanMaster(jenis, isian, form) {
-    try { I.periksaMaster(jenis, isian, S.masterBaris); } catch (err) { return gagalMaster(err.message, form); }
+    let bersih;
+    try { bersih = I.periksaMaster(jenis, isian, S.masterBaris); } catch (err) { return gagalMaster(err.message, form); }
+    if (S.uji) {
+      if (bersih.jenis === 'substage' && bersih.dihapus) {
+        const salah = I.salahHapusSub(bersih.kunci, [{ label: 'data uji', tasks: S.data.tasks }]);
+        if (salah) return gagalMaster(salah, form);
+      }
+      terapkanMasterUji([bersih]);
+      return true;
+    }
     const tombol = form && form.querySelector('button:not([type="button"])');
     if (tombol) tombol.disabled = true;
     const h = await api('simpanMaster', [jenis, isian]);
@@ -6348,6 +6406,31 @@
     S.masterBaris = h.master;
     S.masterSalah = I.aturMaster(S.masterBaris);
     return true;
+  }
+  /* Mode uji Dev (2.25.0): Master diubah di browser ini saja, tak dikirim ke server. */
+  function terapkanMasterUji(tulis) {
+    let baris = S.masterBaris.slice();
+    for (const x of tulis) baris = [...baris.filter(r => !(r.jenis === x.jenis && String(r.kunci).toLowerCase() === String(x.kunci).toLowerCase())), { ...x, diperbarui: Date.now() }];
+    S.masterBaris = baris;
+    simpan('uji_master', baris);
+    S.masterSalah = I.aturMaster(baris);
+  }
+  /* Pindahkan sub-stage ke kode lain (2.25.0). Diperiksa di sini dengan aturan yang sama
+     (I.pindahSub), lalu server menulisnya; mode uji menerapkannya di browser ini saja. */
+  async function pindahMaster(dari, ke, form) {
+    const n = S.data.tasks.filter(t => t.sub === dari).length;
+    let tulis;
+    try { tulis = I.pindahSub(dari, ke, S.masterBaris, n); } catch (err) { return gagalMaster(err.message, form); }
+    if (S.uji) { terapkanMasterUji(tulis); return tulis; }
+    S.masterSalah = I.aturMaster(S.masterBaris);   // pemeriksaan tadi mengubah daftar hidup; server yang menulis
+    const tombol = form && form.querySelector('button:not([type="button"])');
+    if (tombol) tombol.disabled = true;
+    const h = await api('pindahSub', [dari, ke]);
+    if (tombol) tombol.disabled = false;
+    if (!h.success || !Array.isArray(h.master)) return gagalMaster(h.message || 'Gagal memindahkan sub-stage.', form);
+    S.masterBaris = h.master;
+    S.masterSalah = I.aturMaster(S.masterBaris);
+    return tulis;
   }
   function gagalMaster(pesan, form) {
     if (form && form.closest('#modal-panel')) galatModal(pesan); else toast(pesan, true);
@@ -6394,7 +6477,8 @@
         <td>${s.reviewManager ? 'Ya' : '—'}</td>
         <td>${s.aktif ? '<span class="chip-status hidup">Aktif</span>' : '<span class="chip-status mati">Nonaktif</span>'}</td>
         <td><span class="mst-aksi"><button type="button" class="tombol kecil" data-aksi="mst-sub-ubah" data-kunci="${esc(s.kunci)}">${ikon('sunting', 14)} Ubah</button>
-          ${I.SUB_TERKUNCI.includes(s.kunci) ? '' : `<button type="button" class="ikon-tombol bahaya" data-aksi="mst-sub-hapus" data-kunci="${esc(s.kunci)}" title="Hapus ${esc(s.kunci)}" aria-label="Hapus sub-stage ${esc(s.kunci)}">${ikon('hapus', 16)}</button>`}</span></td></tr>`;
+          ${I.SUB_TERKUNCI.includes(s.kunci) ? '' : `<button type="button" class="ikon-tombol" data-aksi="mst-sub-pindah" data-kunci="${esc(s.kunci)}" title="Pindahkan ${esc(s.kunci)} ke kode lain" aria-label="Pindahkan sub-stage ${esc(s.kunci)} ke kode lain">${ikon('pindah', 16)}</button>
+          <button type="button" class="ikon-tombol bahaya" data-aksi="mst-sub-hapus" data-kunci="${esc(s.kunci)}" title="Hapus ${esc(s.kunci)}" aria-label="Hapus sub-stage ${esc(s.kunci)}">${ikon('hapus', 16)}</button>`}</span></td></tr>`;
     };
     const grup = [...I.TAHAP.map(t => [t.id, `${awalanKode(t.id)} · ${t.nama}`]), ['R', 'R · Rutin, di luar proyek']];
     const daftarTerhapus = terhapus.length ? `<section class="mst-terhapus"><p class="subjudul">Sudah dihapus</p>
@@ -6417,7 +6501,7 @@
     const nTask = S.data.tasks.filter(t => t.sub === s.kunci).length;
     const alur = I.daftarMaster('kategori').filter(k => k.alur.some(l => l.split(':')[0] === s.kunci)).map(k => k.label);
     const alasan = I.SUB_TERKUNCI.includes(s.kunci) ? `${s.kunci} menutup siklus dan dirujuk langsung oleh aturan.`
-      : nTask ? `${s.kunci} dipakai ${nTask} task di ${S.mode === 'real' ? 'data real' : 'data contoh'}.`
+      : nTask ? `${s.kunci} dipakai ${nTask} task di ${namaSumber()}.`
         : alur.length ? `${s.kunci} dipakai alur kategori paket ${alur.join(', ')}. Ganti langkah alurnya dulu di bagian Kategori.` : '';
     const judul = `${esc(s.kunci)} · ${esc(s.nama)}`;
     if (alasan) {
@@ -6431,11 +6515,40 @@
     }
     return `<form data-form="mst-sub-hapus" class="form-hapus-proyek" novalidate>
       <h2>Hapus ${judul}?</h2>
-      <p>Sub-stage ini belum dipakai task mana pun di ${S.mode === 'real' ? 'data real' : 'data contoh'} dan tak ada di alur paket. Server memeriksa lagi data contoh dan data real sebelum menghapus.</p>
+      <p>Sub-stage ini belum dipakai task mana pun di ${namaSumber()} dan tak ada di alur paket. ${S.uji ? 'Mode uji: hanya Master di browser ini yang berubah.' : 'Server memeriksa lagi data yang sedang dipakai semua orang sebelum menghapus.'}</p>
       <p class="hint">Nomor sub-stage lain tak bergeser. Kode ${esc(s.kunci)} tak dipakai ulang: sub-stage baru di tahap ini mulai dari ${esc(I.kodeSubBerikut(I.tahapDariKode(s.kunci)))}. Yang terhapus bisa dipulihkan dari halaman ini.</p>
       <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
       <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">Batal</button><button class="tombol bahaya">${ikon('hapus', 16)} Hapus</button></div>
     </form>`;
+  }
+  const namaSumber = () => (S.uji ? 'data uji' : S.mode === 'real' ? 'data real' : 'data contoh');
+  function formPindahSub(s) {
+    const tahap = I.tahapDariKode(s.kunci);
+    const n = S.data.tasks.filter(t => t.sub === s.kunci).length;
+    const alur = I.daftarMaster('kategori').filter(k => k.alur.some(l => l.split(':')[0] === s.kunci)).map(k => k.label);
+    const opsiTahap = [...I.TAHAP.map(t => [t.id, `${awalanKode(t.id)} · ${t.nama}`]), ['R', 'R · Rutin']];
+    return `<form data-form="mst-sub-pindah" novalidate>
+      <h2>Pindahkan ${esc(s.kunci)} · ${esc(s.nama)}</h2>
+      <p class="hint">Nama, tim pemilik, dan review Manager pindah ke kode baru. Nomor sub-stage lain tak bergeser.</p>
+      <div class="dua-isian"><label class="isian">Tahap tujuan<select name="tahap">${opsiHtml(opsiTahap, tahap)}</select></label>
+        <label class="isian">Kode baru<input name="kunci" value="${esc(I.kodeSubBerikut(tahap))}" maxlength="4" autocomplete="off" spellcheck="false" required><small>Kode yang belum pernah ada; terisi sendiri sesudah nomor terbesar di tahap itu.</small></label></div>
+      <ul class="daftar-hapus">
+        <li>${n ? `Kode lama ${esc(s.kunci)} dinonaktifkan: ${n} task di ${namaSumber()} tetap memakainya, dengan nama yang sama.` : `Kode lama ${esc(s.kunci)} dihapus (masuk Sudah dihapus), karena belum dipakai task di ${namaSumber()}.`}</li>
+        ${alur.length ? `<li>Alur kategori paket ${esc(alur.join(', '))} ikut memakai kode baru.</li>` : ''}
+      </ul>
+      ${kakiModal('Pindahkan')}
+    </form>`;
+  }
+  async function kirimPindahSub(form) {
+    const dari = S.modal && S.modal.kunci;
+    const ke = String(form.elements.namedItem('kunci').value || '').trim().toUpperCase();
+    if (!dari) return;
+    const tulis = await pindahMaster(dari, ke, form);
+    if (!tulis) return;
+    tutupModal();
+    render();
+    const lama = tulis[tulis.length - 1];
+    toast(`${dari} dipindah ke ${ke}. ${lama.dihapus ? `${dari} dihapus` : `${dari} dinonaktifkan; task lamanya tetap memakai ${dari}`}${tulis.length > 2 ? '; alur paket ikut memakai ' + ke : ''}.`);
   }
   async function kirimHapusSub(form) {
     const kunci = S.modal && S.modal.kunci;
@@ -7479,7 +7592,7 @@
     simpanData();
     render();
     const tahap = pindah.map(p => `${p.name} kini di tahap ${I.namaTahap(p.stage)}.`).join(' ');
-    if (S.pratinjau) return toast('Mode Lihat sebagai: perubahan ini hanya tampilan dan hilang saat kembali jadi Dev.');
+    if (S.pratinjau && !S.uji) return toast('Mode Lihat sebagai: perubahan ini hanya tampilan dan hilang saat kembali jadi Dev.');
     if (pesan || tahap) toast([pesan, tahap].filter(Boolean).join(' '));
   }
 
@@ -7527,6 +7640,8 @@
       + 'Data contoh dimuat lagi dari spreadsheet, persis seperti saat diimpor. Profil lain di browser ini ikut kembali ke awal.\n\n'
       + 'Pesan Komunikasi tersimpan bersama di spreadsheet, jadi tidak ikut terhapus.')) return render();
     hapus('data');
+    // Mode uji: Master uji juga kembali ke Master bersama.
+    if (S.uji) hapus('uji_master');
     Object.assign(S, { pilih: null, proyek: null, proyekArsip: false });
     Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
     Object.assign(S.kom, { pilih: null });
@@ -7682,14 +7797,26 @@
       case 'dev-keluar': keluarDev(); break;
       case 'dev-tab': S.devTab = d.nilai; render(); break;
       case 'dev-sistem-segarkan': S.devSistem = null; segarkanDev(); break;
+      case 'uji-keluar': keluarUji(); break;
       case 'dev-sumber': {
+        if (d.nilai === 'uji') {
+          if (S.uji) return;
+          if (!confirm('Masuk mode uji Dev?\n\nBrowser ini memakai data contoh selama sesi Dev, untuk mencoba fitur baru. Pengguna lain tetap di sumber data mereka, dan perubahan di sini (termasuk Master) tak sampai ke mereka.')) return;
+          simpan('uji', true);
+          return gantiSumber('uji');
+        }
         const mode = d.nilai === 'real' ? 'real' : 'contoh';
-        if (mode === S.mode) return;
+        if (S.uji && mode === S.modeGlobal) return keluarUji();
+        if (mode === S.modeGlobal) return;
         const tanya = mode === 'real'
           ? 'Pindahkan aplikasi ke DATA REAL untuk semua pengguna?\n\nSemua orang akan melihat data real (masih kosong sampai diisi), dan setiap perubahan tersimpan bersama di spreadsheet. Data contoh tetap utuh dan bisa dipakai lagi kapan saja.'
           : 'Kembalikan aplikasi ke DATA CONTOH untuk semua pengguna?\n\nData real tetap tersimpan di spreadsheet dan muncul lagi saat dipindah kembali.';
         if (!confirm(tanya)) return;
-        api('aturSumber', [mode]).then(h => (h.success ? gantiSumber(mode) : toast(h.message || 'Gagal mengganti sumber data.', true)));
+        api('aturSumber', [mode]).then(h => {
+          if (!h.success) return toast(h.message || 'Gagal mengganti sumber data.', true);
+          if (S.uji) { hapus('uji'); hapus('uji_master'); }
+          gantiSumber(mode);
+        });
         break;
       }
       case 'coba-simpan': S.real.gagal = 0; kirimTertunda(); break;
@@ -7721,6 +7848,11 @@
         break;
       }
       case 'mst-sub-nonaktif': tutupModal(); aktifkanMaster('substage', d.kunci, false); break;
+      case 'mst-sub-pindah': {
+        const s = I.daftarMaster('substage').find(x => x.kunci === d.kunci && !x.dihapus);
+        if (s) bukaModal({ jenis: 'mst-sub-pindah', kunci: s.kunci }, formPindahSub(s));
+        break;
+      }
       case 'mst-sub-pulihkan': pulihkanSub(d.kunci); break;
       case 'mst-sub-ubah': {
         const s = I.daftarMaster('substage').find(x => x.kunci === d.kunci);
@@ -8169,7 +8301,7 @@
       return;
     }
     // Master, sub-stage baru: kode ikut tahap yang dipilih; pekerjaan rutin tak ditinjau.
-    if (el.name === 'tahap' && el.closest('form[data-form="mst-sub"]')) {
+    if (el.name === 'tahap' && el.closest('form[data-form="mst-sub"], form[data-form="mst-sub-pindah"]')) {
       const form = el.closest('form');
       form.elements.namedItem('kunci').value = I.kodeSubBerikut(el.value);
       const review = $('[data-bagian-sub="review"]', form);
@@ -8237,7 +8369,7 @@
     if (form.dataset.form === 'masuk-dev') { e.preventDefault(); kirimMasukDev(form); return; }
     if (form.dataset.form === 'orang') { e.preventDefault(); kirimOrang(form); return; }
     // PIN profil dan halaman Master (0.14.0).
-    const khusus = { 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-sub-hapus': kirimHapusSub, 'mst-kat': kirimMasterKategori,
+    const khusus = { 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-sub-hapus': kirimHapusSub, 'mst-sub-pindah': kirimPindahSub, 'mst-kat': kirimMasterKategori,
       'mst-tambah': kirimMasterTambah, 'mst-label': kirimMasterLabel, 'mst-pin': kirimFormPin }[form.dataset.form];
     if (khusus) { e.preventDefault(); khusus(form); return; }
     const jenis = form.dataset.form;

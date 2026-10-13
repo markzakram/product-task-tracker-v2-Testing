@@ -215,6 +215,7 @@
         'Buka langkahnya. Di bagian **Task turunan**, tulis bagian pekerjaannya, pilih PIC-nya (staff tim, atau **Anda sendiri**) dan tenggat, lalu tekan **Buat task turunan**. Ulangi untuk bagian lain.',
         'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Langkahnya sendiri tetap Anda pegang: task Lead tidak diserahkan ke staff.',
         'Setelah semua task turunan disetujui, lengkapi output & bukti langkah Anda, lalu ajukan ke Manager. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
+        'Task tim Anda yang PIC-nya staff (di tahap mana pun, mis. Design) juga bisa Anda bagi dari detail task-nya. Task yang sudah selesai atau sedang ditinjau tak bisa ditambah task turunan; alasannya tampil di bagian itu.',
       ],
     },
     {
@@ -305,6 +306,7 @@
         'Buka **Master** di grup Manajer. Isinya daftar pilihan yang dipakai semua orang: **sub-stage**, **kategori paket** dan alurnya, **platform**, **satuan**, label prioritas, capaian dan bobotnya, serta nama tim.',
         'Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi, tapi task dan paket lamanya tetap terbaca. Panah atas-bawah mengatur urutan platform, satuan, dan kategori.',
         '**Hapus sub-stage**: tombol tempat sampah di baris sub-stage. Hanya yang belum dipakai task mana pun dan tak ada di alur paket; kalau sudah dipakai, jendelanya menawarkan **Nonaktifkan**. Kode yang dihapus tak dipakai ulang dan bisa **dipulihkan** dari bagian **Sudah dihapus**. E12 tak bisa dihapus karena menutup siklus.',
+        '**Pindahkan ke kode lain** (tombol panah di baris sub-stage): kalau hanya kegiatannya yang ingin dipindah, mis. dari E10 ke I9. Nama, tim, dan review pindah ke kode baru, alur paket ikut; kode lama dihapus kalau belum dipakai task, selain itu dinonaktifkan.',
         '**Kategori paket**: susun alur langkahnya dan tandai capaiannya berurutan (konten, input, QC, tayang). Kategori baru langsung muncul di form rancangan paket dan di salinan sheet Marsel.',
 
         'Perubahan tersimpan di spreadsheet v2 dan berlaku bagi semua orang saat aplikasi dimuat ulang.',

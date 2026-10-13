@@ -72,7 +72,11 @@ dengan satu penyederhanaan: tetap empat status.
   Induknya baru bisa diajukan atau ditandai selesai setelah semua task turunannya selesai; induk
   yang masih antre ikut mulai begitu dibagi. Induk yang sudah dibagi tetap dipegang PIC-nya.
   Sejak 2.21.0 namanya **task turunan** (dulu "task anak"; nama fungsi dan kolom `induk` di data
-  tetap). PIC-nya boleh **Lead itu sendiri**: turunan yang ia pegang tak ditinjau lagi dan langsung
+  tetap). Sejak 2.25.0 bagian Task turunan ada di detail semua task proyek (semua tahap ADDIE),
+  dan **Lead tim pemilik task** juga membaginya walau PIC-nya staff timnya (mis. task Design yang
+  langsung diberikan ke staff); kalau belum bisa dibagi, alasannya tampil di sana (sudah selesai,
+  sedang ditinjau, atau siapa Lead yang membaginya).
+  PIC-nya boleh **Lead itu sendiri**: turunan yang ia pegang tak ditinjau lagi dan langsung
   ditandai selesai, karena induknya tetap ditinjau Manager. Lead tanpa staff pun bisa memecah
   task-nya.
 - **ADDIE per tim (2.19.0, keputusan user 13 Okt 2026).** Halaman proyek dibagi per tim: tab
@@ -447,6 +451,20 @@ dipilih di sesi itu, dan profil ber-PIN harus terbukti. Mode Dev dan Lihat sebag
 mengubah data real. Seperti `obrolan`, tab `setelan`, `data_real`, dan `obrolan_real` tak
 disentuh `npm run impor:v1` maupun Reset data contoh.
 
+**Mode uji Dev (2.25.0).** Pilihan ketiga di Panel Dev → Sistem: **Uji Dev (browser ini saja)**,
+untuk mencoba fitur yang baru ditambahkan tanpa mengganggu data real.
+
+- Browser itu memakai **data contoh** selama sesi Dev, sementara semua pengguna lain tetap di
+  sumber global (mis. data real). Server hanya mengabulkannya untuk sesi Dev (`muatContoh` dan
+  `sinkron` dengan `uji: true`); sesi Dev yang berakhir mengembalikan browser itu ke sumber global.
+- Spanduk biru **Mode uji Dev** selalu tampil di kepala, dengan tombol **Keluar mode uji**.
+- **Master** yang diubah di mode uji (tambah, hapus, pindah kode) hanya berlaku di browser itu
+  (`pt2_uji_master`); keluar dari mode uji atau Reset data contoh membuangnya.
+- **Lihat sebagai** di mode uji menyimpan perubahannya di data uji, jadi alur peran lain bisa
+  dicoba sampai tuntas.
+- Pesan Komunikasi masuk obrolan data contoh. Orang, PIN, foto, dan tampilan pribadi tak bisa
+  diubah dari mode uji karena berlaku untuk pengguna lain.
+
 **Cara kerjanya.**
 
 - **Satu pintu.** Setiap perubahan data bersama lewat `ubahData(aksi, isi)` di `public/app.js`.
@@ -553,16 +571,25 @@ profil) hanya tampil dan berlaku di mode Dev (0.14.1).
 - **Sub-stage**: tambah kode baru (terisi sendiri sesudah nomor terbesar di tahapnya, mis.
   DV10 atau E13), ubah nama, tim pemilik, dan "direview Manager", nonaktifkan, atau **hapus**
   (2.24.0):
-  - yang bisa dihapus hanya sub-stage yang belum dipakai task mana pun (data contoh dan data
-    real, diperiksa server) dan tak ada di alur kategori paket; jendela hapusnya menjelaskan
-    alasannya bila tak bisa, lalu menawarkan **Nonaktifkan**;
+  - yang bisa dihapus hanya sub-stage yang belum dipakai task di **sumber data yang dipakai
+    semua orang** (2.25.0: saat data real aktif, pemakaian di data contoh tak lagi menghalangi;
+    diperiksa server) dan tak ada di alur kategori paket; jendela hapusnya menjelaskan
+    alasannya bila tak bisa, lalu menawarkan **Nonaktifkan**. Task data contoh yang memakai kode
+    yang dihapus tetap terbaca namanya;
   - nomor sub-stage lain **tak bergeser**, dan kode yang dihapus **tak dipakai ulang**: kode adalah
     identitas yang tersimpan di task dan tertulis di judul task, Riwayat Aktivitas, komentar,
     dan pesan, jadi kode yang digeser atau dipakai ulang akan mengubah arti data lama;
   - yang dihapus tercatat di tab `master` (penanda `dihapus` di kolom `data`, tanpa kolom baru)
     dan tampil di bagian **Sudah dihapus**, tempat ia bisa **dipulihkan** dengan kode yang sama;
   - **E12** (Final approval) menutup siklus dan dirujuk langsung oleh aturan, jadi tak bisa
-    dihapus atau dinonaktifkan.
+    dihapus, dinonaktifkan, atau dipindah.
+  - **Pindahkan ke kode lain** (2.25.0, tombol panah di baris sub-stage): pengganti "hapus lalu
+    tambah" kalau hanya kegiatannya yang ingin dipindah ke kode lain, termasuk ke tahap lain.
+    Nama, tim pemilik, dan review Manager pindah ke kode baru (kode yang belum pernah ada, terisi
+    sendiri sesudah nomor terbesar); alur kategori paket yang memakai kode lama ikut diganti.
+    Kode lama dihapus kalau belum dipakai task, selain itu dinonaktifkan dan task lamanya tetap
+    memakai kode lama. Server menulis barisnya berurutan (kode baru, alur, kode lama) lewat aksi
+    `pindahSub`; aturannya `Inti.pindahSub`.
 - **Kategori paket**: tambah kategori, susun **alur langkah** dan tanda capaiannya (konten →
   input → QC → tayang; tayang wajib), urutkan, nonaktifkan. Nama kategori tetap, karena item
   paket merujuk ke nama itu.

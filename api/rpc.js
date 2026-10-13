@@ -7,9 +7,9 @@
      POST /api/rpc  { action: 'keluar' }             menghapusnya
      POST /api/rpc  { action: 'status' }             akun, spreadsheet, kepemilikan
      POST /api/rpc  { action: 'siapkan' }            pasang penanda v2 di spreadsheet kosong
-     POST /api/rpc  { action: 'muatContoh' }         data contoh untuk prototipe
+     POST /api/rpc  { action: 'muatContoh', args: [{ realSejak, generasi, uji }] }  data sumber aktif (uji: mode uji Dev, 2.25.0)
      POST /api/rpc  { action: 'muatObrolan', args: [sejak] }   pesan Komunikasi sejak waktu itu
-     POST /api/rpc  { action: 'kirimObrolan', args: [peristiwa] } satu pesan/ubah/hapus/reaksi/beres
+     POST /api/rpc  { action: 'kirimObrolan', args: [peristiwa, { uji }] } satu pesan/ubah/hapus/reaksi/beres
      POST /api/rpc  { action: 'muatFoto', args: [sejak] }      foto profil yang berubah sejak waktu itu
      POST /api/rpc  { action: 'simpanFoto', args: [{ orang, gambar }] }  ganti atau hapus (gambar '')
      POST /api/rpc  { action: 'muatTampilan', args: [sejak] }  tampilan & status semua orang (tanpa gambar sampul)
@@ -23,10 +23,11 @@
      POST /api/rpc  { action: 'masukProfil', args: [orang, pin] }  pilih profil (PIN kalau profil itu ber-PIN)
      POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Lead/Manager/Dev] daftar pilihan (halaman Master);
                     isian { kunci, dihapus: true } menghapus sub-stage yang belum dipakai (2.24.0)
+     POST /api/rpc  { action: 'pindahSub', args: [dari, ke] }  [Lead/Manager/Dev] pindahkan sub-stage ke kode lain (2.25.0)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
      POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
      POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
-     POST /api/rpc  { action: 'sinkron', args: [{ obrolanSejak, realSejak, generasi }] }
+     POST /api/rpc  { action: 'sinkron', args: [{ obrolanSejak, realSejak, generasi, uji }] }
                                                    sumber data aktif + obrolan & perubahan data real terbaru
      POST /api/rpc  { action: 'masukAgen', args: [kunci] }  sesi agen AI (env AGEN_KUNCI), terkunci pada AGEN_PROFIL
 
@@ -92,6 +93,18 @@ async function wajibProfil(konteks, k, orang) {
    belum ada Manager yang ber-PIN, siapa pun boleh (seperti data prototipe lainnya). PIN profil
    sendiri hanya diatur mode Dev (0.14.1). */
 const PERAN_MASTER = ['manager', 'lead'];
+/* Sumber data sesi ini: data contoh untuk sesi Dev yang memakai mode uji, selain itu sumber
+   global. */
+async function modeSesi(konteks, k, id, opsi) {
+  if (opsi && typeof opsi === 'object' && opsi.uji && konteks.dev) return 'contoh';
+  return await sheet.sumberData(k, id);
+}
+/* Task di sumber data global (yang dipakai semua pengguna), untuk memeriksa kode sub-stage. */
+async function taskSumber(k, id) {
+  if (await sheet.sumberData(k, id) === 'real') return { label: 'data real', tasks: await dataReal.tasksKini(k, id) };
+  const contoh = await sheet.bacaContoh(k, id);
+  return { label: 'data contoh', tasks: contoh.data ? contoh.data.tasks : [] };
+}
 async function bolehMaster(konteks, k) {
   if (konteks.dev) return;
   const me = await meSah(konteks, k);
@@ -161,27 +174,33 @@ const AKSI = {
   /* Data yang sedang aktif (mode: 'contoh' atau 'real'), dalam bentuk yang langsung dipakai.
      Data contoh: data null = belum pernah diimpor (npm run impor:v1). Data real: perubahan
      sesudah opsi.realSejak (nomor urut di browser ini) kalau generasinya sama, selain itu semua. */
+  /* Mode uji Dev (2.25.0): opsi.uji dari sesi Dev = data contoh untuk browser itu saja, sementara
+     sumber data semua pengguna (global) tetap. Diminta dari sesi yang bukan Dev (mis. sesi Dev
+     sudah berakhir): diabaikan, jadi browser itu kembali ke sumber global. */
   async muatContoh(opsi) {
     const k = await sheet.klien();
     const id = sheet.idSpreadsheet();
     const o = opsi && typeof opsi === 'object' ? opsi : {};
-    if (await sheet.sumberData(k, id) === 'real') {
+    const global = await sheet.sumberData(k, id);
+    const uji = !!o.uji && !!this.dev;
+    if (global === 'real' && !uji) {
       const [orang, master, pin, real] = await Promise.all([
         sheet.bacaOrang(k, id), sheet.bacaMaster(k, id), sheet.bacaPin(k, id), dataReal.sejak(k, id, o.realSejak, o.generasi),
       ]);
-      return { mode: 'real', versi: '', sumber: 'Data real', data: null, orang, master, berpin: [...pin.keys()], me: await meSah(this, k), real };
+      return { mode: 'real', global, uji, versi: '', sumber: 'Data real', data: null, orang, master, berpin: [...pin.keys()], me: await meSah(this, k), real };
     }
     const contoh = await sheet.bacaContoh(k, id);
     // Profil ber-PIN (tanpa hash-nya) dan profil yang sudah terbukti di sesi ini.
-    if (!contoh.data) return { ...contoh, mode: 'contoh' };
+    if (!contoh.data) return { ...contoh, mode: 'contoh', global, uji };
     const pin = await sheet.bacaPin(k, id);
-    return { ...contoh, mode: 'contoh', berpin: [...pin.keys()], me: await meSah(this, k) };
+    return { ...contoh, mode: 'contoh', global, uji, berpin: [...pin.keys()], me: await meSah(this, k) };
   },
-  /* Komunikasi bersama (0.10.0), terpisah per sumber data (2.16.0). */
-  async muatObrolan(sejak) {
+  /* Komunikasi bersama (0.10.0), terpisah per sumber data (2.16.0); mode uji memakai obrolan
+     data contoh. */
+  async muatObrolan(sejak, opsi) {
     const k = await sheet.klien();
     const id = sheet.idSpreadsheet();
-    return await sheet.bacaObrolan(k, id, sejak, await sheet.sumberData(k, id));
+    return await sheet.bacaObrolan(k, id, sejak, await modeSesi(this, k, id, opsi));
   },
   /* Tarikan berkala browser: sumber data aktif (kalau Dev menggantinya, browser memuat ulang),
      obrolan, dan perubahan data real sejak nomor urut yang sudah dimiliki browser. */
@@ -189,12 +208,13 @@ const AKSI = {
     const k = await sheet.klien();
     const id = sheet.idSpreadsheet();
     const o = opsi && typeof opsi === 'object' ? opsi : {};
-    const mode = await sheet.sumberData(k, id);
+    const uji = !!o.uji && !!this.dev;
+    const mode = await modeSesi(this, k, id, o);
     const [obrolan, real] = await Promise.all([
       sheet.bacaObrolan(k, id, o.obrolanSejak, mode),
       mode === 'real' ? dataReal.sejak(k, id, o.realSejak, o.generasi) : null,
     ]);
-    return { mode, obrolan, ...(real ? { real } : {}) };
+    return { mode, uji, obrolan, ...(real ? { real } : {}) };
   },
   /* Satu perubahan data real. Pelakunya profil yang terbukti di sesi ini (bukan isian browser);
      perintahnya dijalankan dengan aturan aplikasi dan hanya yang lolos yang disimpan. */
@@ -232,7 +252,7 @@ const AKSI = {
     await sheet.tulisSetelan(k, sheet.idSpreadsheet(), 'sumber_data', mode, Inti.DEV);
     return { mode };
   },
-  async kirimObrolan(peristiwa) {
+  async kirimObrolan(peristiwa, opsi) {
     const k = await sheet.klien();
     // Moderasi hanya dari sesi Dev, dan selalu atas nama Dev (apa pun yang dikirim browser).
     const moderasi = peristiwa && typeof peristiwa === 'object' && peristiwa.jenis === 'moderasi';
@@ -247,7 +267,7 @@ const AKSI = {
     // Pesan dan suntingan dari agen ditandai AI (kolom kode hanya dipakai reaksi).
     if (this.agen && (bersih.jenis === 'pesan' || bersih.jenis === 'ubah')) bersih = { ...bersih, kode: Inti.KODE_AI };
     const id = sheet.idSpreadsheet();
-    return { peristiwa: await sheet.tulisObrolan(k, id, bersih, await sheet.sumberData(k, id)) };
+    return { peristiwa: await sheet.tulisObrolan(k, id, bersih, await modeSesi(this, k, id, opsi)) };
   },
   /* Foto profil (0.12.0): tab foto di spreadsheet v2, satu baris per orang. */
   async muatFoto(sejak) {
@@ -304,15 +324,32 @@ const AKSI = {
     Inti.aturMaster(baris);
     let bersih;
     try { bersih = Inti.periksaMaster(String(jenis || ''), isian && typeof isian === 'object' ? isian : {}, baris); } catch (err) { throw new GalatIsian(err.message); }
-    // Hapus sub-stage (2.24.0): hanya yang belum dipakai task mana pun, di data contoh maupun real.
+    // Hapus sub-stage (2.24.0): hanya yang belum dipakai task di data yang sedang dipakai semua
+    // pengguna (2.25.0: data real saja kalau sumbernya real; dulu data contoh juga diperiksa).
     if (bersih.jenis === 'substage' && bersih.dihapus) {
-      const [contoh, real] = await Promise.all([sheet.bacaContoh(k, id), dataReal.tasksKini(k, id)]);
-      const salah = Inti.salahHapusSub(bersih.kunci, [
-        { label: 'data contoh', tasks: contoh.data ? contoh.data.tasks : [] }, { label: 'data real', tasks: real },
-      ]);
+      const salah = Inti.salahHapusSub(bersih.kunci, [await taskSumber(k, id)]);
       if (salah) throw new GalatIsian(salah);
     }
     return { master: await sheet.tulisMaster(k, id, bersih) };
+  },
+  /* Pindahkan sub-stage ke kode lain (2.25.0): nama, tim, dan review pindah ke kode baru; alur
+     paket ikut; kode lama dihapus kalau belum dipakai task, selain itu dinonaktifkan. Baris
+     ditulis berurutan (kode baru, alur, kode lama), jadi tak pernah ada rujukan ke kode yang
+     belum ada. */
+  async pindahSub(dari, ke) {
+    const k = await sheet.klien();
+    await terapkanOrang(k);
+    await bolehMaster(this, k);
+    const id = sheet.idSpreadsheet();
+    const baris = await sheet.bacaMaster(k, id);
+    Inti.aturMaster(baris);
+    const kode = String(dari || '').trim().toUpperCase();
+    const sumber = await taskSumber(k, id);
+    let tulis;
+    try { tulis = Inti.pindahSub(kode, ke, baris, sumber.tasks.filter(t => t.sub === kode).length); } catch (err) { throw new GalatIsian(err.message); }
+    let master = baris;
+    for (const x of tulis) master = await sheet.tulisMaster(k, id, x);
+    return { master, tulis: tulis.map(x => [x.jenis, x.kunci]) };
   },
   async aturPin(orang, pin) {
     hanyaDev(this);

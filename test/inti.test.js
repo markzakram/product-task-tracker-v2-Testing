@@ -507,7 +507,7 @@ test('task turunan: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, 
     'anak di sub-stage bertanda Manager pun ditinjau Lead yang membaginya');
   assert.ok(!I.bolehBuatAnak(anak, 'andika'), 'task turunan tak beranak lagi');
   assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'andika', WAKTU + 2, HARI), /staff tim Anda/);
-  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'alya', WAKTU + 2, HARI), /task yang ia pegang/);
+  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'alya', WAKTU + 2, HARI), /Lead yang memegang task itu atau Lead tim pemiliknya/);
 
   // Induk baru bisa diajukan setelah semua turunannya selesai.
   Object.assign(induk, { output: 'Soal', evidence: [{ id: 'e1', label: 'Bukti', url: 'https://contoh.id/b' }] });
@@ -762,4 +762,27 @@ test('paket: Lead/Manager menyusun, PIC Produk menyunting paketnya, staff lain t
   assert.equal(I.bolehUbahPaket(p, 'kiki'), true);
   assert.equal(I.bolehUbahPaket(p, 'bilar'), false);
   assert.equal(I.bolehUbahPaket(p, 'andika'), true);
+});
+
+test('task turunan (2.25.0): Lead tim pemilik juga membagi task yang PIC-nya staff timnya, di semua tahap ADDIE', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  // Task Design tim LNA yang langsung diberikan ke staff (kiki), dan task RAD milik staff tim lain.
+  const d5 = I.taskBaru(d, { title: 'D5 desain alur', project: 'PRJ-1', sub: 'D5', pic: 'kiki' }, 'alya', WAKTU, HARI);
+  const a2 = I.taskBaru(d, { title: 'A2 riset', project: 'PRJ-1', sub: 'A2', pic: 'uma' }, 'andika', WAKTU, HARI);
+  assert.deepEqual(['alya', 'andika', 'kiki', 'nynda'].map(me => I.bolehBuatAnak(d5, me)), [true, false, false, false]);
+  assert.deepEqual(['andika', 'alya'].map(me => I.bolehBuatAnak(a2, me)), [true, false]);
+  const anak = I.taskAnak(d, d5, { title: 'Wireframe bab 1', pic: 'bilar' }, 'alya', WAKTU + 1, HARI);
+  assert.deepEqual([anak.induk, anak.stage, anak.sub, anak.pic, I.peninjau(anak)], [d5.id, 'D', 'D5', 'bilar', 'alya']);
+  // Rutin staff: Lead-nya.
+  const rutin = I.taskBaru(d, { title: 'Rekap', sub: 'R1', pic: 'kiki' }, 'kiki', WAKTU, HARI);
+  assert.deepEqual(['alya', 'andika'].map(me => I.bolehBuatAnak(rutin, me)), [true, false]);
+
+  // Alasan untuk detail task.
+  assert.equal(I.alasanTakBisaBagi(d5, 'alya'), '');
+  assert.match(I.alasanTakBisaBagi(d5, 'kiki'), /dibuat Alya sebagai Lead tim pemilik/);
+  assert.match(I.alasanTakBisaBagi(anak, 'alya'), /tak beranak lagi/);
+  d5.status = 'Ditinjau';
+  assert.match(I.alasanTakBisaBagi(d5, 'alya'), /sedang ditinjau/);
+  d5.status = 'Selesai';
+  assert.match(I.alasanTakBisaBagi(d5, 'alya'), /sudah selesai/);
 });

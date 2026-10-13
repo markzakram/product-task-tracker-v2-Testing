@@ -1,5 +1,46 @@
 # Changelog — ProductTrack v2
 
+## 2.25.0 — Pindah kode sub-stage, mode uji Dev, task turunan, form paket (2026-10-13)
+
+Lima revisi user.
+
+- **Hapus sub-stage diperiksa di sumber data yang dipakai semua orang.** Saat data real aktif,
+  sub-stage yang hanya dipakai data contoh kini bisa dihapus (sebelumnya ditolak "dipakai … task
+  di data contoh"). Task data contoh yang memakainya tetap terbaca namanya. Jendela hapus
+  menyebut sumber yang diperiksa.
+- **Pindahkan sub-stage ke kode lain** (tombol panah di Master, Lead dan Manager), pengganti
+  "hapus lalu tambah":
+  - nama, tim pemilik, dan review Manager pindah ke kode baru, juga ke tahap lain (mis. E10 →
+    I9); kode tujuan harus belum pernah ada, terisi sendiri sesudah nomor terbesar;
+  - alur kategori paket yang memakai kode lama ikut diganti;
+  - kode lama dihapus kalau belum dipakai task, selain itu dinonaktifkan dan task lamanya tetap
+    memakai kode lama; nomor lain tak bergeser; E12 tak bisa dipindah;
+  - aturannya `Inti.pindahSub`; server (aksi `pindahSub`) menulis barisnya berurutan: kode baru,
+    alur, kode lama.
+- **Mode uji Dev**: pilihan ketiga di Panel Dev → Sistem, **Uji Dev (browser ini saja)**.
+  - Browser itu memakai data contoh selama sesi Dev, sementara pengguna lain tetap di sumber
+    global. Server hanya mengabulkannya untuk sesi Dev; sesi Dev yang berakhir mengembalikan
+    browser ke sumber global.
+  - Spanduk biru **Mode uji Dev** selalu tampil, dengan **Keluar mode uji**.
+  - Master yang diubah di mode uji hanya berlaku di browser itu; Lihat sebagai menyimpan
+    perubahannya di data uji; pesan masuk obrolan data contoh; orang, PIN, foto, dan tampilan
+    pribadi tak bisa diubah.
+- **Task turunan di semua tahap ADDIE.** Bagian Task turunan kini ada di detail semua task
+  proyek. Lead tim pemilik task juga bisa membaginya walau PIC-nya staff timnya (sebelumnya hanya
+  Lead yang memegang task itu sendiri), mis. task Design yang langsung diberikan ke staff. Kalau
+  belum bisa dibagi, alasannya tampil: sudah selesai, sedang ditinjau, atau Lead mana yang
+  membaginya (`Inti.alasanTakBisaBagi`).
+- **Perbaikan: isian Rancangan Paket hilang beberapa detik sesudah diketik.** Saat data real
+  aktif, tarikan berkala (±30 detik) menggambar ulang layar setiap kali kursor tak sedang di
+  isian, dan form paket yang belum disimpan ikut digambar ulang dari data. Kini selama ada
+  perubahan yang belum disimpan, form yang sedang terbuka dipakai lagi apa adanya, termasuk
+  baris yang baru ditambah.
+- Bilah pilih task (2.23.0) kini menempel tepat di bawah kepala, juga saat spanduk Lihat sebagai
+  atau mode uji membuat kepala lebih tinggi.
+- README (Mode uji Dev, Master & PIN profil, Task turunan) dan Panduan (Mengatur Master;
+  Memecah langkah jadi task turunan) menyebutnya. Tes baru di `test/master.test.js`,
+  `test/real-rpc.test.js`, dan `test/inti.test.js`. 249 tes.
+
 ## 2.24.0 — Hapus sub-stage di Master; tautan sub-task (2026-10-13)
 
 Permintaan user: sub-stage di Master (yang diatur Lead dan Manager) bisa dihapus juga, dan

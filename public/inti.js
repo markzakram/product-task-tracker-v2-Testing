@@ -443,11 +443,31 @@
      induknya, ditinjau Lead itu, dan tak beranak lagi; induknya baru bisa diajukan atau
      ditandai selesai setelah semua turunannya selesai. */
   // Sejak 2.21.0 Lead boleh memegang turunannya sendiri, jadi Lead tanpa staff pun bisa membagi.
-  const bolehBuatAnak = (t, me) => !!t && !t.induk && t.pic === me && orang(me).peran === 'lead' && aktif(t)
-    && t.status !== 'Ditinjau' && jenisJalur(t) !== 'lepas';
+  /* Sejak 2.25.0 (permintaan user: task turunan di semua tahap ADDIE, juga sesudah task dibuat)
+     Lead tim pemilik task juga membaginya walau PIC-nya staff timnya, mis. task Design yang
+     langsung diberikan ke staff. */
+  function bolehBuatAnak(t, me) {
+    if (!t || t.induk || !aktif(t) || t.status === 'Ditinjau' || jenisJalur(t) === 'lepas' || orang(me).peran !== 'lead') return false;
+    if (t.pic === me || orang(t.pic).lead === me) return true;
+    const tim = t.project ? TIM[timTask(t)] : null;
+    return !!tim && tim.lead === me;
+  }
+  /* Kenapa task ini tak bisa dibagi oleh me, dalam kalimat untuk detail task ('' = bisa). */
+  function alasanTakBisaBagi(t, me) {
+    if (!t || bolehBuatAnak(t, me)) return '';
+    if (t.induk) return 'Task turunan tak beranak lagi.';
+    if (jenisJalur(t) === 'lepas') return 'Pekerjaan lepas warisan v1 tak dibagi jadi task turunan.';
+    if (selesai(t)) return 'Task ini sudah selesai. Task turunan ditambah selama task masih berjalan.';
+    if (t.status === 'Ditinjau') return 'Task ini sedang ditinjau. Task turunan bisa ditambah lagi kalau dikembalikan untuk revisi.';
+    const tim = t.project ? TIM[timTask(t)] : null;
+    const lead = tim && orang(tim.lead).peran === 'lead' ? tim.lead : orang(t.pic).peran === 'lead' ? t.pic : orang(t.pic).lead;
+    return lead && orang(lead).peran === 'lead'
+      ? `Task turunan dibuat ${orang(lead).pendek} sebagai Lead tim pemilik task ini.`
+      : 'Task turunan dibuat Lead tim pemilik task ini.';
+  }
   function salahInduk(induk, me, anak) {
     if (!induk) return 'Task induk tidak ditemukan.';
-    if (!bolehBuatAnak(induk, me)) return 'Task turunan dibuat Lead dari task yang ia pegang sendiri, selama task itu belum diajukan atau selesai.';
+    if (!bolehBuatAnak(induk, me)) return 'Task turunan dibuat Lead yang memegang task itu atau Lead tim pemiliknya, selama task itu belum diajukan atau selesai.';
     if (anak.pic !== me && !timDari(me).includes(anak.pic)) return 'PIC task turunan: Anda sendiri atau staff tim Anda.';
     if ((induk.project || '') !== (anak.project || '')) return 'Task turunan ada di proyek yang sama dengan induknya.';
     if (induk.project && ((induk.cycle || 1) !== anak.cycle || induk.stage !== anak.stage)) {
@@ -2892,6 +2912,46 @@
       if (alur.length) throw new Error(`${x.kunci} dipakai alur kategori paket ${alur.join(', ')}. Ganti langkah alurnya dulu di bagian Kategori.`);
     }
   }
+
+  /* Pindahkan sub-stage ke kode lain (2.25.0, permintaan user): pengganti "hapus lalu tambah"
+     kalau hanya kegiatannya yang ingin dipindah ke kode lain. Nama, tim pemilik, dan review
+     Manager pindah ke kode baru (kode yang belum pernah ada); alur kategori paket yang memakai
+     kode lama ikut diganti. Kode lama dihapus kalau belum dipakai task (dipakai = jumlah task di
+     data yang sedang dipakai), selain itu dinonaktifkan: task lamanya tetap memakai kode lama.
+     Mengembalikan baris Master yang harus ditulis, berurutan (kode baru, alur, kode lama), dan
+     daftar hidup sudah memakai hasilnya; gagal = daftar hidup dikembalikan ke baris semula. */
+  function pindahSub(dari, ke, baris, dipakai) {
+    const asal = daftarMaster('substage').find(s => s.kunci === dari && !s.dihapus);
+    if (!asal) throw new Error(`Sub-stage ${dari || '(kosong)'} tidak ditemukan.`);
+    if (SUB_TERKUNCI.includes(dari)) throw new Error(`${dari} · Final approval menutup siklus dan dirujuk langsung oleh aturan, jadi tak bisa dipindah.`);
+    const kode = String(ke == null ? '' : ke).trim().toUpperCase();
+    if (!kode) throw new Error('Isi kode tujuan.');
+    if (kode === dari) throw new Error(`Pilih kode selain ${dari}.`);
+    const ada = daftarMaster('substage').find(s => s.kunci === kode && !s.dihapus);
+    if (ada) throw new Error(`${kode} sudah dipakai sub-stage "${ada.nama}". Pilih kode yang belum ada, mis. ${kodeSubBerikut(tahapDariKode(kode))}.`);
+    const alurAsal = daftarMaster('kategori').filter(x => x.alur.some(l => l.split(':')[0] === dari)).map(x => x.label);
+    if (alurAsal.length && tahapDariKode(kode) === 'R') throw new Error(`${dari} dipakai alur kategori paket ${alurAsal.join(', ')}, jadi kode tujuannya harus sub-stage ADDIE, bukan rutin (R).`);
+    const awal = (baris || []).slice();
+    let kini = awal;
+    const tulis = [];
+    const pakai = x => {
+      kini = [...kini.filter(r => !(r.jenis === x.jenis && String(r.kunci).toLowerCase() === String(x.kunci).toLowerCase())), x];
+      tulis.push(x);
+      aturMaster(kini);
+    };
+    try {
+      pakai(periksaMaster('substage', { baru: true, kunci: kode, nama: asal.nama, tim: asal.tim, reviewManager: asal.reviewManager }, kini));
+      for (const k of daftarMaster('kategori').filter(x => x.alur.some(l => l.split(':')[0] === dari))) {
+        const alur = k.alur.map(l => { const [c, cap] = l.split(':'); return c === dari ? (cap ? `${kode}:${cap}` : kode) : l; });
+        pakai(periksaMaster('kategori', { kunci: k.kunci, alur }, kini));
+      }
+      pakai(periksaMaster('substage', dipakai > 0 ? { kunci: dari, aktif: false } : { kunci: dari, dihapus: true }, kini));
+    } catch (err) {
+      aturMaster(awal);
+      throw err;
+    }
+    return tulis;
+  }
   const labelPrioritas = kunci => (PRIORITAS.find(([k]) => k === kunci) || [kunci, kunci])[1];
   for (const jenis of JENIS_MASTER) MASTER_KINI[jenis] = susunMaster(jenis, []);
 
@@ -3039,7 +3099,7 @@
     ORANG_BAWAAN, DEV, PERAN_ORANG, TIM_LEAD, susunOrang, salahOrganogram, periksaOrang, aturOrang, nonaktif,
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
     selesai, aktif, indeks, depsBelum, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
-    anakTask, bolehBuatAnak, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
+    anakTask, bolehBuatAnak, alasanTakBisaBagi, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,
@@ -3064,6 +3124,6 @@
     KODE_AI, AKSI_AGEN, PESAN_AGEN,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
     SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
-    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
+    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, pindahSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
   };
 }));

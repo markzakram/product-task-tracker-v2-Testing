@@ -215,3 +215,72 @@ test('dua instance bersamaan: yang menyelip menang; yang kalah diperiksa ulang, 
     sheet.tulisReal = tulisAsli;
   }
 });
+
+test('mode uji Dev (2.25.0): hanya sesi Dev yang memakai data contoh sementara yang lain tetap di data real; obrolannya ikut data contoh', async () => {
+  const p = sheetV2();
+  const biasa = await masuk();
+  const dev = pakai(await aksi(null, 'masukDev', PIN_DEV));
+  await aksi(dev, 'aturSumber', 'real');
+  const lain = (await aksi(biasa, 'muatContoh', { uji: true })).json;
+  assert.deepEqual([lain.mode, lain.uji, lain.global], ['real', false, 'real'], 'bukan sesi Dev: permintaan uji diabaikan');
+  const uji = (await aksi(dev, 'muatContoh', { uji: true })).json;
+  assert.deepEqual([uji.mode, uji.uji, uji.global], ['contoh', true, 'real']);
+  assert.deepEqual([(await aksi(dev, 'muatContoh', {})).json.mode], ['real'], 'tanpa uji: sesi Dev pun di sumber global');
+  const s = (await aksi(dev, 'sinkron', { uji: true })).json;
+  assert.deepEqual([s.mode, s.uji, s.real], ['contoh', true, undefined], 'mode uji tak menarik data real');
+  assert.deepEqual([(await aksi(biasa, 'sinkron', { uji: true })).json.mode], ['real']);
+
+  // Pesan dari mode uji masuk obrolan data contoh; pengguna data real tak melihatnya.
+  const devNynda = await sebagai(dev, 'nynda');
+  const pesan = { jenis: 'pesan', ruang: 'task:PRD-001', oleh: 'nynda', teks: 'Coba fitur baru' };
+  assert.equal((await aksi(devNynda, 'kirimObrolan', pesan, { uji: true })).status, 200);
+  assert.deepEqual(p.tab('obrolan').values.slice(1).map(b => b[5]), ['Coba fitur baru']);
+  assert.equal(p.tab('obrolan_real'), undefined);
+  const nynda = await sebagai(biasa, 'nynda');
+  assert.deepEqual((await aksi(nynda, 'sinkron', { obrolanSejak: 0 })).json.obrolan.peristiwa, []);
+  assert.deepEqual((await aksi(devNynda, 'sinkron', { obrolanSejak: 0, uji: true })).json.obrolan.peristiwa.map(e => e.teks), ['Coba fitur baru']);
+});
+
+test('hapus & pindah sub-stage (2.25.0): diperiksa terhadap sumber data yang dipakai semua orang saja', async () => {
+  const p = sheetV2();
+  const { urai } = require('../api/_skema');
+  const biasa = await masuk();
+  const dev = pakai(await aksi(null, 'masukDev', PIN_DEV));
+  try {
+    // Data contoh memakai E8; data real memakai E9.
+    const isi = { projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], log: [] };
+    I.taskBaru(isi, { title: 'Cek akun guru', sub: 'R1', pic: 'ali' }, 'ali', Date.UTC(2026, 9, 13), '2026-10-13');
+    isi.tasks[0].sub = 'E8';
+    await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji' });
+    const contohAktif = await aksi(dev, 'simpanMaster', 'substage', { kunci: 'E8', dihapus: true });
+    assert.equal(contohAktif.status, 400, 'data contoh aktif: yang dipakai data contoh tak bisa dihapus');
+    assert.match(contohAktif.json.message, /E8 dipakai 1 task di data contoh/);
+
+    await aksi(dev, 'aturSumber', 'real');
+    const nynda = await sebagai(biasa, 'nynda');
+    await aksi(nynda, 'simpanReal', perintah('proyekBaru', { f: { name: 'Produksi uji' } }));
+    const t = await aksi(nynda, 'simpanReal', perintah('taskBaru', { f: { title: 'Monitoring guru', project: 'PRJ-1', sub: 'E9', pic: 'dhea' } }));
+    assert.equal(t.status, 200, t.teks);
+
+    const e8 = await aksi(dev, 'simpanMaster', 'substage', { kunci: 'E8', dihapus: true });
+    assert.equal(e8.status, 200, 'data real aktif: pemakaian di data contoh tak lagi menghalangi');
+    const e9 = await aksi(dev, 'simpanMaster', 'substage', { kunci: 'E9', dihapus: true });
+    assert.equal(e9.status, 400);
+    assert.match(e9.json.message, /E9 dipakai 1 task di data real/);
+
+    // Pindah: E9 dipakai data real → dinonaktifkan; E1 di alur paket, belum dipakai → dihapus dan alurnya ikut.
+    const pindah = await aksi(dev, 'pindahSub', 'E9', 'E13');
+    assert.equal(pindah.status, 200, pindah.teks);
+    assert.deepEqual(pindah.json.tulis, [['substage', 'E13'], ['substage', 'E9']]);
+    const m = new Map(pindah.json.master.map(x => [x.kunci, x]));
+    assert.deepEqual([m.get('E13').nama, m.get('E13').tim, m.get('E9').aktif, m.get('E9').dihapus], ['Monitoring dan evaluasi guru', 'CO', false, undefined]);
+    const alur = await aksi(dev, 'pindahSub', 'E1', 'E14');
+    assert.equal(alur.status, 200, alur.teks);
+    assert.deepEqual(alur.json.tulis.map(x => x[1]), ['E14', 'latsol', 'tryout', 'drilling', 'E1']);
+    const latsol = alur.json.master.find(x => x.jenis === 'kategori' && x.kunci === 'latsol');
+    assert.ok(latsol.alur.includes('E14:konten') && !latsol.alur.some(l => l.startsWith('E1:')));
+    assert.equal(alur.json.master.find(x => x.kunci === 'E1').dihapus, true);
+    const tabrak = await aksi(dev, 'pindahSub', 'E10', 'E13');
+    assert.deepEqual([tabrak.status, /E13 sudah dipakai/.test(tabrak.json.message)], [400, true]);
+  } finally { I.aturMaster([]); }
+});

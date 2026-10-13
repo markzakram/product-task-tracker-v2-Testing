@@ -1968,7 +1968,7 @@ html[data-latar] { --redup: var(--redup-latar); --samar: var(--samar-latar); }
 
 /* Pilih task untuk dihapus di tab tim proyek (2.23.0). Bilah tetap terlihat di bawah kepala
    saat daftar digulir; kotak centang membentuk satu kolom, turunan tetap menjorok. */
-.bilah-pilih { position: sticky; top: 72px; z-index: 5; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--merah-garis); border-radius: 12px; background: var(--muka); box-shadow: var(--bayang); }
+.bilah-pilih { position: sticky; top: calc(var(--tinggi-kepala, 65px) + 7px); z-index: 5; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--merah-garis); border-radius: 12px; background: var(--muka); box-shadow: var(--bayang); }
 .bilah-pilih-angka { font-size: calc(14px * var(--skala-huruf)); color: var(--tinta-2); }
 .bilah-pilih-tombol { display: flex; flex-wrap: wrap; gap: 6px; }
 .baris-pilih { display: flex; align-items: center; gap: 6px; }
@@ -1981,7 +1981,7 @@ html[data-latar] { --redup: var(--redup-latar); --samar: var(--samar-latar); }
 .ikon-tombol.bahaya { color: var(--merah); }
 .ikon-tombol.bahaya:hover { background: var(--merah-muda); }
 @media (max-width: 600px) {
-  .bilah-pilih { top: 64px; padding: 8px; gap: 6px; }
+  .bilah-pilih { padding: 8px; gap: 6px; }
   .bilah-pilih-tombol { width: 100%; flex-wrap: nowrap; }
   .bilah-pilih-tombol .tombol { flex: 1 1 auto; min-height: 40px; padding: 0 8px; white-space: nowrap; }
 }
@@ -2003,3 +2003,7 @@ html[data-latar] { --redup: var(--redup-latar); --samar: var(--samar-latar); }
   .ceklis-tautan { min-width: 36px; justify-content: center; padding: 0; }
   .ceklis-tautan span { display: none; }
 }
+
+/* Mode uji Dev (2.25.0): spanduk biru, beda dari kuning "Lihat sebagai". */
+.spanduk-uji { background: var(--biru-muda); border-top-color: var(--biru-garis); color: var(--biru-tua); }
+.spanduk-uji .tombol { border-color: var(--biru-garis); color: var(--biru-tua); }
