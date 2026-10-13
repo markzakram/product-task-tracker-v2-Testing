@@ -1913,6 +1913,33 @@
     catatLog(data, 'delete', `${p.id} · ${p.namaPaket}`, 'Rancangan paket dihapus', me, waktu);
   }
 
+  /* Hapus proyek (2.22.0, permintaan user). Hanya Manager, yang juga membuat proyek. Ikut
+     terhapus: semua task proyek itu di semua siklus (termasuk turunan, sub-task, komentar,
+     tinjauan, dan bukti yang tersimpan di dalam task) dan setoran task-task itu, jadi progres
+     paket dari proyek ini hilang dan targetnya terbuka lagi untuk dielaborasi. Riwayat Aktivitas
+     tetap, dan pesan Komunikasi tetap tersimpan (tab obrolan hanya bertambah). Arsip tetap jalan
+     yang aman untuk proyek yang sudah selesai. */
+  function ringkasHapusProyek(data, p) {
+    const tasks = data.tasks.filter(t => t.project === p.id);
+    const ids = new Set(tasks.map(t => t.id));
+    const setoran = (data.setoran || []).filter(s => ids.has(s.task));
+    return {
+      task: tasks.length, turunan: tasks.filter(t => t.induk).length, terbuka: tasks.filter(aktif).length,
+      setoran: setoran.length, paket: [...new Set(setoran.map(s => s.paket))],
+    };
+  }
+  function hapusProyek(data, p, me, waktu) {
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menghapus proyek.');
+    if (!p || data.projects.indexOf(p) < 0) throw new Error('Proyek tidak ditemukan.');
+    const r = ringkasHapusProyek(data, p);
+    const ids = new Set(data.tasks.filter(t => t.project === p.id).map(t => t.id));
+    data.projects.splice(data.projects.indexOf(p), 1);
+    for (let i = data.tasks.length - 1; i >= 0; i--) if (ids.has(data.tasks[i].id)) data.tasks.splice(i, 1);
+    if (data.setoran) for (let i = data.setoran.length - 1; i >= 0; i--) if (ids.has(data.setoran[i].task)) data.setoran.splice(i, 1);
+    catatLog(data, 'delete', `${p.id} · ${p.name}`, `Proyek dihapus beserta ${r.task} task${r.setoran ? ` dan ${r.setoran} setoran paket` : ''}`, me, waktu);
+    return { proyek: p.id, ...r };
+  }
+
   /* ---------- Rancangan paket → proyek ---------- */
 
   const fmtJumlah = n => (Number.isInteger(n) ? String(n) : String(n).replace('.', ','));
@@ -2791,6 +2818,7 @@
     simpanPaket: (d, x, me, w) => simpanPaket(d, paketX(d, x), x.f || {}, me, w),
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
     aturTunggu: (d, x, me, w) => aturTunggu(d, tugas(d, x), x, me, w),
+    hapusProyek: (d, x, me, w) => hapusProyek(d, proyekX(d, x), me, w),
     ubahNamaPaket: (d, x, me, w) => ubahNamaPaket(d, paketX(d, x), x.nama, me, w),
     elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
     simpanDashboard: (d, x, me, w) => simpanDashboard(d, me, x.f || {}, x.id || '', w),
@@ -2917,6 +2945,6 @@
     KODE_AI, AKSI_AGEN, PESAN_AGEN,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
     SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
-    bolehAturTunggu, aturTunggu,
+    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek,
   };
 }));

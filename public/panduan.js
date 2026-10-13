@@ -259,6 +259,7 @@
         'Setiap baris menunjukkan tim beserta fasenya (mis. **RAD V**, **CLO ✓**), progres siklus, dan keadaannya: Sesuai rencana, Berisiko, Siklus selesai, dan lainnya.',
         'Kotak **Keputusan siklus** berisi proyek yang task E12-nya sudah disetujui.',
         'Klik proyek untuk melihat **Ringkasan** semua tim dan gerbang Manager, lalu tab tiap tim dengan task per fase ADDIE-nya. Peringatan merah muncul kalau ada task yang saling menunggu.',
+        '**Hapus proyek** (di halaman proyek) menghapus proyek beserta semua task dan setoran paketnya, setelah ID proyeknya diketik ulang. Untuk proyek yang sudah selesai, lebih aman **arsipkan**: semuanya tetap ada dan bisa diaktifkan lagi.',
       ],
     },
     {

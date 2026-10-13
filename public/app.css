@@ -1961,3 +1961,7 @@ html[data-latar] { --redup: var(--redup-latar); --samar: var(--samar-latar); }
 .pilih-emoji button[aria-pressed="true"] { border-color: var(--biru); background: var(--biru-muda); }
 .status-siap { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 480px) { .pilih-emoji { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+/* Hapus proyek (2.22.0): ringkasan yang ikut terhapus di jendela konfirmasi. */
+.form-hapus-proyek p { margin: 0; }
+.daftar-hapus { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: calc(14px * var(--skala-huruf)); color: var(--tinta-2); }

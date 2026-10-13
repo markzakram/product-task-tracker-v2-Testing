@@ -2630,7 +2630,8 @@
             ${gerbang}
             <div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="papan-proyek" data-id="${esc(p.id)}">${ikon('tugas', 16)} Lihat di Task</button>
               ${keputusan}
-              ${isM && !p.arsip && !r.siapMaju && r.keadaan !== 'sepi' && r.semua && r.semua === r.semuaSelesai ? `<button type="button" class="tombol kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Arsipkan proyek</button>` : ''}</div>
+              ${isM && !p.arsip && !r.siapMaju && r.keadaan !== 'sepi' && r.semua && r.semua === r.semuaSelesai ? `<button type="button" class="tombol kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Arsipkan proyek</button>` : ''}
+              ${isM ? `<button type="button" class="tombol kecil bahaya" data-aksi="hapus-proyek" data-id="${esc(p.id)}">${ikon('hapus', 16)} Hapus proyek</button>` : ''}</div>
           </div>
           ${peringatan}
           ${barisTab}
@@ -6957,6 +6958,26 @@
     </form>`;
   }
 
+  /* Hapus proyek (2.22.0): ringkasan apa saja yang ikut hilang, arsip sebagai jalan aman, dan
+     ID proyek diketik ulang sebelum tombolnya aktif. Aturannya di I.hapusProyek. */
+  function formHapusProyek(p) {
+    const r = I.ringkasHapusProyek(S.data, p);
+    const paket = r.paket.map(id => paketDari(id)).filter(Boolean).map(x => judulPaket(x));
+    return `<form data-form="modal" class="form-hapus-proyek" novalidate>
+      <h2>Hapus proyek?</h2>
+      <p><strong>${esc(p.name)}</strong> (${esc(p.id)}) dihapus permanen beserta:</p>
+      <ul class="daftar-hapus">
+        <li>${r.task ? `${r.task} task${r.turunan ? `, ${r.turunan} di antaranya task turunan` : ''}${r.terbuka ? `; ${r.terbuka} masih terbuka` : ''}, dengan sub-task, komentar task, tinjauan, dan buktinya` : 'belum ada task'}</li>
+        ${r.setoran ? `<li>${r.setoran} setoran ke rancangan paket ${esc(paket.join(', ') || r.paket.join(', '))}: progresnya hilang dan targetnya terbuka lagi untuk dielaborasi</li>` : ''}
+      </ul>
+      <p class="hint">Riwayat Aktivitas dan pesan Komunikasi tetap tersimpan. Kalau proyek ini hanya sudah selesai, <button type="button" class="tautan-kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">arsipkan saja</button>: semuanya tetap ada dan bisa diaktifkan lagi.</p>
+      <label class="isian"><span>Ketik <b>${esc(p.id)}</b> untuk memastikan</span>
+        <input id="hapus-konfirmasi" name="konfirmasi" data-id="${esc(p.id)}" autocomplete="off" spellcheck="false" placeholder="${esc(p.id)}"></label>
+      <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
+      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">Batal</button><button class="tombol bahaya" id="hapus-proyek-tombol" disabled>${ikon('hapus', 16)} Hapus permanen</button></div>
+    </form>`;
+  }
+
   /* Atur urutan tunggu (2.19.0): Lead tim pemilik task, atau Manager, memilih task lain di
      proyek dan siklus yang sama yang harus selesai dulu — serah-terima dari tim lain, atau
      urutan di dalam tim — dan apakah task ini ikut urutan fase timnya. Aturan dan pemeriksaan
@@ -7243,6 +7264,15 @@
           const t = ubahData('aturTunggu', { task: m.id, tunggu: new FormData(form).getAll('tunggu'), lepasFase: f.ikutFase !== 'ya' });
           tutupModal();
           return selesaiUbah(`Urutan tunggu ${t.id} disimpan.`);
+        }
+        case 'hapus-proyek': {
+          const p = proyekDari(m.id);
+          if (!p) throw new Error('Proyek tidak ditemukan.');
+          if (String(f.konfirmasi || '').trim().toUpperCase() !== p.id) throw new Error(`Ketik ${p.id} untuk memastikan.`);
+          const h = ubahData('hapusProyek', { proyek: p.id });
+          tutupModal();
+          Object.assign(S, { proyek: null, tabProyek: null, tahapBuka: null, pilih: null });
+          return selesaiUbah(`${p.name} dihapus beserta ${h.task} task.`);
         }
         case 'catatan': {
           ubahData('terapkanAksi', { task: m.id, kunci: m.kunci, catatan: f.catatan });
@@ -7671,11 +7701,13 @@
       case 'arsip-proyek': {
         const p = proyekDari(d.id || S.proyek);
         if (!p) return;
+        if (S.modal && S.modal.jenis === 'hapus-proyek') tutupModal();   // "arsipkan saja" dari jendela hapus
         try { ubahData('setArsip', { proyek: p.id, arsip: d.nilai === '1' }); selesaiUbah(d.nilai === '1' ? `${p.name} diarsipkan.` : `${p.name} aktif lagi.`); } catch (err) { toast(err.message, true); }
         break;
       }
       /* Rancangan Paket */
       case 'paket-buka': bukaPaket(d.id); break;
+      case 'hapus-proyek': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'hapus-proyek', id: p.id }, formHapusProyek(p)); break; }
       case 'paket-elaborasi': {
         const p = paketDari(S.pkt.pilih);
         if (!p) break;
@@ -8130,6 +8162,11 @@
     if (el.id === 'foto-zoom') { if (kerat) aturZoom(Number(el.value)); return; }
     if (el.id === 'palet-q') { S.palet.q = el.value; S.palet.pilih = 0; $('#palet-hasil').innerHTML = hasilPalet(); return; }
     if (el.id === 'tunggu-cari') { saringTunggu(el.value); return; }
+    if (el.id === 'hapus-konfirmasi') {
+      const tombol = $('#hapus-proyek-tombol');
+      if (tombol) tombol.disabled = el.value.trim().toUpperCase() !== el.dataset.id;
+      return;
+    }
     if (el.id === 'tpl-aksen-sendiri') { ubahDraf({ aksen: el.value }); return; }
     if (el.id === 'tpl-kuat') { ubahDraf({ kuatLatar: Number(el.value) }); return; }
     if (el.classList.contains('km-isian')) {

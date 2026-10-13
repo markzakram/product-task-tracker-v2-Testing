@@ -211,3 +211,32 @@ test('menautkan proyek lama ke paket hanya oleh Manager', () => {
   I.tautkanPaket(d, proj, '', 'nynda', WAKTU);
   assert.equal(proj.paket, '');
 });
+
+test('hapus proyek (2.22.0): hanya Manager; task, turunan, dan setorannya ikut hilang, target terbuka lagi', () => {
+  const d = data();
+  const { project, tasks } = elaborasi(d, { items: ['ITM-A'] });
+  const lain = elaborasi(d, { items: ['ITM-C'] });
+  const induk = tasks.find(t => t.sub === 'DV1');
+  I.taskAnak(d, induk, { title: 'Soal 1–10', pic: 'andika' }, 'andika', WAKTU, HARI);
+  assert.equal(target(d, 'ITM-A').digarap, 3);
+  assert.throws(() => I.hapusProyek(d, project, 'andika', WAKTU), /Hanya Manager/);
+  const r = I.ringkasHapusProyek(d, project);
+  assert.deepEqual([r.task, r.turunan, r.terbuka, r.setoran, r.paket], [9, 1, 9, 4, ['PKG-001']]);
+
+  // Lewat perintah data real: perubahannya hanya daftar baris yang dihapus.
+  const sebelum = JSON.parse(JSON.stringify(d));
+  const h = I.jalankanPerintah(d, { aksi: 'hapusProyek', isi: { proyek: project.id }, oleh: 'nynda', at: WAKTU + 1, hari: HARI });
+  assert.equal(h.ok, true, h.galat);
+  assert.deepEqual([h.hasil.proyek, h.hasil.task], [project.id, 9]);
+  assert.equal(d.projects.some(p => p.id === project.id), false);
+  assert.equal(d.tasks.some(t => t.project === project.id), false);
+  assert.equal(d.setoran.some(s => tasks.some(t => t.id === s.task)), false);
+  assert.ok(d.tasks.some(t => t.project === lain.project.id) && d.setoran.some(s => s.item === 'ITM-C'), 'proyek lain utuh');
+  assert.equal(target(d, 'ITM-A').digarap, 0, 'targetnya terbuka lagi untuk dielaborasi');
+  const beda = I.bedaData(sebelum, d);
+  assert.deepEqual(beda.projects.hapus, [project.id]);
+  assert.equal(beda.tasks.hapus.length, 9);
+  assert.equal(beda.tasks.pasang, undefined, 'task lain tak ditulis ulang');
+  assert.equal(d.log[0].detail, 'Proyek dihapus beserta 9 task dan 4 setoran paket');
+  assert.match(I.jalankanPerintah(d, { aksi: 'hapusProyek', isi: { proyek: project.id }, oleh: 'nynda', at: WAKTU + 2, hari: HARI }).galat, /tidak ditemukan/);
+});

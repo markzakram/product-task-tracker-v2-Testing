@@ -114,6 +114,17 @@ dengan satu penyederhanaan: tetap empat status.
   **arsipkan** (proyek tuntas, pilihan utama kalau semua task beres), **mulai siklus
   berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau
   **tahan**. Keputusan proyek: Build, Improve, Maintain, Hold.
+- **Hapus proyek (2.22.0, Manager).** Tombol **Hapus proyek** di halaman proyek membuka
+  ringkasan apa saja yang ikut hilang, lalu ID proyek harus diketik ulang. Yang ikut terhapus:
+  - semua task proyek itu di semua siklus, termasuk task turunan, sub-task, komentar, tinjauan,
+    dan bukti di dalamnya;
+  - setoran task-task itu, sehingga progres paket dari proyek ini hilang dan targetnya terbuka
+    lagi untuk dielaborasi.
+
+  Riwayat Aktivitas (dengan catatan "Proyek dihapus beserta … task") dan pesan Komunikasi tetap
+  tersimpan. Untuk proyek yang sudah selesai, **arsipkan saja** (tautan di jendela yang sama):
+  semuanya tetap ada dan bisa diaktifkan lagi. Aturannya `Inti.hapusProyek`; di data real
+  perubahannya hanya daftar baris yang dihapus.
 - **Dashboard:** task aktif per status, tahap, tim pemilik, dan platform; per orang
   ditambah sub-task terbuka dan **skor bottleneck** (task orang lain yang menunggu dia × 2 +
   tinjauan yang menunggu dia × 2 + task telatnya).

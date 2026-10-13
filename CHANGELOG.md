@@ -1,5 +1,26 @@
 # Changelog — ProductTrack v2
 
+## 2.22.0 — Hapus proyek (2026-10-13)
+
+Permintaan user: proyek yang sudah dibuat bisa dihapus juga.
+
+- **Hapus proyek** (Manager, yang juga membuat proyek): tombol di halaman proyek.
+  - Jendela konfirmasinya merangkum apa saja yang ikut hilang: jumlah task (dan task turunan,
+    juga yang masih terbuka) serta setoran ke rancangan paket mana.
+  - Tombol **Hapus permanen** baru aktif setelah ID proyek diketik ulang.
+  - Tautan **arsipkan saja** di jendela yang sama menjadi jalan aman untuk proyek yang sudah
+    selesai.
+- **Yang ikut terhapus** (`Inti.hapusProyek`, aksi data `hapusProyek`):
+  - semua task proyek itu di semua siklus, termasuk turunan, sub-task, komentar, tinjauan, dan
+    bukti di dalamnya;
+  - setoran task-task itu, sehingga progres paket dari proyek ini hilang dan targetnya terbuka
+    lagi.
+- **Yang tetap**: Riwayat Aktivitas mencatat "Proyek dihapus beserta … task dan … setoran
+  paket", dan pesan Komunikasi tetap tersimpan. Di data real perubahannya hanya daftar baris
+  yang dihapus.
+- Panduan (Membaca halaman Proyek) dan README menyebutnya. Tes baru di `test/setoran.test.js`,
+  termasuk lewat perintah data real. 236 tes.
+
 ## 2.21.0 — Tampilan pribadi & status; Master untuk Lead; task turunan (2026-10-13)
 
 Permintaan user:
