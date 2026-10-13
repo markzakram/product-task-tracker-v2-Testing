@@ -25,6 +25,10 @@
      ditutup E12 — menunggu Manager memulai siklus berikutnya.
    - PKG-006 UTBK: di v1 belum ada target. Diberi target contoh tapi BELUM dielaborasi,
      untuk dicoba sendiri lewat tombol "Elaborasi jadi proyek".
+   Ditambah satu proyek TANPA paket (2.29.1): "Tes Psikologi PAPI Kostick", dua tim. RAD
+   (Andika) meriset dan merancang instrumennya; DAE (Ali) merancang sistem penilaian sejajar,
+   lalu membuat prototype yang menunggu rancangan RAD (serah-terima lewat Atur urutan tunggu).
+   Rancangan RAD sedang ditinjau Manager: begitu disetujui, prototype Ali terbuka.
    Ditambah beberapa Catatan Saya dan Link Saya contoh (folder "Contoh") memakai tautan
    Dashboard Lain dan tautan paket yang memang sudah ada di data contoh.
 
@@ -252,6 +256,47 @@ function skenarioOjk(data, sekarang) {
   return { project: proj, tasks: [a1, a6, ...tasks, e12] };
 }
 
+/* Proyek lintas tim tanpa rancangan paket (2.29.1): PAPI Kostick. Analysis: intake & target oleh
+   Manager (gerbang) dan riset RAD (sebagian dibagi ke Uma). Design sejajar: blueprint instrumen
+   oleh Andika (RAD) dan rancangan sistem penilaian oleh Ali (DAE, tanpa staff). Ali memasang
+   prototype DV7 menunggu blueprint D2 RAD. Keadaannya kini: D2 sudah diajukan dan menunggu
+   tinjauan Manager, jadi DV7 (dan produksi butir RAD) masih menunggu. */
+function skenarioPapi(data, sekarang) {
+  const awal = sekarang - 12 * HARI;
+  const hari = w => Inti.isoHari(w);
+  const proj = Inti.proyekBaru(data, { name: 'Tes Psikologi PAPI Kostick', platform: 'All Platform',
+    goal: 'Tes kepribadian kerja PAPI Kostick (90 pasang pernyataan, 20 aspek) dengan skor dan laporan otomatis, mulai dari prototype untuk uji coba internal.' }, MANAGER, awal);
+  const baru = (sub, judul, pic, due) => Inti.taskBaru(data, { title: `${sub} · ${judul}`, project: proj.id, sub, pic, due: hari(due) }, MANAGER, awal, hari(awal));
+  const a1 = baru('A1', 'Intake kebutuhan tes PAPI Kostick dari tim bisnis', MANAGER, awal + HARI);
+  const a2 = baru('A2', 'Riset tes kepribadian kerja & pesaing PAPI Kostick', 'andika', awal + 4 * HARI);
+  const a6 = baru('A6', 'Target & indikator keberhasilan tes PAPI Kostick', MANAGER, awal + 4 * HARI);
+  const d2 = baru('D2', 'Blueprint instrumen PAPI Kostick (90 pasang pernyataan, 20 aspek, norma skor)', 'andika', sekarang + HARI);
+  const d4 = baru('D4', 'Rancangan sistem penilaian & laporan PAPI Kostick', 'ali', awal + 7 * HARI);
+  const dv1 = baru('DV1', 'Produksi butir PAPI Kostick (90 pasang pernyataan)', 'andika', sekarang + 6 * HARI);
+  const dv7 = baru('DV7', 'Prototype tes PAPI Kostick (pengerjaan & skor otomatis)', 'ali', sekarang + 7 * HARI);
+  const i5 = baru('I5', 'Uji coba terbatas prototype PAPI Kostick (internal)', 'ali', sekarang + 10 * HARI);
+  const e1 = baru('E1', 'QC butir PAPI Kostick', 'andika', sekarang + 9 * HARI);
+  const e8 = baru('E8', 'QC akun & sistem penilaian prototype PAPI Kostick', 'ali', sekarang + 12 * HARI);
+  const e12 = baru('E12', 'Final approval & penutupan siklus PAPI Kostick', MANAGER, sekarang + 14 * HARI);
+  // Analysis: gerbang Manager, riset RAD (pembanding pesaing dibagi ke Uma).
+  kerjakan(data, a1, awal + 2 * JAM, awal + 0.8 * HARI);
+  const riset = Inti.taskAnak(data, a2, { title: 'Bandingkan tes PAPI Kostick di platform pesaing', pic: 'uma', due: hari(awal + 3 * HARI) }, 'andika', awal + 0.5 * HARI, hari(awal));
+  kerjakan(data, riset, awal + 0.6 * HARI, awal + 2.5 * HARI);
+  setujui(data, riset, awal + 2.8 * HARI);
+  kerjakan(data, a6, awal + HARI, awal + 3 * HARI);
+  Inti.setKeputusan(data, proj, 'Build', MANAGER, awal + 3 * HARI + JAM);
+  kerjakan(data, a2, awal + 0.5 * HARI, awal + 3.5 * HARI);
+  setujui(data, a2, awal + 4 * HARI);
+  // Design sejajar: DAE tak menunggu riset RAD; blueprint RAD menunggu riset RAD (fase timnya).
+  kerjakan(data, d4, awal + 3.2 * HARI, awal + 6.5 * HARI);
+  setujui(data, d4, awal + 7 * HARI);
+  // Serah-terima: Ali (Lead DAE) memasang prototype menunggu blueprint RAD.
+  Inti.aturTunggu(data, dv7, { tunggu: [d2.id] }, 'ali', awal + 7 * HARI + 2 * JAM);
+  kerjakan(data, d2, awal + 4.2 * HARI, sekarang - 5 * JAM);
+  komentar(data, d2, 'ali', 'Begitu blueprint ini disetujui, prototype DV7 langsung saya mulai. Mohon sertakan norma skor per aspek.', sekarang - 3 * JAM);
+  return { project: proj, tasks: [a1, a2, a6, d2, d4, dv1, dv7, i5, e1, e8, e12] };
+}
+
 /* Catatan Saya & Link Saya contoh, di folder "Contoh". Link-nya hanya tautan yang sudah ada
    di data contoh (Dashboard Lain dan tautan paket), bukan Link Saya pribadi dari v1. */
 function ruangSayaContoh(data, sekarang) {
@@ -287,6 +332,7 @@ function tambahDemo(data, sekarang = Date.now()) {
   data.setoran = data.setoran || [];
   const tka = skenarioTka(data, sekarang);
   const ojk = skenarioOjk(data, sekarang);
+  const papi = skenarioPapi(data, sekarang);
   const utbk = data.packages.find(x => x.id === 'PKG-006');
   if (utbk && !utbk.items.length) beriTarget(utbk, TARGET_CONTOH['PKG-006'], sekarang - 2 * HARI);
   const ruang = ruangSayaContoh(data, sekarang);
@@ -294,7 +340,7 @@ function tambahDemo(data, sekarang = Date.now()) {
   // Langkah alur di atas dicatat dengan waktu lampau; riwayat harus tetap terbaru di atas.
   data.log.sort((a, b) => b.at - a.at);
   if (data.log.length > 1000) data.log.length = 1000;
-  const proyek = [tka, ojk].filter(Boolean).map(x => ({ ...x, semua: data.tasks.filter(t => t.project === x.project.id) }));
+  const proyek = [tka, ojk, papi].filter(Boolean).map(x => ({ ...x, semua: data.tasks.filter(t => t.project === x.project.id) }));
   return {
     proyek: proyek.map(x => `${x.project.id} ${x.project.name} (${x.semua.length} task, ${x.semua.filter(t => t.induk).length} di antaranya task turunan)`),
     task: proyek.reduce((n, x) => n + x.semua.length, 0),

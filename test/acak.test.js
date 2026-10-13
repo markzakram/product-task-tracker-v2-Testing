@@ -102,10 +102,11 @@ function simulasi(benih, jumlah) {
     } else if (jenis < 0.55) {
       if (I.aktif(t)) coba(() => { I.isiOutput(d, t, 'Hasil uji ' + i, t.pic, w); I.tambahBukti(d, t, { url: 'https://contoh.id/' + t.id }, t.pic, w); }, 'output');
     } else if (jenis < 0.7) {
-      // Lead membagi task yang ia pegang; ditolak tepat saat bolehBuatAnak menolak.
+      // Lead membagi task yang ia pegang; ditolak tepat saat bolehBuatAnak menolak. Lead tanpa staff
+      // (mis. Ali, DAE) memecah untuk dirinya sendiri.
       const staf = I.timDari(t.pic);
       const bisa = I.bolehBuatAnak(t, t.pic);
-      const ok = coba(() => I.taskAnak(d, t, { title: 'Bagian uji ' + i, pic: staf.length ? pilih(staf) : 'kiki' }, t.pic, w, HARI), 'anak');
+      const ok = coba(() => I.taskAnak(d, t, { title: 'Bagian uji ' + i, pic: staf.length ? pilih(staf) : t.pic }, t.pic, w, HARI), 'anak');
       assert.equal(ok, bisa, `${t.id}: taskAnak ${ok ? 'lolos' : 'ditolak'}, padahal bolehBuatAnak = ${bisa}`);
       if (ok) hitung.anak++;
     } else if (jenis < 0.8) {
@@ -113,7 +114,8 @@ function simulasi(benih, jumlah) {
       const baru = pilih(ORANG);
       if (coba(() => I.ubahTask(d, t, { pic: baru }, pelaku, w), 'pic') && baru !== lama) {
         hitung.pic++;
-        assert.ok(!(I.orang(lama).peran === 'lead' && I.orang(baru).peran === 'staff'), `${t.id}: task Lead pindah ke staff`);
+        // Sejak 2.29.0 hanya task Lead yang bukan turunan yang tak diserahkan ke staff.
+        assert.ok(t.induk || !(I.orang(lama).peran === 'lead' && I.orang(baru).peran === 'staff'), `${t.id}: task Lead pindah ke staff`);
       }
     } else if (jenis < 0.88) {
       if (coba(() => I.ubahTask(d, t, { sub: pilih(I.SUB_TAHAP).kode }, pelaku, w), 'sub')) hitung.sub++;

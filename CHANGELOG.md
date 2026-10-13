@@ -1,5 +1,47 @@
 # Changelog — ProductTrack v2
 
+## Belum dirilis — Agen Ali: pekerjaan Lead (2026-10-13)
+
+Permintaan user: agen Ali punya pekerjaan yang sesuai perannya sebagai Lead tim DAE. Semuanya
+tanpa token, hanya membaca ProductTrack, dan hanya mengubah folder `agen/` (tidak ikut image
+Docker), jadi versi aplikasi tidak naik.
+
+- **Rekap tim** (`agen/rekap-tim.js`): status semua task tim per proyek (siklus berjalan) dan
+  fase ADDIE, yang telat, tertahan, revisi, dan menunggu tinjauan, beban per orang dari
+  kapasitas 6, serta berapa task yang dibagi lewat task turunan.
+- **Laporan mingguan** (`agen/mingguan.js`, `--lalu` untuk minggu lalu): selesai (tepat
+  waktu), diajukan, tinjauan oleh Ali, terlambat & tertahan, rencana 7 hari ke depan, dan kabar
+  proyek. Ringkasannya di obrolan Agent Office; lengkapnya HTML (bisa dicetak jadi PDF) dan
+  Markdown di `agen/laporan/` (tidak ikut git).
+- **Antrean tim + saran PIC** (`agen/antrean.js`): langkah di Antrean tim dengan saran staff
+  berbeban paling ringan, lalu yang pernah menyelesaikan sub-stage yang sama. Hanya saran;
+  membagi task tetap dari ProductTrack. Tim tanpa staff mendapat penjelasan, bukan daftar kosong.
+- **Cek kerapian data tim** (`agen/cek-data.js`): task proyek tanpa tenggat atau sub-stage,
+  output kosong padahal sudah diajukan/selesai, turunan yang tertinggal, tenggat turunan
+  melewati induknya, induk yang siap diajukan, menunggu task yang tidak ada lagi, PIC nonaktif,
+  tertahan tanpa alasan, dan telat lebih dari 14 hari tanpa dimulai.
+- Lingkupnya tim profil agen (`Inti.timOrang`): task bersub-stage milik tim ditambah task
+  anggotanya, termasuk staff yang profilnya sudah dinonaktifkan (supaya terlihat untuk
+  dipindahkan). Proyek arsip tidak dihitung.
+- Ringkasan pagi: bagian "Sub-task untuk Anda" dihapus; sejak 2.29.0 butir ceklis tak punya PIC
+  sendiri, jadi bagian itu selalu kosong.
+- Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
+  `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
+
+## 2.29.1 — Data contoh: proyek lintas tim PAPI Kostick (2026-10-13)
+
+Permintaan user: contoh proyek yang dikerjakan dua tim, dari riset dan rancangan RAD (Andika) ke
+prototype DAE (Ali).
+
+- Skenario contoh baru (`scripts/_demo.js`, `npm run impor:v1 -- --demo`): **Tes Psikologi PAPI
+  Kostick**, proyek tanpa rancangan paket. A1/A6 oleh Manager, A2 dan D2 oleh RAD, D4 oleh DAE
+  sejajar, dan **DV7 prototype DAE menunggu D2 RAD** (serah-terima lewat Atur urutan tunggu).
+  D2 sedang ditinjau Manager; begitu disetujui, Ali mendapat notifikasi DV7 siap.
+- Data contoh di spreadsheet baru berisi proyek ini sesudah impor ulang `--demo`.
+- Tes: skenario PAPI di `test/demo.test.js`. Simulasi acak (`test/acak.test.js`) kini membagi task
+  Lead tanpa staff ke Lead itu sendiri, dan mengikuti aturan 2.29.0 (task turunan Lead boleh
+  pindah ke staff).
+
 ## 2.29.0 — Izin per peran, bahasa Inggris tahap 2, ceklis milik PIC task, PIC turunan ke staff (2026-10-13)
 
 Empat permintaan user.

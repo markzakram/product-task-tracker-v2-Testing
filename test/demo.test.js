@@ -78,3 +78,28 @@ test('skenario contoh: proyek berjalan per tim ADDIE — task turunan, gate, cap
   assert.ok(r.task > 100 && r.setoran === d.setoran.length);
   assert.ok(d.notes.every(n => n.folder === 'Contoh') && d.links.every(l => l.folder === 'Contoh' && /^https:/.test(l.url)));
 });
+
+test('skenario contoh PAPI Kostick (2.29.1): proyek tanpa paket, serah-terima RAD → DAE', () => {
+  const d = data();
+  tambahDemo(d, SEKARANG);
+  const perId = I.indeks(d);
+  const papi = d.projects.find(p => p.name === 'Tes Psikologi PAPI Kostick');
+  assert.ok(papi && !papi.paket, 'proyek tanpa rancangan paket');
+  const tP = d.tasks.filter(t => t.project === papi.id);
+  const sub = k => tP.find(t => t.sub === k && !t.induk);
+  assert.deepEqual(['A1', 'A2', 'A6', 'D4'].filter(k => !I.selesai(sub(k))), [], 'Analysis dan rancangan DAE tuntas');
+  assert.deepEqual([I.timJalur(sub('D2'), perId), I.timJalur(sub('DV7'), perId)], ['AK', 'SI'], 'dua tim berbeda');
+  assert.equal(sub('D2').status, 'Ditinjau');
+  assert.equal(I.peninjau(sub('D2')), I.MANAGER);
+  assert.deepEqual(sub('DV7').tunggu, [sub('D2').id], 'Ali memasang serah-terima');
+  assert.deepEqual(I.depsBelum(sub('DV7'), perId).map(x => x.id), [sub('D2').id], 'prototype hanya menunggu blueprint RAD');
+  assert.ok(I.depsBelum(sub('DV1'), perId).some(x => x.id === sub('D2').id), 'produksi butir RAD menunggu fase Design RAD');
+  assert.ok(tP.some(t => t.induk === sub('A2').id && t.pic === 'uma' && I.selesai(t)), 'riset dibagi ke Uma');
+  assert.ok(tP.filter(t => !t.induk).every(t => I.orang(t.pic).peran !== 'staff'));
+  // Manager menyetujui blueprint: prototype Ali terbuka dan ia diberi tahu.
+  I.terapkanAksi(d, sub('D2'), 'setujui', I.MANAGER, SEKARANG + 1000);
+  const kini = I.indeks(d);
+  assert.deepEqual(I.depsBelum(sub('DV7'), kini), []);
+  assert.ok(I.notifikasi(d, 'ali').some(n => n.jenis === 'siap' && n.task === sub('DV7').id), 'notifikasi siap untuk Ali');
+  assert.ok(I.depsBelum(sub('I5'), kini).some(x => x.id === sub('DV7').id), 'uji coba menunggu prototype (fase DAE)');
+});

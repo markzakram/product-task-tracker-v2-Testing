@@ -580,6 +580,9 @@ yang ditulisnya bertanda **AI**. Cara menyiapkan dan memakainya ada di `agen/REA
   - `klien.js`: masuk, menyusun data real seperti browser, dan menulis.
   - `laporan.js`: ringkasan pagi dan pengingat.
   - `ringkasan.js` dan `pengingat.js`: pekerjaan tanpa token untuk Agent Office.
+  - `tim.js`: pekerjaan Lead (rekap tim, laporan mingguan, antrean + saran PIC, cek kerapian
+    data), dijalankan `rekap-tim.js`, `mingguan.js`, `antrean.js`, dan `cek-data.js`.
+    Laporan mingguan ditulis ke `agen/laporan/` (tak ikut git).
   - `mcp.js` dan `.mcp.json`: alat untuk sesi AI.
   - `.claude/settings.json`: alat baca langsung jalan; alat tulis selalu minta persetujuan.
   - `CLAUDE.md`: aturan kerja agen.
@@ -588,6 +591,10 @@ yang ditulisnya bertanda **AI**. Cara menyiapkan dan memakainya ada di `agen/REA
 - **Di Agent Office** karyawan operator **Ali** memegang folder `agen/`:
   - **Ringkasan pagi** dan **Pengingat** (tenggat, tinjauan, pertanyaan) berjalan tanpa token
     dan terjadwal. Pengingat yang tak menemukan hal baru tidak memberi notifikasi.
+  - Untuk Ali sebagai Lead, juga tanpa token dan hanya membaca: **Rekap tim** (status per
+    proyek & fase ADDIE, yang macet, beban per orang, task turunan), **Laporan mingguan** (HTML
+    dan Markdown), **Antrean + saran PIC** (staff berbeban paling ringan; hanya saran), dan
+    **Cek data tim** (tenggat, output, turunan, dan urutan tunggu yang perlu dirapikan).
   - Tugas AI ("@Ali jawab pesan yang menunggu", "@Ali PRD-123 sudah selesai, …") memakai kredit
     API. Setiap tulisan muncul dulu sebagai kartu Izinkan/Tolak berisi isinya.
 
@@ -1092,6 +1099,17 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
   Manager.
 - **UTBK** diberi target contoh tanpa dielaborasi, untuk mencoba tombol **Elaborasi jadi
   proyek** sendiri.
+- **Tes Psikologi PAPI Kostick** (2.29.1): proyek **tanpa rancangan paket** yang melibatkan dua
+  tim, contoh serah-terima antartim di luar alur paket.
+  - Analysis: A1 intake dan A6 target oleh Manager (gerbang), A2 riset oleh Andika (RAD), yang
+    sebagian dibagi ke Uma lewat task turunan.
+  - Design sejajar: D2 blueprint instrumen oleh Andika (RAD) dan D4 rancangan sistem penilaian
+    oleh Ali (DAE, tanpa staff; ia mengerjakan sendiri).
+  - Ali memasang **DV7 Pembuatan prototype** menunggu **D2** milik RAD lewat **Atur urutan
+    tunggu**. Sesudahnya I5 uji coba terbatas dan E8 QC sistem penilaian (DAE), DV1 produksi
+    butir dan E1 QC butir (RAD), lalu E12 oleh Manager.
+  - Keadaannya: D2 sudah diajukan dan menunggu tinjauan Manager. Setujui D2 sebagai Nynda, dan
+    Ali langsung mendapat notifikasi bahwa DV7 siap dikerjakan.
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
 
 Bentuk tab hanya bertambah (kolom `paket` di `projects`; tab `setoran`, sejak 0.6.0 dengan kolom
