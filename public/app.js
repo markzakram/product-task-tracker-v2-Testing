@@ -18,6 +18,17 @@
   'use strict';
 
   const I = window.Inti;
+  /* Bahasa (2.28.0): tr() memakai terjemahan Inggris bila dipilih dan sudah ada (public/bahasa.js);
+     teks yang belum diterjemahkan tetap bahasa Indonesia. */
+  const B = window.Bahasa;
+  const tr = (s, v) => B.tr(s, v);
+  /* Kalimat dari aturan (inti) yang berisi nama atau angka: dicocokkan polanya, lalu
+     diterjemahkan seperti teks lain; yang tak cocok lewat tr() biasa. */
+  const POLA_TR = [
+    [/^Semua task turunan selesai \((\d+)\/(\d+)\)$/, m => tr('Semua task turunan selesai ({a}/{b})', { a: m[1], b: m[2] })],
+    [/^Task turunan dibuat (.+) sebagai Lead tim pemilik task ini\.$/, m => tr('Task turunan dibuat {nama} sebagai Lead tim pemilik task ini.', { nama: m[1] })],
+  ];
+  const trPola = teks => { for (const [pola, f] of POLA_TR) { const m = pola.exec(teks); if (m) return f(m); } return tr(teks); };
   const $ = (s, akar = document) => akar.querySelector(s);
   const $$ = (s, akar = document) => [...akar.querySelectorAll(s)];
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -46,6 +57,9 @@
   const ambil = (k, bawaan) => { try { const v = localStorage.getItem(AWALAN + k); return v == null ? bawaan : JSON.parse(v); } catch (e) { return bawaan; } };
   const simpan = (k, v) => { try { localStorage.setItem(AWALAN + k, JSON.stringify(v)); } catch (e) { /* penuh atau diblokir: tetap jalan */ } };
   const hapus = k => { try { localStorage.removeItem(AWALAN + k); } catch (e) { /* abaikan */ } };
+  // Bahasa terakhir di perangkat ini, untuk layar sebelum profil dipilih.
+  B.atur(ambil('bahasa', 'id'));
+  document.documentElement.lang = B.bahasa();
 
   /* ---------- Tema terang / gelap (2.20.0) ----------
      Pilihan per browser: 'sistem' (bawaan, ikut pengaturan perangkat), 'terang', atau 'gelap'.
@@ -82,6 +96,7 @@
     { grup: 'Pekerjaan', id: 'proyek', judul: 'Proyek', ikon: 'lapis' },
     { grup: 'Pekerjaan', id: 'task', judul: 'Task', ikon: 'tugas' },
     { grup: 'Pekerjaan', id: 'komunikasi', judul: 'Komunikasi', ikon: 'obrolan' },
+    { grup: 'Ruang Saya', id: 'agenda', judul: 'Kalender Saya', ikon: 'kalender' },
     { grup: 'Ruang Saya', id: 'link', judul: 'Link Saya', ikon: 'penanda' },
     { grup: 'Ruang Saya', id: 'catatan', judul: 'Catatan Saya', ikon: 'catatan' },
     { grup: 'Manajer', id: 'riwayat', judul: 'Riwayat Aktivitas', ikon: 'riwayat', peran: ['manager'] },
@@ -147,7 +162,7 @@
     tahapBuka: null,
     /* Mode pilih task untuk dihapus di tab tim proyek (2.23.0): { proyek, tab, ids }. */
     pilihTask: null,
-    /* Sub-task yang sedang diubah di detail task: { task, sub }. */
+    /* Ceklis yang sedang diubah di detail task: { task, sub }. */
     ubahSub: null,
     /* Sumber data (2.16.0): 'contoh' atau 'real', dipilih mode Dev untuk semua pengguna. */
     mode: 'contoh',
@@ -204,6 +219,9 @@
        pengguna lain tetap di sumber global (modeGlobal). Master yang diubah di mode uji hanya
        tersimpan di browser ini (pt2_uji_master). */
     uji: false, modeGlobal: '',
+    /* Kalender Saya (2.28.0): agenda profil ini (isi), email pribadi, bulan & tanggal yang dilihat,
+       tugas = tampilkan tenggat task saya, lonceng = pengingat yang sudah berbunyi (untuk lonceng). */
+    agenda: { orang: '', isi: [], pribadi: { email: '' }, dimuat: 0, menarik: false, galat: '', bulan: '', hari: '', tugas: true, lonceng: [], versi: 0 },
     /* Master & PIN profil (0.14.0): masterBaris = baris tab master dari server, masterSalah = jenis
        yang diabaikan karena rusak (beserta alasannya), berpin = profil yang memakai PIN pribadi,
        meSesi = profil yang sudah terbukti di sesi server ini (lewat PIN-nya, atau tak ber-PIN). */
@@ -424,12 +442,12 @@
   }
   document.addEventListener('focusout', () => setTimeout(() => { if (perluGambar && !sedangMengetik()) gambarUlangAman(); }, 0));
   function teksStatusData() {
-    if (S.uji) return `Mode uji Dev: data contoh di browser ini saja. Pengguna lain tetap di data ${S.modeGlobal === 'real' ? 'real' : 'contoh'}.`;
-    if (S.mode !== 'real') return 'Data contoh. Perubahan hanya tersimpan di browser ini.';
+    if (S.uji) return S.modeGlobal === 'real' ? tr('Mode uji Dev: data contoh di browser ini saja. Pengguna lain tetap di data real.') : tr('Mode uji Dev: data contoh di browser ini saja. Pengguna lain tetap di data contoh.');
+    if (S.mode !== 'real') return tr('Data contoh. Perubahan hanya tersimpan di browser ini.');
     const n = S.real.tertunda.length;
-    if (!n) return 'Data real. Semua perubahan tersimpan bersama di spreadsheet.';
-    if (S.real.galat && !S.real.mengirim) return `${n} perubahan belum tersimpan: ${S.real.galat}`;
-    return `Menyimpan ${n} perubahan…`;
+    if (!n) return tr('Data real. Semua perubahan tersimpan bersama di spreadsheet.');
+    if (S.real.galat && !S.real.mengirim) return tr('{n} perubahan belum tersimpan: {galat}', { n, galat: S.real.galat });
+    return tr('Menyimpan {n} perubahan…', { n });
   }
   function perbaruiStatusReal() {
     const el = $('#status-data');
@@ -596,14 +614,16 @@
   const tandaAi = ai => (ai ? '<span class="chip-ai" title="Dikerjakan agen AI atas nama orang ini">AI</span>' : '');
 
   const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const BULAN_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const keDate = iso => new Date(iso + 'T00:00:00');
-  const fmtTanggal = iso => (iso ? keDate(iso).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }) : '—');
-  const fmtTanggalPendek = iso => (iso ? keDate(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '—');
-  const fmtTanggalPanjang = iso => (iso ? keDate(iso).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—');
-  const fmtWaktu = ms => (ms ? new Date(ms).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
-  const fmtJam = ms => new Date(ms).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-  const fmtAngka = n => (Number.isInteger(n) ? String(n) : Number(n).toLocaleString('id-ID'));
-  const namaBulan = bulan => { const [y, m] = bulan.split('-').map(Number); return `${BULAN[m - 1]} ${y}`; };
+  // Tanggal, jam, dan angka mengikuti bahasa yang dipilih (2.28.0).
+  const fmtTanggal = iso => (iso ? keDate(iso).toLocaleDateString(B.lokal(), { weekday: 'short', day: 'numeric', month: 'short' }) : '—');
+  const fmtTanggalPendek = iso => (iso ? keDate(iso).toLocaleDateString(B.lokal(), { day: 'numeric', month: 'short' }) : '—');
+  const fmtTanggalPanjang = iso => (iso ? keDate(iso).toLocaleDateString(B.lokal(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—');
+  const fmtWaktu = ms => (ms ? new Date(ms).toLocaleString(B.lokal(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+  const fmtJam = ms => new Date(ms).toLocaleTimeString(B.lokal(), { hour: '2-digit', minute: '2-digit' });
+  const fmtAngka = n => (Number.isInteger(n) ? String(n) : Number(n).toLocaleString(B.lokal()));
+  const namaBulan = bulan => { const [y, m] = bulan.split('-').map(Number); return `${(B.bahasa() === 'en' ? BULAN_EN : BULAN)[m - 1]} ${y}`; };
   function fmtRentang(dari, sampai) {
     const a = keDate(dari), b = keDate(sampai);
     if (dari === sampai) return fmtTanggalPanjang(dari);
@@ -614,22 +634,22 @@
   function relatif(ms) {
     if (!ms) return '';
     const d = (Date.now() - ms) / 1000;
-    if (d < 60) return 'baru saja';
-    if (d < 3600) return Math.floor(d / 60) + ' mnt lalu';
-    if (d < 86400) return Math.floor(d / 3600) + ' jam lalu';
-    if (d < 7 * 86400) return Math.floor(d / 86400) + ' hari lalu';
+    if (d < 60) return tr('baru saja');
+    if (d < 3600) return tr('{n} mnt lalu', { n: Math.floor(d / 60) });
+    if (d < 86400) return tr('{n} jam lalu', { n: Math.floor(d / 3600) });
+    if (d < 7 * 86400) return tr('{n} hari lalu', { n: Math.floor(d / 86400) });
     return fmtWaktu(ms);
   }
   function namaSitus(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } }
 
-  const pillStatus = s => `<span class="pill st-${String(s).toLowerCase()}">${esc(s)}</span>`;
+  const pillStatus = s => `<span class="pill st-${String(s).toLowerCase()}">${esc(tr(s))}</span>`;
   function chipTenggat(t) {
-    if (!t.due) return '<span class="tenggat kosong">Tanpa tenggat</span>';
+    if (!t.due) return `<span class="tenggat kosong">${tr('Tanpa tenggat')}</span>`;
     if (I.selesai(t)) return `<span class="tenggat">${esc(fmtTanggal(t.due))}</span>`;
     const n = I.selisihHari(hariIni(), t.due);
-    if (n < 0) return `<span class="tenggat telat">Telat ${-n} hr</span>`;
-    if (n === 0) return '<span class="tenggat hari">Hari ini</span>';
-    if (n === 1) return '<span class="tenggat">Besok</span>';
+    if (n < 0) return `<span class="tenggat telat">${tr('Telat {n} hr', { n: -n })}</span>`;
+    if (n === 0) return `<span class="tenggat hari">${tr('Hari ini')}</span>`;
+    if (n === 1) return `<span class="tenggat">${tr('Besok')}</span>`;
     return `<span class="tenggat">${esc(fmtTanggal(t.due))}</span>`;
   }
   /* Kode sub-stage (PRD v3): kode ADDIE di dalam proyek; kode R = rutin; kode ADDIE di luar
@@ -640,11 +660,11 @@
     const ket = s ? I.namaSub(s.kode) + (s.tim ? ` · tim ${I.labelTim(s.tim)}` : '') : '';
     if (jenis === 'proyek') {
       return s ? `<span class="chip-sub" title="${esc(I.namaTahap(s.tahap) + ' · ' + ket)}">${esc(s.kode)}</span>`
-        : `<span class="huruf-tahap" title="Tahap ${esc(I.namaTahap(t.stage))}, belum ber-sub-stage">${esc(t.stage || '?')}</span>`;
+        : `<span class="huruf-tahap" title="${esc(tr('Tahap {tahap}, belum ber-sub-stage', { tahap: I.namaTahap(t.stage) }))}">${esc(t.stage || '?')}</span>`;
     }
-    if (jenis === 'lepas') return `<span class="chip-sub lepas" title="${esc('Lepas, di luar proyek · ' + ket)}">${esc(s.kode)}</span>`;
-    return s ? `<span class="chip-rutin" title="${esc('Rutin · ' + ket)}">${esc(s.kode)}</span>`
-      : '<span class="chip-rutin" title="Rutin, belum ber-sub-stage">Rutin</span>';
+    if (jenis === 'lepas') return `<span class="chip-sub lepas" title="${esc(tr('Lepas, di luar proyek') + ' · ' + ket)}">${esc(s.kode)}</span>`;
+    return s ? `<span class="chip-rutin" title="${esc(tr('Rutin') + ' · ' + ket)}">${esc(s.kode)}</span>`
+      : `<span class="chip-rutin" title="${tr('Rutin, belum ber-sub-stage')}">${tr('Rutin')}</span>`;
   }
   const menyetor = t => (S.data.setoran || []).some(x => x.task === t.id);
   const chipSetor = t => (menyetor(t) ? '<span class="chip-paket" title="Menaikkan progres rancangan paket saat disetujui">Paket</span>' : '');
@@ -654,7 +674,7 @@
   const asal = t => (t.project ? (proyekDari(t.project) || { name: t.project }).name : t.kategori || 'Rutin');
   function ringkasSub(t) {
     if (!t.subtasks.length) return '';
-    return `${t.subtasks.filter(s => s.done).length}/${t.subtasks.length} sub-task`;
+    return tr('{a}/{b} ceklis', { a: t.subtasks.filter(s => s.done).length, b: t.subtasks.length });
   }
 
   /* Indeks task per ID, dipakai banyak potongan dalam satu kali gambar. Objek task diubah di
@@ -678,7 +698,7 @@
   };
   function chipLabel(t, sembunyi = []) {
     const l = I.labelKeadaan(t, perIdKini());
-    return l && !sembunyi.includes(l) ? `<span class="pill ${LABEL[l][0]}" title="${esc(LABEL[l][1])}">${l}</span>` : '';
+    return l && !sembunyi.includes(l) ? `<span class="pill ${LABEL[l][0]}" title="${esc(tr(LABEL[l][1]))}">${esc(tr(l))}</span>` : '';
   }
 
   /* Tim tampil dengan singkatannya (2.19.0: DAE, RAD, LNA, CLO); kodenya tetap di data. */
@@ -751,18 +771,18 @@
     aman: 'Sesuai rencana', risiko: 'Berisiko', tunggu: 'Siklus selesai', sepi: 'Tak ada task terbuka', kosong: 'Belum ada task',
     ditahan: 'Ditahan', arsip: 'Arsip',
   };
-  const chipKeadaan = k => `<span class="pill kd-${k}">${KEADAAN[k]}</span>`;
+  const chipKeadaan = k => `<span class="pill kd-${k}">${esc(tr(KEADAAN[k]))}</span>`;
 
   /* ---------- Hirarki task (0.15.0) ----------
      Lead tak menyerahkan task yang ia pegang ke staff; ia membuat task turunan untuk staff timnya
      di bawah task itu. Di daftar, turunan tampil menjorok tepat di bawah induknya. */
   function ringkasAnak(t) {
     const anak = I.anakTask(perIdKini(), t.id);
-    return anak.length ? `${anak.filter(I.selesai).length}/${anak.length} task turunan` : '';
+    return anak.length ? tr('{a}/{b} task turunan', { a: anak.filter(I.selesai).length, b: anak.length }) : '';
   }
   function chipInduk(t) {
     const induk = perIdKini().get(t.induk);
-    return `<span class="chip-induk" title="${esc(`Task turunan dari ${t.induk}${induk ? ' · ' + induk.title : ''}`)}">↳ ${esc(t.induk)}</span>`;
+    return `<span class="chip-induk" title="${esc(tr('Task turunan dari {id}', { id: t.induk }) + (induk ? ' · ' + induk.title : ''))}">↳ ${esc(t.induk)}</span>`;
   }
   /* Anak diletakkan tepat sesudah induknya bila induknya ada di daftar yang sama; kalau tidak,
      ia tetap di tempatnya dengan tanda ↳ induknya. */
@@ -828,16 +848,16 @@
     const opsi = I.lingkupBoleh(S.me);
     if (opsi.length < 2) return '';
     const kini = I.lingkupSah(S.me, nilai);
-    return `<div class="segmen" role="group" aria-label="${label}">${opsi.map(v => `<button type="button" data-aksi="atur" data-ruang="${ruang}" data-kunci="lingkup" data-nilai="${v}" aria-pressed="${kini === v}">${teks[v]}</button>`).join('')}</div>`;
+    return `<div class="segmen" role="group" aria-label="${esc(tr(label))}">${opsi.map(v => `<button type="button" data-aksi="atur" data-ruang="${ruang}" data-kunci="lingkup" data-nilai="${v}" aria-pressed="${kini === v}">${esc(tr(teks[v]))}</button>`).join('')}</div>`;
   }
   /* Keterangan di bawah judul halaman: "Task saya", "Tim Alya · 3 orang", "Seluruh divisi". */
   function ketLingkup(lingkup) {
     const ids = I.lingkupOrang(S.me, lingkup);
-    if (I.lingkupSah(S.me, lingkup) === 'saya') return 'Task saya';
-    return ids ? `Tim ${esc(I.orang(S.me).pendek)} · ${ids.length} orang` : 'Seluruh divisi';
+    if (I.lingkupSah(S.me, lingkup) === 'saya') return tr('Task saya');
+    return ids ? tr('Tim {nama} · {n} orang', { nama: esc(I.orang(S.me).pendek), n: ids.length }) : tr('Seluruh divisi');
   }
-  const pilihan = (ruang, kunci, nilai, opsi, label) => `<label class="label-kecil">${esc(label)} <select data-aksi="saring" data-ruang="${ruang}" data-kunci="${kunci}">${opsi.map(([v, l]) => `<option value="${esc(v)}" ${nilai === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
-  const kotakCari = (ruang, nilai, teks) => `<label class="cari-halaman">${ikon('cari', 16)}<span class="sr">${esc(teks)}</span><input type="search" data-cari="${ruang}" placeholder="${esc(teks)}" value="${esc(nilai)}" autocomplete="off"></label>`;
+  const pilihan = (ruang, kunci, nilai, opsi, label) => `<label class="label-kecil">${esc(tr(label))} <select data-aksi="saring" data-ruang="${ruang}" data-kunci="${kunci}">${opsi.map(([v, l]) => `<option value="${esc(v)}" ${nilai === v ? 'selected' : ''}>${esc(tr(l))}</option>`).join('')}</select></label>`;
+  const kotakCari = (ruang, nilai, teks) => `<label class="cari-halaman">${ikon('cari', 16)}<span class="sr">${esc(tr(teks))}</span><input type="search" data-cari="${ruang}" placeholder="${esc(tr(teks))}" value="${esc(nilai)}" autocomplete="off"></label>`;
   const daftarPlatform = () => [...new Set(S.data.tasks.map(t => t.platform).filter(Boolean))].sort();
 
   const SEMUA = ['', 'Semua'];
@@ -901,8 +921,8 @@
     if (S.pratinjau && ['kirimObrolan', 'simpanFoto', 'simpanOrang', 'simpanMaster', 'pindahSub', 'aturPin', 'simpanReal', 'aturSumber'].includes(action)) {
       return { http: 0, success: false, message: 'Mode Lihat sebagai: tampilan saja, tidak ada yang dikirim. Kembali jadi Dev dulu.' };
     }
-    // Mode uji Dev: yang berlaku untuk pengguna lain (orang, PIN, foto, tampilan) tak dikirim.
-    if (S.uji && ['simpanFoto', 'simpanOrang', 'aturPin', 'simpanTampilan', 'simpanReal'].includes(action)) {
+    // Mode uji Dev: yang berlaku untuk pengguna lain (orang, PIN, foto, tampilan, agenda) tak dikirim.
+    if (S.uji && ['simpanFoto', 'simpanOrang', 'aturPin', 'simpanTampilan', 'simpanReal', 'simpanAgenda', 'hapusAgenda', 'simpanPribadi'].includes(action)) {
       return { http: 0, success: false, message: 'Mode uji Dev: perubahan ini tidak dikirim, supaya pengguna lain tak terganggu. Keluar dari mode uji dulu.' };
     }
     const henti = new AbortController();
@@ -1101,6 +1121,8 @@
     if (!halamanBoleh(S.view)) S.view = halamanAwal();
     simpan('halaman', S.view);
     alamatGanti = true;
+    // Salinan Kalender Saya di browser ini terbaca sebelum layar pertama; tarikannya menyusul.
+    tarikAgenda();
     render();
     bukaEditorDariAlamat();
     if (hasil.ditolak) toast(hasil.ditolak, true);
@@ -1293,24 +1315,24 @@
     const grup = [...new Set(HALAMAN.map(h => h.grup))];
     $('#samping').innerHTML = `
       <div class="samping-merek">
-        <a class="merek" href="#" data-aksi="ke" data-view="awal">${LOGO}<span class="merek-teks">${NAMA_MEREK}${versiBerkas() ? `<span class="merek-versi">v${esc(versiBerkas())}</span>` : ''}<small>Divisi Produk</small></span></a>
-        <button type="button" class="ikon-tombol samping-tutup" data-aksi="tutup-nav" aria-label="Tutup menu">${ikon('tutup', 20)}</button>
+        <a class="merek" href="#" data-aksi="ke" data-view="awal">${LOGO}<span class="merek-teks">${NAMA_MEREK}${versiBerkas() ? `<span class="merek-versi">v${esc(versiBerkas())}</span>` : ''}<small>${tr('Divisi Produk')}</small></span></a>
+        <button type="button" class="ikon-tombol samping-tutup" data-aksi="tutup-nav" aria-label="${tr('Tutup menu')}">${ikon('tutup', 20)}</button>
       </div>
-      <nav class="samping-nav" aria-label="Menu utama">${grup.map(g => {
+      <nav class="samping-nav" aria-label="${tr('Menu utama')}">${grup.map(g => {
         const isi = HALAMAN.filter(h => h.grup === g && halamanBoleh(h.id));
         if (!isi.length) return '';
-        return `<div class="nav-grup"><p class="nav-grup-judul">${g}</p>${isi.map(h => `
-          <button type="button" class="nav-item" data-aksi="ke" data-view="${h.id}" ${S.view === h.id ? 'aria-current="page"' : ''}>${ikon(h.ikon)}<span>${h.judul}</span>${lencanaHtml(h.id, lencana[h.id])}</button>`).join('')}</div>`;
+        return `<div class="nav-grup"><p class="nav-grup-judul">${tr(g)}</p>${isi.map(h => `
+          <button type="button" class="nav-item" data-aksi="ke" data-view="${h.id}" ${S.view === h.id ? 'aria-current="page"' : ''}>${ikon(h.ikon)}<span>${tr(h.judul)}</span>${lencanaHtml(h.id, lencana[h.id])}</button>`).join('')}</div>`;
       }).join('')}</nav>
       <div class="samping-kaki">
         <div class="kotak-profil">
-          <div class="kotak-profil-atas">${S.me === I.DEV ? avatar(S.me, 'besar') : `<button type="button" class="ganti-foto" data-aksi="foto-profil" title="Ganti foto profil" aria-label="Ganti foto profil">${avatar(S.me, 'besar')}<span class="ganti-foto-tanda">${ikon('kamera', 12)}</span></button>`}<span><strong>${esc(o.nama)}</strong><small>${S.me === I.DEV ? `Akun teknis${S.devSampai ? ` · sampai ${esc(jamDev())}` : ''}` : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
+          <div class="kotak-profil-atas">${S.me === I.DEV ? avatar(S.me, 'besar') : `<button type="button" class="ganti-foto" data-aksi="foto-profil" title="${tr('Ganti foto profil')}" aria-label="${tr('Ganti foto profil')}">${avatar(S.me, 'besar')}<span class="ganti-foto-tanda">${ikon('kamera', 12)}</span></button>`}<span><strong>${esc(o.nama)}</strong><small>${S.me === I.DEV ? `${tr('Akun teknis')}${S.devSampai ? ` · ${tr('sampai {jam}', { jam: esc(jamDev()) })}` : ''}` : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
         </div>
         <div class="kotak-data ${S.mode === 'real' ? 'data-real' : ''}">
           <p class="samping-catatan" id="status-data">${esc(teksStatusData())}</p>
           ${S.mode === 'real'
-    ? `<button type="button" class="tombol kecil" id="coba-simpan" data-aksi="coba-simpan" ${S.real.galat && S.real.tertunda.length ? '' : 'hidden'}>${ikon('ulang', 16)} Coba simpan lagi</button>`
-    : `<button type="button" class="tombol kecil tombol-reset" data-aksi="reset-data">${ikon('ulang', 16)} Reset data contoh</button>`}
+    ? `<button type="button" class="tombol kecil" id="coba-simpan" data-aksi="coba-simpan" ${S.real.galat && S.real.tertunda.length ? '' : 'hidden'}>${ikon('ulang', 16)} ${tr('Coba simpan lagi')}</button>`
+    : `<button type="button" class="tombol kecil tombol-reset" data-aksi="reset-data">${ikon('ulang', 16)} ${tr('Reset data contoh')}</button>`}
         </div>
       </div>`;
     $('#samping').classList.toggle('buka', S.navBuka);
@@ -1326,19 +1348,19 @@
     const h = HALAMAN.find(x => x.id === S.view);
     const baru = jumlahNotifBaru();
     $('#kepala').innerHTML = `<div class="kepala-dalam">
-      <button type="button" class="ikon-tombol nav-buka" data-aksi="buka-nav" aria-label="Buka menu" aria-expanded="${S.navBuka}">${ikon('menu', 22)}</button>
-      <p class="kepala-judul">${esc(h ? h.judul : 'ProductTrack')}</p>
+      <button type="button" class="ikon-tombol nav-buka" data-aksi="buka-nav" aria-label="${tr('Buka menu')}" aria-expanded="${S.navBuka}">${ikon('menu', 22)}</button>
+      <p class="kepala-judul">${esc(h ? tr(h.judul) : 'ProductTrack')}</p>
       ${S.dev && (S.me === I.DEV || S.pratinjau) ? `<button type="button" class="chip-dev" data-aksi="${S.pratinjau ? 'pratinjau-akhiri' : 'ke'}" data-view="dev" title="${S.pratinjau ? 'Kembali jadi Dev' : 'Panel Dev'}">${ikon('kode', 14)} MODE DEV</button>` : ''}
-      <button type="button" class="cari" data-aksi="palet">${ikon('cari', 16)}<span>Cari task, proyek, paket, atau halaman…</span><kbd>${PINTASAN}</kbd></button>
-      <button type="button" class="ikon-tombol cari-hp" data-aksi="palet" aria-label="Cari atau lompat">${ikon('cari', 20)}</button>
-      ${I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama tombol-tambah" data-aksi="tambah-task">${ikon('tambah', 16)} Tambah task</button>` : ''}
+      <button type="button" class="cari" data-aksi="palet">${ikon('cari', 16)}<span>${tr('Cari task, proyek, paket, atau halaman…')}</span><kbd>${PINTASAN}</kbd></button>
+      <button type="button" class="ikon-tombol cari-hp" data-aksi="palet" aria-label="${tr('Cari atau lompat')}">${ikon('cari', 20)}</button>
+      ${I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama tombol-tambah" data-aksi="tambah-task">${ikon('tambah', 16)} ${tr('Tambah task')}</button>` : ''}
       ${tombolTema()}
       <div class="notif">
-        <button type="button" class="ikon-tombol tombol-notif" data-aksi="notif" aria-expanded="${S.notif.buka}" aria-label="Notifikasi${baru ? `, ${baru} baru` : ''}">${ikon('lonceng', 20)}${baru ? `<span class="lencana">${baru > 9 ? '9+' : baru}</span>` : ''}</button>
+        <button type="button" class="ikon-tombol tombol-notif" data-aksi="notif" aria-expanded="${S.notif.buka}" aria-label="${tr('Notifikasi')}${baru ? ', ' + tr('{n} baru', { n: baru }) : ''}">${ikon('lonceng', 20)}${baru ? `<span class="lencana">${baru > 9 ? '9+' : baru}</span>` : ''}</button>
         ${S.notif.buka ? panelNotif() : ''}
       </div>
       <div class="akun">
-        <button type="button" class="tombol-akun" data-aksi="akun" aria-expanded="${S.akun.buka}" aria-label="Akun ${esc(I.orang(S.me).pendek)}: foto, ganti profil, tema, keluar">${avatar(S.me, 'kecil')}</button>
+        <button type="button" class="tombol-akun" data-aksi="akun" aria-expanded="${S.akun.buka}" aria-label="${esc(tr('Akun {nama}: foto, ganti profil, tema, keluar', { nama: I.orang(S.me).pendek }))}">${avatar(S.me, 'kecil')}</button>
         ${S.akun.buka ? panelAkun() : ''}
       </div>
     </div>${spandukUji()}${spandukPratinjau()}`;
@@ -1348,7 +1370,7 @@
      tujuan (bulan saat terang, matahari saat gelap). "Ikuti sistem" ada di menu akun. */
   function tombolTema() {
     const gelap = document.documentElement.dataset.tema === 'gelap';
-    const label = gelap ? 'Ganti ke tema terang' : 'Ganti ke tema gelap';
+    const label = gelap ? tr('Ganti ke tema terang') : tr('Ganti ke tema gelap');
     return `<button type="button" class="ikon-tombol tombol-tema" data-aksi="tema-cepat" title="${label}" aria-label="${label}">${ikon(gelap ? 'matahari' : 'bulan', 20)}</button>`;
   }
   /* Menu akun di kanan atas (2.20.1, seperti di media sosial): siapa yang sedang masuk, ganti
@@ -1360,21 +1382,24 @@
     const butir = (aksi, ik, label, kelas = '') => `<button type="button" class="akun-butir ${kelas}" data-aksi="${aksi}">${ikon(ik, 18)}<span>${label}</span></button>`;
     const sampul = dev ? '' : sampulSaya();
     const st = dev ? null : I.statusAktif(setelanSaya());
-    return `<div class="panel-akun" aria-label="Akun">
+    return `<div class="panel-akun" aria-label="${tr('Akun')}">
       ${dev ? '' : `<div class="akun-sampul" ${sampul ? `style="background-image:url('${sampul}')"` : ''}></div>`}
-      <div class="akun-kepala">${avatar(S.me, 'besar')}<span><strong>${esc(o.nama)}</strong><small>${dev ? 'Akun teknis' : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
+      <div class="akun-kepala">${avatar(S.me, 'besar')}<span><strong>${esc(o.nama)}</strong><small>${dev ? tr('Akun teknis') : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
       ${dev ? '' : `<button type="button" class="akun-status" data-aksi="status">${st
-    ? `<b>${esc(st.emoji)}</b><span>${esc(st.teks || 'Status')}</span>${st.sampai ? `<small>${esc(teksSampai(st.sampai))}</small>` : ''}`
-    : `${ikon('senyum', 18)}<span>Setel status…</span>`}</button>`}
+    ? `<b>${esc(st.emoji)}</b><span>${esc(st.teks || tr('Status'))}</span>${st.sampai ? `<small>${esc(teksSampai(st.sampai))}</small>` : ''}`
+    : `${ikon('senyum', 18)}<span>${tr('Setel status…')}</span>`}</button>`}
       <div class="akun-grup">
-        ${dev ? '' : butir('foto-profil', 'kamera', 'Ganti foto profil')}
-        ${dev ? '' : butir('tampilan', 'palet', 'Sesuaikan tampilan')}
-        ${butir('ganti-profil', 'orang', 'Ganti profil')}
+        ${dev ? '' : butir('foto-profil', 'kamera', tr('Ganti foto profil'))}
+        ${dev ? '' : butir('tampilan', 'palet', tr('Sesuaikan tampilan'))}
+        ${butir('ganti-profil', 'orang', tr('Ganti profil'))}
       </div>
-      <div class="akun-grup akun-tema"><span class="akun-label" id="label-tema">Tema</span>
-        <div class="segmen segmen-tema" role="group" aria-labelledby="label-tema">${TEMA.map(([k, l, ik]) => `<button type="button" data-aksi="tema" data-nilai="${k}" aria-pressed="${tema === k}" title="${l}">${ikon(ik, 16)}<span>${k === 'sistem' ? 'Sistem' : l}</span></button>`).join('')}</div>
+      <div class="akun-grup akun-tema"><span class="akun-label" id="label-bahasa">${tr('Bahasa')} · Language</span>
+        <div class="segmen segmen-tema" role="group" aria-labelledby="label-bahasa">${B.BAHASA.map(([k, l]) => `<button type="button" data-aksi="bahasa" data-nilai="${k}" aria-pressed="${B.bahasa() === k}" lang="${k}"><span>${l}</span></button>`).join('')}</div>
       </div>
-      <div class="akun-grup">${dev ? butir('dev-keluar', 'keluar', 'Keluar mode Dev', 'bahaya') : butir('keluar', 'keluar', 'Keluar', 'bahaya')}</div>
+      <div class="akun-grup akun-tema"><span class="akun-label" id="label-tema">${tr('Tema')}</span>
+        <div class="segmen segmen-tema" role="group" aria-labelledby="label-tema">${TEMA.map(([k, l, ik]) => `<button type="button" data-aksi="tema" data-nilai="${k}" aria-pressed="${tema === k}" title="${tr(l)}">${ikon(ik, 16)}<span>${k === 'sistem' ? tr('Sistem') : tr(l)}</span></button>`).join('')}</div>
+      </div>
+      <div class="akun-grup">${dev ? butir('dev-keluar', 'keluar', tr('Keluar mode Dev'), 'bahaya') : butir('keluar', 'keluar', tr('Keluar'), 'bahaya')}</div>
     </div>`;
   }
   function bukaTutupAkun(buka = !S.akun.buka) {
@@ -1386,8 +1411,8 @@
   function renderNavBawah(lencana) {
     $('#nav-bawah').innerHTML = NAV_BAWAH.filter(halamanBoleh).map(id => {
       const h = HALAMAN.find(x => x.id === id);
-      return `<button type="button" data-aksi="ke" data-view="${id}" ${S.view === id ? 'aria-current="page"' : ''}>${ikon(h.ikon, 22)}${h.judul}${lencanaHtml(id, lencana[id])}</button>`;
-    }).join('') + `<button type="button" data-aksi="buka-nav" ${NAV_BAWAH.includes(S.view) ? '' : 'aria-current="page"'}>${ikon('menu', 22)}Menu</button>`;
+      return `<button type="button" data-aksi="ke" data-view="${id}" ${S.view === id ? 'aria-current="page"' : ''}>${ikon(h.ikon, 22)}${tr(h.judul)}${lencanaHtml(id, lencana[id])}</button>`;
+    }).join('') + `<button type="button" data-aksi="buka-nav" ${NAV_BAWAH.includes(S.view) ? '' : 'aria-current="page"'}>${ikon('menu', 22)}${tr('Menu')}</button>`;
     /* Tombol tambah task hanya di halaman task; di Komunikasi ia menutupi kotak tulis. */
     $('#fab').hidden = !I.bolehBuatTask(S.me) || !HALAMAN_TASK.includes(S.view);
   }
@@ -1396,7 +1421,7 @@
   const GAMBAR = {
     hari: () => viewHari(), dashboard: () => viewDashboard(), laporan: () => viewLaporan(), task: () => viewTask(),
     proyek: () => viewProyek(), paket: () => viewPaket(), komunikasi: () => viewKomunikasi(),
-    link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(), panduan: () => viewPanduan(),
+    link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(), panduan: () => viewPanduan(), agenda: () => viewAgenda(),
     master: () => viewMaster(), dev: () => viewDev(),
   };
   /* Bagian halaman yang digambar ulang saat orang mengetik di kotak cari halaman,
@@ -1498,7 +1523,7 @@
     gulirPesan('detail', foto);
     for (const ta of $$('.km-isian')) if (ta.value) tumbuhkan(ta);
     const h = HALAMAN.find(x => x.id === S.view);
-    document.title = (h ? h.judul : 'ProductTrack') + ' · ProductTrack v2';
+    document.title = (h ? tr(h.judul) : 'ProductTrack') + ' · ProductTrack v2';
     catatAlamat();
   }
 
@@ -1562,8 +1587,12 @@
   let notifSimpan = { kunci: '', isi: [] };
   function notifSaya() {
     const log = S.data.log;
-    const kunci = `${S.me}|${S.dimuat}|${log.length}|${log[0] ? log[0].id : ''}|${S.obr.versi}`;
-    if (notifSimpan.kunci !== kunci) notifSimpan = { kunci, isi: I.notifikasi(S.data, S.me, 60, susunan()) };
+    const kunci = `${S.me}|${S.dimuat}|${log.length}|${log[0] ? log[0].id : ''}|${S.obr.versi}|${S.agenda.versi}`;
+    if (notifSimpan.kunci !== kunci) {
+      // Pengingat Kalender Saya yang sudah berbunyi ikut di lonceng (2.28.0).
+      const ingat = S.agenda.orang === S.me ? S.agenda.lonceng.filter(n => Date.now() - n.at < 3 * 864e5) : [];
+      notifSimpan = { kunci, isi: [...I.notifikasi(S.data, S.me, 60, susunan()), ...ingat].sort((a, b) => b.at - a.at) };
+    }
     return notifSimpan.isi;
   }
   function notifDibaca() {
@@ -1574,7 +1603,7 @@
   const jumlahNotifBaru = () => { const batas = notifDibaca(); return notifSaya().filter(n => n.at > batas).length; };
   const IKON_NOTIF = {
     baru: 'tambah', tambah: 'tambah', serah: 'serah', siap: 'centang', tinjau: 'tugas', kembali: 'ulang', setuju: 'centang',
-    komentar: 'obrolan', sebut: 'at', tanya: 'tanya', siklus: 'lapis',
+    komentar: 'obrolan', sebut: 'at', tanya: 'tanya', siklus: 'lapis', agenda: 'kalender',
   };
 
   function kalimatNotif(n) {
@@ -1582,32 +1611,34 @@
     const siapa = n.oleh ? `<strong>${nama(n.oleh)}</strong>${tandaAi(n.ai)} ` : '';
     const judul = t ? `<b>${esc(t.id)}</b> ${esc(potong(t.title, 64))}` : n.ruang ? `<b>${esc(judulRuang(n.ruang))}</b>` : esc(n.task || '');
     const kutip = s => (s ? ` “${esc(potong(teksPolos(s), 90))}”` : '');
+    const v = { siapa, judul, kutip: kutip(n.teks) };
     switch (n.jenis) {
-      case 'baru': return `${siapa}memberi Anda task baru: ${judul}`;
-      case 'tambah': return `${siapa}menambah task untuk dirinya sendiri: ${judul}`;
-      case 'serah': return `${siapa}menyerahkan ${judul} ke Anda`;
+      case 'baru': return tr('{siapa}memberi Anda task baru: {judul}', v);
+      case 'tambah': return tr('{siapa}menambah task untuk dirinya sendiri: {judul}', v);
+      case 'serah': return tr('{siapa}menyerahkan {judul} ke Anda', v);
       case 'siap': return t && I.orang(S.me).peran === 'lead' && t.lane === 'proyek' && I.timDari(S.me).length
-        ? `${judul} siap: kerjakan, atau bagi ke staff lewat task turunan` : `${judul} siap dikerjakan: yang ditunggunya sudah selesai`;
-      case 'tinjau': return `${siapa}mengajukan ${judul} untuk Anda tinjau`;
-      case 'kembali': return `${siapa}mengembalikan ${judul}.${kutip(n.teks)}`;
-      case 'setuju': return `${siapa}menyetujui ${judul}`;
-      case 'komentar': return `${siapa}menulis di ${judul}:${kutip(n.teks)}`;
-      case 'sebut': return `${siapa}menyebut Anda di ${judul}:${kutip(n.teks)}`;
-      case 'tanya': return `${siapa}menunggu jawaban Anda di ${judul}:${kutip(n.teks)}`;
-      case 'siklus': { const p = proyekDari(n.proyek); return `Siklus <strong>${esc(p ? p.name : n.proyek)}</strong> selesai: E12 disetujui, perlu keputusan Anda`; }
+        ? tr('{judul} siap: kerjakan, atau bagi ke staff lewat task turunan', v) : tr('{judul} siap dikerjakan: yang ditunggunya sudah selesai', v);
+      case 'tinjau': return tr('{siapa}mengajukan {judul} untuk Anda tinjau', v);
+      case 'kembali': return tr('{siapa}mengembalikan {judul}.{kutip}', v);
+      case 'setuju': return tr('{siapa}menyetujui {judul}', v);
+      case 'komentar': return tr('{siapa}menulis di {judul}:{kutip}', v);
+      case 'sebut': return tr('{siapa}menyebut Anda di {judul}:{kutip}', v);
+      case 'tanya': return tr('{siapa}menunggu jawaban Anda di {judul}:{kutip}', v);
+      case 'siklus': { const p = proyekDari(n.proyek); return tr('Siklus <strong>{nama}</strong> selesai: E12 disetujui, perlu keputusan Anda', { nama: esc(p ? p.name : n.proyek) }); }
+      case 'agenda': return `${tr('Pengingat agenda')}: <b>${esc(n.judul)}</b>${n.mulai ? ' · ' + esc(n.mulai) : ''} · ${esc(fmtTanggal(n.tanggal))}`;
       default: return judul;
     }
   }
 
   function panelNotif() {
     const daftar = notifSaya().slice(0, 40);
-    return `<div class="panel-notif" role="dialog" aria-label="Notifikasi">
-      <div class="panel-notif-kepala"><strong>Notifikasi</strong><span class="hint">untuk ${esc(I.orang(S.me).pendek)}</span></div>
-      <div class="panel-notif-isi">${daftar.map(n => `<button type="button" class="notif-item ${n.at > S.notif.sebelum ? 'baru' : ''}" data-aksi="notif-buka" data-id="${esc(n.task || '')}" data-proyek="${esc(n.proyek || '')}" data-ruang="${esc(n.ruang || '')}" data-pesan="${esc(n.pesan || '')}">
+    return `<div class="panel-notif" role="dialog" aria-label="${tr('Notifikasi')}">
+      <div class="panel-notif-kepala"><strong>${tr('Notifikasi')}</strong><span class="hint">${tr('untuk {nama}', { nama: esc(I.orang(S.me).pendek) })}</span></div>
+      <div class="panel-notif-isi">${daftar.map(n => `<button type="button" class="notif-item ${n.at > S.notif.sebelum ? 'baru' : ''}" data-aksi="notif-buka" data-id="${esc(n.task || '')}" data-proyek="${esc(n.proyek || '')}" data-ruang="${esc(n.ruang || '')}" data-pesan="${esc(n.pesan || '')}" data-agenda="${esc(n.agenda || '')}" data-hari="${esc(n.tanggal || '')}">
           <span class="notif-ikon jn-${n.jenis}">${ikon(IKON_NOTIF[n.jenis] || 'lonceng', 16)}</span>
           <span class="notif-teks">${kalimatNotif(n)}<small>${esc(relatif(n.at))}</small></span>
-        </button>`).join('') || '<p class="hint panel-notif-kosong">Belum ada yang menyangkut Anda.</p>'}</div>
-      <p class="panel-notif-kaki">Pesan Komunikasi terbagi untuk semua orang; aktivitas task lainnya dari data contoh browser ini. Ganti profil untuk melihat notifikasi orang lain.</p>
+        </button>`).join('') || `<p class="hint panel-notif-kosong">${tr('Belum ada yang menyangkut Anda.')}</p>`}</div>
+      <p class="panel-notif-kaki">${tr('Pesan Komunikasi terbagi untuk semua orang; aktivitas task lainnya dari data contoh browser ini. Ganti profil untuk melihat notifikasi orang lain.')}</p>
     </div>`;
   }
 
@@ -1720,7 +1751,7 @@
 
   function sapaan() {
     const j = new Date().getHours();
-    return j < 11 ? 'Selamat pagi' : j < 15 ? 'Selamat siang' : j < 18 ? 'Selamat sore' : 'Selamat malam';
+    return j < 11 ? tr('Selamat pagi') : j < 15 ? tr('Selamat siang') : j < 18 ? tr('Selamat sore') : tr('Selamat malam');
   }
 
   function pitaPeran() {
@@ -1732,15 +1763,15 @@
     const keputusan = o.peran === 'manager' ? I.antreKeputusan(S.data, h).length : 0;
     const chip = (n, teks, kelas, fokus) => (n ? `<button type="button" class="chip-aksi ${kelas}" data-aksi="fokus-papan" data-fokus="${fokus}">${n} ${teks}</button>` : '');
     const isi = [
-      keputusan ? `<button type="button" class="chip-aksi kuning" data-aksi="ke" data-view="proyek">${keputusan} keputusan proyek</button>` : '',
-      chip(p.tinjau, 'menunggu tinjauan Anda', 'kuning', 'tinjau'),
-      chip(p.telat, 'terlambat', 'merah', 'telat'),
-      chip(p.tertahan, 'tertahan', 'merah', 'tertahan'),
+      keputusan ? `<button type="button" class="chip-aksi kuning" data-aksi="ke" data-view="proyek">${tr('{n} keputusan proyek', { n: keputusan })}</button>` : '',
+      chip(p.tinjau, tr('menunggu tinjauan Anda'), 'kuning', 'tinjau'),
+      chip(p.telat, tr('terlambat'), 'merah', 'telat'),
+      chip(p.tertahan, tr('tertahan'), 'merah', 'tertahan'),
     ].join('');
-    return `<div class="pita"><strong>${o.peran === 'manager' ? 'Divisi' : 'Tim saya'}</strong>
-      <span class="pesan-info">${p.aktif} task aktif</span>
-      ${isi || '<span class="pesan-info">· tidak ada yang perlu perhatian</span>'}
-      <button type="button" class="tombol kecil" data-aksi="ke" data-view="task">${ikon('tugas', 16)} Buka Task</button>
+    return `<div class="pita"><strong>${o.peran === 'manager' ? tr('Divisi') : tr('Tim saya')}</strong>
+      <span class="pesan-info">${tr('{n} task aktif', { n: p.aktif })}</span>
+      ${isi || `<span class="pesan-info">${tr('· tidak ada yang perlu perhatian')}</span>`}
+      <button type="button" class="tombol kecil" data-aksi="ke" data-view="task">${ikon('tugas', 16)} ${tr('Buka Task')}</button>
     </div>`;
   }
 
@@ -1751,33 +1782,292 @@
     const n = kunci => (kerja.grup.find(g => g.kunci === kunci) || { isi: [] }).isi.length;
     const nHari = n('hari'), nTelat = n('telat'), nTinjau = n('tinjau'), nAntre = n('antrean');
     const kalimat = [
-      nHari ? `<strong>${nHari} task</strong> untuk hari ini` : '',
-      nTelat ? `<strong>${nTelat}</strong> terlambat` : '',
-      nTinjau ? `<strong>${nTinjau}</strong> menunggu tinjauan Anda` : '',
-      nAntre ? `<strong>${nAntre}</strong> langkah di antrean tim, siap dibagi` : '',
+      nHari ? tr('<strong>{n} task</strong> untuk hari ini', { n: nHari }) : '',
+      nTelat ? tr('<strong>{n}</strong> terlambat', { n: nTelat }) : '',
+      nTinjau ? tr('<strong>{n}</strong> menunggu tinjauan Anda', { n: nTinjau }) : '',
+      nAntre ? tr('<strong>{n}</strong> langkah di antrean tim, siap dibagi', { n: nAntre }) : '',
     ].filter(Boolean);
     const bantu = { antrean: ['lead-antrean', 'antrean tim'], tinjau: ['lead-tinjau', 'meninjau'] };
     const daftar = kerja.grup.map(g => `<section class="grup ${g.kunci}">
-      <h2>${esc(g.judul)} <span class="jumlah">${g.isi.length}</span>${bantu[g.kunci] ? tanya(...bantu[g.kunci]) : ''}</h2>
+      <h2>${esc(tr(g.judul))} <span class="jumlah">${g.isi.length}</span>${bantu[g.kunci] ? tanya(...bantu[g.kunci]) : ''}</h2>
       ${g.isi.map(x => barisTask(x.t, x.alasan)).join('')}
     </section>`).join('');
-    const selesai = kerja.selesaiHariIni.length ? `<details class="ringkas"><summary>Selesai hari ini (${kerja.selesaiHariIni.length})</summary>
+    const selesai = kerja.selesaiHariIni.length ? `<details class="ringkas"><summary>${tr('Selesai hari ini ({n})', { n: kerja.selesaiHariIni.length })}</summary>
       <div class="grup">${kerja.selesaiHariIni.map(t => barisTask(t)).join('')}</div></details>` : '';
     const t = S.pilih && S.data.tasks.find(x => x.id === S.pilih);
     return `<div class="judul-halaman"><div>
         <p class="tanggal-kecil">${esc(fmtTanggalPanjang(h))}</p>
         <h1>${sapaan()}, ${esc(o.pendek)}</h1>
-        <p>${kalimat.length ? 'Ada ' + kalimat.join(', ') + '.' : 'Tidak ada yang mendesak hari ini.'}</p>
+        <p>${kalimat.length ? tr('Ada {isi}.', { isi: kalimat.join(', ') }) : tr('Tidak ada yang mendesak hari ini.')}</p>
       </div></div>
       <div class="dua-kolom">
         <div class="kolom-utama">
           ${ajakanPanduan()}
           ${pitaPeran()}
-          ${daftar || '<div class="kosong-isi">Belum ada pekerjaan aktif untuk Anda.</div>'}
+          ${kartuAgendaHari()}
+          ${daftar || `<div class="kosong-isi">${tr('Belum ada pekerjaan aktif untuk Anda.')}</div>`}
           ${selesai}
         </div>
-        <div class="kolom-samping">${t ? detailHtml(t, false) : '<div class="kosong-isi">Pilih task untuk melihat detail dan langkah-langkahnya.</div>'}</div>
+        <div class="kolom-samping">${t ? detailHtml(t, false) : `<div class="kosong-isi">${tr('Pilih task untuk melihat detail dan langkah-langkahnya.')}</div>`}</div>
       </div>`;
+  }
+
+  /* ---------- Kalender Saya (2.28.0, permintaan user) ----------
+     Agenda pribadi profil ini: aktivitas harian (berjam atau sepanjang hari, bisa berulang)
+     dengan pengingat di aplikasi: lonceng, pesan singkat, dan notifikasi browser bila diizinkan,
+     selama ProductTrack terbuka. Tersimpan di server per profil (hanya dikirim ke pemiliknya)
+     dan disalin di browser ini. Aturannya di I.periksaAgenda, I.kejadianAgenda, I.waktuPengingat. */
+  const agendaBoleh = () => !!S.me && S.me !== I.DEV && !S.pratinjau && !S.uji;
+  const labelUlang = u => ({ '': tr('Tidak berulang'), harian: tr('Setiap hari'), kerja: tr('Setiap hari kerja (Sen–Jum)'), mingguan: tr('Setiap minggu'), bulanan: tr('Setiap bulan') })[u] || u;
+  const labelPengingat = p => ({
+    '': tr('Tanpa pengingat'), 0: tr('Saat mulai'), 5: tr('5 menit sebelumnya'), 10: tr('10 menit sebelumnya'), 15: tr('15 menit sebelumnya'),
+    30: tr('30 menit sebelumnya'), 60: tr('1 jam sebelumnya'), 1440: tr('1 hari sebelumnya'),
+  })[p] || p;
+  function cacheAgenda() {
+    simpan('agenda_' + S.me, { isi: S.agenda.isi, pribadi: S.agenda.pribadi, dimuat: S.agenda.dimuat });
+  }
+  async function tarikAgenda(paksa = false) {
+    if (!agendaBoleh()) return;
+    const A = S.agenda;
+    if (A.orang !== S.me) {
+      const c = ambil('agenda_' + S.me, null) || {};
+      Object.assign(A, {
+        orang: S.me, isi: Array.isArray(c.isi) ? c.isi : [], pribadi: c.pribadi || { email: '' }, dimuat: Number(c.dimuat) || 0,
+        lonceng: ambil('agenda_lonceng_' + S.me, []), galat: '', hari: '', bulan: '',
+      });
+      A.tugas = ambil('agenda_tugas', true) !== false;
+      A.versi++;
+    }
+    if (A.menarik || (!paksa && Date.now() - A.dimuat < 5 * 60000)) return cekPengingat();
+    A.menarik = true;
+    const orang = S.me;
+    const h = await api('muatAgenda');
+    A.menarik = false;
+    if (S.me !== orang) return;
+    if (!h.success) {
+      A.galat = h.message || tr('Kalender Saya gagal dimuat.');
+      if (S.view === 'agenda') gambarUlangAman();
+      return;
+    }
+    Object.assign(A, { isi: Array.isArray(h.agenda) ? h.agenda : [], pribadi: h.pribadi || { email: '' }, dimuat: Date.now(), galat: '' });
+    A.versi++;
+    cacheAgenda();
+    if (S.view === 'agenda' || S.view === 'hari') gambarUlangAman();
+    cekPengingat();
+  }
+  async function simpanAgendaSaya(isian, form) {
+    const gagal = pesan => { if (form) galatModal(pesan); else toast(pesan, true); return null; };
+    let bersih;
+    try { bersih = I.periksaAgenda(isian); } catch (err) { return gagal(err.message); }
+    const h = await api('simpanAgenda', [bersih]);
+    if (!h.success || !h.agenda) return gagal(h.message || tr('Agenda gagal disimpan.'));
+    const A = S.agenda;
+    const i = A.isi.findIndex(a => a.id === h.agenda.id);
+    if (i >= 0) A.isi[i] = h.agenda; else A.isi.push(h.agenda);
+    A.versi++;
+    cacheAgenda();
+    return h.agenda;
+  }
+  async function centangAgenda(id, tanggal, beres) {
+    const a = S.agenda.isi.find(x => x.id === id);
+    if (!a) return;
+    const lama = a.beres || [];
+    a.beres = beres ? [...new Set([...lama, tanggal])] : lama.filter(d => d !== tanggal);
+    S.agenda.versi++;
+    render();
+    if (!await simpanAgendaSaya({ ...a }, null)) { a.beres = lama; render(); }
+  }
+  async function hapusAgendaSaya(id) {
+    const h = await api('hapusAgenda', [id]);
+    if (!h.success) return galatModal(h.message || tr('Agenda gagal dihapus.'));
+    S.agenda.isi = S.agenda.isi.filter(a => a.id !== id);
+    S.agenda.versi++;
+    cacheAgenda();
+    tutupModal();
+    render();
+    toast(tr('Agenda dihapus.'));
+  }
+  /* Pengingat yang waktunya tiba (sampai 6 jam sesudahnya, mis. aplikasi baru dibuka) berbunyi
+     sekali per tanggal: pesan singkat, lonceng, dan notifikasi browser bila diizinkan. */
+  function cekPengingat() {
+    const A = S.agenda;
+    if (!agendaBoleh() || !S.data || A.orang !== S.me || !A.isi.length) return;
+    const now = Date.now();
+    const h = hariIni();
+    const kunci = 'agenda_ingat_' + S.me;
+    const sudah = new Set(ambil(kunci, []));
+    let baru = 0;
+    for (const k of I.kejadianAgenda(A.isi, h, I.tambahHari(h, 1))) {
+      if (k.beres) continue;
+      const w = I.waktuPengingat(k.a, k.tanggal);
+      const id = `${k.a.id}@${k.tanggal}`;
+      if (!w || now < w || now - w > 6 * 3600000 || sudah.has(id)) continue;
+      sudah.add(id);
+      baru++;
+      A.lonceng = [{ jenis: 'agenda', at: w, agenda: k.a.id, tanggal: k.tanggal, judul: k.a.judul, mulai: k.a.mulai }, ...A.lonceng.filter(x => `${x.agenda}@${x.tanggal}` !== id)].slice(0, 30);
+      const teks = `${k.a.judul}${k.a.mulai ? ' · ' + k.a.mulai : ''}`;
+      toast(tr('Pengingat: {teks}', { teks }));
+      if (window.Notification && Notification.permission === 'granted') {
+        try { new Notification(tr('Pengingat ProductTrack'), { body: teks, tag: id }); } catch (e) { /* abaikan */ }
+      }
+    }
+    if (!baru) return;
+    simpan(kunci, [...sudah].slice(-300));
+    simpan('agenda_lonceng_' + S.me, A.lonceng);
+    A.versi++;
+    if (S.data && !$('#app').hidden) renderKepala();
+  }
+  setInterval(cekPengingat, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && S.data && !$('#app').hidden) tarikAgenda(); });
+
+  function barisAgenda(k) {
+    const a = k.a;
+    const jam = a.mulai ? `${a.mulai}${a.selesai ? '–' + a.selesai : ''}` : tr('Sepanjang hari');
+    return `<div class="baris-agenda ${k.beres ? 'beres' : ''}">
+      <input type="checkbox" class="centang-agenda" data-id="${esc(a.id)}" data-hari="${k.tanggal}" ${k.beres ? 'checked' : ''} aria-label="${esc(tr('Tandai selesai: {judul}', { judul: a.judul }))}">
+      <button type="button" class="baris-agenda-isi" data-aksi="agenda-ubah" data-id="${esc(a.id)}" data-hari="${k.tanggal}">
+        <span class="agenda-jam">${esc(jam)}</span>
+        <span class="agenda-judul">${esc(a.judul)}${a.catatan ? `<small>${esc(potong(a.catatan, 90))}</small>` : ''}</span>
+        <span class="agenda-tanda">${a.ulang ? `<span title="${esc(labelUlang(a.ulang))}">${ikon('ulang', 14)}</span>` : ''}${a.pengingat !== '' ? `<span title="${esc(labelPengingat(a.pengingat))}">${ikon('lonceng', 14)}</span>` : ''}</span>
+      </button>
+    </div>`;
+  }
+  function kartuAgendaHari() {
+    if (!agendaBoleh()) return '';
+    const h = hariIni();
+    const kej = I.kejadianAgenda(S.agenda.isi, h, h);
+    return `<section class="kartu-polos kartu-agenda">
+      <div class="kartu-agenda-kepala"><p class="subjudul">${tr('Agenda saya hari ini')}</p>
+        <span class="mst-aksi"><button type="button" class="ikon-tombol" data-aksi="agenda-tambah" data-hari="${h}" title="${esc(tr('Tambah agenda'))}" aria-label="${esc(tr('Tambah agenda'))}">${ikon('tambah', 16)}</button>
+          <button type="button" class="tombol kecil" data-aksi="ke" data-view="agenda">${ikon('kalender', 14)} ${tr('Kalender Saya')}</button></span></div>
+      ${kej.length ? `<div class="daftar-agenda">${kej.map(barisAgenda).join('')}</div>` : `<p class="hint">${tr('Belum ada agenda hari ini. Catat aktivitas harian Anda di Kalender Saya, lengkap dengan pengingat.')}</p>`}
+    </section>`;
+  }
+  function viewAgenda() {
+    const kepala = `<div class="judul-halaman"><div><h1>${tr('Kalender Saya')}</h1>
+        <p>${tr('Aktivitas harian Anda sendiri, dengan pengingat. Hanya terlihat oleh Anda.')}</p></div></div>`;
+    if (!agendaBoleh()) {
+      const sebab = S.pratinjau ? tr('Kalender Saya tak tersedia saat Lihat sebagai: agenda hanya milik profil yang sedang dipakai.')
+        : S.uji ? tr('Kalender Saya tak tersedia di mode uji Dev, supaya agenda orang lain tak berubah.')
+          : tr('Akun Dev tak punya Kalender Saya. Pilih profil untuk memakainya.');
+      return `${kepala}<div class="kosong-isi">${sebab}</div>`;
+    }
+    const A = S.agenda;
+    const h = hariIni();
+    const bulan = A.bulan || h.slice(0, 7);
+    const grid = I.gridBulan(bulan);
+    const per = new Map(grid.map(d => [d, { agenda: [], task: [] }]));
+    for (const k of I.kejadianAgenda(A.isi, grid[0], grid[grid.length - 1])) per.get(k.tanggal).agenda.push(k);
+    if (A.tugas) {
+      for (const t of S.data.tasks) if (t.pic === S.me && I.aktif(t) && t.due && per.has(t.due)) per.get(t.due).task.push(t);
+    }
+    const pilih = A.hari && A.hari.slice(0, 7) === bulan ? A.hari : h.slice(0, 7) === bulan ? h : `${bulan}-01`;
+    const sel = grid.map(d => {
+      const x = per.get(d);
+      const n = x.agenda.length + x.task.length;
+      const butir = [
+        ...x.agenda.map(k => `<button type="button" class="kal-agenda ${k.beres ? 'beres' : ''}" data-aksi="agenda-ubah" data-id="${esc(k.a.id)}" data-hari="${d}" title="${esc(k.a.judul)}">${k.a.mulai ? `<b>${esc(k.a.mulai)}</b> ` : ''}${esc(k.a.judul)}</button>`),
+        ...x.task.map(t => `<button type="button" class="kal-task tl-${t.status.toLowerCase()}" data-aksi="buka-task" data-id="${esc(t.id)}" title="${esc(tr('Tenggat task: {judul}', { judul: t.title }))}">${esc(t.title)}</button>`),
+      ];
+      return `<div class="kal-sel ${d.slice(0, 7) !== bulan ? 'luar' : ''} ${d === h ? 'kini' : ''} ${d === pilih ? 'dipilih' : ''}">
+        <button type="button" class="kal-tgl" data-aksi="agenda-hari" data-hari="${d}" aria-label="${esc(fmtTanggalPanjang(d))}">${keDate(d).getDate()}${n ? `<span class="kal-jumlah">${n}</span>` : ''}</button>
+        <div class="kal-isi">${butir.slice(0, 3).join('')}${butir.length > 3 ? `<button type="button" class="kal-lagi" data-aksi="agenda-hari" data-hari="${d}">${tr('+{n} lagi', { n: butir.length - 3 })}</button>` : ''}</div>
+      </div>`;
+    }).join('');
+    const dipilih = per.get(pilih) || { agenda: [], task: [] };
+    return `${kepala}
+      ${A.galat ? `<p class="banner kuning">${esc(A.galat)}</p>` : ''}
+      <div class="alat baris-info alat-agenda">
+        <button type="button" class="ikon-tombol" data-aksi="agenda-geser" data-n="-1" aria-label="${esc(tr('Bulan sebelumnya'))}">${ikon('kiri', 20)}</button>
+        <strong class="kal-bulan">${esc(namaBulan(bulan))}</strong>
+        <button type="button" class="ikon-tombol" data-aksi="agenda-geser" data-n="1" aria-label="${esc(tr('Bulan berikutnya'))}">${ikon('kanan', 20)}</button>
+        <button type="button" class="tombol kecil" data-aksi="agenda-geser" data-n="0">${tr('Hari ini')}</button>
+        <button type="button" class="tombol kecil" data-aksi="agenda-tugas" aria-pressed="${A.tugas}">${ikon('tugas', 14)} ${tr('Tenggat task saya')}</button>
+        <span class="alat-kanan"><button type="button" class="tombol kecil" data-aksi="agenda-pengingat">${ikon('lonceng', 14)} ${tr('Pengingat')}</button>
+          <button type="button" class="tombol utama" data-aksi="agenda-tambah" data-hari="${pilih}">${ikon('tambah', 16)} ${tr('Tambah agenda')}</button></span>
+      </div>
+      <div class="kal kartu-polos rapat">
+        <div class="kal-kepala">${namaHari().map(x => `<span>${x}</span>`).join('')}</div>
+        <div class="kal-grid">${sel}</div>
+      </div>
+      <section class="grup" style="margin-top:18px">
+        <h2>${esc(fmtTanggalPanjang(pilih))} <span class="jumlah">${dipilih.agenda.length + dipilih.task.length}</span></h2>
+        ${dipilih.agenda.length ? `<div class="daftar-agenda">${dipilih.agenda.map(barisAgenda).join('')}</div>` : `<p class="hint">${tr('Belum ada agenda di tanggal ini.')}</p>`}
+        <button type="button" class="tombol kecil" data-aksi="agenda-tambah" data-hari="${pilih}">${ikon('tambah', 14)} ${tr('Tambah agenda di tanggal ini')}</button>
+        ${dipilih.task.length ? `<p class="subjudul" style="margin-top:12px">${tr('Tenggat task saya')}</p>${dipilih.task.map(t => barisTask(t)).join('')}` : ''}
+      </section>`;
+  }
+  function formAgenda(a, tanggal) {
+    const x = a || { judul: '', tanggal: tanggal || hariIni(), mulai: '', selesai: '', ulang: '', sampai: '', pengingat: '10', catatan: '' };
+    const sehari = !!a && !x.mulai;
+    return `<form data-form="agenda" class="form-agenda" novalidate>
+      <h2>${a ? tr('Ubah agenda') : tr('Tambah agenda')}</h2>
+      <label class="isian">${tr('Judul')}<input name="judul" required maxlength="200" value="${esc(x.judul)}" placeholder="${esc(tr('mis. Standup tim, review materi, follow-up vendor'))}" autocomplete="off"></label>
+      <div class="dua-isian">
+        <label class="isian">${tr('Tanggal')}<input type="date" name="tanggal" required value="${esc(x.tanggal)}"></label>
+        <label class="dev-cek agenda-sehari"><input type="checkbox" name="sehari" ${sehari ? 'checked' : ''}> ${tr('Sepanjang hari')}</label>
+      </div>
+      <div class="dua-isian" data-bagian-jam ${sehari ? 'hidden' : ''}>
+        <label class="isian">${tr('Mulai')}<input type="time" name="mulai" value="${esc(x.mulai || '09:00')}"></label>
+        <label class="isian">${tr('Selesai (opsional)')}<input type="time" name="selesai" value="${esc(x.selesai)}"></label>
+      </div>
+      <div class="dua-isian">
+        <label class="isian">${tr('Berulang')}<select name="ulang">${opsiHtml(I.ULANG_AGENDA.map(u => [u, labelUlang(u)]), x.ulang)}</select></label>
+        <label class="isian" data-bagian-sampai ${x.ulang ? '' : 'hidden'}>${tr('Sampai (opsional)')}<input type="date" name="sampai" value="${esc(x.sampai)}"></label>
+      </div>
+      <label class="isian">${tr('Pengingat')}<select name="pengingat">${opsiHtml(I.PENGINGAT_AGENDA.map(p => [p, labelPengingat(p)]), x.pengingat)}</select>
+        <small>${tr('Muncul di lonceng dan sebagai notifikasi selama ProductTrack terbuka. Agenda sepanjang hari diingatkan pukul 07.00.')}</small></label>
+      <label class="isian">${tr('Catatan (opsional)')}<textarea name="catatan" maxlength="1000">${esc(x.catatan)}</textarea></label>
+      ${a && a.ulang ? `<p class="hint">${tr('Perubahan berlaku untuk semua tanggal agenda berulang ini.')}</p>` : ''}
+      <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
+      <div class="modal-kaki">${a ? `<button type="button" class="tombol bahaya kaki-kiri" data-aksi="agenda-hapus" data-id="${esc(a.id)}">${ikon('hapus', 16)} ${tr('Hapus')}</button>` : ''}<button type="button" class="tombol" data-aksi="tutup-modal">${tr('Batal')}</button><button class="tombol utama">${tr('Simpan')}</button></div>
+    </form>`;
+  }
+  async function kirimAgenda(form) {
+    const el = n => form.elements.namedItem(n);
+    const a = S.modal && S.modal.id ? S.agenda.isi.find(x => x.id === S.modal.id) : null;
+    const sehari = el('sehari').checked;
+    const ulang = el('ulang').value;
+    const isian = {
+      ...(a ? { id: a.id, beres: a.beres } : {}), judul: el('judul').value, tanggal: el('tanggal').value,
+      mulai: sehari ? '' : el('mulai').value, selesai: sehari ? '' : el('selesai').value, ulang, sampai: ulang ? el('sampai').value : '',
+      pengingat: el('pengingat').value, catatan: el('catatan').value,
+    };
+    const tombol = form.querySelector('button.utama');
+    if (tombol) tombol.disabled = true;
+    const h = await simpanAgendaSaya(isian, form);
+    if (tombol) tombol.disabled = false;
+    if (!h) return;
+    Object.assign(S.agenda, { hari: h.tanggal, bulan: h.tanggal.slice(0, 7) });
+    tutupModal();
+    render();
+    toast(a ? tr('Agenda disimpan.') : tr('Agenda ditambahkan.'));
+  }
+  function formPengingatAgenda() {
+    const izin = window.Notification ? Notification.permission : 'tidak-ada';
+    const ket = izin === 'granted' ? tr('Sudah diizinkan: pengingat juga muncul sebagai notifikasi selama ProductTrack terbuka, meski tab-nya tak sedang dilihat.')
+      : izin === 'denied' ? tr('Diblokir di browser ini. Izinkan lagi lewat ikon gembok di samping alamat situs.')
+        : izin === 'tidak-ada' ? tr('Browser ini tak mendukung notifikasi; pengingat tetap muncul di lonceng.')
+          : tr('Belum diizinkan. Pengingat tetap muncul di lonceng dan sebagai pesan singkat.');
+    return `<form data-form="pengingat-agenda" novalidate>
+      <h2>${tr('Pengaturan pengingat')}</h2>
+      <p class="subjudul">${tr('Notifikasi browser')}</p>
+      <p class="hint">${ket}</p>
+      ${izin === 'default' ? `<button type="button" class="tombol kecil" data-aksi="agenda-izin">${ikon('lonceng', 14)} ${tr('Izinkan notifikasi browser')}</button>` : ''}
+      <label class="isian">${tr('Email pribadi (opsional)')}<input type="email" name="email" maxlength="120" autocomplete="email" spellcheck="false" value="${esc(S.agenda.pribadi.email || '')}" placeholder="nama@contoh.com">
+        <small>${tr('Disimpan untuk pengingat lewat email di tahap berikutnya; belum ada email yang dikirim. Hanya dikirim kembali ke profil Anda sendiri; tersimpan di spreadsheet v2 tim.')}</small></label>
+      ${kakiModal(tr('Simpan'))}
+    </form>`;
+  }
+  async function kirimPengingatAgenda(form) {
+    let email;
+    try { email = I.periksaEmail(form.elements.namedItem('email').value); } catch (err) { return galatModal(err.message); }
+    const h = await api('simpanPribadi', [{ email }]);
+    if (!h.success) return galatModal(h.message || tr('Email gagal disimpan.'));
+    S.agenda.pribadi = h.pribadi || { email };
+    cacheAgenda();
+    tutupModal();
+    toast(email ? tr('Email pribadi disimpan.') : tr('Email pribadi dihapus.'));
   }
 
   /* ---------- Detail task ---------- */
@@ -1808,7 +2098,7 @@
       const perId = perIdKini();
       const paket = paketDari(batch[0].paket);
       const langkah = batch.map(x => { const s = perId.get(x.task); return s ? `${s.sub} ${I.namaCapaian(x.tahap || 'tayang')}${I.selesai(s) ? ' ✓' : ''}` : ''; }).filter(Boolean);
-      return `<section><p class="subjudul">Progres rancangan paket</p>
+      return `<section><p class="subjudul">${tr('Progres rancangan paket')}</p>
         <p class="hint">Langkah ini tidak membawa capaian sendiri. Progres ${paket ? esc(judulPaket(paket)) : 'paket'} untuk batch ini naik di langkah: ${esc(langkah.join(' → '))}.</p>
       </section>`;
     }
@@ -1828,16 +2118,16 @@
     }).join('');
     const opsi = sumber.map(paket => `<optgroup label="${esc(judulPaket(paket))}">${paket.items.map(it =>
       `<option value="${esc(paket.id)}|${esc(it.id)}">${esc(it.kategori)} · ${esc(it.nama || '—')}</option>`).join('')}</optgroup>`).join('');
-    return `<section><p class="subjudul">Setoran ke rancangan paket</p>
-      ${daftar || '<p class="hint">Task ini belum menyetor ke target paket mana pun.</p>'}
+    return `<section><p class="subjudul">${tr('Setoran ke rancangan paket')}</p>
+      ${daftar || `<p class="hint">${tr('Task ini belum menyetor ke target paket mana pun.')}</p>`}
       ${bisa && sumber.length ? `<form class="baris-form" data-form="setoran" data-id="${esc(t.id)}">
         <label class="sr" for="setor-${esc(t.id)}">Target paket</label>
         <select class="input" id="setor-${esc(t.id)}" name="sasaran" required>${opsi}</select>
         <label class="sr" for="setorn-${esc(t.id)}">Jumlah</label>
-        <input class="input angka" id="setorn-${esc(t.id)}" name="jumlah" inputmode="decimal" placeholder="Jumlah" required maxlength="8">
+        <input class="input angka" id="setorn-${esc(t.id)}" name="jumlah" inputmode="decimal" placeholder="${tr('Jumlah')}" required maxlength="8">
         <label class="sr" for="setorc-${esc(t.id)}">Capaian saat disetujui</label>
         <select class="input" id="setorc-${esc(t.id)}" name="tahap">${opsiHtml(I.CAPAIAN.map(c => [c.kode, `${c.nama} ${Math.round(c.bobot * 100)}%`]), 'tayang')}</select>
-        <button class="tombol">Setor</button>
+        <button class="tombol">${tr('Setor')}</button>
       </form>` : ''}
     </section>`;
   }
@@ -1847,8 +2137,8 @@
     if (t.lane !== 'proyek' || I.selesai(t) || t.status === 'Ditinjau') return '';
     const s = I.syaratAjukan(t, perId);
     const kurang = s.filter(x => !x.ok).length;
-    return `<section><p class="subjudul">Syarat ajukan ${kurang ? `<span class="pill lb-revisi">${kurang} belum</span>` : '<span class="pill st-selesai">Lengkap</span>'}${tanya('staff-ajukan', 'mengajukan task')}</p>
-      <ul class="syarat">${s.map(x => `<li class="${x.ok ? 'ok' : 'kurang'}">${ikon(x.ok ? 'centang' : 'bulat', 18)}<span>${esc(x.label)}</span><span class="sr">${x.ok ? 'terpenuhi' : 'belum'}</span></li>`).join('')}</ul>
+    return `<section><p class="subjudul">${tr('Syarat ajukan')} ${kurang ? `<span class="pill lb-revisi">${tr('{n} belum', { n: kurang })}</span>` : `<span class="pill st-selesai">${tr('Lengkap')}</span>`}${tanya('staff-ajukan', tr('mengajukan task'))}</p>
+      <ul class="syarat">${s.map(x => `<li class="${x.ok ? 'ok' : 'kurang'}">${ikon(x.ok ? 'centang' : 'bulat', 18)}<span>${esc(trPola(x.label))}</span><span class="sr">${x.ok ? tr('terpenuhi') : tr('belum')}</span></li>`).join('')}</ul>
     </section>`;
   }
 
@@ -1859,22 +2149,23 @@
     const bukti = t.evidence.filter(e => tautanAman(e.url));
     const daftar = bukti.map(e => `<div class="bukti-baris">
         <a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${ikon('tautan', 16)} <span>${esc(e.label || e.url)}</span></a>
-        ${boleh ? `<button type="button" class="ikon-tombol" data-aksi="bukti-hapus" data-id="${id}" data-bukti="${esc(e.id)}" aria-label="Hapus bukti ${esc(e.label)}">${ikon('hapus', 16)}</button>` : ''}
+        ${boleh ? `<button type="button" class="ikon-tombol" data-aksi="bukti-hapus" data-id="${id}" data-bukti="${esc(e.id)}" aria-label="${esc(tr('Hapus tautan {label}', { label: e.label }))}}">${ikon('hapus', 16)}</button>` : ''}
       </div>`).join('');
     if (!boleh && !t.output && !bukti.length) return '';
-    return `<section><p class="subjudul">Output & bukti</p>
+    return `<section><p class="subjudul">${tr('Output')}</p>
       ${boleh ? `<form class="baris-form" data-form="output" data-id="${id}">
-          <label class="sr" for="out-${id}">Output</label>
-          <input class="input" id="out-${id}" name="output" maxlength="200" value="${esc(t.output)}" placeholder="Hasil kerja, mis. 40 soal lolos QC" autocomplete="off">
-          <button class="tombol">Simpan</button>
-        </form>` : t.output ? `<p class="teks-panjang">${esc(t.output)}</p>` : '<p class="hint">Output belum diisi.</p>'}
-      ${daftar ? `<div class="bukti-daftar">${daftar}</div>` : boleh ? '' : '<p class="hint">Belum ada tautan bukti.</p>'}
+          <label class="sr" for="out-${id}">${tr('Output')}</label>
+          <input class="input" id="out-${id}" name="output" maxlength="200" value="${esc(t.output)}" placeholder="${esc(tr('Hasil kerja, mis. 40 soal lolos QC'))}" autocomplete="off">
+          <button class="tombol">${tr('Simpan')}</button>
+        </form>` : t.output ? `<p class="teks-panjang">${esc(t.output)}</p>` : `<p class="hint">${tr('Output belum diisi.')}</p>`}
+      ${boleh || daftar ? `<p class="label-kecil">${tr('Tautan hasil kerja (opsional)')}</p>` : ''}
+      ${daftar ? `<div class="bukti-daftar">${daftar}</div>` : ''}
       ${boleh ? `<form class="baris-form" data-form="bukti" data-id="${id}">
-          <label class="sr" for="bukti-${id}">Alamat bukti</label>
-          <input class="input" id="bukti-${id}" name="url" maxlength="2000" inputmode="url" placeholder="Tautan bukti, mis. https://docs.google.com/…" required autocomplete="off">
-          <label class="sr" for="buktil-${id}">Label bukti</label>
-          <input class="input label-bukti" id="buktil-${id}" name="label" maxlength="120" placeholder="Label (opsional)" autocomplete="off">
-          <button class="tombol">Tambah bukti</button>
+          <label class="sr" for="bukti-${id}">${tr('Alamat tautan')}</label>
+          <input class="input" id="bukti-${id}" name="url" maxlength="2000" inputmode="url" placeholder="${esc(tr('Tautan, mis. https://docs.google.com/…'))}" required autocomplete="off">
+          <label class="sr" for="buktil-${id}">${tr('Label tautan')}</label>
+          <input class="input label-bukti" id="buktil-${id}" name="label" maxlength="120" placeholder="${esc(tr('Label (opsional)'))}" autocomplete="off">
+          <button class="tombol">${tr('Tambah tautan')}</button>
         </form>` : ''}
     </section>`;
   }
@@ -1892,43 +2183,45 @@
     // PIC turunan: staff tim, atau Lead itu sendiri (2.21.0).
     const staf = [...I.timDari(S.me), S.me];
     const beres = anak.filter(I.selesai).length;
-    return `<section><p class="subjudul">Task turunan ${anak.length ? `· ${beres}/${anak.length} selesai` : ''}${tanya('lead-antrean', 'membagi task ke staff')}</p>
+    return `<section><p class="subjudul">${tr('Task turunan')} ${anak.length ? '· ' + tr('{a}/{b} selesai', { a: beres, b: anak.length }) : ''}${tanya('lead-antrean', tr('membagi task ke staff'))}</p>
       ${anak.length ? `<div class="grup daftar-anak">${anak.map(x => {
         // Tiap task turunan bisa langsung diubah dari sini (2.27.0).
         const row = barisTask(x, x.tertahan ? I.alasanTunggu(x, perId) : '', 'di-induk');
         return I.bolehUbahTask(x, S.me) ? `<div class="baris-aksi">${row}${tombolUbahTask(x)}</div>` : row;
       }).join('')}</div>` : ''}
       ${bisa ? `<form class="baris-form form-anak" data-form="anak" data-id="${id}">
-          <label class="sr" for="anak-${id}">Judul task turunan</label>
-          <input class="input" id="anak-${id}" name="judul" placeholder="Bagian pekerjaannya, mis. Soal paket 1–2" required maxlength="200" autocomplete="off">
-          <label class="sr" for="anakpic-${id}">PIC task turunan</label>
-          <select class="input" id="anakpic-${id}" name="pic">${opsiHtml(staf.map(x => [x, x === S.me ? `${I.orang(x).nama} (saya sendiri)` : I.orang(x).nama]), staf[0])}</select>
-          <label class="sr" for="anakdue-${id}">Tenggat task turunan</label>
-          <input class="input tenggat-anak" type="date" id="anakdue-${id}" name="due" value="${esc(t.due || '')}" title="Tenggat">
-          <button class="tombol">${ikon('tambah', 16)} Buat task turunan</button>
+          <label class="sr" for="anak-${id}">${tr('Judul task turunan')}</label>
+          <input class="input" id="anak-${id}" name="judul" placeholder="${tr('Bagian pekerjaannya, mis. Soal paket 1–2')}" required maxlength="200" autocomplete="off">
+          <label class="sr" for="anakpic-${id}">${tr('PIC task turunan')}</label>
+          <select class="input" id="anakpic-${id}" name="pic">${opsiHtml(staf.map(x => [x, x === S.me ? `${I.orang(x).nama} ${tr('(saya sendiri)')}` : I.orang(x).nama]), staf[0])}</select>
+          <label class="sr" for="anakdue-${id}">${tr('Tenggat task turunan')}</label>
+          <input class="input tenggat-anak" type="date" id="anakdue-${id}" name="due" value="${esc(t.due || '')}" title="${tr('Tenggat')}">
+          <button class="tombol">${ikon('tambah', 16)} ${tr('Buat task turunan')}</button>
         </form>
-        <p class="hint">Bagi pekerjaan task ini ke staff tim Anda, atau pecah untuk Anda kerjakan sendiri. Task turunan tampil menjorok di bawah task ini; yang dipegang staff ditinjau Anda, yang Anda pegang sendiri langsung ditandai selesai. Task ini baru bisa ${I.peninjau(t) ? 'diajukan' : 'ditandai selesai'} setelah semua task turunannya selesai.</p>` : `<p class="hint">${anak.length ? '' : 'Belum ada task turunan. '}${esc(I.alasanTakBisaBagi(t, S.me))}</p>`}
+        <p class="hint">${I.peninjau(t) ? tr('Bagi pekerjaan task ini ke staff tim Anda, atau pecah untuk Anda kerjakan sendiri. Task turunan tampil menjorok di bawah task ini; yang dipegang staff ditinjau Anda, yang Anda pegang sendiri langsung ditandai selesai. Task ini baru bisa diajukan setelah semua task turunannya selesai.') : tr('Bagi pekerjaan task ini ke staff tim Anda, atau pecah untuk Anda kerjakan sendiri. Task turunan tampil menjorok di bawah task ini; yang dipegang staff ditinjau Anda, yang Anda pegang sendiri langsung ditandai selesai. Task ini baru bisa ditandai selesai setelah semua task turunannya selesai.')}</p>` : `<p class="hint">${anak.length ? '' : tr('Belum ada task turunan.') + ' '}${esc(trPola(I.alasanTakBisaBagi(t, S.me)))}</p>`}
     </section>`;
   }
 
-  /* Sub-task yang sedang diubah: judul dan PIC-nya, di tempat. */
+  /* Ceklis yang sedang diubah: judul dan PIC-nya, di tempat. */
   function formUbahSub(t, s, pilihan) {
     const id = esc(t.id + '-' + s.id);
     return `<form class="baris-form ceklis-ubah" data-form="sub-ubah" data-id="${esc(t.id)}" data-sub="${esc(s.id)}">
-      <label class="sr" for="subu-${id}">Judul sub-task</label>
+      <label class="sr" for="subu-${id}">${tr('Judul butir ceklis')}</label>
       <input class="input" id="subu-${id}" name="judul" value="${esc(s.title)}" required maxlength="200" autocomplete="off">
-      <label class="sr" for="subupic-${id}">PIC sub-task</label>
+      <label class="sr" for="subupic-${id}">${tr('PIC butir ceklis')}</label>
       <select class="input" id="subupic-${id}" name="pic">${[...new Set([...pilihan, s.pic])].map(x => `<option value="${esc(x)}" ${x === s.pic ? 'selected' : ''}>${nama(x)}</option>`).join('')}</select>
-      <label class="sr" for="subulink-${id}">Tautan sub-task (opsional)</label>
-      <input class="input input-tautan" id="subulink-${id}" name="link" value="${esc(s.link || '')}" placeholder="Tautan (opsional)" inputmode="url" maxlength="2000" autocomplete="off" spellcheck="false">
-      <button class="tombol utama">Simpan</button>
-      <button type="button" class="tombol" data-aksi="sub-batal">Batal</button>
+      <label class="sr" for="subulink-${id}">${tr('Tautan butir ceklis (opsional)')}</label>
+      <input class="input input-tautan" id="subulink-${id}" name="link" value="${esc(s.link || '')}" placeholder="${tr('Tautan (opsional)')}" inputmode="url" maxlength="2000" autocomplete="off" spellcheck="false">
+      <button class="tombol utama">${tr('Simpan')}</button>
+      <button type="button" class="tombol" data-aksi="sub-batal">${tr('Batal')}</button>
     </form>`;
   }
 
+  /* Nama tombol aksi task (dari inti) dalam bahasa yang dipilih; "Ajukan tinjau ke …" berisi nama peninjau. */
+  const labelAksi = a => (a.kunci === 'ajukan' ? tr('Ajukan tinjau ke {nama}', { nama: a.label.replace(/^Ajukan tinjau ke /, '') }) : tr(a.label));
   /* Tombol pensil "Ubah task" (2.27.0): di kepala detail task, di baris tab tim, dan di daftar
      task turunan. */
-  const tombolUbahTask = t => `<button type="button" class="ikon-tombol" data-aksi="ubah-task" data-id="${esc(t.id)}" title="Ubah ${esc(t.id)}" aria-label="Ubah task ${esc(t.id)} · ${esc(t.title)}">${ikon('sunting', 16)}</button>`;
+  const tombolUbahTask = t => `<button type="button" class="ikon-tombol" data-aksi="ubah-task" data-id="${esc(t.id)}" title="${esc(tr('Ubah task {id}', { id: t.id }))}" aria-label="${esc(tr('Ubah task {id}', { id: t.id }))} · ${esc(t.title)}">${ikon('sunting', 16)}</button>`;
   function detailHtml(t, diLaci) {
     const me = S.me;
     const perId = perIdKini();
@@ -1949,20 +2242,20 @@
 
     return `<div class="detail">
       <div class="detail-atas"><div>
-        <p class="detail-asal">${p ? `<button type="button" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button>` : `${jenis === 'lepas' ? 'Lepas' : 'Rutin'} · ${esc(t.kategori || 'Umum')}`} · ${esc(t.id)}</p>
+        <p class="detail-asal">${p ? `<button type="button" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button>` : `${jenis === 'lepas' ? tr('Lepas') : tr('Rutin')} · ${esc(t.kategori || tr('Umum'))}`} · ${esc(t.id)}</p>
         <h2>${esc(t.title)}</h2>
-        ${induk ? `<p class="detail-induk">↳ Task turunan dari <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
-        <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : '<span class="pill lb-menunggu">Belum ber-sub-stage</span>'}${tim ? ` · Tim ${esc(I.labelTim(tim.kode))}` : ''}${s && s.reviewManager ? ' · direview Manager' : ''}${tanya('konsep-kode', 'sub-stage dan tim')}</p>
+        ${induk ? `<p class="detail-induk">↳ ${tr('Task turunan dari')} <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
+        <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : `<span class="pill lb-menunggu">${tr('Belum ber-sub-stage')}</span>`}${tim ? ` · ${tr('Tim {tim}', { tim: esc(I.labelTim(tim.kode)) })}` : ''}${s && s.reviewManager ? ' · ' + tr('direview Manager') : ''}${tanya('konsep-kode', tr('sub-stage dan tim'))}</p>
         <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}</div>
-        <div class="detail-orang">${avatar(t.pic)} PIC ${nama(t.pic)}${statusHtml(t.pic)}
-          ${t.support.length ? ` · bantuan ${t.support.map(nama).join(', ')}` : ''}
-          · ${tinjau ? 'ditinjau ' + nama(tinjau) : jenis === 'proyek' ? 'tanpa tinjauan' : 'tanpa tinjauan (di luar proyek)'}</div>
+        <div class="detail-orang">${avatar(t.pic)} ${tr('PIC')} ${nama(t.pic)}${statusHtml(t.pic)}
+          ${t.support.length ? ` · ${tr('bantuan')} ${t.support.map(nama).join(', ')}` : ''}
+          · ${tinjau ? tr('ditinjau {nama}', { nama: nama(tinjau) }) : jenis === 'proyek' ? tr('tanpa tinjauan') : tr('tanpa tinjauan (di luar proyek)')}</div>
       </div>
       <div class="detail-tombol">
-        <button type="button" class="ikon-tombol" data-aksi="salin-tautan" data-alamat="#/task/${esc(t.id)}" title="Salin tautan task ini" aria-label="Salin tautan task">${ikon('tautan', 18)}</button>
-        ${bisaUbah ? `<button type="button" class="ikon-tombol" data-aksi="ubah-task" data-id="${esc(t.id)}" title="Ubah task ini" aria-label="Ubah task ${esc(t.id)}">${ikon('sunting', 18)}</button>` : ''}
-        ${I.bolehHapusTask(t, me, perId) ? `<button type="button" class="ikon-tombol bahaya" data-aksi="hapus-task" data-id="${esc(t.id)}" title="Hapus task ini" aria-label="Hapus task ${esc(t.id)}">${ikon('hapus', 18)}</button>` : ''}
-        ${diLaci ? `<button type="button" class="ikon-tombol" data-aksi="tutup-detail" aria-label="Tutup">${ikon('tutup', 20)}</button>` : ''}
+        <button type="button" class="ikon-tombol" data-aksi="salin-tautan" data-alamat="#/task/${esc(t.id)}" title="${tr('Salin tautan task ini')}" aria-label="${tr('Salin tautan task ini')}">${ikon('tautan', 18)}</button>
+        ${bisaUbah ? `<button type="button" class="ikon-tombol" data-aksi="ubah-task" data-id="${esc(t.id)}" title="${tr('Ubah task ini')}" aria-label="${esc(tr('Ubah task {id}', { id: t.id }))}">${ikon('sunting', 18)}</button>` : ''}
+        ${I.bolehHapusTask(t, me, perId) ? `<button type="button" class="ikon-tombol bahaya" data-aksi="hapus-task" data-id="${esc(t.id)}" title="${tr('Hapus task ini')}" aria-label="${esc(tr('Hapus task {id}', { id: t.id }))}">${ikon('hapus', 18)}</button>` : ''}
+        ${diLaci ? `<button type="button" class="ikon-tombol" data-aksi="tutup-detail" aria-label="${tr('Tutup')}">${ikon('tutup', 20)}</button>` : ''}
       </div></div>
 
       ${p ? bagianFase(t, p, perId) : ''}
@@ -1971,9 +2264,9 @@
 
       ${aksi.length || bisaUbah ? `<section>
         <div class="detail-aksi">
-          ${utama.map(a => `<button type="button" class="tombol utama" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}
-          ${lain.map(a => `<button type="button" class="tombol ${['tahan', 'kembalikan'].includes(a.kunci) ? 'bahaya' : ''}" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}
-          ${bisaUbah ? `<button type="button" class="tombol" data-aksi="ubah-task" data-id="${esc(t.id)}">Ubah</button>` : ''}
+          ${utama.map(a => `<button type="button" class="tombol utama" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''}>${esc(labelAksi(a))}</button>`).join('')}
+          ${lain.map(a => `<button type="button" class="tombol ${['tahan', 'kembalikan'].includes(a.kunci) ? 'bahaya' : ''}" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''}>${esc(labelAksi(a))}</button>`).join('')}
+          ${bisaUbah ? `<button type="button" class="tombol" data-aksi="ubah-task" data-id="${esc(t.id)}">${tr('Ubah')}</button>` : ''}
         </div>
         ${aksi.filter(a => a.nonaktif && a.alasan).map(a => `<p class="hint">${esc(a.alasan)}</p>`).join('')}
       </section>` : ''}
@@ -1983,37 +2276,37 @@
       ${bagianOutput(t, bisaSub)}
 
       <section>
-        <p class="subjudul">Sub-task ${t.subtasks.length ? `· ${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}` : ''}</p>
+        <p class="subjudul">${tr('Ceklis pengerjaan')} ${t.subtasks.length ? `· ${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}` : ''}</p>
         ${t.subtasks.length ? `<div class="ceklis">${t.subtasks.map(s => {
           const boleh = bisaSub || s.pic === me;
           if (bisaSub && S.ubahSub && S.ubahSub.task === t.id && S.ubahSub.sub === s.id) return formUbahSub(t, s, pilihanPic);
           return `<div class="ceklis-baris"><label class="${s.done ? 'beres' : ''}"><input type="checkbox" data-aksi="centang-sub" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" ${s.done ? 'checked' : ''} ${boleh ? '' : 'disabled'}>
             <span>${esc(s.title)}</span><small>${nama(s.pic)}</small></label>
-            ${s.link ? `<a class="ceklis-tautan" href="${esc(s.link)}" target="_blank" rel="noopener noreferrer" title="${esc(s.link)}" aria-label="Buka tautan sub-task ${esc(s.title)} (${esc(I.judulTautan(s.link))})">${ikon('luar', 14)}<span>${esc(I.judulTautan(s.link))}</span></a>` : ''}
+            ${s.link ? `<a class="ceklis-tautan" href="${esc(s.link)}" target="_blank" rel="noopener noreferrer" title="${esc(s.link)}" aria-label="${esc(tr('Buka tautan butir ceklis {judul}', { judul: s.title }))} (${esc(I.judulTautan(s.link))})">${ikon('luar', 14)}<span>${esc(I.judulTautan(s.link))}</span></a>` : ''}
             ${bisaSub ? `<span class="ceklis-aksi">
-              <button type="button" class="ikon-tombol" data-aksi="sub-ubah" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="Ubah sub-task" aria-label="Ubah sub-task ${esc(s.title)}">${ikon('sunting', 16)}</button>
-              <button type="button" class="ikon-tombol" data-aksi="sub-hapus" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="Hapus sub-task" aria-label="Hapus sub-task ${esc(s.title)}">${ikon('hapus', 16)}</button>
+              <button type="button" class="ikon-tombol" data-aksi="sub-ubah" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="${tr('Ubah butir ceklis')}" aria-label="${esc(tr('Ubah butir ceklis') + ' ' + s.title)}">${ikon('sunting', 16)}</button>
+              <button type="button" class="ikon-tombol" data-aksi="sub-hapus" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="${tr('Hapus butir ceklis')}" aria-label="${esc(tr('Hapus butir ceklis') + ' ' + s.title)}">${ikon('hapus', 16)}</button>
             </span>` : ''}</div>`;
-        }).join('')}</div>` : '<p class="hint">Belum ada sub-task.</p>'}
+        }).join('')}</div>` : `<p class="hint">${tr('Belum ada ceklis pengerjaan.')}</p>`}
         ${bisaSub ? `<form class="baris-form" data-form="sub-tambah" data-id="${esc(t.id)}">
-          <label class="sr" for="sub-${esc(t.id)}">Sub-task baru</label>
-          <input class="input" id="sub-${esc(t.id)}" name="judul" placeholder="Tambah sub-task…" required maxlength="200">
-          <label class="sr" for="subpic-${esc(t.id)}">PIC sub-task</label>
+          <label class="sr" for="sub-${esc(t.id)}">${tr('Butir ceklis baru')}</label>
+          <input class="input" id="sub-${esc(t.id)}" name="judul" placeholder="${tr('Tambah butir ceklis…')}" required maxlength="200">
+          <label class="sr" for="subpic-${esc(t.id)}">${tr('PIC butir ceklis')}</label>
           <select class="input" id="subpic-${esc(t.id)}" name="pic">${pilihanPic.map(id => `<option value="${esc(id)}" ${id === t.pic ? 'selected' : ''}>${nama(id)}</option>`).join('')}</select>
-          <label class="sr" for="sublink-${esc(t.id)}">Tautan sub-task (opsional)</label>
-          <input class="input input-tautan" id="sublink-${esc(t.id)}" name="link" placeholder="Tautan (opsional)" inputmode="url" maxlength="2000" autocomplete="off" spellcheck="false">
-          <button class="tombol">Tambah</button>
+          <label class="sr" for="sublink-${esc(t.id)}">${tr('Tautan butir ceklis (opsional)')}</label>
+          <input class="input input-tautan" id="sublink-${esc(t.id)}" name="link" placeholder="${tr('Tautan (opsional)')}" inputmode="url" maxlength="2000" autocomplete="off" spellcheck="false">
+          <button class="tombol">${tr('Tambah')}</button>
         </form>` : ''}
       </section>
 
       ${bagianSetoran(t, p)}
-      ${t.detail || t.notes ? `<section><p class="subjudul">Keterangan</p>${t.detail ? `<p class="teks-panjang">${teksBertaut(t.detail)}</p>` : ''}${t.notes ? `<p class="teks-panjang">${teksBertaut(t.notes)}</p>` : ''}</section>` : ''}
-      ${t.tinjauan.length ? `<section><p class="subjudul">Riwayat tinjauan</p><ul class="riwayat">${t.tinjauan.slice().sort((a, b) => b.at - a.at).map(r => `
-        <li><strong>${esc(r.action)}</strong> oleh ${nama(r.by)}${tandaAi(r.ai)} <small>· ${esc(relatif(r.at))}</small>${r.note ? `<br>${esc(r.note)}` : ''}</li>`).join('')}</ul></section>` : ''}
+      ${t.detail || t.notes ? `<section><p class="subjudul">${tr('Keterangan')}</p>${t.detail ? `<p class="teks-panjang">${teksBertaut(t.detail)}</p>` : ''}${t.notes ? `<p class="teks-panjang">${teksBertaut(t.notes)}</p>` : ''}</section>` : ''}
+      ${t.tinjauan.length ? `<section><p class="subjudul">${tr('Riwayat tinjauan')}</p><ul class="riwayat">${t.tinjauan.slice().sort((a, b) => b.at - a.at).map(r => `
+        <li><strong>${esc(tr(r.action))}</strong> ${tr('oleh')} ${nama(r.by)}${tandaAi(r.ai)} <small>· ${esc(relatif(r.at))}</small>${r.note ? `<br>${esc(r.note)}` : ''}</li>`).join('')}</ul></section>` : ''}
 
       ${diskusiDetail(t)}
 
-      ${log.length ? `<section><p class="subjudul">Aktivitas</p><ul class="riwayat">${log.map(l => `<li>${nama(l.by)}${tandaAi(l.ai)}: ${esc(l.detail)} <small>· ${esc(relatif(l.at))}</small></li>`).join('')}</ul></section>` : ''}
+      ${log.length ? `<section><p class="subjudul">${tr('Aktivitas')}</p><ul class="riwayat">${log.map(l => `<li>${nama(l.by)}${tandaAi(l.ai)}: ${esc(l.detail)} <small>· ${esc(relatif(l.at))}</small></li>`).join('')}</ul></section>` : ''}
     </div>`;
   }
 
@@ -2023,19 +2316,20 @@
     const kode = I.timJalur(t, perId);
     const f = I.faseTim(S.data, p, perId).find(x => x.kode === kode);
     if (f) {
-      return `<section><p class="subjudul">Fase ${esc(I.singkatTim(kode))} di proyek ini${f.fase !== t.stage ? ` · task ini di ${esc(I.namaTahap(t.stage))}` : ''}${tanya('konsep-tahap', 'ADDIE per tim')}</p>
+      return `<section><p class="subjudul">${tr('Fase {tim} di proyek ini', { tim: esc(I.singkatTim(kode)) })}${f.fase !== t.stage ? ' · ' + tr('task ini di {tahap}', { tahap: esc(I.namaTahap(t.stage)) }) : ''}${tanya('konsep-tahap', tr('ADDIE per tim'))}</p>
         ${jalurTahap(p, t.stage, false, true, f)}</section>`;
     }
     if (kode !== 'MG') return '';
-    const ket = t.sub === 'E12' ? 'E12 menutup siklus setelah semua task lain di siklus ini selesai.'
-      : t.stage === 'A' ? 'Gerbang proyek: fase Design dan sesudahnya di semua tim menunggu task Manager di Analysis ini selesai.'
-        : 'Task Manager mengikuti urutan fase Manager sendiri; tim lain tak menunggunya.';
-    return `<section><p class="subjudul">Gerbang Manager${tanya('konsep-tahap', 'ADDIE per tim')}</p><p class="hint">${ket}</p></section>`;
+    const ket = t.sub === 'E12' ? tr('E12 menutup siklus setelah semua task lain di siklus ini selesai.')
+      : t.stage === 'A' ? tr('Gerbang proyek: fase Design dan sesudahnya di semua tim menunggu task Manager di Analysis ini selesai.')
+        : tr('Task Manager mengikuti urutan fase Manager sendiri; tim lain tak menunggunya.');
+    return `<section><p class="subjudul">${tr('Gerbang Manager')}${tanya('konsep-tahap', tr('ADDIE per tim'))}</p><p class="hint">${ket}</p></section>`;
   }
 
   /* Siapa yang ditunggu task ini dan kenapa (2.19.0), dengan tombol Atur urutan untuk Lead
      timnya. Yang belum selesai di atas; E12 bisa menunggu puluhan task, jadi dibatasi. */
   const JENIS_TUNGGU = { fase: 'fase timnya', atur: 'diatur Lead', gerbang: 'gerbang Manager', tutup: 'sebelum penutupan' };
+  const jenisTunggu = j => ({ fase: tr('fase timnya'), atur: tr('diatur Lead'), gerbang: tr('gerbang Manager'), tutup: tr('sebelum penutupan') })[j] || JENIS_TUNGGU[j] || j;
   function bagianDitunggu(t, perId) {
     if (!I.tungguTahap(t)) return '';
     const semua = I.ditunggu(t, perId).sort((a, b) => I.selesai(a.t) - I.selesai(b.t));
@@ -2045,12 +2339,12 @@
     const tampil = semua.slice(0, 12);
     const baris = x => `<li class="${I.selesai(x.t) ? 'beres' : ''}">${ikon(I.selesai(x.t) ? 'centang' : 'bulat', 14)}
       <button type="button" class="tautan-kecil" data-aksi="buka-task" data-id="${esc(x.t.id)}">${esc(x.t.id)} · ${esc(potong(x.t.title, 70))}</button>
-      <small>${chipTim(I.timJalur(x.t, perId))} ${esc(JENIS_TUNGGU[x.jenis])} · ${nama(x.t.pic)}</small></li>`;
-    return `<section><p class="subjudul">Menunggu ${semua.length ? `· ${semua.length - belum}/${semua.length} selesai` : ''}</p>
-      ${semua.length ? `<ul class="daftar-tunggu">${tampil.map(baris).join('')}</ul>${semua.length > tampil.length ? `<p class="hint">dan ${semua.length - tampil.length} task lain.</p>` : ''}`
-        : '<p class="hint">Tak menunggu task lain.</p>'}
-      ${t.lepasFase ? `<p class="hint">Dilepas dari urutan fase ${esc(I.singkatTim(I.timJalur(t, perId)))}: tak menunggu task timnya di fase lebih awal.</p>` : ''}
-      ${boleh ? `<button type="button" class="tombol kecil" data-aksi="atur-tunggu" data-id="${esc(t.id)}">${ikon('timeline', 16)} Atur urutan tunggu</button>` : ''}
+      <small>${chipTim(I.timJalur(x.t, perId))} ${esc(jenisTunggu(x.jenis))} · ${nama(x.t.pic)}</small></li>`;
+    return `<section><p class="subjudul">${tr('Menunggu')} ${semua.length ? '· ' + tr('{a}/{b} selesai', { a: semua.length - belum, b: semua.length }) : ''}</p>
+      ${semua.length ? `<ul class="daftar-tunggu">${tampil.map(baris).join('')}</ul>${semua.length > tampil.length ? `<p class="hint">${tr('dan {n} task lain.', { n: semua.length - tampil.length })}</p>` : ''}`
+        : `<p class="hint">${tr('Tak menunggu task lain.')}</p>`}
+      ${t.lepasFase ? `<p class="hint">${tr('Dilepas dari urutan fase {tim}: tak menunggu task timnya di fase lebih awal.', { tim: esc(I.singkatTim(I.timJalur(t, perId))) })}</p>` : ''}
+      ${boleh ? `<button type="button" class="tombol kecil" data-aksi="atur-tunggu" data-id="${esc(t.id)}">${ikon('timeline', 16)} ${tr('Atur urutan tunggu')}</button>` : ''}
     </section>`;
   }
 
@@ -2108,7 +2402,7 @@
           <button type="button" class="tombol kecil" style="margin-top:12px" data-aksi="ke" data-view="proyek">${ikon('lapis', 16)} Buka Proyek</button>
         </section>
         <section class="kartu-polos lebar-penuh"><p class="subjudul">Per orang ${tanya('manager-dashboard', 'skor bottleneck')}</p>
-          <div class="tabel-gulir"><table class="tabel"><thead><tr><th>Nama</th><th>Peran</th><th>Beban</th><th class="angka">Aktif</th><th class="angka">Sub-task</th><th class="angka">Terlambat</th>
+          <div class="tabel-gulir"><table class="tabel"><thead><tr><th>Nama</th><th>Peran</th><th>Beban</th><th class="angka">Aktif</th><th class="angka">Ceklis</th><th class="angka">Terlambat</th>
             <th class="angka" title="Task orang lain yang menunggu task-nya selesai">Menahan</th><th class="angka" title="Task yang menunggu tinjauannya">Tinjauan</th>
             <th class="angka">Bottleneck</th><th class="angka">Selesai 30 hari</th></tr></thead>
           <tbody>${r.perOrang.map(x => {
@@ -2221,17 +2515,17 @@
     const n = jumlahSaring();
     const proyekSemua = S.data.projects.slice().sort((a, b) => a.arsip - b.arsip || a.name.localeCompare(b.name, 'id'));
     const lingkup = ketLingkup(f.lingkup);
-    return `<div class="judul-halaman"><div><h1>Task</h1><p>${lingkup} · ganti tampilan lewat ikon di atas daftar</p></div></div>
+    return `<div class="judul-halaman"><div><h1>${tr('Task')}</h1><p>${lingkup} · ${tr('ganti tampilan lewat ikon di atas daftar')}</p></div></div>
       <div class="alat alat-task">
         ${kotakCari('task', f.q, 'Cari judul, ID, orang, proyek, sub-stage…')}
         ${segmenLingkup('task', f.lingkup)}
-        <button type="button" class="tombol kecil tombol-saring" data-aksi="task-saring" aria-expanded="${f.saringBuka}">${ikon('saring', 16)} Saringan${n ? ` <span class="lencana biru">${n}</span>` : ''}</button>
-        ${n && !f.saringBuka ? '<button type="button" class="tombol kecil" data-aksi="task-bersih">Hapus saringan</button>' : ''}
+        <button type="button" class="tombol kecil tombol-saring" data-aksi="task-saring" aria-expanded="${f.saringBuka}">${ikon('saring', 16)} ${tr('Saringan')}${n ? ` <span class="lencana biru">${n}</span>` : ''}</button>
+        ${n && !f.saringBuka ? `<button type="button" class="tombol kecil" data-aksi="task-bersih">${tr('Hapus saringan')}</button>` : ''}
       </div>
       ${f.saringBuka ? `<div class="alat panel-saring">
-        ${pilihan('task', 'proyek', f.proyek, [SEMUA, ...proyekSemua.map(p => [p.id, p.name + (p.arsip ? ' (arsip)' : '')])], 'Proyek')}
+        ${pilihan('task', 'proyek', f.proyek, [SEMUA, ...proyekSemua.map(p => [p.id, p.name + (p.arsip ? ' ' + tr('(arsip)') : '')])], 'Proyek')}
         ${pilihanSaring('task', f)}
-        ${n ? '<button type="button" class="tombol kecil" data-aksi="task-bersih">Hapus saringan</button>' : ''}
+        ${n ? `<button type="button" class="tombol kecil" data-aksi="task-bersih">${tr('Hapus saringan')}</button>` : ''}
       </div>` : ''}
       <div id="hasil">${hasilTask()}</div>`;
   }
@@ -2244,13 +2538,13 @@
     const bisaTinjau = ['lead', 'manager'].includes(I.orang(S.me).peran);
     const tab = FOKUS.filter(([k]) => k !== 'tinjau' || bisaTinjau).map(([k, l]) => {
       const n = I.daftarTask(S.data, { ...saringTask(k), status: 'aktif' }, h).length;
-      return `<button type="button" class="tab-fokus ${k && n ? 'perlu' : ''}" data-aksi="atur" data-ruang="task" data-kunci="fokus" data-nilai="${k}" aria-pressed="${f.fokus === k}">${l}<span class="jumlah">${n}</span></button>`;
+      return `<button type="button" class="tab-fokus ${k && n ? 'perlu' : ''}" data-aksi="atur" data-ruang="task" data-kunci="fokus" data-nilai="${k}" aria-pressed="${f.fokus === k}">${esc(tr(l))}<span class="jumlah">${n}</span></button>`;
     }).join('');
-    const ikonTampilan = TAMPILAN.map(x => `<button type="button" data-aksi="atur" data-ruang="task" data-kunci="tampilan" data-nilai="${x.id}" aria-pressed="${f.tampilan === x.id}" title="${x.judul}">${ikon(x.ikon, 18)}<span class="sr">${x.judul}</span></button>`).join('');
+    const ikonTampilan = TAMPILAN.map(x => `<button type="button" data-aksi="atur" data-ruang="task" data-kunci="tampilan" data-nilai="${x.id}" aria-pressed="${f.tampilan === x.id}" title="${tr(x.judul)}">${ikon(x.ikon, 18)}<span class="sr">${tr(x.judul)}</span></button>`).join('');
     const BADAN = { daftar: badanDaftar, kanban: badanKanban, orang: badanOrang, timeline: badanTimeline, kalender: badanKalender };
     return `<div class="baris-tab">
-        <div class="tab-fokus-daftar" role="group" aria-label="Fokus">${tab}</div>
-        <div class="segmen segmen-ikon" role="group" aria-label="Tampilan">${ikonTampilan}</div>
+        <div class="tab-fokus-daftar" role="group" aria-label="${tr('Fokus')}">${tab}</div>
+        <div class="segmen segmen-ikon" role="group" aria-label="${tr('Tampilan')}">${ikonTampilan}</div>
       </div>
       ${(BADAN[f.tampilan] || badanDaftar)(h)}`;
   }
@@ -2267,7 +2561,7 @@
     const diHalaman = new Set(potongan.map(x => x.t.id));
     const isi = potongan.map(x => (x.anak && !diHalaman.has(x.t.induk) ? { ...x, anak: false } : x));
     const kolom = [['id', 'ID'], ['title', 'Task'], ['pic', 'PIC'], ['status', 'Status'], ['due', 'Tenggat'], ['platform', 'Platform']];
-    const kepala = kolom.map(([k, l]) => `<th aria-sort="${f.urut === k ? (f.arah === -1 ? 'descending' : 'ascending') : 'none'}"><button type="button" class="urut" data-aksi="daftar-urut" data-kunci="${k}">${l}<span aria-hidden="true">${f.urut === k ? (f.arah === -1 ? ' ↓' : ' ↑') : ''}</span></button></th>`).join('');
+    const kepala = kolom.map(([k, l]) => `<th aria-sort="${f.urut === k ? (f.arah === -1 ? 'descending' : 'ascending') : 'none'}"><button type="button" class="urut" data-aksi="daftar-urut" data-kunci="${k}">${esc(tr(l))}<span aria-hidden="true">${f.urut === k ? (f.arah === -1 ? ' ↓' : ' ↑') : ''}</span></button></th>`).join('');
     const tabel = `<div class="tabel-gulir kartu-polos rapat"><table class="tabel tabel-task"><thead><tr>${kepala}</tr></thead><tbody>${isi.map(({ t, anak }) => `
       <tr class="${anak ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}">
         <td class="kecil">${esc(t.id)}</td>
@@ -2279,15 +2573,15 @@
         <td class="kecil">${esc(t.platform || '—')}</td>
       </tr>`).join('')}</tbody></table></div>`;
     const nav = jumlahHal > 1 ? `<div class="halaman-nav">
-        <button type="button" class="tombol kecil" data-aksi="daftar-hal" data-n="-1" ${f.hal <= 1 ? 'disabled' : ''}>${ikon('kiri', 16)} Sebelumnya</button>
-        <span class="hint">Halaman ${f.hal} dari ${jumlahHal}</span>
-        <button type="button" class="tombol kecil" data-aksi="daftar-hal" data-n="1" ${f.hal >= jumlahHal ? 'disabled' : ''}>Berikutnya ${ikon('kanan', 16)}</button>
+        <button type="button" class="tombol kecil" data-aksi="daftar-hal" data-n="-1" ${f.hal <= 1 ? 'disabled' : ''}>${ikon('kiri', 16)} ${tr('Sebelumnya')}</button>
+        <span class="hint">${tr('Halaman {a} dari {b}', { a: f.hal, b: jumlahHal })}</span>
+        <button type="button" class="tombol kecil" data-aksi="daftar-hal" data-n="1" ${f.hal >= jumlahHal ? 'disabled' : ''}>${tr('Berikutnya')} ${ikon('kanan', 16)}</button>
       </div>` : '';
-    return `<div class="alat baris-info"><p class="hint">${semua.length} task${semua.length > PER_HAL ? ` · menampilkan ${(f.hal - 1) * PER_HAL + 1}–${(f.hal - 1) * PER_HAL + isi.length}` : ''} · klik judul kolom untuk mengurutkan</p>
+    return `<div class="alat baris-info"><p class="hint">${tr('{n} task', { n: semua.length })}${semua.length > PER_HAL ? ' · ' + tr('menampilkan {a}–{b}', { a: (f.hal - 1) * PER_HAL + 1, b: (f.hal - 1) * PER_HAL + isi.length }) : ''} · ${tr('klik judul kolom untuk mengurutkan')}</p>
         <span class="spasi"></span>
         ${pilihan('task', 'status', f.status, [['aktif', 'Aktif'], SEMUA, ...I.STATUS.map(s => [s, s])], 'Status')}
-        <button type="button" class="tombol kecil" data-aksi="ekspor" ${semua.length ? '' : 'disabled'}>${ikon('unduh', 16)} Ekspor CSV</button></div>
-      ${semua.length ? (hp() ? `<div class="grup">${isi.map(x => barisTask(x.t, '', x.anak ? 'anak' : '')).join('')}</div>` : tabel) : '<div class="kosong-isi">Tidak ada task yang cocok dengan saringan ini.</div>'}
+        <button type="button" class="tombol kecil" data-aksi="ekspor" ${semua.length ? '' : 'disabled'}>${ikon('unduh', 16)} ${tr('Ekspor CSV')}</button></div>
+      ${semua.length ? (hp() ? `<div class="grup">${isi.map(x => barisTask(x.t, '', x.anak ? 'anak' : '')).join('')}</div>` : tabel) : `<div class="kosong-isi">${tr('Tidak ada task yang cocok dengan saringan ini.')}</div>`}
       ${nav}`;
   }
 
@@ -2295,13 +2589,13 @@
     const perId = perIdKini();
     const kolom = I.kolomPapan(S.data, saringTask(), h);
     const aktif = kolom.filter(k => k.status !== 'Selesai').reduce((n, k) => n + k.isi.length, 0);
-    return `<div class="alat baris-info"><p class="hint">${aktif} task aktif · seret kartu antar kolom untuk memindah status</p></div>
+    return `<div class="alat baris-info"><p class="hint">${tr('{n} task aktif · seret kartu antar kolom untuk memindah status', { n: aktif })}</p></div>
       <div class="papan-gulir"><div class="papan">${kolom.map(k => `
-        <section class="kolom" data-kolom="${k.status}" aria-label="${k.status}">
-          <h2><span class="titik" style="background:${WARNA_KOLOM[k.status]}"></span>${k.status === 'Selesai' ? 'Selesai · 7 hari' : k.status}<span class="jumlah">${k.isi.length}</span></h2>
-          ${k.status === 'Ditinjau' ? '<p>Task proyek menunggu persetujuan peninjau</p>' : ''}
-          ${k.isi.slice(0, 40).map(t => kartuTask(t, perId)).join('') || '<p>Kosong</p>'}
-          ${k.isi.length > 40 ? `<button type="button" class="tombol kecil" data-aksi="daftar-status" data-status="${k.status}">Lihat ${k.isi.length - 40} lainnya di Daftar</button>` : ''}
+        <section class="kolom" data-kolom="${k.status}" aria-label="${esc(tr(k.status))}">
+          <h2><span class="titik" style="background:${WARNA_KOLOM[k.status]}"></span>${k.status === 'Selesai' ? tr('Selesai · 7 hari') : esc(tr(k.status))}<span class="jumlah">${k.isi.length}</span></h2>
+          ${k.status === 'Ditinjau' ? `<p>${tr('Task proyek menunggu persetujuan peninjau')}</p>` : ''}
+          ${k.isi.slice(0, 40).map(t => kartuTask(t, perId)).join('') || `<p>${tr('Kosong')}</p>`}
+          ${k.isi.length > 40 ? `<button type="button" class="tombol kecil" data-aksi="daftar-status" data-status="${k.status}">${tr('Lihat {n} lainnya di Daftar', { n: k.isi.length - 40 })}</button>` : ''}
         </section>`).join('')}</div></div>`;
   }
 
@@ -2315,12 +2609,12 @@
       if (!milik.length && !ids) return '';
       return `<section class="baris-orang">
         <div class="baris-orang-kiri"><div>${avatar(b.id, 'besar')}<span><strong>${nama(b.id)}</strong><small>${esc(I.orang(b.id).jabatan)}</small></span></div>
-          <span class="beban ${b.penuh ? 'penuh' : ''}"><span class="batang ${b.penuh ? 'merah' : ''}"><span style="width:${b.persen}%"></span></span>${b.aktif}/${I.KAPASITAS}${b.penuh ? ' · penuh' : ''}</span></div>
-        <div class="baris-orang-kartu">${milik.map(t => kartuTask(t, perId)).join('') || '<p class="hint">Tidak ada task aktif yang cocok.</p>'}</div>
+          <span class="beban ${b.penuh ? 'penuh' : ''}"><span class="batang ${b.penuh ? 'merah' : ''}"><span style="width:${b.persen}%"></span></span>${b.aktif}/${I.KAPASITAS}${b.penuh ? ' · ' + tr('penuh') : ''}</span></div>
+        <div class="baris-orang-kartu">${milik.map(t => kartuTask(t, perId)).join('') || `<p class="hint">${tr('Tidak ada task aktif yang cocok.')}</p>`}</div>
       </section>`;
     }).join('');
-    return `<div class="alat baris-info"><p class="hint">Beban tiap orang: task aktif terhadap kapasitas ${I.KAPASITAS}. Klik kartu untuk membuka detailnya.</p></div>
-      <div class="per-orang">${baris || '<div class="kosong-isi">Tidak ada task aktif yang cocok.</div>'}</div>`;
+    return `<div class="alat baris-info"><p class="hint">${tr('Beban tiap orang: task aktif terhadap kapasitas {n}. Klik kartu untuk membuka detailnya.', { n: I.KAPASITAS })}</p></div>
+      <div class="per-orang">${baris || `<div class="kosong-isi">${tr('Tidak ada task aktif yang cocok.')}</div>`}</div>`;
   }
 
   const HARI_JENDELA = 35;
@@ -2336,15 +2630,15 @@
       .filter(x => x.mulai && x.mulai <= akhir && x.akhir >= mulai && (I.aktif(x.t) || I.isoHari(x.t.selesaiAt) >= mulai))
       .sort((a, b) => a.mulai.localeCompare(b.mulai) || a.akhir.localeCompare(b.akhir));
     const alat = `<div class="alat baris-info">
-        <button type="button" class="tombol kecil" data-aksi="jadwal-geser" data-n="-7">${ikon('kiri', 16)} Minggu sebelumnya</button>
-        <button type="button" class="tombol kecil" data-aksi="jadwal-geser" data-n="0">Minggu ini</button>
-        <button type="button" class="tombol kecil" data-aksi="jadwal-geser" data-n="7">Minggu berikutnya ${ikon('kanan', 16)}</button>
-        <span class="hint">${esc(fmtRentang(mulai, akhir))} · ${isi.length} task</span>
+        <button type="button" class="tombol kecil" data-aksi="jadwal-geser" data-n="-7">${ikon('kiri', 16)} ${tr('Minggu sebelumnya')}</button>
+        <button type="button" class="tombol kecil" data-aksi="jadwal-geser" data-n="0">${tr('Minggu ini')}</button>
+        <button type="button" class="tombol kecil" data-aksi="jadwal-geser" data-n="7">${tr('Minggu berikutnya')} ${ikon('kanan', 16)}</button>
+        <span class="hint">${esc(fmtRentang(mulai, akhir))} · ${tr('{n} task', { n: isi.length })}</span>
         <span class="spasi"></span>
-        <div class="segmen" role="group" aria-label="Kelompokkan"><button type="button" data-aksi="atur" data-ruang="jadwal" data-kunci="kelompok" data-nilai="proyek" aria-pressed="${j.kelompok === 'proyek'}">Per proyek</button><button type="button" data-aksi="atur" data-ruang="jadwal" data-kunci="kelompok" data-nilai="orang" aria-pressed="${j.kelompok === 'orang'}">Per orang</button></div>
+        <div class="segmen" role="group" aria-label="${tr('Kelompokkan')}"><button type="button" data-aksi="atur" data-ruang="jadwal" data-kunci="kelompok" data-nilai="proyek" aria-pressed="${j.kelompok === 'proyek'}">${tr('Per proyek')}</button><button type="button" data-aksi="atur" data-ruang="jadwal" data-kunci="kelompok" data-nilai="orang" aria-pressed="${j.kelompok === 'orang'}">${tr('Per orang')}</button></div>
       </div>
-      <p class="legenda baris-legenda">${I.STATUS.map(s => `<span><i class="tl-${s.toLowerCase()}"></i>${s}</span>`).join('')}<span><i class="tl-telat"></i>Terlambat</span><span>Batang = tanggal mulai sampai tenggat</span></p>`;
-    if (!isi.length) return alat + '<div class="kosong-isi">Tidak ada task terjadwal dalam rentang ini.</div>';
+      <p class="legenda baris-legenda">${I.STATUS.map(s => `<span><i class="tl-${s.toLowerCase()}"></i>${esc(tr(s))}</span>`).join('')}<span><i class="tl-telat"></i>${tr('Terlambat')}</span><span>${tr('Batang = tanggal mulai sampai tenggat')}</span></p>`;
+    if (!isi.length) return alat + `<div class="kosong-isi">${tr('Tidak ada task terjadwal dalam rentang ini.')}</div>`;
 
     if (hp()) {
       const perTanggal = new Map();
@@ -2358,7 +2652,7 @@
         ${daftar.map(t => barisTask(t)).join('')}</section>`).join('');
     }
 
-    const LUAR = 'Di luar proyek';
+    const LUAR = tr('Di luar proyek');
     const kunciGrup = j.kelompok === 'orang' ? x => I.orang(x.t.pic).pendek : x => (x.t.project ? asal(x.t) : LUAR);
     const grup = new Map();
     for (const x of isi) {
@@ -2378,7 +2672,7 @@
       const dipakai = anggota.slice(0, sisa);
       tampil += dipakai.length;
       if (!dipakai.length) return '';
-      return `<div class="tl-grup"><span>${esc(g)}</span><small>${anggota.length} task</small></div>${dipakai.map(x => {
+      return `<div class="tl-grup"><span>${esc(g)}</span><small>${tr('{n} task', { n: anggota.length })}</small></div>${dipakai.map(x => {
         const t = x.t;
         const telat = I.telat(t, h);
         const a = kolom(x.mulai) + 1, b = kolom(x.akhir) + 2;
@@ -2386,7 +2680,7 @@
           <button type="button" class="tl-label" data-aksi="buka-task" data-id="${esc(t.id)}" title="${esc(t.title)}">${avatar(t.pic, 'kecil')}<span>${esc(t.title)}</span></button>
           <div class="tl-jalur ${gayaKini ? 'ada-kini' : ''}" ${gayaKini}>
             <button type="button" class="tl-batang tl-${t.status.toLowerCase()} ${telat ? 'telat' : ''} ${x.mulai < mulai ? 'potong-kiri' : ''} ${x.akhir > akhir ? 'potong-kanan' : ''}" style="grid-column:${a}/${b}"
-              data-aksi="buka-task" data-id="${esc(t.id)}" title="${esc(t.title)} · ${esc(fmtTanggalPendek(x.mulai))} → ${esc(fmtTanggalPendek(x.akhir))} · ${esc(t.status)}"><span>${esc(t.title)}</span></button>
+              data-aksi="buka-task" data-id="${esc(t.id)}" title="${esc(t.title)} · ${esc(fmtTanggalPendek(x.mulai))} → ${esc(fmtTanggalPendek(x.akhir))} · ${esc(tr(t.status))}"><span>${esc(t.title)}</span></button>
           </div>
         </div>`;
       }).join('')}`;
@@ -2400,10 +2694,11 @@
         </div>
         ${baris}
       </div>
-      ${isi.length > BATAS ? `<p class="hint" style="margin-top:8px">Menampilkan ${BATAS} dari ${isi.length} task. Persempit lingkup atau saringannya untuk melihat sisanya.</p>` : ''}`;
+      ${isi.length > BATAS ? `<p class="hint" style="margin-top:8px">${tr('Menampilkan {a} dari {b} task. Persempit lingkup atau saringannya untuk melihat sisanya.', { a: BATAS, b: isi.length })}</p>` : ''}`;
   }
 
   const NAMA_HARI = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  const namaHari = () => (B.bahasa() === 'en' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : NAMA_HARI);
 
   function badanKalender(h) {
     const k = S.kal;
@@ -2422,25 +2717,25 @@
       const isi = per.get(d) || [];
       const aktif = isi.filter(I.aktif).length;
       return `<div class="kal-sel ${d.slice(0, 7) !== bulan ? 'luar' : ''} ${d === h ? 'kini' : ''} ${d === pilih ? 'dipilih' : ''}">
-        <button type="button" class="kal-tgl" data-aksi="kal-hari" data-hari="${d}" aria-label="${esc(fmtTanggalPanjang(d))}, ${isi.length} task">${keDate(d).getDate()}${isi.length ? `<span class="kal-jumlah ${aktif ? '' : 'beres'}">${isi.length}</span>` : ''}</button>
+        <button type="button" class="kal-tgl" data-aksi="kal-hari" data-hari="${d}" aria-label="${esc(fmtTanggalPanjang(d))}, ${esc(tr('{n} task', { n: isi.length }))}">${keDate(d).getDate()}${isi.length ? `<span class="kal-jumlah ${aktif ? '' : 'beres'}">${isi.length}</span>` : ''}</button>
         <div class="kal-isi">${isi.slice(0, 3).map(t => `<button type="button" class="kal-task tl-${t.status.toLowerCase()} ${I.telat(t, h) ? 'telat' : ''}" data-aksi="buka-task" data-id="${esc(t.id)}" title="${esc(t.title)} · ${esc(I.orang(t.pic).pendek)}">${esc(t.title)}</button>`).join('')}
-          ${isi.length > 3 ? `<button type="button" class="kal-lagi" data-aksi="kal-hari" data-hari="${d}">+${isi.length - 3} lagi</button>` : ''}</div>
+          ${isi.length > 3 ? `<button type="button" class="kal-lagi" data-aksi="kal-hari" data-hari="${d}">${tr('+{n} lagi', { n: isi.length - 3 })}</button>` : ''}</div>
       </div>`;
     }).join('');
     const hariPilih = pilih ? per.get(pilih) || [] : [];
     return `<div class="alat baris-info">
-        <button type="button" class="ikon-tombol" data-aksi="kal-geser" data-n="-1" aria-label="Bulan sebelumnya">${ikon('kiri', 20)}</button>
+        <button type="button" class="ikon-tombol" data-aksi="kal-geser" data-n="-1" aria-label="${tr('Bulan sebelumnya')}">${ikon('kiri', 20)}</button>
         <strong class="kal-bulan">${esc(namaBulan(bulan))}</strong>
-        <button type="button" class="ikon-tombol" data-aksi="kal-geser" data-n="1" aria-label="Bulan berikutnya">${ikon('kanan', 20)}</button>
-        <button type="button" class="tombol kecil" data-aksi="kal-geser" data-n="0">Hari ini</button>
-        <span class="hint">${dalamBulan} task bertenggat bulan ini</span>
+        <button type="button" class="ikon-tombol" data-aksi="kal-geser" data-n="1" aria-label="${tr('Bulan berikutnya')}">${ikon('kanan', 20)}</button>
+        <button type="button" class="tombol kecil" data-aksi="kal-geser" data-n="0">${tr('Hari ini')}</button>
+        <span class="hint">${tr('{n} task bertenggat bulan ini', { n: dalamBulan })}</span>
       </div>
       <div class="kal kartu-polos rapat">
-        <div class="kal-kepala">${NAMA_HARI.map(x => `<span>${x}</span>`).join('')}</div>
+        <div class="kal-kepala">${namaHari().map(x => `<span>${x}</span>`).join('')}</div>
         <div class="kal-grid">${sel}</div>
       </div>
-      ${pilih ? `<section class="grup" style="margin-top:18px"><h2>Tenggat ${esc(fmtTanggalPanjang(pilih))} <span class="jumlah">${hariPilih.length}</span></h2>
-        ${hariPilih.map(t => barisTask(t)).join('') || '<p class="hint">Tidak ada task bertenggat di hari ini.</p>'}</section>` : '<p class="hint" style="margin-top:14px">Pilih tanggal untuk melihat daftarnya.</p>'}`;
+      ${pilih ? `<section class="grup" style="margin-top:18px"><h2>${tr('Tenggat {tanggal}', { tanggal: esc(fmtTanggalPanjang(pilih)) })} <span class="jumlah">${hariPilih.length}</span></h2>
+        ${hariPilih.map(t => barisTask(t)).join('') || `<p class="hint">${tr('Tidak ada task bertenggat di hari ini.')}</p>`}</section>` : `<p class="hint" style="margin-top:14px">${tr('Pilih tanggal untuk melihat daftarnya.')}</p>`}`;
   }
 
   function eksporCsv(daftar) {
@@ -2488,9 +2783,9 @@
       const paket = I.paketProyek(S.data, p);
       return `<button type="button" class="baris-proyek" data-aksi="buka-proyek" data-id="${esc(p.id)}">
         <span class="baris-proyek-nama"><strong>${esc(p.name)}</strong>
-          <small>${esc(p.platform)}${(p.cycle || 1) > 1 ? ' · siklus ' + p.cycle : ''}${r.tenggat ? ' · tenggat ' + esc(fmtTanggal(r.tenggat)) : ''}${paket.length ? ' · paket ' + esc(paket.map(judulPaket).join(', ')) : ''}</small>
+          <small>${esc(p.platform)}${(p.cycle || 1) > 1 ? ' · ' + tr('siklus {n}', { n: p.cycle }) : ''}${r.tenggat ? ' · ' + tr('tenggat {tanggal}', { tanggal: esc(fmtTanggal(r.tenggat)) }) : ''}${paket.length ? ' · ' + tr('paket {nama}', { nama: esc(paket.map(judulPaket).join(', ')) }) : ''}</small>
           <span class="baris-tim">${timHtml(p)}</span></span>
-        <span class="baris-proyek-maju">${r.totalSiklus ? `${r.selesaiSiklus}/${r.totalSiklus} task siklus ${p.cycle || 1}` : 'Belum ada task'}${r.buka ? ` · ${r.buka} terbuka` : ''}
+        <span class="baris-proyek-maju">${r.totalSiklus ? tr('{a}/{b} task siklus {c}', { a: r.selesaiSiklus, b: r.totalSiklus, c: p.cycle || 1 }) : tr('Belum ada task')}${r.buka ? ' · ' + tr('{n} terbuka', { n: r.buka }) : ''}
           <span class="batang"><span style="width:${r.totalSiklus ? Math.round(r.selesaiSiklus / r.totalSiklus * 100) : 0}%"></span></span></span>
         ${chipKeadaan(r.keadaan)}
       </button>`;
@@ -2503,35 +2798,35 @@
       const c = p.cycle || 1;
       const tuntas = r.semua === r.semuaSelesai;
       return `<div class="kotak-keputusan"><small>${esc(p.name)}</small>
-        <strong>Siklus ${c} selesai. Arsipkan, atau ulangi untuk perbaikan?</strong>
-        <small>E12 · Final approval sudah disetujui${r.buka ? `; ${r.buka} task lain masih terbuka` : ''}. Siklus ${c + 1} hanya perlu kalau ada perbaikan dari hasil evaluasi atau versi berikutnya; mulainya lagi dari Analysis.</small>
+        <strong>${tr('Siklus {c} selesai. Arsipkan, atau ulangi untuk perbaikan?', { c })}</strong>
+        <small>${tr('E12 · Final approval sudah disetujui')}${r.buka ? '; ' + tr('{n} task lain masih terbuka', { n: r.buka }) : ''}. ${tr('Siklus {c} hanya perlu kalau ada perbaikan dari hasil evaluasi atau versi berikutnya; mulainya lagi dari Analysis.', { c: c + 1 })}</small>
         ${isM ? `<div class="dua">${tuntas
-          ? `<button type="button" class="tombol utama" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Selesai, arsipkan</button>
-            <button type="button" class="tombol" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Siklus ${c + 1}</button>`
-          : `<button type="button" class="tombol utama" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Siklus ${c + 1}</button>
-            <button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">Tahan</button>`}</div>` : '<small>Menunggu keputusan Manager.</small>'}
+          ? `<button type="button" class="tombol utama" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">${tr('Selesai, arsipkan')}</button>
+            <button type="button" class="tombol" data-aksi="mulai-siklus" data-id="${esc(p.id)}">${tr('Siklus {c}', { c: c + 1 })}</button>`
+          : `<button type="button" class="tombol utama" data-aksi="mulai-siklus" data-id="${esc(p.id)}">${tr('Siklus {c}', { c: c + 1 })}</button>
+            <button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">${tr('Tahan')}</button>`}</div>` : `<small>${tr('Menunggu keputusan Manager.')}</small>`}
       </div>`;
     }).join('');
 
-    return `<div class="judul-halaman"><div><h1>Proyek</h1>
-        <p>${semua.length - nArsip} aktif · ${nArsip} arsip${keputusan.length ? ` · ${keputusan.length} siklus menunggu keputusan` : ''}</p></div>
-        <div class="segmen" role="group" aria-label="Tampilkan"><button type="button" data-aksi="proyek-arsip" data-nilai="0" aria-pressed="${!S.proyekArsip}">Aktif</button><button type="button" data-aksi="proyek-arsip" data-nilai="1" aria-pressed="${S.proyekArsip}">Arsip (${nArsip})</button></div>
-        ${isM ? `<button type="button" class="tombol utama" data-aksi="proyek-baru">${ikon('tambah', 16)} Proyek baru</button>` : ''}
+    return `<div class="judul-halaman"><div><h1>${tr('Proyek')}</h1>
+        <p>${tr('{a} aktif · {b} arsip', { a: semua.length - nArsip, b: nArsip })}${keputusan.length ? ' · ' + tr('{n} siklus menunggu keputusan', { n: keputusan.length }) : ''}</p></div>
+        <div class="segmen" role="group" aria-label="${tr('Tampilkan')}"><button type="button" data-aksi="proyek-arsip" data-nilai="0" aria-pressed="${!S.proyekArsip}">${tr('Aktif')}</button><button type="button" data-aksi="proyek-arsip" data-nilai="1" aria-pressed="${S.proyekArsip}">${tr('Arsip ({n})', { n: nArsip })}</button></div>
+        ${isM ? `<button type="button" class="tombol utama" data-aksi="proyek-baru">${ikon('tambah', 16)} ${tr('Proyek baru')}</button>` : ''}
       </div>
       ${isM ? ajakanPanduan() : ''}
       <div class="dua-kolom">
-        <div class="kolom-utama"><div class="daftar-proyek">${baris || `<div class="kosong-isi">${S.proyekArsip ? 'Belum ada proyek arsip.' : 'Belum ada proyek aktif.'}</div>`}</div>
-          <p class="hint" style="margin-top:10px">Tiap tim menjalankan ADDIE-nya sendiri di proyek: huruf di samping nama tim adalah fase task terbukanya yang paling awal (✓ = semua task tim itu selesai).</p></div>
+        <div class="kolom-utama"><div class="daftar-proyek">${baris || `<div class="kosong-isi">${S.proyekArsip ? tr('Belum ada proyek arsip.') : tr('Belum ada proyek aktif.')}</div>`}</div>
+          <p class="hint" style="margin-top:10px">${tr('Tiap tim menjalankan ADDIE-nya sendiri di proyek: huruf di samping nama tim adalah fase task terbukanya yang paling awal (✓ = semua task tim itu selesai).')}</p></div>
         <div class="samping-tumpuk kolom-sisi">
-          <section class="kartu-polos samping-tumpuk"><p class="subjudul">Keputusan siklus ${keputusan.length ? `<span class="lencana">${keputusan.length}</span>` : ''}${tanya('manager-siklus', 'keputusan siklus')}</p>
-            ${kotakKeputusan || '<p class="hint">Belum ada siklus yang ditutup. Proyek muncul di sini setelah task E12 · Final approval-nya disetujui.</p>'}</section>
-          ${tinjau.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Menunggu tinjauan Anda <span class="lencana">${tinjau.length}</span></p>
-            <div class="grup">${tinjau.map(t => barisTask(t, 'Dari ' + I.orang(t.pic).pendek)).join('')}</div></section>` : ''}
-          ${sepi.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Tak ada task terbuka</p>
-            <p class="hint">Semua task-nya selesai, tetapi siklusnya belum ditutup E12.</p>
-            ${sepi.map(p => `<button type="button" class="baris-proyek ringkas" data-aksi="buka-proyek" data-id="${esc(p.id)}"><span class="baris-proyek-nama"><strong>${esc(p.name)}</strong><small>${esc(p.id)} · siklus ${p.cycle || 1}</small></span></button>`).join('')}</section>` : ''}
-          ${ditahan.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Ditahan</p>${ditahan.map(p => `<div class="kotak-keputusan"><strong>${esc(p.name)}</strong>
-            ${isM ? `<div class="dua"><button type="button" class="tombol" data-aksi="lanjutkan-proyek" data-id="${esc(p.id)}">Lanjutkan proyek</button></div>` : ''}</div>`).join('')}</section>` : ''}
+          <section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Keputusan siklus')} ${keputusan.length ? `<span class="lencana">${keputusan.length}</span>` : ''}${tanya('manager-siklus', tr('keputusan siklus'))}</p>
+            ${kotakKeputusan || `<p class="hint">${tr('Belum ada siklus yang ditutup. Proyek muncul di sini setelah task E12 · Final approval-nya disetujui.')}</p>`}</section>
+          ${tinjau.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Menunggu tinjauan Anda')} <span class="lencana">${tinjau.length}</span></p>
+            <div class="grup">${tinjau.map(t => barisTask(t, tr('Dari {nama}', { nama: I.orang(t.pic).pendek }))).join('')}</div></section>` : ''}
+          ${sepi.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Tak ada task terbuka')}</p>
+            <p class="hint">${tr('Semua task-nya selesai, tetapi siklusnya belum ditutup E12.')}</p>
+            ${sepi.map(p => `<button type="button" class="baris-proyek ringkas" data-aksi="buka-proyek" data-id="${esc(p.id)}"><span class="baris-proyek-nama"><strong>${esc(p.name)}</strong><small>${esc(p.id)} · ${tr('siklus {n}', { n: p.cycle || 1 })}</small></span></button>`).join('')}</section>` : ''}
+          ${ditahan.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Ditahan')}</p>${ditahan.map(p => `<div class="kotak-keputusan"><strong>${esc(p.name)}</strong>
+            ${isM ? `<div class="dua"><button type="button" class="tombol" data-aksi="lanjutkan-proyek" data-id="${esc(p.id)}">${tr('Lanjutkan proyek')}</button></div>` : ''}</div>`).join('')}</section>` : ''}
         </div>
       </div>`;
   }
@@ -2542,19 +2837,19 @@
   function kartuPaketProyek(p, isM) {
     const daftar = I.paketProyek(S.data, p);
     if (!daftar.length && !isM) return '';
-    const tautkan = isM ? `<label class="label-kecil tautkan">Paket utama proyek ini
-      <select data-aksi="tautkan-paket" data-id="${esc(p.id)}">${opsiHtml([['', '— tidak ada —'], ...S.data.packages.map(x => [x.id, `${judulPaket(x)} (${x.id})`])], p.paket || '')}</select></label>` : '';
+    const tautkan = isM ? `<label class="label-kecil tautkan">${tr('Paket utama proyek ini')}
+      <select data-aksi="tautkan-paket" data-id="${esc(p.id)}">${opsiHtml([['', tr('— tidak ada —')], ...S.data.packages.map(x => [x.id, `${judulPaket(x)} (${x.id})`])], p.paket || '')}</select></label>` : '';
     const milik = new Set(S.data.tasks.filter(t => t.project === p.id).map(t => t.id));
     const isi = daftar.map(pk => {
       const r = ringkasP(pk);
       const nTask = new Set((S.data.setoran || []).filter(x => x.paket === pk.id && milik.has(x.task)).map(x => x.task)).size;
-      return `<div class="paket-proyek"><strong>${esc(judulPaket(pk))}</strong><p class="hint">${esc(pk.id)} · ${esc(pk.platform || 'Tanpa platform')}${nTask ? ` · ${nTask} task proyek ini menyetor` : ''}</p>
-        ${r.jumlah ? `<div class="kartu-paket-maju">${batangPaket(r)}<small>Progres ${r.persen}% · ${fmtAngka(r.terpenuhi)}/${fmtAngka(r.target)} tayang${r.digarap ? ` · ${fmtAngka(r.digarap)} digarap` : ''}</small></div>` : '<p class="hint">Paket ini belum punya target.</p>'}
-        <button type="button" class="tombol kecil" data-aksi="paket-buka" data-id="${esc(pk.id)}">${ikon('kotak', 16)} Buka rancangan paket</button></div>`;
+      return `<div class="paket-proyek"><strong>${esc(judulPaket(pk))}</strong><p class="hint">${esc(pk.id)} · ${esc(pk.platform || tr('Tanpa platform'))}${nTask ? ' · ' + tr('{n} task proyek ini menyetor', { n: nTask }) : ''}</p>
+        ${r.jumlah ? `<div class="kartu-paket-maju">${batangPaket(r)}<small>${tr('Progres {p}% · {a}/{b} tayang', { p: r.persen, a: fmtAngka(r.terpenuhi), b: fmtAngka(r.target) })}${r.digarap ? ' · ' + tr('{n} digarap', { n: fmtAngka(r.digarap) }) : ''}</small></div>` : `<p class="hint">${tr('Paket ini belum punya target.')}</p>`}
+        <button type="button" class="tombol kecil" data-aksi="paket-buka" data-id="${esc(pk.id)}">${ikon('kotak', 16)} ${tr('Buka rancangan paket')}</button></div>`;
     }).join('');
-    return `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Rancangan paket</p>
-      ${isi || '<p class="hint">Proyek ini belum mengerjakan rancangan paket mana pun.</p>'}
-      ${daftar.length ? '<p class="hint">Naik bertahap setiap langkah bercapaian disetujui: konten siap, ter-input, lolos QC, tayang.</p>' : ''}
+    return `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Rancangan paket')}</p>
+      ${isi || `<p class="hint">${tr('Proyek ini belum mengerjakan rancangan paket mana pun.')}</p>`}
+      ${daftar.length ? `<p class="hint">${tr('Naik bertahap setiap langkah bercapaian disetujui: konten siap, ter-input, lolos QC, tayang.')}</p>` : ''}
       ${tautkan}
     </section>`;
   }
@@ -2577,37 +2872,37 @@
     const adaKode = (tahap, sub, tim) => (sub ? (I.subTahap(sub) || {}).aktif !== false && I.subBolehBagi(S.me, sub)
       : I.SUB_TAHAP.some(s => s.tahap === tahap && s.aktif !== false && (!tim || s.tim === tim) && I.subBolehBagi(S.me, s.kode)));
     const tambah = (tahap, sub, label, kelas = 'kecil', tim = '') => (bolehTambah && adaKode(tahap, sub, tim)
-      ? `<button type="button" class="tombol ${kelas}" data-aksi="tambah-task" data-proyek="${esc(p.id)}" data-tahap="${tahap}" ${sub ? `data-sub="${sub}"` : ''} ${tim ? `data-tim="${tim}"` : ''}>${ikon('tambah', 16)} ${esc(label)}</button>` : '');
+      ? `<button type="button" class="tombol ${kelas}" data-aksi="tambah-task" data-proyek="${esc(p.id)}" data-tahap="${tahap}" ${sub ? `data-sub="${sub}"` : ''} ${tim ? `data-tim="${tim}"` : ''}>${ikon('tambah', 16)} ${esc(tr(label))}</button>` : '');
     const arsipkan = isM && r.semua && r.semua === r.semuaSelesai
-      ? `<button type="button" class="tombol" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Arsipkan proyek</button>` : '';
+      ? `<button type="button" class="tombol" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">${tr('Arsipkan proyek')}</button>` : '';
 
     let gerbang;
     if (p.arsip) {
-      gerbang = `<div class="banner biru">Proyek ini diarsipkan.</div>${isM ? `<div class="detail-aksi"><button type="button" class="tombol" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="0">Aktifkan lagi</button></div>` : ''}`;
+      gerbang = `<div class="banner biru">${tr('Proyek ini diarsipkan.')}</div>${isM ? `<div class="detail-aksi"><button type="button" class="tombol" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="0">${tr('Aktifkan lagi')}</button></div>` : ''}`;
     } else if (p.decision === 'Hold') {
-      gerbang = `<div class="banner kuning">Proyek ditahan.</div>${isM ? `<div class="detail-aksi"><button type="button" class="tombol" data-aksi="lanjutkan-proyek" data-id="${esc(p.id)}">Lanjutkan proyek</button></div>` : ''}`;
+      gerbang = `<div class="banner kuning">${tr('Proyek ditahan.')}</div>${isM ? `<div class="detail-aksi"><button type="button" class="tombol" data-aksi="lanjutkan-proyek" data-id="${esc(p.id)}">${tr('Lanjutkan proyek')}</button></div>` : ''}`;
     } else if (r.siapMaju) {
       // ADDIE berhenti di Evaluation. Siklus baru opsional; kalau semua beres, arsip pilihan utamanya.
       const tuntas = r.semua === r.semuaSelesai;
       const pilihan = (tombol, ket) => `<div class="pilihan-akhir">${tombol}<span>${ket}</span></div>`;
-      gerbang = `<div class="banner hijau">Siklus ${siklus} selesai: semua langkah sampai E12 · Final approval sudah disetujui.${r.buka ? ` Masih ada ${r.buka} task lain yang terbuka.` : ''}</div>
-        ${isM ? `<div class="daftar-pilihan"><p class="subjudul">Apa langkah berikutnya?</p>
-          ${tuntas ? pilihan(`<button type="button" class="tombol utama" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Selesai, arsipkan</button>`,
-            'Proyek tuntas. Pindah ke Arsip; task dan riwayatnya tetap tersimpan, dan bisa diaktifkan lagi.') : ''}
-          ${pilihan(`<button type="button" class="tombol ${tuntas ? '' : 'utama'}" data-aksi="mulai-siklus" data-id="${esc(p.id)}">Mulai siklus ${siklus + 1}</button>`,
-            'Ulangi ADDIE dari Analysis: untuk memperbaiki temuan evaluasi atau membuat versi berikutnya (mis. paket tahun depan). Task siklus ini tetap tersimpan di "Siklus sebelumnya".')}
-          ${pilihan(`<button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">Tahan</button>`,
-            'Belum diputuskan sekarang. Proyek keluar dari antrean keputusan sampai dilanjutkan.')}
-        </div>` : '<p class="hint">Menunggu keputusan Manager: arsipkan proyek ini, atau mulai siklus berikutnya untuk perbaikan.</p>'}`;
+      gerbang = `<div class="banner hijau">${tr('Siklus {c} selesai: semua langkah sampai E12 · Final approval sudah disetujui.', { c: siklus })}${r.buka ? ' ' + tr('Masih ada {n} task lain yang terbuka.', { n: r.buka }) : ''}</div>
+        ${isM ? `<div class="daftar-pilihan"><p class="subjudul">${tr('Apa langkah berikutnya?')}</p>
+          ${tuntas ? pilihan(`<button type="button" class="tombol utama" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">${tr('Selesai, arsipkan')}</button>`,
+            tr('Proyek tuntas. Pindah ke Arsip; task dan riwayatnya tetap tersimpan, dan bisa diaktifkan lagi.')) : ''}
+          ${pilihan(`<button type="button" class="tombol ${tuntas ? '' : 'utama'}" data-aksi="mulai-siklus" data-id="${esc(p.id)}">${tr('Mulai siklus {c}', { c: siklus + 1 })}</button>`,
+            tr('Ulangi ADDIE dari Analysis: untuk memperbaiki temuan evaluasi atau membuat versi berikutnya (mis. paket tahun depan). Task siklus ini tetap tersimpan di "Siklus sebelumnya".'))}
+          ${pilihan(`<button type="button" class="tombol" data-aksi="tahan-proyek" data-id="${esc(p.id)}">${tr('Tahan')}</button>`,
+            tr('Belum diputuskan sekarang. Proyek keluar dari antrean keputusan sampai dilanjutkan.'))}
+        </div>` : `<p class="hint">${tr('Menunggu keputusan Manager: arsipkan proyek ini, atau mulai siklus berikutnya untuk perbaikan.')}</p>`}`;
     } else if (r.keadaan === 'kosong') {
-      gerbang = `<div class="banner kuning">Belum ada task di siklus ${siklus}. Mulai dari Analysis.</div>
+      gerbang = `<div class="banner kuning">${tr('Belum ada task di siklus {c}. Mulai dari Analysis.', { c: siklus })}</div>
         <div class="detail-aksi">${tambah('A', 'A1', 'Tambah task A1 · Intake', 'utama')}</div>`;
     } else if (r.keadaan === 'sepi') {
-      gerbang = `<div class="banner kuning">Semua task siklus ini selesai, tetapi belum ada penutupan resmi. Tutup lewat task E12 · Final approval (direview Manager)${isM ? ', atau langsung arsipkan kalau proyek ini memang sudah tuntas' : ''}. Kalau masih ada pekerjaan, tambahkan task-nya.</div>
+      gerbang = `<div class="banner kuning">${isM ? tr('Semua task siklus ini selesai, tetapi belum ada penutupan resmi. Tutup lewat task E12 · Final approval (direview Manager), atau langsung arsipkan kalau proyek ini memang sudah tuntas. Kalau masih ada pekerjaan, tambahkan task-nya.') : tr('Semua task siklus ini selesai, tetapi belum ada penutupan resmi. Tutup lewat task E12 · Final approval (direview Manager). Kalau masih ada pekerjaan, tambahkan task-nya.')}</div>
         <div class="detail-aksi">${tambah('E', 'E12', 'Tambah task E12 · Final approval', 'utama')}${arsipkan}</div>`;
     } else {
-      gerbang = `<p class="hint">${r.selesaiSiklus} dari ${r.totalSiklus} task siklus ini selesai${r.telat ? ` · ${r.telat} terlambat` : ''}${r.tertahan ? ` · ${r.tertahan} tertahan` : ''}.
-        Tiap tim maju ke fase berikutnya begitu task fasenya selesai. Siklus ditutup lewat E12 · Final approval setelah semua tim selesai.</p>`;
+      gerbang = `<p class="hint">${tr('{a} dari {b} task siklus ini selesai', { a: r.selesaiSiklus, b: r.totalSiklus })}${r.telat ? ' · ' + tr('{n} terlambat', { n: r.telat }) : ''}${r.tertahan ? ' · ' + tr('{n} tertahan', { n: r.tertahan }) : ''}.
+        ${tr('Tiap tim maju ke fase berikutnya begitu task fasenya selesai. Siklus ditutup lewat E12 · Final approval setelah semua tim selesai.')}</p>`;
     }
 
     /* Tab tim (2.19.0): DAE · RAD · LNA · CLO, masing-masing dengan ADDIE-nya sendiri, dan
@@ -2616,24 +2911,24 @@
     const tab = tabProyek(p);
     const urutTahap = I.TAHAP.map(x => x.id);
     const putaran = I.putaranProyek(S.data, p, perId);
-    const peringatan = putaran.length ? `<div class="banner merah">Ada task yang saling menunggu, jadi tak ada yang bisa mulai: ${putaran.map(k => esc(k.join(' ↔ '))).join('; ')}.
-      Lead tim pemiliknya perlu mengubah urutan tunggu salah satunya.</div>` : '';
-    const barisTab = `<div class="baris-tab tab-tim"><div class="tab-fokus-daftar" role="group" aria-label="Tim di proyek ini">
-      <button type="button" class="tab-fokus" data-aksi="tab-proyek" data-id="${esc(p.id)}" data-tab="ringkas" aria-pressed="${tab === 'ringkas'}">Ringkasan</button>
+    const peringatan = putaran.length ? `<div class="banner merah">${tr('Ada task yang saling menunggu, jadi tak ada yang bisa mulai: {daftar}.', { daftar: putaran.map(k => esc(k.join(' ↔ '))).join('; ') })}
+      ${tr('Lead tim pemiliknya perlu mengubah urutan tunggu salah satunya.')}</div>` : '';
+    const barisTab = `<div class="baris-tab tab-tim"><div class="tab-fokus-daftar" role="group" aria-label="${tr('Tim di proyek ini')}">
+      <button type="button" class="tab-fokus" data-aksi="tab-proyek" data-id="${esc(p.id)}" data-tab="ringkas" aria-pressed="${tab === 'ringkas'}">${tr('Ringkasan')}</button>
       ${fase.map(f => `<button type="button" class="tab-fokus ${f.telat || f.tertahan ? 'perlu' : ''}" data-aksi="tab-proyek" data-id="${esc(p.id)}" data-tab="${f.kode}" aria-pressed="${tab === f.kode}" title="${esc(I.labelTim(f.kode))}">
-        ${esc(I.singkatTim(f.kode))}<span class="jumlah" aria-label="${f.fase === 'selesai' ? 'semua selesai' : f.fase ? 'fase ' + esc(I.namaTahap(f.fase)) : 'belum ada task'}">${f.fase === 'selesai' ? '✓' : f.fase ? esc(f.fase) : '–'}</span></button>`).join('')}
+        ${esc(I.singkatTim(f.kode))}<span class="jumlah" aria-label="${f.fase === 'selesai' ? tr('semua selesai') : f.fase ? tr('fase {tahap}', { tahap: esc(I.namaTahap(f.fase)) }) : tr('belum ada task')}">${f.fase === 'selesai' ? '✓' : f.fase ? esc(f.fase) : '–'}</span></button>`).join('')}
     </div></div>`;
-    const angkaTim = f => (f.total ? [`${f.selesai}/${f.total} task selesai`, f.menunggu ? `${f.menunggu} menunggu` : '',
-      f.telat ? `${f.telat} terlambat` : '', f.tertahan ? `${f.tertahan} tertahan` : ''].filter(Boolean).join(' · ') : 'Belum ada task tim ini di siklus ini.');
-    const kepalaTim = f => `<div class="kartu-tim-kepala">${chipTim(f.kode)} <strong>${esc(I.TIM[f.kode].nama)}</strong> <small>Lead ${nama(I.TIM[f.kode].lead)}</small></div>`;
+    const angkaTim = f => (f.total ? [tr('{a}/{b} task selesai', { a: f.selesai, b: f.total }), f.menunggu ? tr('{n} menunggu', { n: f.menunggu }) : '',
+      f.telat ? tr('{n} terlambat', { n: f.telat }) : '', f.tertahan ? tr('{n} tertahan', { n: f.tertahan }) : ''].filter(Boolean).join(' · ') : tr('Belum ada task tim ini di siklus ini.'));
+    const kepalaTim = f => `<div class="kartu-tim-kepala">${chipTim(f.kode)} <strong>${esc(I.TIM[f.kode].nama)}</strong> <small>${tr('Lead')} ${nama(I.TIM[f.kode].lead)}</small></div>`;
 
     let isiTab;
     if (tab === 'ringkas') {
       const gerbangTask = I.gerbangProyek(S.data, p, perId).sort(urutTaskProyek);
       isiTab = `<div class="kartu-tim-daftar">${fase.map(f => `<section class="kartu-polos kartu-tim">${kepalaTim(f)}${jalurTahap(p, '', false, true, f)}<p class="hint">${angkaTim(f)}</p></section>`).join('')}</div>
-        <section class="kartu-polos samping-tumpuk"><p class="subjudul">Gerbang Manager${tanya('konsep-tahap', 'ADDIE per tim')}</p>
-          <p class="hint">Task Manager di Analysis (A1 intake, A6 target) adalah gerbang: fase Design dan sesudahnya di semua tim menunggunya. E12 menutup siklus setelah semua task lain selesai.</p>
-          ${gerbangTask.length ? `<div class="grup">${susunHirarki(gerbangTask).map(x => barisTask(x.t, I.aktif(x.t) ? I.alasanTunggu(x.t, perId) : '', x.anak ? 'anak' : '')).join('')}</div>` : '<p class="hint">Belum ada task Manager di siklus ini.</p>'}
+        <section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Gerbang Manager')}${tanya('konsep-tahap', tr('ADDIE per tim'))}</p>
+          <p class="hint">${tr('Task Manager di Analysis (A1 intake, A6 target) adalah gerbang: fase Design dan sesudahnya di semua tim menunggunya. E12 menutup siklus setelah semua task lain selesai.')}</p>
+          ${gerbangTask.length ? `<div class="grup">${susunHirarki(gerbangTask).map(x => barisTask(x.t, I.aktif(x.t) ? I.alasanTunggu(x.t, perId) : '', x.anak ? 'anak' : '')).join('')}</div>` : `<p class="hint">${tr('Belum ada task Manager di siklus ini.')}</p>`}
           <div class="detail-aksi">${tambah('A', 'A1', 'A1 · Intake')}${tambah('A', 'A6', 'A6 · Target')}${r.keadaan !== 'sepi' ? tambah('E', 'E12', 'E12 · Final approval') : ''}</div>
         </section>`;
     } else {
@@ -2648,7 +2943,7 @@
         return d.length > 0 && d.every(x => x.jenis === 'fase');
       };
       const tombolUrut = t => (I.bolehAturTunggu(t, S.me, perId) && I.aktif(t)
-        ? `<button type="button" class="ikon-tombol" data-aksi="atur-tunggu" data-id="${esc(t.id)}" title="Atur urutan tunggu ${esc(t.id)}" aria-label="Atur urutan tunggu ${esc(t.id)}">${ikon('timeline', 16)}</button>` : '');
+        ? `<button type="button" class="ikon-tombol" data-aksi="atur-tunggu" data-id="${esc(t.id)}" title="${esc(tr('Atur urutan tunggu {id}', { id: t.id }))}" aria-label="${esc(tr('Atur urutan tunggu {id}', { id: t.id }))}">${ikon('timeline', 16)}</button>` : '');
       /* Pilih banyak untuk dihapus (2.23.0): kotak centang di tiap baris yang boleh dihapus;
          turunan dari induk yang dipilih ikut tercentang dan terkunci. */
       const bisaHapus = milik.filter(t => I.bolehHapusTask(t, S.me, perId));
@@ -2659,7 +2954,7 @@
         const boleh = bisaHapus.includes(t);
         const ikut = ikutInduk(t);
         const cek = terpilih.has(t.id) || ikut;
-        const ket = ikut ? 'Ikut terhapus bersama induknya' : boleh ? `Pilih ${t.id} untuk dihapus` : 'Anda tak boleh menghapus task ini';
+        const ket = ikut ? tr('Ikut terhapus bersama induknya') : boleh ? tr('Pilih {id} untuk dihapus', { id: t.id }) : tr('Anda tak boleh menghapus task ini');
         return `<div class="baris-pilih ${cek ? 'terpilih' : ''}"><input type="checkbox" class="centang-hapus" data-id="${esc(t.id)}" ${cek ? 'checked' : ''} ${boleh && !ikut ? '' : 'disabled'} title="${esc(ket)}" aria-label="${esc(ket)}: ${esc(t.title)}">${barisTask(t, alasan, anak ? 'anak' : '', boleh && !ikut ? 'centang-task' : 'buka-task')}</div>`;
       };
       const bagian = urutTahap.map(st => {
@@ -2678,13 +2973,13 @@
         }).join('');
         const bolehFase = pt ? isi.filter(t => bisaHapus.includes(t) && !ikutInduk(t)) : [];
         const semuaFase = bolehFase.length > 0 && bolehFase.every(t => terpilih.has(t.id));
-        const pilihFase = bolehFase.length ? `<button type="button" class="tautan-kecil pilih-fase" data-aksi="pilih-fase" data-tahap="${st}" data-nilai="${semuaFase ? '' : '1'}">${semuaFase ? `Batalkan pilihan di ${esc(I.namaTahap(st))}` : `Pilih semua di ${esc(I.namaTahap(st))} (${bolehFase.length})`}</button>` : '';
+        const pilihFase = bolehFase.length ? `<button type="button" class="tautan-kecil pilih-fase" data-aksi="pilih-fase" data-tahap="${st}" data-nilai="${semuaFase ? '' : '1'}">${semuaFase ? tr('Batalkan pilihan di {tahap}', { tahap: esc(I.namaTahap(st)) }) : tr('Pilih semua di {tahap} ({n})', { tahap: esc(I.namaTahap(st)), n: bolehFase.length })}</button>` : '';
         return `<details class="tahap-bagian" id="tahap-${tab}-${st}" ${st === f.fase || st === buka ? 'open' : ''}>
-          <summary><span class="huruf-tahap">${st}</span> ${esc(I.namaTahap(st))} <span class="pesan-info">· ${isi.length ? `${isi.length} task${aktif ? `, ${aktif} aktif` : ', selesai'}` : 'kosong'}</span>${st === f.fase ? ' <span class="pill st-dikerjakan">Fase sekarang</span>' : ''}</summary>
-          <div class="grup">${tahapTunggu ? `<p class="hint tunggu-tahap">Menunggu fase ${esc(I.namaTahap(tahapTunggu))} ${esc(I.singkatTim(tab))} selesai. Task di fase ini dikerjakan bersamaan setelahnya.</p>` : ''}
+          <summary><span class="huruf-tahap">${st}</span> ${esc(I.namaTahap(st))} <span class="pesan-info">· ${isi.length ? (aktif ? tr('{n} task, {a} aktif', { n: isi.length, a: aktif }) : tr('{n} task, selesai', { n: isi.length })) : tr('kosong')}</span>${st === f.fase ? ` <span class="pill st-dikerjakan">${tr('Fase sekarang')}</span>` : ''}</summary>
+          <div class="grup">${tahapTunggu ? `<p class="hint tunggu-tahap">${tr('Menunggu fase {tahap} {tim} selesai. Task di fase ini dikerjakan bersamaan setelahnya.', { tahap: esc(I.namaTahap(tahapTunggu)), tim: esc(I.singkatTim(tab)) })}</p>` : ''}
             ${pilihFase}
-            ${baris || `<p class="hint">Belum ada task ${esc(I.singkatTim(tab))} di ${esc(I.namaTahap(st))}${(p.cycle || 1) > 1 ? ' pada siklus ini' : ''}.</p>`}
-            ${pt ? '' : tambah(st, '', 'Tambah task di ' + I.namaTahap(st), 'kecil', tab)}
+            ${baris || `<p class="hint">${tr('Belum ada task {tim} di {tahap}.', { tim: esc(I.singkatTim(tab)), tahap: esc(I.namaTahap(st)) })}</p>`}
+            ${pt ? '' : tambah(st, '', tr('Tambah task di {tahap}', { tahap: I.namaTahap(st) }), 'kecil', tab)}
           </div>
         </details>`;
       }).join('');
@@ -2692,42 +2987,43 @@
       if (pt) {
         const r = I.ringkasHapusTask(S.data, pt.ids);
         const semua = bisaHapus.every(t => terpilih.has(t.id) || ikutInduk(t));
-        bilah = `<div class="bilah-pilih" role="region" aria-label="Pilih task ${esc(I.singkatTim(tab))} untuk dihapus">
-          <span class="bilah-pilih-angka" aria-live="polite">${r.tasks.length ? `<strong>${r.dipilih}</strong> task dipilih${r.turunan ? ` + ${r.turunan} turunan` : ''}` : 'Centang task yang akan dihapus'}</span>
+        bilah = `<div class="bilah-pilih" role="region" aria-label="${esc(tr('Pilih task {tim} untuk dihapus', { tim: I.singkatTim(tab) }))}">
+          <span class="bilah-pilih-angka" aria-live="polite">${r.tasks.length ? tr('<strong>{n}</strong> task dipilih', { n: r.dipilih }) + (r.turunan ? ' ' + tr('+ {n} turunan', { n: r.turunan }) : '') : tr('Centang task yang akan dihapus')}</span>
           <span class="bilah-pilih-tombol">
-            <button type="button" class="tombol kecil" data-aksi="pilih-semua-task" data-nilai="${semua ? '' : '1'}">${semua ? 'Kosongkan' : `Pilih semua (${bisaHapus.length})`}</button>
-            <button type="button" class="tombol kecil" data-aksi="pilih-task-batal">Batal</button>
-            <button type="button" class="tombol kecil bahaya" data-aksi="hapus-task-pilihan" ${r.tasks.length ? '' : 'disabled'}>${ikon('hapus', 16)} Hapus${r.tasks.length ? ` ${r.tasks.length}` : ''} task</button>
+            <button type="button" class="tombol kecil" data-aksi="pilih-semua-task" data-nilai="${semua ? '' : '1'}">${semua ? tr('Kosongkan') : tr('Pilih semua ({n})', { n: bisaHapus.length })}</button>
+            <button type="button" class="tombol kecil" data-aksi="pilih-task-batal">${tr('Batal')}</button>
+            <button type="button" class="tombol kecil bahaya" data-aksi="hapus-task-pilihan" ${r.tasks.length ? '' : 'disabled'}>${ikon('hapus', 16)} ${r.tasks.length ? tr('Hapus {n} task', { n: r.tasks.length }) : tr('Hapus task')}</button>
           </span>
         </div>`;
       }
       isiTab = `<section class="kartu-polos kartu-tim">${kepalaTim(f)}${jalurTahap(p, '', false, true, f)}<p class="hint">${angkaTim(f)}</p>
-          <p class="hint">${bolehAtur ? `Anda mengatur urutan tim ini: tombol ${ikon('timeline', 14)} di samping task memilih apa yang ditunggunya, termasuk serah-terima dari tim lain.`
-            : `Urutan tim ini diatur ${nama(I.TIM[tab].lead)} sebagai Lead.`} Bawaannya: task menunggu task ${esc(I.singkatTim(tab))} di fase yang lebih awal.</p>
-          ${bisaHapus.length && !pt ? `<div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="pilih-task-mulai" data-id="${esc(p.id)}" data-tab="${tab}">${ikon('centangKotak', 16)} Pilih task untuk dihapus</button></div>` : ''}</section>
+          <p class="hint">${bolehAtur ? tr('Anda mengatur urutan tim ini: tombol {ikon} di samping task memilih apa yang ditunggunya, termasuk serah-terima dari tim lain.', { ikon: ikon('timeline', 14) })
+            : tr('Urutan tim ini diatur {nama} sebagai Lead.', { nama: nama(I.TIM[tab].lead) })} ${tr('Bawaannya: task menunggu task {tim} di fase yang lebih awal.', { tim: esc(I.singkatTim(tab)) })}</p>
+          ${bisaHapus.length && !pt ? `<div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="pilih-task-mulai" data-id="${esc(p.id)}" data-tab="${tab}">${ikon('centangKotak', 16)} ${tr('Pilih task untuk dihapus')}</button></div>` : ''}</section>
         ${bilah}
         ${bagian}`;
     }
-    const bagianLama = lama.length ? `<details class="tahap-bagian"><summary>Siklus sebelumnya <span class="pesan-info">· ${lama.length} task</span></summary>
+    const bagianLama = lama.length ? `<details class="tahap-bagian"><summary>${tr('Siklus sebelumnya')} <span class="pesan-info">· ${tr('{n} task', { n: lama.length })}</span></summary>
       <div class="grup">${susunHirarki(lama).map(x => barisTask(x.t, '', x.anak ? 'anak' : '')).join('')}</div></details>` : '';
     const keputusan = isM && !p.arsip
-      ? `<label class="label-kecil keputusan">Keputusan <select data-aksi="keputusan" data-id="${esc(p.id)}">${opsiHtml(I.KEPUTUSAN.map(k => [k, k]), p.decision || 'Build')}</select></label>`
-      : `<span class="pill kd-kosong" title="Keputusan Manager untuk proyek ini">${esc(p.decision || 'Build')}</span>`;
+      ? `<label class="label-kecil keputusan">${tr('Keputusan')} <select data-aksi="keputusan" data-id="${esc(p.id)}">${opsiHtml(I.KEPUTUSAN.map(k => [k, k]), p.decision || 'Build')}</select></label>`
+      : `<span class="pill kd-kosong" title="${tr('Keputusan Manager untuk proyek ini')}">${esc(p.decision || 'Build')}</span>`;
 
-    return `<div class="baris-kembali"><button type="button" class="kembali" data-aksi="tutup-proyek">${ikon('kiri', 18)} Semua proyek</button>
-        <button type="button" class="tombol kecil" data-aksi="salin-tautan" data-alamat="#/proyek/${esc(p.id)}">${ikon('tautan', 16)} Salin tautan</button></div>
+    return `<div class="baris-kembali"><button type="button" class="kembali" data-aksi="tutup-proyek">${ikon('kiri', 18)} ${tr('Semua proyek')}</button>
+        <button type="button" class="tombol kecil" data-aksi="salin-tautan" data-alamat="#/proyek/${esc(p.id)}">${ikon('tautan', 16)} ${tr('Salin tautan')}</button></div>
       <div class="dua-kolom" style="margin-top:8px">
         <div class="kolom-utama">
           <div class="kepala-proyek kartu-polos">
-            <div><p class="detail-asal">${esc(p.platform)} · Siklus ${siklus} · ${esc(p.id)}</p>
+            <div><p class="detail-asal">${esc(p.platform)} · ${tr('Siklus {c}', { c: siklus })} · ${esc(p.id)}</p>
               <h1 class="judul-besar">${esc(p.name)}</h1>
-              <p class="baris-tim" style="margin-top:6px">Tim: ${timHtml(p)}</p>
+              <p class="baris-tim" style="margin-top:6px">${tr('Tim:')} ${timHtml(p)}</p>
               ${p.goal ? `<p class="teks-panjang" style="margin-top:8px">${teksBertaut(p.goal)}</p>` : ''}</div>
             ${gerbang}
-            <div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="papan-proyek" data-id="${esc(p.id)}">${ikon('tugas', 16)} Lihat di Task</button>
+            <div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="papan-proyek" data-id="${esc(p.id)}">${ikon('tugas', 16)} ${tr('Lihat di Task')}</button>
               ${keputusan}
-              ${isM && !p.arsip && !r.siapMaju && r.keadaan !== 'sepi' && r.semua && r.semua === r.semuaSelesai ? `<button type="button" class="tombol kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">Arsipkan proyek</button>` : ''}
-              ${isM ? `<button type="button" class="tombol kecil bahaya" data-aksi="hapus-proyek" data-id="${esc(p.id)}">${ikon('hapus', 16)} Hapus proyek</button>` : ''}</div>
+              ${isM && !p.arsip && !r.siapMaju && r.keadaan !== 'sepi' && r.semua && r.semua === r.semuaSelesai ? `<button type="button" class="tombol kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">${tr('Arsipkan proyek')}</button>` : ''}
+              ${isM ? `<button type="button" class="tombol kecil" data-aksi="ubah-proyek" data-id="${esc(p.id)}">${ikon('sunting', 16)} ${tr('Ubah proyek')}</button>` : ''}
+              ${isM ? `<button type="button" class="tombol kecil bahaya" data-aksi="hapus-proyek" data-id="${esc(p.id)}">${ikon('hapus', 16)} ${tr('Hapus proyek')}</button>` : ''}</div>
           </div>
           ${peringatan}
           ${barisTab}
@@ -2736,12 +3032,12 @@
         </div>
         <div class="samping-tumpuk kolom-sisi">
           ${kartuPaketProyek(p, isM)}
-          <section class="kartu-polos samping-tumpuk"><p class="subjudul">Ringkasan</p>
-            <p class="hint">${r.semuaSelesai} dari ${r.semua} task selesai${(p.cycle || 1) > 1 ? ' (semua siklus)' : ''}.</p>
-            ${r.tenggat ? `<p class="hint">Tenggat task aktif terjauh: ${esc(fmtTanggal(r.tenggat))}.</p>` : ''}
-            <p class="hint">Tanpa Lead tetap: tiap task dipegang Lead tim pemilik sub-stage-nya, yang membaginya ke staff lewat task turunan. Tiap tim menjalankan ADDIE-nya sendiri; tim lain hanya ditunggu lewat serah-terima yang diatur Lead dan gerbang Manager.</p>
+          <section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Ringkasan')}</p>
+            <p class="hint">${tr('{a} dari {b} task selesai', { a: r.semuaSelesai, b: r.semua })}${(p.cycle || 1) > 1 ? ' ' + tr('(semua siklus)') : ''}.</p>
+            ${r.tenggat ? `<p class="hint">${tr('Tenggat task aktif terjauh: {tanggal}.', { tanggal: esc(fmtTanggal(r.tenggat)) })}</p>` : ''}
+            <p class="hint">${tr('Tanpa Lead tetap: tiap task dipegang Lead tim pemilik sub-stage-nya, yang membaginya ke staff lewat task turunan. Tiap tim menjalankan ADDIE-nya sendiri; tim lain hanya ditunggu lewat serah-terima yang diatur Lead dan gerbang Manager.')}</p>
           </section>
-          ${(p.history || []).length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Riwayat tahap proyek</p><ul class="riwayat">${p.history.slice(0, 20).map(x => `
+          ${(p.history || []).length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Riwayat tahap proyek')}</p><ul class="riwayat">${p.history.slice(0, 20).map(x => `
             <li>${teksRiwayat(x)} <small>· ${esc(relatif(x.at))}</small></li>`).join('')}</ul></section>` : ''}
         </div>
       </div>`;
@@ -3890,8 +4186,8 @@
     const ruang = I.ruangTask(t.id);
     const n = (susunan().perRuang.get(ruang) || []).filter(m => !m.dihapus).length;
     return `<section class="diskusi-detail">
-        <div class="baris-subjudul"><p class="subjudul">Diskusi${n ? ' · ' + n : ''}</p>
-          <button type="button" class="tombol kecil" data-aksi="kom-buka" data-ruang="${esc(ruang)}">${ikon('obrolan', 16)} Buka di Komunikasi</button></div>
+        <div class="baris-subjudul"><p class="subjudul">${tr('Diskusi')}${n ? ' · ' + n : ''}</p>
+          <button type="button" class="tombol kecil" data-aksi="kom-buka" data-ruang="${esc(ruang)}">${ikon('obrolan', 16)} ${tr('Buka di Komunikasi')}</button></div>
         <div class="km-pesan ringkas" id="pesan-detail" data-ruang="${esc(ruang)}">${daftarPesanHtml(ruang, 'detail')}</div>
         ${penulis(ruang, 'detail')}
       </section>`;
@@ -5658,7 +5954,21 @@
     return s && I.sampulSah(s.gambar) ? s.gambar : '';
   }
   const aturAtribut = (el, nama, nilai) => { if (nilai) el.setAttribute(nama, nilai); else el.removeAttribute(nama); };
+  /* Bahasa (2.28.0): per profil (setelan tampilan), juga diingat perangkat ini untuk layar
+     sebelum profil dipilih. */
+  function terapkanBahasa(b) {
+    document.documentElement.lang = B.atur(b);
+    simpan('bahasa', B.bahasa());
+  }
+  async function gantiBahasa(b) {
+    terapkanBahasa(b);
+    render();
+    if (!S.me || S.me === I.DEV || S.pratinjau) return;
+    const h = await kirimTampilan({ ...setelanSaya(), bahasa: b === 'en' ? 'en' : '' });
+    if (!h.success) toast(h.message || tr('Bahasa hanya tersimpan di perangkat ini.'), true);
+  }
   function terapkanTampilan(t = S.drafTampilan || setelanSaya()) {
+    if (S.me && S.me !== I.DEV) terapkanBahasa(t.bahasa === 'en' ? 'en' : 'id');
     const akar = document.documentElement;
     const token = I.tokenAksen(t.aksen);
     // html:root (spesifisitas 0,2,1) mengalahkan blok token di app.css di mana pun urutannya.
@@ -6862,7 +7172,7 @@
       <div class="ilu-task">${pillStatus('Dikerjakan')}<span><b>DV8 · Latsol Fisika — 3 Paket</b><small><span class="chip-sub">DV8</span> Input ke SIADU/Markaz · 0/1 task turunan</small></span></div>
       <div class="ilu-task ilu-anak">${pillStatus('Antre')}<span><b>Input paket 1–3</b><small>Kiki · ditinjau Alya</small></span></div>
       <div class="ilu-baris">${tombolPalsu('Kiki ▾', 'input-palsu')}${tombolPalsu(`${ikon('tambah', 16)} Buat task turunan`)}</div>`,
-    tinjau: () => `<p class="subjudul">Output & bukti</p><p class="teks-panjang">40 soal Latsol Fisika lolos QC</p>
+    tinjau: () => `<p class="subjudul">Output</p><p class="teks-panjang">40 soal Latsol Fisika lolos QC</p>
       <p class="ilu-tautan">${ikon('tautan', 16)} Google Sheets · hasil QC</p>
       <div class="ilu-baris">${tombolPalsu('Setujui', 'utama')}${tombolPalsu('Kembalikan', 'bahaya')}</div>`,
     formtask: () => `<div class="ilu-isian"><small>Sub-stage</small>${tombolPalsu('DV8 · Input ke SIADU/Markaz (LA) ▾', 'input-palsu')}<small class="ilu-ket">${esc(hintSub('DV8'))}</small></div>
@@ -6915,9 +7225,9 @@
   function ajakanPanduan() {
     if (ambil('kenal_' + S.me, false)) return '';
     return `<div class="ajakan">${ikon('buku', 22)}
-      <div><strong>Baru mencoba ProductTrack v2?</strong><span>Panduan untuk ${esc(I.PERAN[I.orang(S.me).peran])} menjelaskan alurnya langkah demi langkah, lengkap dengan tombol Coba sekarang di data contoh.</span></div>
-      <button type="button" class="tombol kecil utama" data-aksi="panduan-buka">Buka Panduan</button>
-      <button type="button" class="ikon-tombol" data-aksi="kenal-tutup" aria-label="Tutup ajakan panduan">${ikon('tutup', 16)}</button>
+      <div><strong>${tr('Baru mencoba ProductTrack v2?')}</strong><span>${tr('Panduan untuk {peran} menjelaskan alurnya langkah demi langkah, lengkap dengan tombol Coba sekarang di data contoh.', { peran: esc(I.PERAN[I.orang(S.me).peran]) })}</span></div>
+      <button type="button" class="tombol kecil utama" data-aksi="panduan-buka">${tr('Buka Panduan')}</button>
+      <button type="button" class="ikon-tombol" data-aksi="kenal-tutup" aria-label="${tr('Tutup ajakan panduan')}">${ikon('tutup', 16)}</button>
     </div>`;
   }
 
@@ -7014,7 +7324,7 @@
     if (m && m.keEditor && S.view === 'catatan' && modeKartu() && catatanAktif()) bukaEditorJendela();
   }
   const kakiModal = tombol => `<p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
-      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">Batal</button><button class="tombol utama">${esc(tombol)}</button></div>`;
+      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">${tr('Batal')}</button><button class="tombol utama">${esc(tombol)}</button></div>`;
 
   /* ----- Form task: sub-stage menentukan tahap, tim pemilik, dan siapa yang boleh jadi PIC ----- */
 
@@ -7137,35 +7447,35 @@
     const staff = I.orang(S.me).peran === 'staff';
     const lead = I.orang(S.me).peran === 'lead';
     return `<form data-form="modal" data-task="baru" novalidate>
-      <h2>Tambah task${tim ? ' ' + esc(I.singkatTim(tim)) : ''}${tahap ? ' di ' + esc(I.namaTahap(tahap)) : ''}</h2>
-      <label class="isian">Judul task <input name="title" required maxlength="200" placeholder="mis. QC output paket TO 3" value="${esc(preset.judul || '')}"></label>
-      ${tahap ? `<p class="hint">Task proyek ${tim ? `tim <strong>${esc(I.labelTim(tim))}</strong> ` : ''}di fase <strong>${esc(I.namaTahap(tahap))}</strong>: sub-stage yang tersedia hanya milik ${tim ? 'tim dan fase' : 'fase'} ini.</p>` : `<div class="isian"><span>Jalur</span>
-        <div class="segmen" role="group" aria-label="Jalur">
-          <button type="button" data-aksi="pilih-jalur" data-jalur="proyek" aria-pressed="${jalur === 'proyek'}" ${proyekAktif.length ? '' : 'disabled'}>Proyek</button>
-          <button type="button" data-aksi="pilih-jalur" data-jalur="rutin" aria-pressed="${jalur === 'rutin'}">Rutin</button>
+      <h2>${tr('Tambah task')}${tim ? ' ' + esc(I.singkatTim(tim)) : ''}${tahap ? ' · ' + esc(I.namaTahap(tahap)) : ''}</h2>
+      <label class="isian">${tr('Judul task')} <input name="title" required maxlength="200" placeholder="${tr('mis. QC output paket TO 3')}" value="${esc(preset.judul || '')}"></label>
+      ${tahap ? `<p class="hint">${tim ? tr('Task proyek tim <strong>{tim}</strong> di fase <strong>{tahap}</strong>: sub-stage yang tersedia hanya milik tim dan fase ini.', { tim: esc(I.labelTim(tim)), tahap: esc(I.namaTahap(tahap)) }) : tr('Task proyek di fase <strong>{tahap}</strong>: sub-stage yang tersedia hanya milik fase ini.', { tahap: esc(I.namaTahap(tahap)) })}</p>` : `<div class="isian"><span>${tr('Jalur')}</span>
+        <div class="segmen" role="group" aria-label="${tr('Jalur')}">
+          <button type="button" data-aksi="pilih-jalur" data-jalur="proyek" aria-pressed="${jalur === 'proyek'}" ${proyekAktif.length ? '' : 'disabled'}>${tr('Proyek')}</button>
+          <button type="button" data-aksi="pilih-jalur" data-jalur="rutin" aria-pressed="${jalur === 'rutin'}">${tr('Rutin')}</button>
         </div>
-        <small>Proyek: sub-stage ADDIE, wajib output & bukti, ditinjau sebelum selesai. Rutin (kode R): di luar proyek, langsung selesai.</small>
+        <small>${tr('Proyek: sub-stage ADDIE, wajib output, ditinjau sebelum selesai. Rutin (kode R): di luar proyek, langsung selesai.')}</small>
       </div>`}
-      ${staff ? `<p class="banner biru">Task ini untuk Anda sendiri. Sub-stage proyek yang tersedia hanya milik tim Anda; task proyek ditinjau ${esc(I.orang(I.orang(S.me).lead || I.MANAGER).pendek)} sebelum selesai, dan ia mendapat notifikasi.</p>` : ''}
+      ${staff ? `<p class="banner biru">${tr('Task ini untuk Anda sendiri. Sub-stage proyek yang tersedia hanya milik tim Anda; task proyek ditinjau {nama} sebelum selesai, dan ia mendapat notifikasi.', { nama: esc(I.orang(I.orang(S.me).lead || I.MANAGER).pendek) })}</p>` : ''}
       <input type="hidden" name="jalur" value="${jalur}">
       <div class="dua-isian" data-bagian="proyek" ${jalur === 'proyek' ? '' : 'hidden'}>
-        <label class="isian">Proyek <select name="project">${opsiHtml(proyekAktif.map(p => [p.id, p.name]), pProyek)}</select></label>
-        <label class="isian">Sub-stage <select name="subProyek" data-sub>${opsiSub('proyek', subProyek, true, tahap, tim)}</select></label>
+        <label class="isian">${tr('Proyek')} <select name="project">${opsiHtml(proyekAktif.map(p => [p.id, p.name]), pProyek)}</select></label>
+        <label class="isian">${tr('Sub-stage')} <select name="subProyek" data-sub>${opsiSub('proyek', subProyek, true, tahap, tim)}</select></label>
       </div>
-      <label class="isian" data-bagian="rutin" ${jalur === 'rutin' ? '' : 'hidden'}>Jenis rutin <select name="subRutin" data-sub>${opsiSub('rutin', subRutin, true)}</select></label>
+      <label class="isian" data-bagian="rutin" ${jalur === 'rutin' ? '' : 'hidden'}>${tr('Jenis rutin')} <select name="subRutin" data-sub>${opsiSub('rutin', subRutin, true)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(kode))}</p>
       <div class="dua-isian">
-        <label class="isian">PIC <select name="pic" data-otomatis="1">${opsiPic(pilihanPic(kode), picBawaan(kode), kode)}</select></label>
-        <label class="isian">Tenggat <input type="date" name="due"></label>
+        <label class="isian">${tr('PIC')} <select name="pic" data-otomatis="1">${opsiPic(pilihanPic(kode), picBawaan(kode), kode)}</select></label>
+        <label class="isian">${tr('Tenggat')} <input type="date" name="due"></label>
       </div>
-      ${lead ? `<label class="isian" data-bagian-induk hidden>Task induk <select name="induk"><option value="">— tanpa task induk —</option></select>
-        <small>Task untuk staff Anda, atau untuk Anda sendiri, bisa dipasang di bawah task yang Anda pegang di tahap ini sebagai task turunan: tampil menjorok di bawahnya, dan task induknya baru bisa diajukan setelah semua turunannya selesai.</small></label>` : ''}
+      ${lead ? `<label class="isian" data-bagian-induk hidden>${tr('Task induk')} <select name="induk"><option value="">${tr('— tanpa task induk —')}</option></select>
+        <small>${tr('Task untuk staff Anda, atau untuk Anda sendiri, bisa dipasang di bawah task yang Anda pegang di tahap ini sebagai task turunan: tampil menjorok di bawahnya, dan task induknya baru bisa diajukan setelah semua turunannya selesai.')}</small></label>` : ''}
       <div class="dua-isian">
-        <label class="isian">Prioritas <select name="priority">${opsiHtml(I.PRIORITAS, 'Normal')}</select></label>
-        <label class="isian">Output <input name="output" maxlength="200" placeholder="mis. 40 soal lolos QC"></label>
+        <label class="isian">${tr('Prioritas')} <select name="priority">${opsiHtml(I.PRIORITAS, 'Normal')}</select></label>
+        <label class="isian">${tr('Output')} <input name="output" maxlength="200" placeholder="${tr('mis. 40 soal lolos QC')}"></label>
       </div>
-      <label class="isian">Keterangan <textarea name="detail" maxlength="4000">${esc(preset.detail || '')}</textarea></label>
-      ${kakiModal('Tambah task')}
+      <label class="isian">${tr('Keterangan')} <textarea name="detail" maxlength="4000">${esc(preset.detail || '')}</textarea></label>
+      ${kakiModal(tr('Tambah task'))}
     </form>`;
   }
 
@@ -7198,7 +7508,7 @@
     const tampil = urut.slice(0, 8);
     return `<form data-form="modal" class="form-hapus-proyek" novalidate>
       <h2>Hapus ${r.tasks.length > 1 ? `${r.tasks.length} task` : 'task'}?</h2>
-      <p>${r.tasks.length > 1 ? 'Task berikut dihapus permanen' : 'Task ini dihapus permanen'}, beserta sub-task, komentar, tinjauan, dan buktinya:</p>
+      <p>${r.tasks.length > 1 ? 'Task berikut dihapus permanen' : 'Task ini dihapus permanen'}, beserta ceklis, komentar, tinjauan, dan buktinya:</p>
       <ul class="daftar-hapus">${tampil.map(t => `<li><b>${esc(t.id)}</b> · ${esc(potong(t.title, 90))}${t.induk && r.tasks.some(x => x.id === t.induk) ? ' <small>(turunan)</small>' : ''}</li>`).join('')}
         ${r.tasks.length > tampil.length ? `<li>dan ${r.tasks.length - tampil.length} task lainnya</li>` : ''}</ul>
       ${r.turunan || r.selesai || r.setoran ? `<ul class="daftar-hapus">
@@ -7221,7 +7531,7 @@
       <h2>Hapus proyek?</h2>
       <p><strong>${esc(p.name)}</strong> (${esc(p.id)}) dihapus permanen beserta:</p>
       <ul class="daftar-hapus">
-        <li>${r.task ? `${r.task} task${r.turunan ? `, ${r.turunan} di antaranya task turunan` : ''}${r.terbuka ? `; ${r.terbuka} masih terbuka` : ''}, dengan sub-task, komentar task, tinjauan, dan buktinya` : 'belum ada task'}</li>
+        <li>${r.task ? `${r.task} task${r.turunan ? `, ${r.turunan} di antaranya task turunan` : ''}${r.terbuka ? `; ${r.terbuka} masih terbuka` : ''}, dengan ceklis, komentar task, tinjauan, dan buktinya` : 'belum ada task'}</li>
         ${r.setoran ? `<li>${r.setoran} setoran ke rancangan paket ${esc(paket.join(', ') || r.paket.join(', '))}: progresnya hilang dan targetnya terbuka lagi untuk dielaborasi</li>` : ''}
       </ul>
       <p class="hint">Riwayat Aktivitas dan pesan Komunikasi tetap tersimpan. Kalau proyek ini hanya sudah selesai, <button type="button" class="tautan-kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">arsipkan saja</button>: semuanya tetap ada dan bisa diaktifkan lagi.</p>
@@ -7285,34 +7595,47 @@
     // Induk dan turunannya tetap di tahap yang sama.
     const tahap = t.lane === 'proyek' && (induk || dibagi) ? t.stage : '';
     return `<form data-form="modal" data-task="ubah" data-id="${esc(t.id)}" data-pic-lama="${esc(t.pic)}" novalidate>
-      <h2>Ubah task</h2>
-      <p class="hint">${t.project ? 'Proyek ' + esc(asal(t)) : (lepas ? 'Lepas' : 'Rutin') + ' · ' + esc(t.kategori || 'Umum')} · ${esc(t.id)}</p>
-      ${induk ? `<p class="hint">Task turunan dari ${esc(induk.id)} · ${esc(potong(induk.title, 70))}: PIC-nya ${esc(I.orang(I.picTurunan(induk)[0]).pendek)} sendiri atau staff timnya${tahap ? `, tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>`
-        : dibagi ? `<p class="hint">Task ini sudah dibagi ke task turunan: PIC-nya tetap${tahap ? ` dan tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>` : ''}
-      <label class="isian">Judul task <input name="title" required maxlength="200" value="${esc(t.title)}"></label>
-      <label class="isian">Sub-stage <select name="sub" data-sub>${opsiSub(jenis, t.sub, false, tahap)}</select></label>
+      <h2>${tr('Ubah task')}</h2>
+      <p class="hint">${t.project ? tr('Proyek') + ' ' + esc(asal(t)) : (lepas ? tr('Lepas') : tr('Rutin')) + ' · ' + esc(t.kategori || tr('Umum'))} · ${esc(t.id)}</p>
+      ${induk ? `<p class="hint">${tr('Task turunan dari {id}', { id: esc(induk.id) })} · ${esc(potong(induk.title, 70))}: ${tr('PIC-nya {nama} sendiri atau staff timnya', { nama: esc(I.orang(I.picTurunan(induk)[0]).pendek) })}${tahap ? ', ' + tr('tahapnya tetap {tahap}', { tahap: esc(I.namaTahap(tahap)) }) : ''}.</p>`
+        : dibagi ? `<p class="hint">${tr('Task ini sudah dibagi ke task turunan: PIC-nya tetap')}${tahap ? ' ' + tr('dan tahapnya tetap {tahap}', { tahap: esc(I.namaTahap(tahap)) }) : ''}.</p>` : ''}
+      <label class="isian">${tr('Judul task')} <input name="title" required maxlength="200" value="${esc(t.title)}"></label>
+      <label class="isian">${tr('Sub-stage')} <select name="sub" data-sub>${opsiSub(jenis, t.sub, false, tahap)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(t.sub))}</p>
       <div class="dua-isian">
-        <label class="isian">PIC <select name="pic">${opsiPic(pilihanPicUbah(t, t.sub), t.pic, t.sub)}</select></label>
-        <label class="isian">Tenggat <input type="date" name="due" value="${esc(t.due || '')}"></label>
+        <label class="isian">${tr('PIC')} <select name="pic">${opsiPic(pilihanPicUbah(t, t.sub), t.pic, t.sub)}</select></label>
+        <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(t.due || '')}"></label>
       </div>
       <div class="dua-isian">
-        <label class="isian">Prioritas <select name="priority">${opsiHtml(I.PRIORITAS, t.priority || 'Normal')}</select></label>
-        <label class="isian">Output <input name="output" maxlength="200" value="${esc(t.output || '')}"></label>
+        <label class="isian">${tr('Prioritas')} <select name="priority">${opsiHtml(I.PRIORITAS, t.priority || 'Normal')}</select></label>
+        <label class="isian">${tr('Output')} <input name="output" maxlength="200" value="${esc(t.output || '')}"></label>
       </div>
-      <label class="isian">Keterangan <textarea name="detail" maxlength="4000">${esc(t.detail || '')}</textarea></label>
-      ${kakiModal('Simpan')}
+      <label class="isian">${tr('Keterangan')} <textarea name="detail" maxlength="4000">${esc(t.detail || '')}</textarea></label>
+      ${kakiModal(tr('Simpan'))}
     </form>`;
   }
 
   function formProyek() {
     return `<form data-form="modal" novalidate>
-      <h2>Proyek baru</h2>
-      <label class="isian">Nama proyek <input name="name" required maxlength="200" placeholder="mis. PCPM Tahap III · 10 TO"></label>
-      <label class="isian">Platform <select name="platform">${I.PLATFORM.map(x => `<option>${esc(x)}</option>`).join('')}</select></label>
-      <label class="isian">Tujuan <textarea name="goal" maxlength="2000" placeholder="Apa yang ingin dicapai proyek ini?"></textarea></label>
-      <p class="hint">Proyek tidak punya Lead tetap: tiap task dipegang tim pemilik sub-stage-nya. Tahapnya dihitung dari task terbuka paling awal, dan siklus ditutup lewat E12 · Final approval.</p>
-      ${kakiModal('Buat proyek')}
+      <h2>${tr('Proyek baru')}</h2>
+      <label class="isian">${tr('Nama proyek')} <input name="name" required maxlength="200" placeholder="${tr('mis. PCPM Tahap III · 10 TO')}"></label>
+      <label class="isian">${tr('Platform')} <select name="platform">${I.PLATFORM.map(x => `<option>${esc(x)}</option>`).join('')}</select></label>
+      <label class="isian">${tr('Tujuan')} <textarea name="goal" maxlength="2000" placeholder="${tr('Apa yang ingin dicapai proyek ini?')}"></textarea></label>
+      <p class="hint">${tr('Proyek tidak punya Lead tetap: tiap task dipegang tim pemilik sub-stage-nya. Tahapnya dihitung dari task terbuka paling awal, dan siklus ditutup lewat E12 · Final approval.')}</p>
+      ${kakiModal(tr('Buat proyek'))}
+    </form>`;
+  }
+
+  /* Ubah proyek (2.28.0): nama, platform, dan tujuan; Manager saja (I.ubahProyek). */
+  function formUbahProyek(p) {
+    const platform = [...new Set([...I.PLATFORM, p.platform].filter(Boolean))];
+    return `<form data-form="modal" novalidate>
+      <h2>${tr('Ubah proyek')}</h2>
+      <p class="hint">${esc(p.id)} · ${tr('ID, siklus, tahap, dan task-nya tetap.')}</p>
+      <label class="isian">${tr('Nama proyek')} <input name="name" required maxlength="200" value="${esc(p.name)}"></label>
+      <label class="isian">${tr('Platform')} <select name="platform">${opsiHtml(platform.map(x => [x, x]), p.platform)}</select></label>
+      <label class="isian">${tr('Tujuan')} <textarea name="goal" maxlength="2000">${esc(p.goal || '')}</textarea></label>
+      ${kakiModal(tr('Simpan'))}
     </form>`;
   }
 
@@ -7519,6 +7842,11 @@
           tutupModal();
           return selesaiUbah(`Urutan tunggu ${t.id} disimpan.`);
         }
+        case 'ubah-proyek': {
+          const p = ubahData('ubahProyek', { proyek: m.id, f: { name: f.name, platform: f.platform, goal: f.goal } });
+          tutupModal();
+          return selesaiUbah(tr('Proyek {nama} disimpan.', { nama: p.name }));
+        }
         case 'hapus-proyek': {
           const p = proyekDari(m.id);
           if (!p) throw new Error('Proyek tidak ditemukan.');
@@ -7719,9 +8047,35 @@
       case 'palet-jalan': jalankanPalet(Number(d.i)); break;
       case 'notif': bukaTutupNotif(); break;
       case 'akun': bukaTutupAkun(); break;
+      /* Kalender Saya (2.28.0) */
+      case 'agenda-geser': {
+        const n = Number(d.n);
+        S.agenda.bulan = n ? I.geserBulan(S.agenda.bulan || hariIni().slice(0, 7), n) : '';
+        if (!n) S.agenda.hari = hariIni();
+        render();
+        break;
+      }
+      case 'agenda-hari': S.agenda.hari = d.hari; S.agenda.bulan = String(d.hari).slice(0, 7); render(); break;
+      case 'agenda-tugas': S.agenda.tugas = !S.agenda.tugas; simpan('agenda_tugas', S.agenda.tugas); render(); break;
+      case 'agenda-tambah': if (agendaBoleh()) bukaModal({ jenis: 'agenda', id: '' }, formAgenda(null, d.hari || S.agenda.hari || hariIni())); break;
+      case 'agenda-ubah': {
+        const a = S.agenda.isi.find(x => x.id === d.id);
+        if (a) bukaModal({ jenis: 'agenda', id: a.id }, formAgenda(a));
+        break;
+      }
+      case 'agenda-hapus': {
+        const a = S.agenda.isi.find(x => x.id === d.id);
+        if (a && confirm(tr('Hapus agenda "{judul}"?{ulang}', { judul: a.judul, ulang: a.ulang ? ' ' + tr('Semua tanggal agenda berulang ini ikut terhapus.') : '' }))) hapusAgendaSaya(a.id);
+        break;
+      }
+      case 'agenda-pengingat': if (agendaBoleh()) bukaModal({ jenis: 'pengingat-agenda' }, formPengingatAgenda()); break;
+      case 'agenda-izin':
+        if (window.Notification) Notification.requestPermission().then(() => { if (S.modal && S.modal.jenis === 'pengingat-agenda') $('#modal-panel').innerHTML = formPengingatAgenda(); });
+        break;
       case 'notif-buka':
         S.notif.buka = false;
         if (d.pesan && d.ruang) bukaRuang(d.ruang, d.pesan);
+        else if (d.agenda) { Object.assign(S.agenda, { hari: d.hari, bulan: String(d.hari).slice(0, 7) }); pindahHalaman('agenda'); }
         else if (d.proyek) bukaProyek(d.proyek);
         else if (t) bukaTask(t.id);
         else renderKepala();
@@ -7776,6 +8130,7 @@
         if (confirm('Hapus foto profil Anda? Avatar kembali ke inisial, untuk semua orang.')) kirimFoto('');
         break;
       case 'tema': gantiTema(d.nilai); render(); break;
+      case 'bahasa': gantiBahasa(d.nilai); break;
       case 'tampilan': bukaTampilan(); break;
       case 'status': bukaStatus(); break;
       case 'tpl-aksen': ubahDraf({ aksen: d.nilai }, true); break;
@@ -8008,6 +8363,7 @@
       /* Rancangan Paket */
       case 'paket-buka': bukaPaket(d.id); break;
       case 'hapus-proyek': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'hapus-proyek', id: p.id }, formHapusProyek(p)); break; }
+      case 'ubah-proyek': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'ubah-proyek', id: p.id }, formUbahProyek(p)); break; }
       case 'paket-elaborasi': {
         const p = paketDari(S.pkt.pilih);
         if (!p) break;
@@ -8016,8 +8372,8 @@
         break;
       }
       case 'bukti-hapus':
-        if (!t || !confirm('Hapus tautan bukti ini dari task?')) return;
-        try { ubahData('hapusBukti', { task: t.id, bukti: d.bukti }); selesaiUbah('Bukti dihapus.'); } catch (err) { toast(err.message, true); }
+        if (!t || !confirm(tr('Hapus tautan ini dari task?'))) return;
+        try { ubahData('hapusBukti', { task: t.id, bukti: d.bukti }); selesaiUbah(tr('Tautan dihapus.')); } catch (err) { toast(err.message, true); }
         break;
       case 'sub-ubah':
         S.ubahSub = { task: d.id, sub: d.sub };
@@ -8027,8 +8383,8 @@
       case 'sub-batal': S.ubahSub = null; render(); break;
       case 'sub-hapus': {
         const s = t && t.subtasks.find(x => x.id === d.sub);
-        if (!s || !confirm(`Hapus sub-task "${s.title}"?`)) return;
-        try { ubahData('hapusSubtask', { task: t.id, sub: s.id }); selesaiUbah('Sub-task dihapus.'); } catch (err) { toast(err.message, true); }
+        if (!s || !confirm(`Hapus butir ceklis "${s.title}"?`)) return;
+        try { ubahData('hapusSubtask', { task: t.id, sub: s.id }); selesaiUbah('Butir ceklis dihapus.'); } catch (err) { toast(err.message, true); }
         break;
       }
       case 'setoran-hapus':
@@ -8337,6 +8693,12 @@
     if (el.id === 'tpl-awal') { ubahDraf({ awal: el.value }); return; }
     if (el.id === 'tpl-aksen-sendiri') { ubahDraf({ aksen: el.value }, true); return; }
     if (el.classList.contains('centang-hapus')) { pilihTaskHapus([el.dataset.id], el.checked); return; }
+    if (el.classList.contains('centang-agenda')) { centangAgenda(el.dataset.id, el.dataset.hari, el.checked); return; }
+    if (el.closest('form[data-form="agenda"]')) {
+      const form = el.closest('form');
+      if (el.name === 'sehari') { $('[data-bagian-jam]', form).hidden = el.checked; return; }
+      if (el.name === 'ulang') { $('[data-bagian-sampai]', form).hidden = !el.value; return; }
+    }
     if (el.dataset.aksi === 'centang-sub') {
       try { ubahData('centangSubtask', { task: el.dataset.id, sub: el.dataset.sub, done: el.checked }); selesaiUbah(); } catch (err) { toast(err.message, true); render(); }
     } else if (el.dataset.slicer) {
@@ -8385,7 +8747,7 @@
     if (form.dataset.form === 'masuk-dev') { e.preventDefault(); kirimMasukDev(form); return; }
     if (form.dataset.form === 'orang') { e.preventDefault(); kirimOrang(form); return; }
     // PIN profil dan halaman Master (0.14.0).
-    const khusus = { 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-sub-hapus': kirimHapusSub, 'mst-sub-pindah': kirimPindahSub, 'mst-kat': kirimMasterKategori,
+    const khusus = { agenda: kirimAgenda, 'pengingat-agenda': kirimPengingatAgenda, 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-sub-hapus': kirimHapusSub, 'mst-sub-pindah': kirimPindahSub, 'mst-kat': kirimMasterKategori,
       'mst-tambah': kirimMasterTambah, 'mst-label': kirimMasterLabel, 'mst-pin': kirimFormPin }[form.dataset.form];
     if (khusus) { e.preventDefault(); khusus(form); return; }
     const jenis = form.dataset.form;
@@ -8423,7 +8785,7 @@
           selesaiUbah('Output disimpan.');
         } else {
           ubahData('tambahBukti', { task: t.id, f: { url: isianForm(form, 'url').value, label: isianForm(form, 'label').value } });
-          selesaiUbah('Bukti ditambahkan.');
+          selesaiUbah(tr('Tautan ditambahkan.'));
         }
       } catch (err) { toast(err.message, true); }
       return;
@@ -8449,7 +8811,7 @@
       } else if (jenis === 'sub-ubah') {
         ubahData('ubahSubtask', { task: t.id, sub: form.dataset.sub, f: { title: form.judul.value, pic: form.pic.value, link: form.link.value } });
         S.ubahSub = null;
-        selesaiUbah('Sub-task disimpan.');
+        selesaiUbah('Butir ceklis disimpan.');
       } else if (jenis === 'anak') {
         const a = ubahData('taskAnak', { induk: t.id, f: { title: form.judul.value, pic: form.pic.value, due: form.due.value } });
         selesaiUbah(`${a.id} dibuat untuk ${I.orang(a.pic).pendek} di bawah ${t.id}.`);

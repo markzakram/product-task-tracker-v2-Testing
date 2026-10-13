@@ -1,5 +1,33 @@
 # Changelog — ProductTrack v2
 
+## 2.28.0 — Kalender Saya, bahasa EN/ID, ceklis pengerjaan, output saja, ubah proyek (2026-10-13)
+
+Lima permintaan user.
+
+- **Kalender Saya** (tahap 1, grup Ruang Saya): aktivitas harian pribadi dengan pengingat.
+  - Agenda: judul, tanggal, jam atau sepanjang hari, berulang (harian, hari kerja, mingguan,
+    bulanan, dengan batas opsional), pengingat, catatan; dicentang selesai per tanggal.
+  - Kalender bulan berisi agenda dan, bila dipilih, tenggat task saya; daftar per tanggal; kartu
+    **Agenda saya hari ini** di Hari Ini.
+  - Pengingat di aplikasi: pesan singkat, lonceng, dan notifikasi browser bila diizinkan, selama
+    ProductTrack terbuka; agenda sepanjang hari pukul 07.00.
+  - Email pribadi opsional disimpan untuk tahap 2 (pengingat email); belum ada email terkirim.
+  - Tersimpan di server per profil (tab `agenda`, `pribadi`; tabel `v2_agenda`, `v2_pribadi`, kini
+    25 tabel) dan hanya dikirim ke profil sesi itu.
+- **Bahasa Indonesia / English, tahap 1**: pilihan di menu akun, per profil. Kerangka aplikasi,
+  Hari Ini, Task, detail task, Proyek, Kalender Saya, dan form task/proyek sudah berbahasa
+  Inggris (434 teks, `public/bahasa.js`); halaman lain menyusul. Tanggal dan angka mengikuti
+  bahasanya. Berkas statis kini lima (`bahasa.js` baru), semua dengan `?v=`.
+- **"Sub-task" menjadi "Ceklis pengerjaan"** seperti v1, supaya tak tertukar dengan task turunan:
+  di detail task, Hari Ini (Ceklis untuk saya), syarat ajukan, pesan galat, Riwayat Aktivitas,
+  Panduan, dan alat agen. Nama di data tetap.
+- **Output saja**: bagian "Output & bukti" di detail task menjadi **Output**; tautan hasil kerja
+  opsional dan tak lagi syarat ajukan.
+- **Ubah proyek** (Manager): nama, platform, dan tujuan proyek yang sudah dibuat
+  (`Inti.ubahProyek`).
+- Tes baru: `test/agenda.test.js`, `test/bahasa.test.js`, dan tambahan di `test/rpc.test.js`.
+  261 tes.
+
 ## 2.27.0 — Nomor tak dipakai ulang, tombol Ubah, seret langkah alur (2026-10-13)
 
 Revisi user.

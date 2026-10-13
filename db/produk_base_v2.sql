@@ -353,6 +353,27 @@ CREATE TABLE IF NOT EXISTS `v2_setoran` (
   CONSTRAINT `fk_v2_setoran_task` FOREIGN KEY (`task`) REFERENCES `v2_tasks` (`id`) ON DELETE SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
+-- Kalender Saya (2.28.0): agenda pribadi per profil (data = JSON isinya), hanya untuk
+-- pemiliknya; yang dihapus ditandai. Email pribadi opsional untuk pengingat email nanti.
+CREATE TABLE IF NOT EXISTS `v2_agenda` (
+  `id`         VARCHAR(64)  NOT NULL,
+  `orang`      VARCHAR(64)  NOT NULL,
+  `data`       JSON         NOT NULL DEFAULT (JSON_OBJECT()),
+  `diperbarui` DATETIME(3)  NULL,
+  `dihapus`    BOOLEAN      NOT NULL DEFAULT FALSE,
+  `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_agenda_orang` (`orang`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `v2_pribadi` (
+  `orang`      VARCHAR(64)  NOT NULL,
+  `email`      VARCHAR(120) NOT NULL DEFAULT '',
+  `diperbarui` DATETIME(3)  NULL,
+  `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`orang`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
 -- Nomor ID tertinggi yang pernah dipakai per awalan (PRD, PRJ, PKG), dicatat saat ada yang
 -- dihapus, supaya nomornya tak dipakai ulang (2.27.0).
 CREATE TABLE IF NOT EXISTS `v2_nomor` (
@@ -446,7 +467,7 @@ CREATE TABLE IF NOT EXISTS `v2_obrolan` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Periksa: harus 23 tabel berawalan v2_ dan penanda app = producttrack-v2.
+-- Periksa: harus 25 tabel berawalan v2_ dan penanda app = producttrack-v2.
 SELECT COUNT(*) AS tabel_v2
   FROM information_schema.TABLES
  WHERE TABLE_SCHEMA = 'produk_base' AND TABLE_NAME LIKE 'v2\_%';

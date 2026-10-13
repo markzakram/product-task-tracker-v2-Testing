@@ -14,7 +14,7 @@
      pemilik, dan peninjaunya.
    - Jalur PROYEK: task-nya ditinjau sebelum selesai (staff oleh Lead-nya, Lead oleh
      Manager; sub-stage bertanda Manager selalu oleh Manager), dan baru bisa diajukan
-     bila syaratnya lengkap: output, tautan bukti, sub-task, task turunan, tahap sebelumnya.
+     bila syaratnya lengkap: output, tautan bukti, ceklis, task turunan, tahap sebelumnya.
      Jalur RUTIN (kode R, di luar proyek) tanpa tinjauan.
    - Sejak 0.15.0 task proyek di tahap ADDIE yang sama dikerjakan PARALEL; yang berurutan
      hanya tahapnya: task menunggu tahap sebelumnya di siklus itu selesai. Lead tak
@@ -521,15 +521,14 @@
     return `Menunggu ${singkatTim(timJalur(x.t, perId))} · ${x.t.id}`;
   }
 
-  /* Syarat sebelum output task proyek diajukan ke gate (PRD): output terisi, ada tautan
-     bukti, semua sub-task dan task turunan beres, tahap sebelumnya (atau task yang ditunggu)
-     selesai, dan tidak tertahan. */
+  /* Syarat sebelum output task proyek diajukan ke gate (PRD): output terisi, semua ceklis dan
+     task turunan beres, tahap sebelumnya (atau task yang ditunggu) selesai, dan tidak tertahan.
+     Sejak 2.28.0 (permintaan user) tautan hasil kerja opsional, bukan syarat. */
   function syaratAjukan(t, perId) {
     const anak = t.id ? anakTask(perId, t.id) : [];
     return [
       { kunci: 'output', label: 'Output terisi', ok: !!String(t.output || '').trim() },
-      { kunci: 'bukti', label: 'Minimal satu tautan bukti', ok: (t.evidence || []).some(e => /^https?:\/\//i.test(String(e.url || ''))) },
-      { kunci: 'sub', label: 'Semua sub-task selesai', ok: (t.subtasks || []).every(s => s.done) },
+      { kunci: 'sub', label: 'Semua ceklis pengerjaan selesai', ok: (t.subtasks || []).every(s => s.done) },
       ...(anak.length ? [{ kunci: 'anak', label: `Semua task turunan selesai (${anak.filter(selesai).length}/${anak.length})`, ok: anak.every(selesai) }] : []),
       { kunci: 'deps', label: 'Task yang ditunggu sudah selesai', ok: depsBelum(t, perId).length === 0 },
       { kunci: 'tahan', label: 'Tidak sedang tertahan', ok: !t.tertahan },
@@ -739,37 +738,37 @@
     }, me, waktu, hariIni);
   }
 
-  /* Sub-task (daftar periksa di dalam task): ditambah, diubah, dan dihapus PIC task, Lead-nya,
+  /* Ceklis (daftar periksa di dalam task): ditambah, diubah, dan dihapus PIC task, Lead-nya,
      atau Manager. */
   function cariSubtask(t, id) {
     const s = (t.subtasks || []).find(x => x.id === id);
-    if (!s) throw new Error('Sub-task tidak ditemukan.');
+    if (!s) throw new Error('Butir ceklis tidak ditemukan.');
     return s;
   }
-  /* Tautan sub-task (2.24.0, permintaan user): opsional; kalau diisi harus alamat http(s). */
+  /* Tautan butir ceklis (2.24.0, permintaan user): opsional; kalau diisi harus alamat http(s). */
   const TAUTAN_SUB_MAKS = 2000;
   function tautanSub(u) {
     if (!teks(u)) return '';
     const url = tautanRapi(u);
-    if (!url) throw new Error('Tautan sub-task tidak valid. Contoh: https://docs.google.com/… (atau kosongkan).');
-    if (url.length > TAUTAN_SUB_MAKS) throw new Error(`Tautan sub-task paling panjang ${TAUTAN_SUB_MAKS} karakter.`);
+    if (!url) throw new Error('Tautan butir ceklis tidak valid. Contoh: https://docs.google.com/… (atau kosongkan).');
+    if (url.length > TAUTAN_SUB_MAKS) throw new Error(`Tautan butir ceklis paling panjang ${TAUTAN_SUB_MAKS} karakter.`);
     return url;
   }
   function tambahSubtask(data, t, f, me, waktu) {
-    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur sub-task.');
+    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur ceklis.');
     const judul = teks(f.title).slice(0, 200);
-    if (!judul) throw new Error('Judul sub-task wajib diisi.');
+    if (!judul) throw new Error('Judul butir ceklis wajib diisi.');
     const s = { id: `s${waktu}-${t.subtasks.length}`, title: judul, pic: teks(f.pic) || t.pic, due: '', done: false, link: tautanSub(f.link) };
     t.subtasks.push(s);
     t.updatedAt = waktu;
-    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Sub-task ditambah: ' + judul, me, waktu);
+    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Ceklis ditambah: ' + judul, me, waktu);
     return s;
   }
   function ubahSubtask(data, t, id, f, me, waktu) {
-    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur sub-task.');
+    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur ceklis.');
     const s = cariSubtask(t, id);
     const judul = f.title === undefined ? s.title : teks(f.title).slice(0, 200);
-    if (!judul) throw new Error('Judul sub-task wajib diisi.');
+    if (!judul) throw new Error('Judul butir ceklis wajib diisi.');
     const lama = s.title;
     const linkLama = s.link || '';
     const link = f.link === undefined ? linkLama : tautanSub(f.link);
@@ -778,24 +777,24 @@
     if (link !== linkLama) s.link = link;
     t.updatedAt = waktu;
     const ket = link === linkLama ? '' : `; tautan ${!link ? 'dihapus' : linkLama ? 'diganti' : 'ditambah'}`;
-    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Sub-task diubah: ' + (lama === judul ? judul : `${lama} → ${judul}`) + ket, me, waktu);
+    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Ceklis diubah: ' + (lama === judul ? judul : `${lama} → ${judul}`) + ket, me, waktu);
     return s;
   }
   function hapusSubtask(data, t, id, me, waktu) {
-    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur sub-task.');
+    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur ceklis.');
     const s = cariSubtask(t, id);
     t.subtasks.splice(t.subtasks.indexOf(s), 1);
     t.updatedAt = waktu;
-    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Sub-task dihapus: ' + s.title, me, waktu);
+    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Ceklis dihapus: ' + s.title, me, waktu);
     return s;
   }
-  /* Mencentang juga boleh PIC sub-task itu sendiri. */
+  /* Mencentang juga boleh PIC butir ceklis itu sendiri. */
   function centangSubtask(data, t, id, done, me, waktu) {
     const s = cariSubtask(t, id);
-    if (!bolehUbah(t, me) && s.pic !== me) throw new Error('Hanya PIC sub-task, PIC task, Lead-nya, atau Manager yang mencentangnya.');
+    if (!bolehUbah(t, me) && s.pic !== me) throw new Error('Hanya PIC butir ceklis, PIC task, Lead-nya, atau Manager yang mencentangnya.');
     s.done = !!done;
     t.updatedAt = waktu;
-    catatLog(data, 'update', `${t.id} · ${t.title}`, `Sub-task ${s.done ? 'selesai' : 'dibuka lagi'}: ${s.title}`, me, waktu);
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Ceklis ${s.done ? 'selesai' : 'dibuka lagi'}: ${s.title}`, me, waktu);
     return s;
   }
 
@@ -892,6 +891,23 @@
     };
     data.projects.unshift(p);
     catatLog(data, 'create', `${p.id} · ${p.name}`, 'Proyek dibuat', me, waktu);
+    return p;
+  }
+
+  /* Ubah proyek (2.28.0, permintaan user): nama, platform, dan tujuan proyek yang sudah dibuat.
+     Hanya Manager, yang juga membuat proyek. ID, siklus, tahap, dan task-nya tetap. */
+  function ubahProyek(data, p, f, me, waktu) {
+    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengubah proyek.');
+    if (!p || data.projects.indexOf(p) < 0) throw new Error('Proyek tidak ditemukan.');
+    const nama = teks(f.name === undefined ? p.name : f.name).replace(/\s+/g, ' ');
+    if (!nama) throw new Error('Nama proyek wajib diisi.');
+    if (nama.length > 200) throw new Error('Nama proyek paling panjang 200 karakter.');
+    const platform = f.platform === undefined ? p.platform : teks(f.platform) || 'All Platform';
+    const goal = f.goal === undefined ? p.goal : String(f.goal || '').trim().slice(0, 2000);
+    const ubah = [nama !== p.name ? `nama dari "${p.name}"` : '', platform !== p.platform ? `platform ${p.platform} → ${platform}` : '', goal !== (p.goal || '') ? 'tujuan' : ''].filter(Boolean);
+    if (!ubah.length) return p;
+    Object.assign(p, { name: nama, platform, goal });
+    catatLog(data, 'update', `${p.id} · ${nama}`, 'Proyek diubah: ' + ubah.join(', '), me, waktu);
     return p;
   }
 
@@ -1027,8 +1043,8 @@
       ['hari', 'Hari ini', jalan.filter(t => t.due === hariIni).map(t => mau(t))],
       ['minggu', '7 hari ke depan', jalan.filter(t => t.due > hariIni && t.due <= batasMinggu).map(t => mau(t))],
       ['nanti', 'Nanti', jalan.filter(t => !t.due || t.due > batasMinggu).map(t => mau(t))],
-      ['sub', 'Sub-task untuk saya', data.tasks.filter(t => aktif(t) && t.pic !== me)
-        .flatMap(t => t.subtasks.filter(s => !s.done && s.pic === me).map(s => mau(t, 'Sub-task: ' + s.title)))],
+      ['sub', 'Ceklis untuk saya', data.tasks.filter(t => aktif(t) && t.pic !== me)
+        .flatMap(t => t.subtasks.filter(s => !s.done && s.pic === me).map(s => mau(t, 'Ceklis: ' + s.title)))],
       ['tunggu', 'Belum bisa dikerjakan', tunggu.map(t => mau(t, alasanTunggu(t, perId)))],
       ['bantu', 'Saya bantu', data.tasks.filter(t => aktif(t) && t.pic !== me && (t.support || []).includes(me)).map(t => mau(t, 'PIC: ' + orang(t.pic).pendek))],
     ];
@@ -1351,7 +1367,9 @@
   const KUAT_LATAR = [10, 60, 40];   // paling samar, paling jelas, bawaan (%)
   const PADAT = [['', 'Nyaman'], ['ringkas', 'Ringkas']];
   const HURUF = [['kecil', 'Kecil'], ['', 'Sedang'], ['besar', 'Besar']];
-  const HALAMAN_AWAL = ['hari', 'dashboard', 'laporan', 'paket', 'proyek', 'task', 'komunikasi', 'link', 'catatan', 'riwayat', 'panduan'];
+  const HALAMAN_AWAL = ['hari', 'dashboard', 'laporan', 'paket', 'proyek', 'task', 'komunikasi', 'agenda', 'link', 'catatan', 'riwayat', 'panduan'];
+  /* Bahasa tampilan per profil (2.28.0): '' = Indonesia (bawaan), 'en' = English. */
+  const BAHASA_TAMPILAN = [['', 'Indonesia'], ['en', 'English']];
   /* Status: emoji dari daftar ini (bukan teks bebas, supaya aman dipasang di CSS) + teks pendek. */
   const STATUS_SIAP = [['🎯', 'Fokus'], ['📅', 'Rapat'], ['🏠', 'WFH'], ['🏖️', 'Cuti'], ['🤒', 'Sakit'], ['🚗', 'Di jalan'],
     ['☕', 'Istirahat'], ['🕌', 'Ibadah']];
@@ -1360,7 +1378,7 @@
   const STATUS_BATAS = 31 * 864e5;
   const SAMPUL_MAKS = 45000;
   const sampulSah = g => typeof g === 'string' && g.length <= SAMPUL_MAKS && POLA_FOTO.test(g);
-  const tampilanBawaan = () => ({ aksen: '', latar: '', kuatLatar: KUAT_LATAR[2], padat: '', huruf: '', awal: '', status: null, sampulAt: 0 });
+  const tampilanBawaan = () => ({ aksen: '', latar: '', kuatLatar: KUAT_LATAR[2], padat: '', huruf: '', awal: '', bahasa: '', status: null, sampulAt: 0 });
 
   /* ketat = isian dari browser (galat bila tak sah); longgar = baris tab (yang tak sah jadi
      bawaan, supaya satu sel rusak tak menghentikan aplikasi). Status yang sudah lewat waktunya
@@ -1398,7 +1416,7 @@
     return {
       aksen, latar: pilih(v.latar, LATAR, 'Latar tidak dikenal.'), kuatLatar: kuat,
       padat: pilih(v.padat, PADAT, 'Kepadatan tidak dikenal.'), huruf: pilih(v.huruf, HURUF, 'Ukuran huruf tidak dikenal.'),
-      awal, status, sampulAt: Math.max(0, Number(v.sampulAt) || 0),
+      awal, bahasa: pilih(v.bahasa, BAHASA_TAMPILAN, 'Bahasa tidak dikenal.'), status, sampulAt: Math.max(0, Number(v.sampulAt) || 0),
     };
   }
   const statusAktif = (setelan, sekarang = Date.now()) => {
@@ -1889,6 +1907,82 @@
   const angkaPositif = v => { const n = Number(String(v == null ? '' : v).replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : 0; };
   const teks = v => String(v == null ? '' : v).trim();
 
+  /* ---------- Kalender Saya (2.28.0, permintaan user) ----------
+     Agenda pribadi tiap profil: aktivitas harian dengan jam (atau sepanjang hari), bisa berulang,
+     dengan pengingat di aplikasi. Disimpan di server per profil (tab agenda), hanya dikirim ke
+     profil pemiliknya. Email pribadi opsional disimpan untuk pengingat email nanti (tahap 2). */
+  const ULANG_AGENDA = ['', 'harian', 'kerja', 'mingguan', 'bulanan'];
+  const PENGINGAT_AGENDA = ['', '0', '5', '10', '15', '30', '60', '1440'];
+  const POLA_JAM = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const POLA_TGL = /^\d{4}-\d{2}-\d{2}$/;
+  const tglSah = s => POLA_TGL.test(s) && isoHari(keTanggal(s)) === s;
+  const AGENDA_JUDUL_MAKS = 200;
+  const AGENDA_CATATAN_MAKS = 1000;
+  function periksaAgenda(x) {
+    const v = x && typeof x === 'object' ? x : {};
+    const t = s => String(s == null ? '' : s).trim();
+    const judul = t(v.judul).replace(/\s+/g, ' ');
+    if (!judul) throw new Error('Judul agenda wajib diisi.');
+    if (judul.length > AGENDA_JUDUL_MAKS) throw new Error(`Judul agenda paling panjang ${AGENDA_JUDUL_MAKS} karakter.`);
+    const tanggal = t(v.tanggal);
+    if (!tglSah(tanggal)) throw new Error('Tanggal agenda tidak sah.');
+    const mulai = t(v.mulai), selesai = t(v.selesai);
+    if (mulai && !POLA_JAM.test(mulai)) throw new Error('Jam mulai tidak sah (JJ:MM).');
+    if (selesai && !POLA_JAM.test(selesai)) throw new Error('Jam selesai tidak sah (JJ:MM).');
+    if (selesai && !mulai) throw new Error('Isi jam mulai dulu, atau kosongkan keduanya untuk agenda sepanjang hari.');
+    if (mulai && selesai && selesai <= mulai) throw new Error('Jam selesai harus sesudah jam mulai.');
+    const ulang = t(v.ulang);
+    if (!ULANG_AGENDA.includes(ulang)) throw new Error('Pilihan pengulangan tidak dikenal.');
+    const sampai = ulang ? t(v.sampai) : '';
+    if (sampai && (!tglSah(sampai) || sampai < tanggal)) throw new Error('Tanggal akhir pengulangan harus sesudah tanggal mulai.');
+    const pengingat = t(v.pengingat);
+    if (!PENGINGAT_AGENDA.includes(pengingat)) throw new Error('Pilihan pengingat tidak dikenal.');
+    const catatan = t(v.catatan);
+    if (catatan.length > AGENDA_CATATAN_MAKS) throw new Error(`Catatan agenda paling panjang ${AGENDA_CATATAN_MAKS} karakter.`);
+    // Tanggal yang sudah dicentang selesai (agenda berulang: per tanggal); yang terbaru 400 saja.
+    const beres = [...new Set((Array.isArray(v.beres) ? v.beres : []).map(t).filter(tglSah))].sort().slice(-400);
+    const id = t(v.id);
+    if (id && !/^ag[a-z0-9-]{4,40}$/.test(id)) throw new Error('ID agenda tidak sah.');
+    return { id, judul, tanggal, mulai, selesai: mulai ? selesai : '', ulang, sampai, pengingat, catatan, beres };
+  }
+  /* Apakah agenda a terjadi pada tanggal tgl. */
+  function adaPadaTanggal(a, tgl) {
+    if (!a || !tglSah(tgl) || tgl < a.tanggal || (a.sampai && tgl > a.sampai)) return false;
+    if (!a.ulang) return tgl === a.tanggal;
+    if (a.ulang === 'harian') return true;
+    const hari = keTanggal(tgl).getDay();
+    if (a.ulang === 'kerja') return hari >= 1 && hari <= 5;
+    if (a.ulang === 'mingguan') return hari === keTanggal(a.tanggal).getDay();
+    // Bulanan: tanggal yang sama; bulan tanpa tanggal itu (mis. 31) dilewati.
+    if (a.ulang === 'bulanan') return tgl.slice(8) === a.tanggal.slice(8);
+    return false;
+  }
+  /* Kejadian agenda di antara dari..sampai (termasuk), urut menurut tanggal lalu jam. */
+  function kejadianAgenda(daftar, dari, sampai) {
+    const hasil = [];
+    for (let d = dari, n = 0; d <= sampai && n < 400; d = tambahHari(d, 1), n++) {
+      for (const a of daftar || []) if (adaPadaTanggal(a, d)) hasil.push({ a, tanggal: d, beres: (a.beres || []).includes(d) });
+    }
+    return hasil.sort((x, y) => x.tanggal.localeCompare(y.tanggal) || (x.a.mulai || '').localeCompare(y.a.mulai || '') || x.a.judul.localeCompare(y.a.judul));
+  }
+  /* Kapan pengingat kejadian ini berbunyi (milidetik, zona lokal), 0 = tanpa pengingat. Agenda
+     sepanjang hari diingatkan pukul 07.00 di harinya (atau sehari sebelumnya untuk "1 hari"). */
+  function waktuPengingat(a, tgl) {
+    if (!a || a.pengingat === '') return 0;
+    const [j, m] = (a.mulai || '07:00').split(':').map(Number);
+    const d = keTanggal(tgl);
+    d.setHours(j, m, 0, 0);
+    const menit = Number(a.pengingat) || 0;
+    return d.getTime() - (a.mulai ? menit : menit >= 1440 ? 1440 : 0) * 60000;
+  }
+  /* Email pribadi (opsional): '' boleh; selain itu harus berbentuk alamat email. */
+  function periksaEmail(s) {
+    const e = String(s == null ? '' : s).trim().toLowerCase();
+    if (!e) return '';
+    if (e.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) throw new Error('Alamat email tidak sah.');
+    return e;
+  }
+
   /* ---------- Platform dan jadwal pendaftaran paket (2.18.0) ----------
      Satu paket boleh beberapa platform. Tetap satu isian teks dipisah koma ("ASN, BUMN"), supaya
      data lama, tab packages, sheet Marsel, dan pencarian tak berubah; urutannya mengikuti
@@ -1985,7 +2079,7 @@
   }
 
   /* Hapus proyek (2.22.0, permintaan user). Hanya Manager, yang juga membuat proyek. Ikut
-     terhapus: semua task proyek itu di semua siklus (termasuk turunan, sub-task, komentar,
+     terhapus: semua task proyek itu di semua siklus (termasuk turunan, ceklis, komentar,
      tinjauan, dan bukti yang tersimpan di dalam task) dan setoran task-task itu, jadi progres
      paket dari proyek ini hilang dan targetnya terbuka lagi untuk dielaborasi. Riwayat Aktivitas
      tetap, dan pesan Komunikasi tetap tersimpan (tab obrolan hanya bertambah). Arsip tetap jalan
@@ -3039,6 +3133,7 @@
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
     aturTunggu: (d, x, me, w) => aturTunggu(d, tugas(d, x), x, me, w),
     hapusProyek: (d, x, me, w) => hapusProyek(d, proyekX(d, x), me, w),
+    ubahProyek: (d, x, me, w) => ubahProyek(d, proyekX(d, x), x.f || {}, me, w),
     hapusTask: (d, x, me, w) => hapusTask(d, x.tasks || x.task, me, w),
     ubahNamaPaket: (d, x, me, w) => ubahNamaPaket(d, paketX(d, x), x.nama, me, w),
     elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
@@ -3159,13 +3254,14 @@
     WARNA_CATATAN, warnaiCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
     JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar,
     FOTO_MAKS, fotoSah, periksaFoto,
-    AKSEN, AKSEN_BAWAAN, LATAR, KUAT_LATAR, PADAT, HURUF, HALAMAN_AWAL, STATUS_SIAP, EMOJI_STATUS, STATUS_TEKS_MAKS, SAMPUL_MAKS, sampulSah,
+    AKSEN, AKSEN_BAWAAN, LATAR, KUAT_LATAR, PADAT, HURUF, HALAMAN_AWAL, BAHASA_TAMPILAN, STATUS_SIAP, EMOJI_STATUS, STATUS_TEKS_MAKS, SAMPUL_MAKS, sampulSah,
     tampilanBawaan, periksaTampilan, statusAktif, tokenAksen, kontras,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
     centangSubtask, dataKosong, AKSI_DATA, jalankanPerintah, periksaPerintah, ringkasHasil, KOLEKSI_REAL, bedaData, terapkanUbah,
     KODE_AI, AKSI_AGEN, PESAN_AGEN,
+    ULANG_AGENDA, PENGINGAT_AGENDA, periksaAgenda, adaPadaTanggal, kejadianAgenda, waktuPengingat, periksaEmail,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
     SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
-    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, pindahSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
+    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, ubahProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, pindahSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
   };
 }));

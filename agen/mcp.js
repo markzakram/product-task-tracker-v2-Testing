@@ -77,7 +77,7 @@ function teksDetail(k, id) {
   out.push(`Output: ${t.output ? K.potong(t.output, 1200) : '(kosong)'}`);
   out.push(`Bukti: ${t.evidence.length ? '' : '(belum ada)'}`);
   for (const e of t.evidence) out.push(`- ${e.label} (${e.url})`);
-  out.push(`Sub-task: ${t.subtasks.length ? '' : '(tidak ada)'}`);
+  out.push(`Ceklis: ${t.subtasks.length ? '' : '(tidak ada)'}`);
   for (const s of t.subtasks) out.push(`- [${s.done ? 'x' : ' '}] ${s.id} · ${s.title} · PIC ${nama(s.pic)}${s.link ? ` · ${s.link}` : ''}`);
   if (t.lane === 'proyek') out.push('Syarat ajukan: ' + I.syaratAjukan(t, k.perId).map(s => `${s.ok ? '✓' : '✗'} ${s.label}`).join('; '));
   const aksi = I.aksiUntuk(t, k.me, k.perId);
@@ -135,7 +135,7 @@ const teks = { type: 'string' };
 const ALAT = [
   {
     name: 'pekerjaan_saya', title: 'Pekerjaan Ali',
-    description: 'Daftar pekerjaan Ali di ProductTrack: perlu ditinjau, antrean tim, terlambat, tenggat hari ini dan 7 hari ke depan, sub-task, task yang belum bisa dikerjakan, task yang dikembalikan untuk direvisi, dan pesan yang menunggu jawaban Ali. Mulai dari sini.',
+    description: 'Daftar pekerjaan Ali di ProductTrack: perlu ditinjau, antrean tim, terlambat, tenggat hari ini dan 7 hari ke depan, ceklis, task yang belum bisa dikerjakan, task yang dikembalikan untuk direvisi, dan pesan yang menunggu jawaban Ali. Mulai dari sini.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     baca: true,
     jalankan: async c => teksPekerjaan(await c.keadaan()),
@@ -149,7 +149,7 @@ const ALAT = [
   },
   {
     name: 'detail_task', title: 'Detail task',
-    description: 'Detail satu task: status, PIC, peninjau, tenggat, output, bukti, sub-task (dengan id-nya), syarat ajukan, aksi yang tersedia untuk Ali, riwayat tinjauan, diskusi (dengan id pesan), dan aktivitas terakhir.',
+    description: 'Detail satu task: status, PIC, peninjau, tenggat, output, bukti, ceklis (dengan id-nya), syarat ajukan, aksi yang tersedia untuk Ali, riwayat tinjauan, diskusi (dengan id pesan), dan aktivitas terakhir.',
     inputSchema: { type: 'object', properties: { task: { ...teks, description: 'ID task, mis. PRD-123' } }, required: ['task'], additionalProperties: false },
     baca: true,
     jalankan: async (c, a) => teksDetail(await c.keadaan(), a.task),
@@ -212,16 +212,16 @@ const ALAT = [
     jalankan: async (c, a) => tersimpan(await c.ubah('tambahBukti', { task: String(a.task || '').toUpperCase(), f: { url: String(a.url || ''), label: String(a.label || '') } }), `Bukti ditambahkan ke ${String(a.task).toUpperCase()}.`),
   },
   {
-    name: 'tambah_subtask', title: 'Tambah sub-task',
-    description: 'Tambah sub-task ke task (PIC bawaannya PIC task). Perlu persetujuan Ali.',
-    inputSchema: { type: 'object', properties: { task: teks, judul: teks, pic: { ...teks, description: 'nama pendek PIC sub-task (opsional)' }, tautan: { ...teks, description: 'https://… (opsional; hanya tautan nyata dari Ali atau hasil kerjanya)' } }, required: ['task', 'judul'], additionalProperties: false },
-    jalankan: async (c, a) => tersimpan(await c.ubah('tambahSubtask', { task: String(a.task || '').toUpperCase(), f: { title: String(a.judul || ''), ...(a.pic ? { pic: profilDari(a.pic) } : {}), ...(a.tautan ? { link: String(a.tautan) } : {}) } }), `Sub-task ditambahkan ke ${String(a.task).toUpperCase()}.`),
+    name: 'tambah_subtask', title: 'Tambah ceklis',
+    description: 'Tambah ceklis ke task (PIC bawaannya PIC task). Perlu persetujuan Ali.',
+    inputSchema: { type: 'object', properties: { task: teks, judul: teks, pic: { ...teks, description: 'nama pendek PIC butir ceklis (opsional)' }, tautan: { ...teks, description: 'https://… (opsional; hanya tautan nyata dari Ali atau hasil kerjanya)' } }, required: ['task', 'judul'], additionalProperties: false },
+    jalankan: async (c, a) => tersimpan(await c.ubah('tambahSubtask', { task: String(a.task || '').toUpperCase(), f: { title: String(a.judul || ''), ...(a.pic ? { pic: profilDari(a.pic) } : {}), ...(a.tautan ? { link: String(a.tautan) } : {}) } }), `Butir ceklis ditambahkan ke ${String(a.task).toUpperCase()}.`),
   },
   {
-    name: 'centang_subtask', title: 'Centang sub-task',
-    description: 'Tandai sub-task selesai (selesai: true) atau buka lagi (false). id sub-task dari detail_task. Perlu persetujuan Ali.',
-    inputSchema: { type: 'object', properties: { task: teks, subtask: { ...teks, description: 'id sub-task, mis. s1791…-0' }, selesai: { type: 'boolean' } }, required: ['task', 'subtask', 'selesai'], additionalProperties: false },
-    jalankan: async (c, a) => tersimpan(await c.ubah('centangSubtask', { task: String(a.task || '').toUpperCase(), sub: String(a.subtask || ''), done: !!a.selesai }), `Sub-task ${a.subtask} ${a.selesai ? 'ditandai selesai' : 'dibuka lagi'}.`),
+    name: 'centang_subtask', title: 'Centang ceklis',
+    description: 'Tandai ceklis selesai (selesai: true) atau buka lagi (false). id butir ceklis dari detail_task. Perlu persetujuan Ali.',
+    inputSchema: { type: 'object', properties: { task: teks, subtask: { ...teks, description: 'id butir ceklis, mis. s1791…-0' }, selesai: { type: 'boolean' } }, required: ['task', 'subtask', 'selesai'], additionalProperties: false },
+    jalankan: async (c, a) => tersimpan(await c.ubah('centangSubtask', { task: String(a.task || '').toUpperCase(), sub: String(a.subtask || ''), done: !!a.selesai }), `Butir ceklis ${a.subtask} ${a.selesai ? 'ditandai selesai' : 'dibuka lagi'}.`),
   },
   {
     name: 'aksi_task', title: 'Aksi status task',

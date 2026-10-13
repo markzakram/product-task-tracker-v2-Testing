@@ -17,13 +17,13 @@ const gambarUji = (n, isi = 'A') => 'data:image/jpeg;base64,' + isi.repeat(n);
 
 test('periksaTampilan: isian dibersihkan; yang tak sah ditolak (ketat) atau jadi bawaan (dari tab)', () => {
   assert.deepEqual(I.periksaTampilan({}), I.tampilanBawaan());
-  const t = I.periksaTampilan({ aksen: '#6e3fc1', latar: 'senja', kuatLatar: 95, padat: 'ringkas', huruf: 'besar', awal: 'task', lain: 'x' }, { ketat: true });
-  assert.deepEqual(t, { aksen: '#6E3FC1', latar: 'senja', kuatLatar: I.KUAT_LATAR[1], padat: 'ringkas', huruf: 'besar', awal: 'task', status: null, sampulAt: 0 });
+  const t = I.periksaTampilan({ aksen: '#6e3fc1', latar: 'senja', kuatLatar: 95, padat: 'ringkas', huruf: 'besar', awal: 'task', bahasa: 'en', lain: 'x' }, { ketat: true });
+  assert.deepEqual(t, { aksen: '#6E3FC1', latar: 'senja', kuatLatar: I.KUAT_LATAR[1], padat: 'ringkas', huruf: 'besar', awal: 'task', bahasa: 'en', status: null, sampulAt: 0 });
   assert.equal(I.periksaTampilan({ aksen: I.AKSEN_BAWAAN }).aksen, '', 'biru bawaan = tanpa penimpaan');
   assert.equal(I.periksaTampilan({ kuatLatar: 2 }).kuatLatar, I.KUAT_LATAR[0]);
   for (const [isian, pola] of [
     [{ aksen: 'merah' }, /aksen/], [{ aksen: '#12345' }, /aksen/], [{ latar: 'pantai' }, /Latar/], [{ padat: 'sangat' }, /Kepadatan/],
-    [{ huruf: 'raksasa' }, /huruf/], [{ awal: 'dev' }, /Halaman awal/], [{ status: { emoji: '<b>', teks: 'x' } }, /Emoji/],
+    [{ huruf: 'raksasa' }, /huruf/], [{ awal: 'dev' }, /Halaman awal/], [{ bahasa: 'fr' }, /Bahasa/], [{ status: { emoji: '<b>', teks: 'x' } }, /Emoji/],
     [{ status: { emoji: '🎯', teks: 'x'.repeat(61) } }, /60 karakter/], [{ status: { emoji: '🎯', sampai: SEKARANG + 40 * 864e5 } }, /31 hari/],
   ]) {
     assert.throws(() => I.periksaTampilan(isian, { ketat: true, sekarang: SEKARANG }), pola, JSON.stringify(isian));

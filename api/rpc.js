@@ -24,6 +24,7 @@
      POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Lead/Manager/Dev] daftar pilihan (halaman Master);
                     isian { kunci, dihapus: true } menghapus sub-stage yang belum dipakai (2.24.0)
      POST /api/rpc  { action: 'pindahSub', args: [dari, ke] }  [Lead/Manager/Dev] pindahkan sub-stage ke kode lain (2.25.0)
+     POST /api/rpc  { action: 'muatAgenda' | 'simpanAgenda' | 'hapusAgenda' | 'simpanPribadi' }  Kalender Saya profil sesi ini (2.28.0)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
      POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
      POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
@@ -104,6 +105,13 @@ async function taskSumber(k, id) {
   if (await sheet.sumberData(k, id) === 'real') return { label: 'data real', tasks: await dataReal.tasksKini(k, id) };
   const contoh = await sheet.bacaContoh(k, id);
   return { label: 'data contoh', tasks: contoh.data ? contoh.data.tasks : [] };
+}
+/* Profil pemilik Kalender Saya di sesi ini. */
+async function profilAgenda(konteks, k) {
+  await terapkanOrang(k);
+  const me = await meSah(konteks, k);
+  if (!me || !Inti.ORANG.some(o => o.id === me && o.aktif !== false)) throw new GalatIzin('Pilih profil Anda dulu: Kalender Saya hanya untuk profil yang sedang dipakai.');
+  return me;
 }
 async function bolehMaster(konteks, k) {
   if (konteks.dev) return;
@@ -313,6 +321,45 @@ const AKSI = {
       if (sampul && !Inti.sampulSah(sampul)) throw new GalatIsian('Format gambar sampul tidak dikenal. Pakai JPG, PNG, atau WebP.');
     }
     return { tampilan: await sheet.tulisTampilan(k, sheet.idSpreadsheet(), { orang, setelan, sampul }) };
+  },
+  /* ----- Kalender Saya (2.28.0) -----
+     Hanya untuk profil yang terbukti di sesi ini (lewat PIN-nya, atau tak ber-PIN); tiap profil
+     hanya melihat dan mengubah agendanya sendiri. Sesi agen dan akun Dev tak punya kalender. */
+  async muatAgenda() {
+    const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
+    const me = await profilAgenda(this, k);
+    const [baris, pribadi] = await Promise.all([sheet.bacaAgenda(k, id, me), sheet.bacaPribadi(k, id, me)]);
+    const agenda = [];
+    for (const b of baris) { try { agenda.push({ ...Inti.periksaAgenda(b), diperbarui: b.diperbarui }); } catch (err) { /* baris rusak dilewati */ } }
+    return { orang: me, agenda, pribadi };
+  },
+  async simpanAgenda(isian) {
+    const k = await sheet.klien();
+    const me = await profilAgenda(this, k);
+    let a;
+    try { a = Inti.periksaAgenda(isian); } catch (err) { throw new GalatIsian(err.message); }
+    const baru = !a.id;
+    if (baru) a.id = 'ag' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+    if (!(await sheet.tulisAgenda(k, sheet.idSpreadsheet(), { ...a, orang: me }, baru))) throw new GalatIsian('Agenda tidak ditemukan. Muat ulang halaman.');
+    return { agenda: a };
+  },
+  async hapusAgenda(idAgenda) {
+    const k = await sheet.klien();
+    const me = await profilAgenda(this, k);
+    const id = sheet.idSpreadsheet();
+    const ada = (await sheet.bacaAgenda(k, id, me)).find(a => a.id === String(idAgenda || ''));
+    if (!ada) throw new GalatIsian('Agenda tidak ditemukan.');
+    await sheet.tulisAgenda(k, id, { ...ada, dihapus: true }, false);
+    return { id: ada.id };
+  },
+  async simpanPribadi(isian) {
+    const k = await sheet.klien();
+    const me = await profilAgenda(this, k);
+    let email;
+    try { email = Inti.periksaEmail(isian && isian.email); } catch (err) { throw new GalatIsian(err.message); }
+    await sheet.tulisPribadi(k, sheet.idSpreadsheet(), { orang: me, email });
+    return { pribadi: { email } };
   },
   /* ----- Master & PIN (0.14.0) ----- */
   async simpanMaster(jenis, isian) {

@@ -56,19 +56,19 @@ test('alur proyek: staff mengajukan, hanya Lead-nya (atau Manager) yang menyetuj
   assert.deepEqual(t.tinjauan.map(r => [r.action, r.by]), [['Diajukan', 'kiki'], ['Disetujui', 'alya']]);
 });
 
-test('syarat ajukan (PRD): output, tautan bukti, sub-task, dependency, tidak tertahan', () => {
+test('syarat ajukan (PRD): output, ceklis pengerjaan, dependency, tidak tertahan; tautan opsional (2.28.0)', () => {
   const dulu = task({ pic: 'tri', status: 'Dikerjakan' });
   const t = task({ lane: 'proyek', sub: 'DV1', pic: 'uma', status: 'Dikerjakan', deps: [dulu.id],
     subtasks: [{ id: 's1', title: 'Soal 1–20', pic: 'uma', due: '', done: false }] });
   const d = data([dulu, t]);
   const ajukan = () => I.aksiUntuk(t, 'uma', I.indeks(d)).find(a => a.kunci === 'ajukan');
   assert.equal(ajukan().nonaktif, true);
-  assert.equal(ajukan().alasan, 'Lengkapi dulu: output terisi, minimal satu tautan bukti, semua sub-task selesai, task yang ditunggu sudah selesai');
+  assert.equal(ajukan().alasan, 'Lengkapi dulu: output terisi, semua ceklis pengerjaan selesai, task yang ditunggu sudah selesai');
   I.isiOutput(d, t, '20 soal TIU + pembahasan', 'uma', WAKTU);
-  I.tambahBukti(d, t, { url: 'docs.google.com/spreadsheets/d/soal' }, 'uma', WAKTU);
   t.subtasks[0].done = true;
   dulu.status = 'Selesai';
-  assert.equal(ajukan().nonaktif, false, 'staff mengisi output & bukti task-nya sendiri');
+  assert.equal(ajukan().nonaktif, false, 'tanpa tautan pun boleh diajukan: tautan opsional');
+  I.tambahBukti(d, t, { url: 'docs.google.com/spreadsheets/d/soal' }, 'uma', WAKTU);
   assert.deepEqual(t.evidence.map(e => [e.label, e.url]), [['Google Sheets', 'https://docs.google.com/spreadsheets/d/soal']]);
   assert.throws(() => I.tambahBukti(d, t, { url: 'javascript:alert(1)' }, 'uma', WAKTU), /tidak valid/);
   assert.throws(() => I.isiOutput(d, t, 'x', 'kiki', WAKTU), /Hanya PIC/);
@@ -557,7 +557,7 @@ test('task turunan: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, 
   } finally { I.aturOrang([]); }
 });
 
-test('sub-task: PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus', () => {
+test('ceklis pengerjaan (dulu sub-task): PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus', () => {
   const t = task({ lane: 'proyek', pic: 'kiki', status: 'Dikerjakan' });
   const d = data([t]);
   const s = I.tambahSubtask(d, t, { title: ' Cek urutan soal ', pic: 'kiki' }, 'kiki', WAKTU);
@@ -571,17 +571,17 @@ test('sub-task: PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus', 
   assert.throws(() => I.hapusSubtask(d, t, s.id, 'uma', WAKTU), /Hanya PIC/);
   I.hapusSubtask(d, t, s.id, 'nynda', WAKTU + 2);
   assert.equal(t.subtasks.length, 0);
-  assert.match(d.log[0].detail, /Sub-task dihapus: Cek urutan & kunci/);
+  assert.match(d.log[0].detail, /Ceklis dihapus: Cek urutan & kunci/);
 });
 
-test('sub-task: tautan opsional (2.24.0), dirapikan dan diperiksa; bisa ditambah, diganti, dan dihapus', () => {
+test('ceklis pengerjaan: tautan opsional (2.24.0), dirapikan dan diperiksa; bisa ditambah, diganti, dan dihapus', () => {
   const t = task({ lane: 'proyek', pic: 'kiki', status: 'Dikerjakan' });
   const d = data([t]);
   const tanpa = I.tambahSubtask(d, t, { title: 'Tanpa tautan' }, 'kiki', WAKTU);
   assert.equal(tanpa.link, '');
   const s = I.tambahSubtask(d, t, { title: 'Cek soal', link: ' docs.google.com/document/d/abc ' }, 'kiki', WAKTU + 1);
   assert.equal(s.link, 'https://docs.google.com/document/d/abc', 'https:// ditambahkan sendiri');
-  assert.throws(() => I.tambahSubtask(d, t, { title: 'x', link: 'javascript:alert(1)' }, 'kiki', WAKTU), /Tautan sub-task tidak valid/);
+  assert.throws(() => I.tambahSubtask(d, t, { title: 'x', link: 'javascript:alert(1)' }, 'kiki', WAKTU), /Tautan butir ceklis tidak valid/);
   assert.throws(() => I.tambahSubtask(d, t, { title: 'x', link: 'bukan tautan' }, 'kiki', WAKTU), /tidak valid/);
   assert.throws(() => I.tambahSubtask(d, t, { title: 'x', link: 'https://a.co/' + 'x'.repeat(2000) }, 'kiki', WAKTU), /paling panjang 2000/);
   // Mengubah judul saja tak menyentuh tautannya.

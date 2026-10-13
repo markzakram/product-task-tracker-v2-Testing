@@ -2017,3 +2017,31 @@ html[data-latar] { --redup: var(--redup-latar); --samar: var(--samar-latar); }
 .mst-langkah.diseret { opacity: 0.45; }
 .mst-langkah.sisip-atas { box-shadow: 0 -3px 0 0 var(--biru); }
 .mst-langkah.sisip-bawah { box-shadow: 0 3px 0 0 var(--biru); }
+
+/* Kalender Saya (2.28.0): agenda pribadi di kisi kalender, daftar per tanggal, dan kartu di Hari Ini. */
+.kal-agenda { display: block; width: 100%; padding: 2px 6px; border: 0; border-left: 3px solid var(--biru); border-radius: 5px; background: var(--biru-muda); color: var(--biru-tua); font-size: calc(11.5px * var(--skala-huruf)); font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kal-agenda b { font-weight: 700; }
+.kal-agenda.beres { opacity: 0.6; text-decoration: line-through; }
+.alat-agenda { flex-wrap: wrap; }
+.alat-agenda .alat-kanan { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.alat-agenda [aria-pressed="true"] { background: var(--biru-muda); border-color: var(--biru-garis); color: var(--biru-tua); }
+.daftar-agenda { display: flex; flex-direction: column; gap: 6px; }
+.baris-agenda { display: flex; align-items: center; gap: 8px; }
+.baris-agenda > input { flex: none; width: 20px; height: 20px; margin: 0 4px; accent-color: var(--biru); }
+.baris-agenda-isi { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 14px; border: 1px solid var(--garis); border-radius: 12px; background: var(--muka); text-align: left; color: var(--tinta); }
+.baris-agenda-isi:hover { border-color: var(--biru-garis); }
+.agenda-jam { flex: none; min-width: 92px; font-size: calc(13px * var(--skala-huruf)); font-weight: 700; color: var(--biru-tua); font-variant-numeric: tabular-nums; }
+.agenda-judul { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; font-weight: 600; overflow-wrap: anywhere; }
+.agenda-judul small { font-weight: 400; color: var(--redup); font-size: calc(12.5px * var(--skala-huruf)); }
+.agenda-tanda { flex: none; display: inline-flex; gap: 4px; color: var(--redup); }
+.baris-agenda.beres .agenda-judul { text-decoration: line-through; color: var(--redup); }
+.kartu-agenda { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.kartu-agenda-kepala { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.kartu-agenda-kepala .subjudul { margin: 0; }
+.modal-kaki .kaki-kiri { margin-right: auto; }
+.form-agenda .agenda-sehari { align-self: end; min-height: 44px; }
+@media (max-width: 600px) {
+  .agenda-jam { min-width: 0; }
+  .baris-agenda-isi { flex-wrap: wrap; gap: 4px 10px; }
+  .alat-agenda .alat-kanan { margin-left: 0; width: 100%; }
+}

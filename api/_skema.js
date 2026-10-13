@@ -76,6 +76,29 @@ const ORANG_KOLOM = ['id', 'nama', 'pendek', 'peran', 'jabatan', 'lead', 'tim', 
 const TAB_MASTER = 'master';
 const MASTER_KOLOM = ['jenis', 'kunci', 'data', 'aktif', 'urutan', 'diperbarui'];
 /* Tab pin (PIN tiap profil, 0.14.0): hanya dibaca server. hash = scrypt(PIN, garam). */
+/* Kalender Saya (2.28.0): satu baris = satu agenda (data = JSON isinya), hanya dibaca untuk
+   profil pemiliknya; agenda yang dihapus ditandai. Tab pribadi: email pribadi opsional per profil
+   untuk pengingat email nanti, hanya untuk pemiliknya. */
+const TAB_AGENDA = 'agenda';
+const AGENDA_KOLOM = ['id', 'orang', 'data', 'diperbarui', 'dihapus'];
+const TAB_PRIBADI = 'pribadi';
+const PRIBADI_KOLOM = ['orang', 'email', 'diperbarui'];
+function agendaKeBaris(a) {
+  const { id, orang, diperbarui, dihapus, ...data } = a;
+  return [String(id || ''), String(orang || ''), JSON.stringify(data), keSel('at', diperbarui), dihapus ? 'ya' : ''];
+}
+function agendaDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  let data = {};
+  try { data = JSON.parse(sel('data') || '{}') || {}; } catch (e) { data = {}; }
+  if (typeof data !== 'object' || Array.isArray(data)) data = {};
+  return { ...data, id: sel('id'), orang: sel('orang'), diperbarui: dariSel('at', sel('diperbarui')), dihapus: /^(ya|true|1)$/i.test(sel('dihapus').trim()) };
+}
+const pribadiKeBaris = p => [String(p.orang || ''), String(p.email || ''), keSel('at', p.diperbarui)];
+function pribadiDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  return { orang: sel('orang'), email: sel('email'), diperbarui: dariSel('at', sel('diperbarui')) };
+}
 const TAB_PIN = 'pin';
 const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
 
@@ -314,6 +337,7 @@ function nomorTerbesar(daftar, awalan) {
 module.exports = {
   TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
   TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, SEL_MAKS, TAB_TAMPILAN, TAMPILAN,
+  TAB_AGENDA, AGENDA_KOLOM, TAB_PRIBADI, PRIBADI_KOLOM, agendaKeBaris, agendaDariBaris, pribadiKeBaris, pribadiDariBaris,
   keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris, tampilanKeBaris, tampilanDariBaris,
   masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   urai, rakit, nomorTerbesar,

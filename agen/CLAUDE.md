@@ -16,7 +16,7 @@ memberimu tugas, lewat Agent Office atau Claude Code di folder ini.
 - Server hanya mengizinkan yang boleh dilakukan Ali sendiri, dan hanya sebagian:
   - pesan;
   - output dan bukti;
-  - sub-task;
+  - ceklis;
   - aksi status (mulai, ajukan, selesai, tarik, tahan, lanjutkan, setujui, kembalikan, buka).
 
   Membuat task atau proyek, paket, Master, dan PIN tetap pekerjaan Ali di aplikasi.
@@ -49,7 +49,7 @@ Mulai dari `pekerjaan_saya` atau `pesan_menunggu`.
 2. Lakukan yang perlu, sesuai informasi dari Ali:
    - `isi_output`: ringkas, berisi apa yang dihasilkan;
    - `tambah_bukti`: hanya tautan nyata;
-   - `centang_subtask` untuk sub-task yang memang selesai.
+   - `centang_subtask` untuk ceklis yang memang selesai.
 3. Ajukan tinjauan (`aksi_task` ajukan, atau selesai untuk task rutin) hanya kalau syarat
    ajukan sudah terpenuhi dan Ali memintanya.
 

@@ -10,6 +10,6 @@ test('index.html memuat berkas statis dengan ?v= sama dengan versi package.json'
   const versi = require('../package.json').version;
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const rujukan = [...html.matchAll(/(?:src|href)="(\/[^"?]+\.(?:js|css))(\?[^"]*)?"/g)].map(m => ({ berkas: m[1], kueri: m[2] || '' }));
-  assert.deepEqual(rujukan.map(r => r.berkas).sort(), ['/app.css', '/app.js', '/inti.js', '/panduan.js']);
+  assert.deepEqual(rujukan.map(r => r.berkas).sort(), ['/app.css', '/app.js', '/bahasa.js', '/inti.js', '/panduan.js']);
   for (const r of rujukan) assert.equal(r.kueri, `?v=${versi}`, `${r.berkas} harus memakai ?v=${versi}`);
 });

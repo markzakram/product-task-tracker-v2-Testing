@@ -148,18 +148,20 @@
       langkah: [
         'Buka **Hari Ini**. Task Anda dikelompokkan: Terlambat, Hari ini, 7 hari ke depan, dan Nanti.',
         '**Belum bisa dikerjakan** berisi task yang menunggu task lain atau sedang tertahan, lengkap dengan alasannya.',
-        '**Sub-task untuk saya** dan **Saya bantu** berisi task orang lain yang melibatkan Anda.',
+        '**Ceklis untuk saya** dan **Saya bantu** berisi task orang lain yang melibatkan Anda.',
         'Klik sebuah task untuk membuka detail dan tombol-tombolnya.',
+        'Kartu **Agenda saya hari ini** berisi aktivitas pribadi Anda dari **Kalender Saya** (grup Ruang Saya): tambahkan agenda dengan jam, pengulangan, dan pengingat. Hanya Anda yang melihatnya.',
+        'Bahasa tampilan (Indonesia atau English) dipilih dari menu akun di kanan atas; tersimpan untuk profil Anda.',
       ],
     },
     {
       id: 'staff-ajukan', peran: 'staff', judul: 'Mengerjakan task proyek sampai diajukan', tujuan: 'Menyelesaikan satu langkah proyek lalu mengirimnya ke peninjau.', ilustrasi: 'syarat', coba: true,
       langkah: [
         'Buka task-nya. Kalau masih Antre, tekan **Mulai kerjakan**.',
-        'Di **Output & bukti**, tulis hasil kerja (mis. "40 soal lolos QC"), lalu tekan **Simpan**.',
-        'Tempel tautan hasil kerja (Drive, Sheets, SIADU, …) di kolom tautan bukti, lalu tekan **Tambah bukti**.',
-        'Centang semua **sub-task**, kalau ada. Daftar **Syarat ajukan** berubah hijau satu per satu.',
-        'Sub-task boleh punya **tautan** (opsional), mis. dokumen atau folder kerjanya: isi kolom **Tautan** saat menambah atau mengubah sub-task, lalu buka dari ikon di sampingnya.',
+        'Di **Output**, tulis hasil kerja (mis. "40 soal lolos QC"), lalu tekan **Simpan**.',
+        'Kalau ada, tempel tautan hasil kerja (Drive, Sheets, SIADU, …) lalu tekan **Tambah tautan**. Tautan ini opsional.',
+        'Centang semua **ceklis pengerjaan**, kalau ada. Daftar **Syarat ajukan** berubah hijau satu per satu.',
+        'Butir ceklis boleh punya **tautan** (opsional), mis. dokumen atau folder kerjanya: isi kolom **Tautan** saat menambah atau mengubah butir ceklis, lalu buka dari ikon di sampingnya.',
         'Setelah lengkap, tombol **Ajukan tinjau ke …** aktif. Tekan, dan task pindah ke Ditinjau.',
       ],
     },
@@ -168,7 +170,7 @@
       langkah: [
         'Task yang dikembalikan kembali ke Dikerjakan dengan label **Revisi**.',
         'Baca alasannya di **Riwayat tinjauan** dan **Diskusi** pada detail task.',
-        'Perbaiki hasilnya, perbarui output atau bukti bila perlu, lalu **Ajukan** lagi.',
+        'Perbaiki hasilnya, perbarui output atau tautannya bila perlu, lalu **Ajukan** lagi.',
       ],
     },
     {
@@ -214,7 +216,7 @@
         'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Antrean tim · siap dibagi** di Hari Ini.',
         'Buka langkahnya. Di bagian **Task turunan**, tulis bagian pekerjaannya, pilih PIC-nya (staff tim, atau **Anda sendiri**) dan tenggat, lalu tekan **Buat task turunan**. Ulangi untuk bagian lain.',
         'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Langkahnya sendiri tetap Anda pegang: task Lead tidak diserahkan ke staff.',
-        'Setelah semua task turunan disetujui, lengkapi output & bukti langkah Anda, lalu ajukan ke Manager. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
+        'Setelah semua task turunan disetujui, lengkapi output langkah Anda, lalu ajukan ke Manager. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
         'Task tim Anda yang PIC-nya staff (di tahap mana pun, mis. Design) juga bisa Anda bagi dari detail task-nya. Task yang sudah selesai atau sedang ditinjau tak bisa ditambah task turunan; alasannya tampil di bagian itu.',
       ],
     },
@@ -222,7 +224,7 @@
       id: 'lead-tinjau', peran: 'lead', judul: 'Meninjau hasil kerja', tujuan: 'Menyetujui atau mengembalikan task yang diajukan.', ilustrasi: 'tinjau', coba: true,
       langkah: [
         'Task yang menunggu Anda ada di **Perlu Anda tinjau** (Hari Ini) dan **Menunggu tinjauan Anda** (Proyek).',
-        'Buka task-nya, lalu periksa **Output & bukti**, sub-task, dan diskusinya.',
+        'Buka task-nya, lalu periksa **Output**, ceklis, dan diskusinya.',
         'Tekan **Setujui** kalau sudah benar. Kalau langkah itu bercapaian, progres paketnya ikut naik.',
         'Kalau belum, tekan **Kembalikan** dan tulis yang perlu diperbaiki. Task kembali ke PIC dengan label Revisi.',
       ],
@@ -321,7 +323,7 @@
     ['Tim pemilik', 'Tim yang memegang sebuah sub-stage: DAE, RAD, LNA, CLO, atau MG (Manager). Nama dan singkatannya diatur di Master.'],
     ['Antrean tim', 'Langkah proyek yang sudah bisa dimulai, di Hari Ini Lead tim pemiliknya: dikerjakan sendiri atau dibagi ke staff lewat task turunan.'],
     ['Task turunan', 'Bagian pekerjaan yang dibuat Lead di bawah task yang ia pegang, untuk staff timnya atau untuk dirinya sendiri (dulu disebut task anak). Tampil menjorok di bawah induknya; yang dipegang staff ditinjau Lead itu. Induknya baru bisa diajukan setelah semua turunannya selesai.'],
-    ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, tautan bukti, sub-task, task turunan (kalau ada), task yang ditunggu selesai, dan tidak tertahan.'],
+    ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, ceklis, task turunan (kalau ada), task yang ditunggu selesai, dan tidak tertahan.'],
     ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task turunan), Manager untuk task Lead dan kode bertanda Manager.'],
     ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1).'],
     ['Fase', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation, dijalankan tiap tim di proyek. Task sefase dalam satu tim dikerjakan bersamaan; fase berikutnya menunggu fase sebelumnya tim itu selesai.'],
@@ -385,8 +387,8 @@
         return siapa ? { profil: siapa, view: 'hari', ket: `Hari Ini ${I.orang(siapa).pendek}` } : null;
       }
       case 'staff-ajukan': {
-        // Utamakan yang sedang dikerjakan tapi output atau buktinya belum ada; kalau tak ada, yang siap dimulai.
-        const kurang = t => I.syaratAjukan(t, perId).some(s => !s.ok && (s.kunci === 'output' || s.kunci === 'bukti'));
+        // Utamakan yang sedang dikerjakan tapi output-nya belum ada; kalau tak ada, yang siap dimulai.
+        const kurang = t => I.syaratAjukan(t, perId).some(s => !s.ok && s.kunci === 'output');
         return keTask(cari(t => proyekAktif(t) && staf(t.pic) && t.status === 'Dikerjakan' && !t.tertahan && !I.depsBelum(t, perId).length && kurang(t))
           || cari(t => proyekAktif(t) && staf(t.pic) && I.labelKeadaan(t, perId) === 'Siap'));
       }

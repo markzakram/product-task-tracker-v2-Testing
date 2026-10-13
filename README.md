@@ -38,7 +38,7 @@ setiap orang memilih profilnya sendiri; sejak 0.14.0 profil bisa dikunci dengan 
 |---|---|
 | Ringkasan | Hari Ini · Dashboard · Laporan (Lead & Manager) |
 | Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Task · Komunikasi |
-| Ruang Saya | Link Saya (termasuk Tautan tim) · Catatan Saya |
+| Ruang Saya | Kalender Saya · Link Saya (termasuk Tautan tim) · Catatan Saya |
 | Manajer | Riwayat Aktivitas (Manager) · Master (Lead & Manager) |
 | Bantuan | Panduan |
 
@@ -104,15 +104,18 @@ dengan satu penyederhanaan: tetap empat status.
   task (task utama dan task turunan) di tab tim proyek, dan di daftar task turunan di detail
   induknya; yang boleh sama dengan sebelumnya (`Inti.bolehUbahTask`). PIC task turunan bisa
   diganti ke Lead pembaginya atau staff timnya, juga bila induknya dipegang staff.
-- **Sub-task** bisa ditambah, diubah (judul, PIC, dan **tautan opsional**), dan dihapus oleh PIC
-  task, Lead-nya, atau Manager; PIC sub-task boleh mencentangnya. Tautan (2.24.0) dirapikan
-  seperti tautan bukti (`https://` ditambahkan sendiri), hanya http(s), paling panjang 2000
-  karakter, dan tampil di samping judul sub-task (di ponsel ikonnya saja). Kolom `link` di tab
-  `subtasks` dan tabel `v2_subtasks`; agen AI bisa mengisinya lewat `tambah_subtask`.
-- **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, ada minimal satu
-  tautan bukti, semua sub-task selesai, semua task turunan selesai (kalau ada), task yang ditunggu
-  selesai, dan tidak tertahan. Staff mengisi output dan bukti sendiri dari detail task; daftar
-  periksanya tampil di sana.
+- **Ceklis pengerjaan** (dulu "sub-task"; sejak 2.28.0 namanya seperti v1, supaya tak
+  tertukar dengan task turunan) bisa ditambah, diubah (judul, PIC, dan **tautan opsional**), dan
+  dihapus oleh PIC task, Lead-nya, atau Manager; PIC butir ceklis boleh mencentangnya. Tautan
+  (2.24.0) dirapikan (`https://` ditambahkan sendiri), hanya http(s), paling panjang 2000
+  karakter, dan tampil di samping judul butirnya (di ponsel ikonnya saja). Nama di data tetap
+  (`subtasks`, kolom `link` di tab `subtasks` dan tabel `v2_subtasks`); agen AI mengisinya lewat
+  `tambah_subtask`.
+- **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, semua ceklis pengerjaan
+  selesai, semua task turunan selesai (kalau ada), task yang ditunggu selesai, dan tidak
+  tertahan. Sejak 2.28.0 (permintaan user) bagian **Output** di detail task berisi output saja;
+  **tautan hasil kerja opsional** dan tak lagi menjadi syarat. Daftar periksanya tampil di detail
+  task.
 - **Tinjauan:** task staff oleh Lead-nya (termasuk task turunan), task Lead oleh Manager, sub-stage
   bertanda Manager oleh Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
 - **Tab bawaan (2.23.0).** Setiap kali proyek dibuka, halaman proyek langsung terbuka di tab
@@ -139,6 +142,9 @@ dengan satu penyederhanaan: tetap empat status.
   tersimpan. Untuk proyek yang sudah selesai, **arsipkan saja** (tautan di jendela yang sama):
   semuanya tetap ada dan bisa diaktifkan lagi. Aturannya `Inti.hapusProyek`; di data real
   perubahannya hanya daftar baris yang dihapus. Paketnya bisa langsung dielaborasi ulang.
+- **Ubah proyek (2.28.0, Manager).** Tombol **Ubah proyek** di halaman proyek mengganti nama,
+  platform, dan tujuan proyek yang sudah dibuat; ID, siklus, tahap, dan task-nya tetap
+  (`Inti.ubahProyek`, aksi data `ubahProyek`). Riwayat Aktivitas mencatat apa yang diubah.
 - **Nomor ID tak dipakai ulang (2.27.0).** Proyek, task, dan paket baru melanjutkan nomor
   tertinggi yang pernah ada, juga sesudah ada yang dihapus (sebelumnya elaborasi ulang sesudah
   hapus proyek memakai lagi PRJ-… dan PRD-… yang dihapus, sehingga riwayat dan pesan Komunikasi
@@ -655,6 +661,49 @@ Diuji di `test/master.test.js` dan `test/rpc.test.js`.
   `notifikasi()` di `public/inti.js`, tidak disimpan terpisah. Tanda sudah dibaca disimpan per
   profil di browser itu.
 
+### Kalender Saya (2.28.0)
+
+Permintaan user: aktivitas harian pribadi di kalender, dengan pengingat. Halaman **Kalender
+Saya** di grup Ruang Saya.
+
+- **Agenda**: judul, tanggal, jam mulai–selesai atau sepanjang hari, berulang (setiap hari, hari
+  kerja, minggu, bulan, dengan batas opsional), pengingat (saat mulai sampai 1 hari sebelumnya),
+  dan catatan. Tiap kejadian bisa dicentang selesai (agenda berulang: per tanggal).
+- **Kalender bulan** dengan agenda dan, bila dipilih, tenggat task saya; daftar per tanggal di
+  bawahnya. Hari Ini menampilkan kartu **Agenda saya hari ini**.
+- **Pengingat** di dalam aplikasi: pesan singkat, lonceng notifikasi, dan notifikasi browser bila
+  diizinkan (tombolnya di **Pengingat**), selama ProductTrack terbuka. Agenda sepanjang hari
+  diingatkan pukul 07.00. Pengingat yang terlewat berbunyi saat aplikasi dibuka, sampai 6 jam
+  sesudahnya.
+- **Email pribadi (opsional)** di pengaturan pengingat: disimpan untuk pengingat email di tahap
+  berikutnya; **belum ada email yang dikirim**. Tahap 2 perlu akun pengirim email dan penjadwal
+  dari IT.
+- **Privasi**: tersimpan di server per profil (tab `agenda` dan `pribadi`, tabel `v2_agenda` dan
+  `v2_pribadi`), dan hanya dikirim ke profil yang terbukti di sesi itu (lewat PIN-nya, atau tak
+  ber-PIN); tak ikut data yang dimuat semua orang. Profil tanpa PIN tetap bisa dipilih siapa pun
+  dengan PIN aplikasi, jadi pasang PIN profil untuk agenda yang benar-benar pribadi. Tak
+  tersedia untuk akun Dev, Lihat sebagai, dan mode uji Dev.
+- Aturannya `Inti.periksaAgenda`, `kejadianAgenda`, `waktuPengingat`, `periksaEmail`; aksi
+  server `muatAgenda`, `simpanAgenda`, `hapusAgenda`, `simpanPribadi`. Diuji di
+  `test/agenda.test.js` dan `test/rpc.test.js`.
+
+### Bahasa Indonesia / English (2.28.0, tahap 1)
+
+Pilihan **Bahasa · Language** di menu akun (kanan atas), **per profil** (tersimpan di setelan
+tampilan, ikut ke perangkat lain) dan diingat perangkat itu untuk layar sebelum profil dipilih.
+Tanggal dan angka mengikuti bahasanya.
+
+- Teks ditulis dalam bahasa Indonesia dan dibungkus `tr()`; terjemahan Inggrisnya di
+  `public/bahasa.js`. Yang belum diterjemahkan tetap tampil dalam bahasa Indonesia, jadi
+  terjemahan ditambah bertahap.
+- **Tahap 1**: kerangka aplikasi (sidebar, kepala, menu akun, notifikasi), Hari Ini, Task (semua
+  tampilan dan saringan), detail task, Proyek, Kalender Saya, dan form task/proyek. **Belum**:
+  Dashboard, Laporan, Rancangan Paket, Komunikasi, Link & Catatan Saya, Master, Panduan, Panel
+  Dev, layar masuk, dan sebagian pesan dari aturan (mis. alasan menunggu).
+- Isi yang diketik orang (judul, nama sub-stage, kategori, pesan) tak diterjemahkan.
+- `test/bahasa.test.js` memastikan setiap teks `tr('…')` di app.js punya terjemahan dengan
+  `{isian}` yang sama.
+
 ### Tampilan pribadi & status (2.21.0)
 
 Keputusan user: tiap profil mengatur tampilannya sendiri, **disimpan per profil** (ikut ke
@@ -1074,7 +1123,7 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
    Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 23 tabel berawalan `v2_` di skema
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 25 tabel berawalan `v2_` di skema
    `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
    salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
    dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru

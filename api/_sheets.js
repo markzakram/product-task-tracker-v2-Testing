@@ -21,6 +21,7 @@ const {
   masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, rakit, nomorTerbesar,
   TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   TAB_TAMPILAN, TAMPILAN, tampilanKeBaris, tampilanDariBaris,
+  TAB_AGENDA, AGENDA_KOLOM, TAB_PRIBADI, PRIBADI_KOLOM, agendaKeBaris, agendaDariBaris, pribadiKeBaris, pribadiDariBaris,
 } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
@@ -709,6 +710,37 @@ async function timpaAtauTambah(k, id, nama, kolom, cocok, nilaiBaris) {
   }
 }
 
+/* ----- Kalender Saya (2.28.0) ----- */
+async function barisAgenda(k, id) {
+  const [judul = AGENDA_KOLOM, ...isi] = (await tabAplikasi(k, id, TAB_AGENDA, AGENDA_KOLOM)) || [];
+  return isi.filter(b => b.some(sel => String(sel).trim())).map(b => agendaDariBaris(judul, b));
+}
+/* Agenda milik satu profil (yang belum dihapus). */
+async function bacaAgenda(k, id, orang) {
+  await pastikanV2(k, id);
+  return (await barisAgenda(k, id)).filter(a => a.orang === orang && !a.dihapus);
+}
+/* a = agenda bersih + orang. baru = baris baru; selain itu hanya agenda milik orang itu yang
+   ditimpa (false = tak ditemukan). */
+async function tulisAgenda(k, id, a, baru) {
+  await pastikanV2(k, id);
+  if (!baru && !(await barisAgenda(k, id)).some(x => x.id === a.id && x.orang === a.orang && !x.dihapus)) return false;
+  const sama = (judul, b) => { const x = agendaDariBaris(judul, b); return x.id === a.id && x.orang === a.orang; };
+  await timpaAtauTambah(k, id, TAB_AGENDA, AGENDA_KOLOM, sama, agendaKeBaris({ ...a, diperbarui: Date.now() }));
+  return true;
+}
+async function bacaPribadi(k, id, orang) {
+  await pastikanV2(k, id);
+  const [judul = PRIBADI_KOLOM, ...isi] = (await tabAplikasi(k, id, TAB_PRIBADI, PRIBADI_KOLOM)) || [];
+  const p = isi.map(b => pribadiDariBaris(judul, b)).find(x => x.orang === orang);
+  return { email: p ? p.email : '' };
+}
+async function tulisPribadi(k, id, p) {
+  await pastikanV2(k, id);
+  const sama = (judul, b) => pribadiDariBaris(judul, b).orang === p.orang;
+  await timpaAtauTambah(k, id, TAB_PRIBADI, PRIBADI_KOLOM, sama, pribadiKeBaris({ ...p, diperbarui: Date.now() }));
+}
+
 async function bacaMaster(k, id) {
   await pastikanV2(k, id);
   return barisMasterDari(await tabAplikasi(k, id, TAB_MASTER, MASTER_KOLOM));
@@ -881,4 +913,5 @@ module.exports = {
   periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto, bacaTampilan, bacaSampul, tulisTampilan,
   bacaSetelan, tulisSetelan, sumberData, bacaReal, tulisReal,
   bacaOrang, tulisOrang, bacaMaster, tulisMaster, bacaPin, tulisPin, hitungTab, jelaskanGalat,
+  bacaAgenda, tulisAgenda, bacaPribadi, tulisPribadi,
 };

@@ -630,3 +630,37 @@ test('hapus sub-stage (2.24.0): server menolak kode yang dipakai task data conto
     assert.equal(e12.status, 400);
   } finally { I.aturMaster([]); }
 });
+
+test('Kalender Saya (2.28.0): hanya profil sesi itu; tiap profil hanya agenda dan email pribadinya sendiri', async () => {
+  const { p } = await sheetContoh();
+  const cookie = await masuk();
+  const aksi = (c, action, ...args) => panggil({ body: { action, args }, cookie: c });
+  assert.equal((await aksi(cookie, 'muatAgenda')).status, 403, 'tanpa profil ditolak');
+  const kiki = pakai(await aksi(cookie, 'masukProfil', 'kiki', ''));
+  const bilar = pakai(await aksi(cookie, 'masukProfil', 'bilar', ''));
+  const buat = await aksi(kiki, 'simpanAgenda', { judul: 'Standup', tanggal: '2026-10-13', mulai: '09:00', ulang: 'kerja', pengingat: '10', id: '' });
+  assert.equal(buat.status, 200, buat.teks);
+  const id = buat.json.agenda.id;
+  assert.match(id, /^ag[a-z0-9]+$/);
+  assert.equal((await aksi(kiki, 'simpanAgenda', { judul: 'x', tanggal: 'kemarin' })).status, 400);
+  // Profil lain tak melihat, mengubah, atau menghapusnya.
+  assert.deepEqual((await aksi(bilar, 'muatAgenda')).json.agenda, []);
+  assert.equal((await aksi(bilar, 'simpanAgenda', { id, judul: 'Diambil alih', tanggal: '2026-10-13' })).status, 400);
+  assert.equal((await aksi(bilar, 'hapusAgenda', id)).status, 400);
+  const ubah = await aksi(kiki, 'simpanAgenda', { id, judul: 'Standup LNA', tanggal: '2026-10-13', mulai: '09:00', ulang: 'kerja', pengingat: '10', beres: ['2026-10-13'] });
+  assert.equal(ubah.status, 200, ubah.teks);
+  const milik = (await aksi(kiki, 'muatAgenda')).json;
+  assert.deepEqual(milik.agenda.map(a => [a.id, a.judul, a.beres]), [[id, 'Standup LNA', ['2026-10-13']]]);
+  assert.equal(p.tab('agenda').values.length, 2, 'diubah di baris yang sama');
+  // Email pribadi: hanya untuk pemiliknya.
+  assert.equal((await aksi(kiki, 'simpanPribadi', { email: 'bukan email' })).status, 400);
+  assert.equal((await aksi(kiki, 'simpanPribadi', { email: 'Kiki@Contoh.com' })).status, 200);
+  assert.equal((await aksi(kiki, 'muatAgenda')).json.pribadi.email, 'kiki@contoh.com');
+  assert.equal((await aksi(bilar, 'muatAgenda')).json.pribadi.email, '');
+  const semua = await aksi(cookie, 'muatContoh');
+  assert.ok(!semua.teks.includes('kiki@contoh.com') && !semua.teks.includes('Standup LNA'), 'tak ikut data yang dimuat semua orang');
+  // Hapus: ditandai, tak tampil lagi.
+  assert.equal((await aksi(kiki, 'hapusAgenda', id)).status, 200);
+  assert.deepEqual((await aksi(kiki, 'muatAgenda')).json.agenda, []);
+  assert.equal(p.tab('agenda').values[1][4], 'ya');
+});
