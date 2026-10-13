@@ -601,6 +601,36 @@ test('Master: begitu Manager ber-PIN, hanya Lead dan Manager (lewat PIN-nya bila
   } finally { I.aturMaster([]); }
 });
 
+test('Izin (2.29.0): hanya mode Dev yang mengaturnya; izin master.ubah berlaku di server', async () => {
+  const I = require('../public/inti');
+  await sheetContoh();
+  const cookie = await masuk();
+  process.env.DEV_PIN = PIN_DEV;
+  const dev = await masukDev();
+  try {
+    assert.equal((await panggil({ body: { action: 'aturPin', args: ['nynda', '8642'] }, cookie: dev })).status, 200);
+    const alya = pakai(await panggil({ body: { action: 'masukProfil', args: ['alya', ''] }, cookie }));
+    const nynda = pakai(await panggil({ body: { action: 'masukProfil', args: ['nynda', '8642'] }, cookie }));
+    const izin = ['izin', { kunci: 'master.ubah', peran: ['manager'] }];
+    for (const c of [alya, nynda]) {
+      const r = await panggil({ body: { action: 'simpanMaster', args: izin }, cookie: c });
+      assert.equal(r.status, 403);
+      assert.match(r.json.message, /mode Dev/);
+    }
+    const ok = await panggil({ body: { action: 'simpanMaster', args: izin }, cookie: dev });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.json.master.filter(x => x.jenis === 'izin').map(x => [x.kunci, x.peran]), [['master.ubah', ['manager']]]);
+    // Lead kini ditolak mengubah Master, dengan pesan yang mengikuti izinnya; Manager tetap boleh.
+    const satuan = ['satuan', { baru: true, kunci: 'Modul' }];
+    const tolak = await panggil({ body: { action: 'simpanMaster', args: satuan }, cookie: alya });
+    assert.equal(tolak.status, 403);
+    assert.equal(tolak.json.message, 'Hanya Manager atau mode Dev yang bisa mengubah Master.');
+    assert.equal((await panggil({ body: { action: 'simpanMaster', args: satuan }, cookie: nynda })).status, 200);
+    // Yang tetap tak bisa diatur, juga oleh Dev.
+    assert.equal((await panggil({ body: { action: 'simpanMaster', args: ['izin', { kunci: 'task.turunan', peran: ['staff'] }] }, cookie: dev })).status, 400);
+  } finally { I.aturMaster([]); }
+});
+
 test('hapus sub-stage (2.24.0): server menolak kode yang dipakai task data contoh; yang belum dipakai jadi penanda di tab master', async () => {
   const I = require('../public/inti');
   const { urai } = require('../api/_skema');

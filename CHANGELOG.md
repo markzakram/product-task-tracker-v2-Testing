@@ -1,5 +1,42 @@
 # Changelog — ProductTrack v2
 
+## 2.29.0 — Izin per peran, bahasa Inggris tahap 2, ceklis milik PIC task, PIC turunan ke staff (2026-10-13)
+
+Empat permintaan user.
+
+- **Izin per peran** (Panel Dev → **Izin**): satu tabel centang semua yang boleh dilakukan Manager,
+  Lead, dan Staff, per kelompok (Proyek, Rancangan Paket, Task, Pengaturan, Halaman, Ruang Saya).
+  - 18 izin bisa diatur, bawaannya sama dengan aturan sebelumnya: membuat, mengubah, menghapus,
+    mengarsipkan proyek, siklus baru, keputusan, menautkan paket; membuat, membagikan, menghapus,
+    mengelaborasi paket dan mengatur setoran; menghapus task siapa pun; urutan tunggu semua tim;
+    mengubah Master; mengelola Tautan tim; membuka Laporan dan Riwayat Aktivitas.
+  - Yang mengikuti struktur tim dan alur tinjauan (task turunan, peninjau, task milik staff, ruang
+    pribadi, pengaturan Dev) tampil abu-abu, tak bisa diubah.
+  - Berlaku di tombol, halaman, dan aturan `Inti` di browser dan server (`wajibIzin`); pesan
+    penolakannya mengikuti izin, mis. "Hanya Lead atau Manager yang membuat paket.". Dev selalu
+    boleh.
+  - Tersimpan di tab `master` (`jenis` = `izin`), tanpa tab atau kolom baru; **hanya mode Dev** yang
+    mengubahnya. Tombol **Kembalikan semua ke bawaan**.
+- **Bahasa Inggris tahap 2**: semua halaman lain, modal, pesan singkat, dan pesan dari aturan dan
+  server (lewat `trPola()` dan ±80 pola). ±1.870 teks; yang tersisa isi Panduan (tahap 3).
+  - Tanggal di Laporan, Timeline, Rancangan Paket, dan Komunikasi mengikuti bahasa.
+  - Kunci berkonteks (`'Proyek§satu'` → "Project", `'Proyek'` → "Projects").
+  - Folder bawaan tampil "General" dalam bahasa Inggris; mengetik "General" juga berarti folder
+    bawaan.
+  - Perbaikan: Lihat sebagai tak lagi mengubah bahasa perangkat Dev.
+- **Ceklis pengerjaan milik PIC task**: butirnya tak punya PIC sendiri. Form tak lagi memilih PIC;
+  yang mencentang PIC task, Lead-nya, atau Manager; butirnya ikut saat PIC task diganti; grup
+  "Ceklis untuk saya" di Hari Ini dan kolom "Ceklis" di beban per orang Dashboard dihapus. Alat
+  agen `tambah_subtask` tak lagi menerima PIC.
+- **PIC task turunan ke staff** (perbaikan): turunan yang dipegang Lead kini bisa dipindah langsung
+  ke staff timnya; dulu ditolak "Task Lead tak diserahkan ke staff". Aturan itu kini hanya untuk
+  task Lead yang bukan turunan.
+- Lain-lain: `aria-label` tombol hapus tautan di detail task kelebihan `}`; nama capaian di chip
+  batch tak lagi dikecilkan semuanya ("lolos QC output"); pesan "perlu server" tak lagi menyebut
+  Vercel; tabel Izin dirapatkan di ponsel.
+- Tes baru di `test/master.test.js`, `test/rpc.test.js`, `test/inti.test.js`, `test/fitur.test.js`,
+  dan `test/bahasa.test.js`. 264 tes.
+
 ## 2.28.0 — Kalender Saya, bahasa EN/ID, ceklis pengerjaan, output saja, ubah proyek (2026-10-13)
 
 Lima permintaan user.

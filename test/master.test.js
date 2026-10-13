@@ -206,3 +206,38 @@ test('pindahSub (2.25.0): kegiatan pindah ke kode baru, alur ikut, kode lama dih
   I.aturMaster([hapus]);
   assert.throws(() => I.pindahSub('E9', 'E8', [hapus], 0), /tak dipakai ulang/);
 });
+
+test('izin per peran (2.29.0): bawaan, diatur lewat tab master, Dev selalu boleh, yang tetap tak bisa diatur', () => {
+  // Bawaan sama dengan aturan sebelum 2.29.0.
+  assert.ok(I.izin('nynda', 'proyek.buat'));
+  assert.ok(!I.izin('alya', 'proyek.buat'));
+  assert.ok(I.izin('alya', 'paket.buat'));
+  assert.ok(!I.izin('kiki', 'paket.buat'));
+  assert.ok(!I.izin('kiki', 'halaman.laporan'));
+  assert.throws(() => I.setArsip({}, {}, true, 'alya', 1), { message: 'Hanya Manager yang mengarsipkan proyek.' });
+  assert.throws(() => I.paketBaru({}, {}, 'kiki', 1), { message: 'Hanya Lead atau Manager yang membuat paket.' });
+  // Tab master membawa bawaan semua izin yang bisa diatur; yang tetap tidak.
+  assert.deepEqual(I.daftarMaster('izin').map(x => x.kunci), I.IZIN.filter(x => !x.tetap).map(x => x.kunci));
+  const baris = [
+    I.periksaMaster('izin', { kunci: 'proyek.arsip', peran: ['lead', 'manager'] }),
+    I.periksaMaster('izin', { kunci: 'paket.buat', peran: 'staff, lead,manager' }),
+    I.periksaMaster('izin', { kunci: 'paket.hapus', peran: [] }),
+  ];
+  assert.deepEqual(baris[1], { jenis: 'izin', kunci: 'paket.buat', peran: ['manager', 'lead', 'staff'], aktif: true }, 'urutan peran tetap');
+  assert.deepEqual(I.aturMaster(baris), {});
+  assert.ok(I.izin('alya', 'proyek.arsip'));
+  assert.ok(I.izin('kiki', 'paket.buat'));
+  assert.ok(!I.izin('nynda', 'paket.hapus'));
+  assert.throws(() => I.setArsip({}, {}, true, 'kiki', 1), { message: 'Hanya Lead atau Manager yang mengarsipkan proyek.' });
+  assert.throws(() => I.hapusPaket({ packages: [] }, {}, 'nynda', 1), { message: 'Tak ada peran yang boleh menghapus paket (diatur di Panel Dev → Izin).' });
+  assert.throws(() => I.setKeputusan({}, {}, 'Hold', 'alya', 1), { message: 'Hanya Manager yang memutuskan.' }, 'izin lain tetap bawaan');
+  assert.ok(I.izin(I.DEV, 'paket.hapus'), 'Dev selalu boleh');
+  // Yang tetap (struktur tim, alur tinjauan) dan yang tak dikenal ditolak.
+  for (const kunci of ['task.turunan', 'dev.atur', 'apa.saja']) {
+    assert.throws(() => I.periksaMaster('izin', { kunci, peran: ['staff'] }), /tak bisa diatur/, kunci);
+  }
+  // Kembali ke bawaan.
+  I.aturMaster([]);
+  assert.ok(!I.izin('alya', 'proyek.arsip'));
+  assert.ok(I.izin('nynda', 'paket.hapus'));
+});

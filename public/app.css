@@ -1582,6 +1582,20 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 .mst-tabel td:first-child { width: 64px; }
 .mst-tabel .baris-grup td { padding-top: 14px; font-size: calc(12px * var(--skala-huruf)); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--biru-tua); border-bottom: 1px solid var(--garis); }
 .mst-tabel tr.nonaktif .chip-sub { opacity: .45; }
+/* Panel Dev → Izin (2.29.0) */
+.tabel-izin th[scope="row"] { font-weight: 500; text-transform: none; letter-spacing: 0; font-size: calc(14px * var(--skala-huruf)); color: var(--tinta); border-bottom: 1px solid var(--garis-halus); padding: 10px; }
+.tabel-izin th[scope="row"] small { display: block; margin-top: 2px; font-weight: 400; font-size: calc(12px * var(--skala-huruf)); color: var(--samar); }
+.tabel-izin th[scope="row"] small.izin-ubah { color: var(--biru-tua); }
+.tabel-izin thead th:not(:first-child), .tabel-izin td { text-align: center; width: 84px; }
+.tabel-izin td input { width: 18px; height: 18px; accent-color: var(--biru); cursor: pointer; }
+.tabel-izin td input:disabled { cursor: not-allowed; }
+.tabel-izin tr.izin-tetap th[scope="row"] { color: var(--redup); }
+@media (max-width: 599px) {
+  .tabel-izin thead th:not(:first-child), .tabel-izin td { width: 46px; padding-left: 2px; padding-right: 2px; }
+  .tabel-izin thead th:not(:first-child) { font-size: calc(10px * var(--skala-huruf)); letter-spacing: 0; }
+  .tabel-izin th[scope="row"] { padding-left: 4px; }
+}
+.tabel-izin .baris-grup th { padding-top: 14px; font-size: calc(12px * var(--skala-huruf)); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--biru-tua); border-bottom: 1px solid var(--garis); text-align: left; }
 .mst-pakai { display: block; margin-top: 2px; font-size: calc(12px * var(--skala-huruf)); color: var(--samar); }
 .ikon-tombol.mst-urut { width: 34px; height: 34px; }
 .mst-kategori { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }

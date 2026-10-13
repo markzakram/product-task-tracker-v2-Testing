@@ -63,7 +63,7 @@
         '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
-        '**Manajer**: **Riwayat Aktivitas** (Manager) dan **Master** (Lead dan Manager), tempat daftar pilihan bersama diatur.',
+        '**Manajer**: **Riwayat Aktivitas** (Manager) dan **Master** (Lead dan Manager), tempat daftar pilihan bersama diatur. Itu bawaannya: siapa yang boleh membuka halaman ini dan apa saja yang boleh dilakukan tiap peran diatur mode Dev di **Panel Dev → Izin**.',
         '**Sesuaikan tampilan** dan **Setel status** ada di menu foto Anda di kanan atas: warna aksen, latar, sampul, kepadatan, ukuran huruf, halaman awal, dan status ber-emoji. Semuanya milik profil Anda dan ikut ke perangkat lain.',
         '**Tema**: tombol bulan/matahari di samping lonceng memindah terang ↔ gelap dengan sekali klik. Untuk mengikuti tema perangkat, klik foto Anda di kanan atas lalu pilih **Sistem**; di menu yang sama ada **Ganti profil** dan **Keluar**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
       ],
@@ -148,7 +148,7 @@
       langkah: [
         'Buka **Hari Ini**. Task Anda dikelompokkan: Terlambat, Hari ini, 7 hari ke depan, dan Nanti.',
         '**Belum bisa dikerjakan** berisi task yang menunggu task lain atau sedang tertahan, lengkap dengan alasannya.',
-        '**Ceklis untuk saya** dan **Saya bantu** berisi task orang lain yang melibatkan Anda.',
+        '**Saya bantu** berisi task orang lain yang melibatkan Anda. Ceklis pengerjaan milik PIC task-nya, jadi ada di task Anda sendiri.',
         'Klik sebuah task untuk membuka detail dan tombol-tombolnya.',
         'Kartu **Agenda saya hari ini** berisi aktivitas pribadi Anda dari **Kalender Saya** (grup Ruang Saya): tambahkan agenda dengan jam, pengulangan, dan pengingat. Hanya Anda yang melihatnya.',
         'Bahasa tampilan (Indonesia atau English) dipilih dari menu akun di kanan atas; tersimpan untuk profil Anda.',
@@ -343,6 +343,7 @@
     ['Tampilan pribadi', 'Warna aksen, latar (wallpaper), sampul profil, kepadatan, ukuran huruf, dan halaman awal milik satu profil. Diatur lewat foto Anda di kanan atas → Sesuaikan tampilan, dan ikut ke perangkat mana pun.'],
     ['Status', 'Emoji dan teks singkat (mis. 🏖️ Cuti) di samping nama dan foto Anda, terlihat semua orang, dan hilang sendiri sesudah waktunya.'],
     ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu dan dipasang lewat mode Dev. Berbeda dari PIN aplikasi yang dipakai bersama.'],
+    ['Izin', 'Daftar apa yang boleh dilakukan Manager, Lead, dan Staff, mis. membuat proyek, menghapus paket, atau membuka Laporan. Diatur mode Dev di Panel Dev → Izin dengan centang per peran; yang mengikuti struktur tim dan alur tinjauan tetap.'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];
 

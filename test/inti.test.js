@@ -169,7 +169,7 @@ test('Hari Ini: dikelompokkan per tenggat, yang terhambat dan yang ditinjau terp
   const peta = Object.fromEntries(h.grup.map(g => [g.kunci, g.isi.map(x => x.t.title)]));
   assert.deepEqual(peta, {
     telat: ['telat'], hari: ['hari ini'], minggu: ['minggu'], nanti: ['nanti'],
-    sub: ['induk'], tunggu: ['tertahan', 'ditinjau'], bantu: ['bantu'],
+    tunggu: ['tertahan', 'ditinjau'], bantu: ['bantu'],
   });
   assert.equal(h.grup.find(g => g.kunci === 'tunggu').isi[0].alasan, 'Tertahan: tunggu Tri');
   assert.equal(h.grup.find(g => g.kunci === 'tunggu').isi[1].alasan, 'Menunggu tinjauan Alya');
@@ -557,18 +557,24 @@ test('task turunan: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, 
   } finally { I.aturOrang([]); }
 });
 
-test('ceklis pengerjaan (dulu sub-task): PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus', () => {
+test('ceklis pengerjaan (dulu sub-task): PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus; butirnya milik PIC task (2.29.0)', () => {
   const t = task({ lane: 'proyek', pic: 'kiki', status: 'Dikerjakan' });
   const d = data([t]);
   const s = I.tambahSubtask(d, t, { title: ' Cek urutan soal ', pic: 'kiki' }, 'kiki', WAKTU);
   assert.deepEqual([s.title, s.pic, s.done, t.subtasks.length], ['Cek urutan soal', 'kiki', false, 1]);
   assert.throws(() => I.tambahSubtask(d, t, { title: ' ' }, 'kiki', WAKTU), /wajib/);
   assert.throws(() => I.tambahSubtask(d, t, { title: 'x' }, 'uma', WAKTU), /Hanya PIC/);
+  assert.equal(I.tambahSubtask(d, t, { title: 'Cek kunci', pic: 'bilar' }, 'alya', WAKTU).pic, 'kiki', 'PIC isian diabaikan: butir ceklis milik PIC task');
   I.ubahSubtask(d, t, s.id, { title: 'Cek urutan & kunci', pic: 'bilar' }, 'alya', WAKTU + 1);
-  assert.deepEqual([s.title, s.pic], ['Cek urutan & kunci', 'bilar']);
+  assert.deepEqual([s.title, s.pic], ['Cek urutan & kunci', 'kiki']);
   assert.match(d.log[0].detail, /Cek urutan soal → Cek urutan & kunci/);
+  I.hapusSubtask(d, t, t.subtasks[1].id, 'alya', WAKTU + 1);
   assert.throws(() => I.ubahSubtask(d, t, 'tak-ada', { title: 'x' }, 'kiki', WAKTU), /tidak ditemukan/);
   assert.throws(() => I.hapusSubtask(d, t, s.id, 'uma', WAKTU), /Hanya PIC/);
+  // Mencentang: PIC task, Lead-nya, atau Manager; butir tak lagi punya PIC sendiri.
+  s.pic = 'uma';   // data lama dengan PIC butir lain
+  assert.throws(() => I.centangSubtask(d, t, s.id, true, 'uma', WAKTU), /Hanya PIC task, Lead-nya, atau Manager/);
+  assert.equal(I.centangSubtask(d, t, s.id, true, 'kiki', WAKTU).done, true);
   I.hapusSubtask(d, t, s.id, 'nynda', WAKTU + 2);
   assert.equal(t.subtasks.length, 0);
   assert.match(d.log[0].detail, /Ceklis dihapus: Cek urutan & kunci/);
@@ -785,4 +791,17 @@ test('task turunan (2.25.0): Lead tim pemilik juga membagi task yang PIC-nya sta
   assert.match(I.alasanTakBisaBagi(d5, 'alya'), /sedang ditinjau/);
   d5.status = 'Selesai';
   assert.match(I.alasanTakBisaBagi(d5, 'alya'), /sudah selesai/);
+});
+
+test('PIC task turunan boleh dipindah dari Lead ke staff timnya (2.29.0)', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const induk = I.taskBaru(d, { title: 'I1 generate', project: 'PRJ-1', sub: 'I1', pic: 'alya' }, 'nynda', WAKTU, HARI);
+  const anak = I.taskAnak(d, induk, { title: 'Generate 3 paket', pic: 'alya' }, 'alya', WAKTU + 1, HARI);
+  const butir = I.tambahSubtask(d, anak, { title: 'Cek format' }, 'alya', WAKTU + 1);
+  I.ubahTask(d, anak, { pic: 'kiki' }, 'alya', WAKTU + 2);
+  assert.equal(anak.pic, 'kiki');
+  assert.equal(butir.pic, 'kiki', 'butir ceklis ikut PIC task-nya');
+  assert.equal(I.centangSubtask(d, anak, butir.id, true, 'kiki', WAKTU + 2).done, true);
+  assert.equal(I.peninjau(anak), 'alya', 'turunan yang dipegang staff ditinjau Lead-nya');
+  assert.throws(() => I.ubahTask(d, induk, { pic: 'bilar' }, 'alya', WAKTU + 3), /tak diserahkan ke staff|sudah dibagi/, 'task Lead yang bukan turunan tetap tak diserahkan');
 });

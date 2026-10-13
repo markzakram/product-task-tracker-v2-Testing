@@ -36,11 +36,15 @@ setiap orang memilih profilnya sendiri; sejak 0.14.0 profil bisa dikunci dengan 
 
 | Grup | Halaman |
 |---|---|
-| Ringkasan | Hari Ini · Dashboard · Laporan (Lead & Manager) |
+| Ringkasan | Hari Ini · Dashboard · Laporan (bawaan: Lead & Manager) |
 | Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Task · Komunikasi |
 | Ruang Saya | Kalender Saya · Link Saya (termasuk Tautan tim) · Catatan Saya |
-| Manajer | Riwayat Aktivitas (Manager) · Master (Lead & Manager) |
+| Manajer | Riwayat Aktivitas (bawaan: Manager) · Master (bawaan: Lead & Manager) |
 | Bantuan | Panduan |
+
+Siapa yang melihat Laporan, Riwayat Aktivitas, dan Master, serta tombol-tombol yang dijaga
+peran, sejak 2.29.0 diatur mode Dev di **Panel Dev → Izin** (lihat *Izin per peran*); yang
+tertulis di README ini adalah bawaannya.
 
 Urutan Pekerjaan mengikuti alurnya: paket dirancang, dielaborasi jadi proyek, lalu proyek
 berisi task. Di ponsel sidebar menjadi laci (tombol ☰), ditambah bilah bawah: Hari Ini, Task,
@@ -103,10 +107,18 @@ dengan satu penyederhanaan: tetap empat status.
 - **Ubah task (2.27.0).** Tombol pensil ada di kepala detail task, di samping setiap baris
   task (task utama dan task turunan) di tab tim proyek, dan di daftar task turunan di detail
   induknya; yang boleh sama dengan sebelumnya (`Inti.bolehUbahTask`). PIC task turunan bisa
-  diganti ke Lead pembaginya atau staff timnya, juga bila induknya dipegang staff.
+  diganti ke Lead pembaginya atau staff timnya, juga bila induknya dipegang staff. Sejak 2.29.0
+  (perbaikan, permintaan user) juga turunan yang sedang dipegang Lead: dulu ditolak "Task Lead
+  tak diserahkan ke staff". Aturan itu kini hanya untuk task Lead yang **bukan** turunan, karena
+  turunan memang cara Lead membagi pekerjaannya ke staff.
 - **Ceklis pengerjaan** (dulu "sub-task"; sejak 2.28.0 namanya seperti v1, supaya tak
-  tertukar dengan task turunan) bisa ditambah, diubah (judul, PIC, dan **tautan opsional**), dan
-  dihapus oleh PIC task, Lead-nya, atau Manager; PIC butir ceklis boleh mencentangnya. Tautan
+  tertukar dengan task turunan) bisa ditambah, diubah (judul dan **tautan opsional**), dicentang,
+  dan dihapus oleh PIC task, Lead-nya, atau Manager. Sejak 2.29.0 (permintaan user) butir ceklis
+  **tak punya PIC sendiri**: semuanya milik PIC task itu. Form tambah dan ubah tak lagi memilih
+  PIC, Hari Ini tak lagi punya grup "Ceklis untuk saya", kolom "ceklis terbuka" di beban per orang
+  Dashboard dihapus, dan saat PIC task diganti butirnya ikut. Kolom `pic` di data tetap ada dan
+  diisi PIC task (data lama dengan PIC butir lain tetap terbaca, tapi PIC butir itu tak lagi
+  bisa mencentangnya sendiri). Tautan
   (2.24.0) dirapikan (`https://` ditambahkan sendiri), hanya http(s), paling panjang 2000
   karakter, dan tampil di samping judul butirnya (di ponsel ikonnya saja). Nama di data tetap
   (`subtasks`, kolom `link` di tab `subtasks` dan tabel `v2_subtasks`); agen AI mengisinya lewat
@@ -434,6 +446,8 @@ PIC dan tak muncul di laporan, dashboard, atau @sebut; hak lihatnya setara Manag
   - **Lihat sebagai**: layar persis milik orang itu, dengan spanduk kuning **Kembali jadi Dev**.
     Tampilan saja: yang terlanjur diubah dibuang saat kembali, dan pesan, foto, serta perubahan
     orang tidak dikirim. Di data real perubahan data langsung ditolak.
+  - **Izin** (2.29.0): tabel centang apa yang boleh dilakukan Manager, Lead, dan Staff. Lihat
+    *Izin per peran*.
   - **Moderasi**: hapus pesan siapa pun (tampil "Pesan dihapus oleh Dev"; isi aslinya tetap di
     tab `obrolan`) dan foto profil siapa pun. Di Komunikasi, Dev membaca dan memoderasi langsung
     dari gelembung pesan, tapi tidak menulis.
@@ -630,12 +644,13 @@ pesan Komunikasi dan foto profil. Browser lalu meminta PIN itu lagi. PIN disimpa
 scrypt bergaram di tab `pin` dan tak pernah dikirim ke browser.
 
 **Siapa yang boleh.** Master: Dev, Manager, atau **Lead** (sejak 2.21.0, keputusan user: Lead
-juga menambah, mengubah, dan menonaktifkan isian), yang terbukti lewat PIN-nya bila profilnya
-ber-PIN. Menghapus di Master = menonaktifkan, supaya task dan paket lama yang memakainya tetap
-terbaca; sejak 2.24.0 sub-stage yang belum dipakai bisa benar-benar dihapus (Lead dan
-Manager). Selama belum ada Manager yang ber-PIN, Master masih terbuka bagi siapa pun (seperti data
-prototipe lainnya); peringatannya hanya tampil di mode Dev. PIN profil: **hanya Dev** (`aturPin`
-menolak sesi lain, termasuk Manager). **Dev sebaiknya memasang PIN Manager lebih dulu.**
+juga menambah, mengubah, dan menonaktifkan isian; sejak 2.29.0 diatur lewat izin `master.ubah`
+di Panel Dev → Izin), yang terbukti lewat PIN-nya bila profilnya ber-PIN. Menghapus di Master =
+menonaktifkan, supaya task dan paket lama yang memakainya tetap terbaca; sejak 2.24.0
+sub-stage yang belum dipakai bisa benar-benar dihapus (Lead dan Manager). Selama belum ada
+Manager yang ber-PIN, Master masih terbuka bagi siapa pun (seperti data prototipe lainnya);
+peringatannya hanya tampil di mode Dev. PIN profil: **hanya Dev** (`aturPin` menolak sesi lain,
+termasuk Manager). **Dev sebaiknya memasang PIN Manager lebih dulu.**
 
 **Cara kerjanya.** Tab `master` berisi satu baris per isian yang diubah (`jenis`, `kunci`,
 `data` JSON, `aktif`, `urutan`); bawaannya tetap di kode (`public/inti.js`). Isian diperiksa di
@@ -643,6 +658,44 @@ browser dan server (`periksaMaster`), jenis yang rusak karena diubah manual kemb
 dengan alasannya. Aksi `simpanMaster`, `aturPin`, dan `masukProfil` di `/api/rpc`. Seperti
 `obrolan` dan `foto`, tab `master` dan `pin` tak disentuh impor ulang maupun Reset data contoh.
 Diuji di `test/master.test.js` dan `test/rpc.test.js`.
+
+### Izin per peran (2.29.0)
+
+Permintaan user: di mode Dev ada satu daftar semua yang boleh dilakukan Manager, Lead, dan Staff,
+diatur dengan centang. Tab **Izin** di Panel Dev berisi tabel per kelompok (Proyek, Rancangan
+Paket, Task, Pengaturan, Halaman, Ruang Saya) dengan kolom Manager, Lead, dan Staff.
+
+- **Bisa diatur** (bawaan = aturan sebelum 2.29.0):
+
+  | Izin | Bawaan |
+  |---|---|
+  | Membuat, mengubah, menghapus, mengarsipkan proyek; memulai siklus baru; keputusan proyek; menautkan proyek ke paket | Manager |
+  | Membuat, membagikan (Lintas Divisi), dan mengelaborasi rancangan paket; mengatur setoran | Lead, Manager |
+  | Menghapus rancangan paket | Manager |
+  | Menghapus task siapa pun; mengatur urutan tunggu task tim mana pun | Manager |
+  | Mengubah Master | Lead, Manager |
+  | Mengelola Tautan tim | Manager |
+  | Membuka Laporan | Lead, Manager |
+  | Membuka Riwayat Aktivitas | Manager |
+
+- **Tetap** (tampil abu-abu, tak bisa dicentang): yang ditentukan struktur tim dan alur
+  tinjauan, mis. siapa Lead tim pemilik sebuah sub-stage, siapa peninjau task, task yang boleh
+  diubah staff (yang ia buat sendiri), membagi task jadi task turunan, ruang pribadi, dan
+  pengaturan khusus Dev (orang, PIN profil, sumber data, izin). Mengubahnya lewat centang
+  akan merusak alur ADDIE, jadi hanya ditampilkan supaya daftarnya lengkap.
+- **Berlaku di mana:** di tombol dan halaman (yang tak boleh tak ditampilkan) dan di aturan
+  `Inti` yang dijalankan browser dan server (`wajibIzin`), jadi tak bisa diakali dari browser.
+  Pesan penolakannya mengikuti izin yang berlaku, mis. "Hanya Lead atau Manager yang membuat
+  paket."; kalau tak satu peran pun dicentang: "Tak ada peran yang boleh … (diatur di Panel Dev →
+  Izin)". **Dev selalu boleh** (akun teknis yang mengaturnya).
+- **Tersimpan** di tab `master` sebagai `jenis` = `izin` (`kunci` = nama izin, `data` =
+  `{"peran":[…]}`), tanpa tab atau kolom baru; berlaku bagi orang lain saat aplikasi dimuat
+  ulang. **Hanya mode Dev** yang bisa mengubahnya (`simpanMaster` jenis `izin` ditolak untuk
+  sesi lain, termasuk Manager). Di mode uji Dev perubahannya hanya di browser itu, seperti Master
+  lain. Tombol **Kembalikan semua ke bawaan** muncul bila ada yang diubah.
+- Katalognya `Inti.IZIN` (`kunci`, `grup`, `label`, `aksi` untuk pesan penolakan, `peran`
+  bawaan, `tetap`); pemeriksaannya `Inti.izin(me, kunci)` dan `Inti.izinPeran(kunci)`. Diuji di
+  `test/master.test.js` dan `test/rpc.test.js`.
 
 ### Alamat, pencarian cepat, dan notifikasi
 
@@ -687,7 +740,7 @@ Saya** di grup Ruang Saya.
   server `muatAgenda`, `simpanAgenda`, `hapusAgenda`, `simpanPribadi`. Diuji di
   `test/agenda.test.js` dan `test/rpc.test.js`.
 
-### Bahasa Indonesia / English (2.28.0, tahap 1)
+### Bahasa Indonesia / English (2.28.0; tahap 2 di 2.29.0)
 
 Pilihan **Bahasa · Language** di menu akun (kanan atas), **per profil** (tersimpan di setelan
 tampilan, ikut ke perangkat lain) dan diingat perangkat itu untuk layar sebelum profil dipilih.
@@ -696,11 +749,24 @@ Tanggal dan angka mengikuti bahasanya.
 - Teks ditulis dalam bahasa Indonesia dan dibungkus `tr()`; terjemahan Inggrisnya di
   `public/bahasa.js`. Yang belum diterjemahkan tetap tampil dalam bahasa Indonesia, jadi
   terjemahan ditambah bertahap.
-- **Tahap 1**: kerangka aplikasi (sidebar, kepala, menu akun, notifikasi), Hari Ini, Task (semua
-  tampilan dan saringan), detail task, Proyek, Kalender Saya, dan form task/proyek. **Belum**:
-  Dashboard, Laporan, Rancangan Paket, Komunikasi, Link & Catatan Saya, Master, Panduan, Panel
-  Dev, layar masuk, dan sebagian pesan dari aturan (mis. alasan menunggu).
-- Isi yang diketik orang (judul, nama sub-stage, kategori, pesan) tak diterjemahkan.
+- **Tahap 1** (2.28.0): kerangka aplikasi (sidebar, kepala, menu akun, notifikasi), Hari Ini,
+  Task (semua tampilan dan saringan), detail task, Proyek, Kalender Saya, dan form task/proyek.
+- **Tahap 2** (2.29.0): semua halaman lain — Dashboard, Laporan, Rancangan Paket (dan form
+  elaborasi), Komunikasi, Link Saya, Catatan Saya (termasuk menu "/" dan toolbar editor), Master,
+  Riwayat Aktivitas, Panel Dev, layar PIN dan pemilih profil, Ctrl+K, serta modal foto, Sesuaikan
+  tampilan, dan Setel status — juga pesan singkat, konfirmasi, dan **pesan dari aturan dan
+  server** (penolakan izin, syarat ajukan, alasan menunggu, galat isian). Pesan itu tetap
+  dibuat dalam bahasa Indonesia oleh `Inti` dan server; `toast()` dan `galatModal()` di app.js
+  menerjemahkannya lewat `trPola()`, yang mencocokkan kalimat bernama/berangka dengan daftar pola
+  `POLA_TR` (±80 pola) lalu memakai terjemahan biasa. Total ±1.870 teks.
+- **Belum** (tahap 3): isi **Panduan** (`public/panduan.js`) dan ilustrasinya.
+- Isi yang diketik orang (judul, nama sub-stage, kategori, pesan, catatan riwayat) dan nilai Master
+  tak diterjemahkan, begitu pula yang tersimpan sebagai data atau disalin ke sheet (mis. isi
+  templat catatan, status siap pakai seperti "Cuti", salinan sheet Marsel).
+- Kunci boleh berkonteks: `tr('Proyek§satu')` tampil "Proyek" dalam bahasa Indonesia dan "Project"
+  dalam bahasa Inggris, terpisah dari `tr('Proyek')` (menu: "Projects").
+- Lihat sebagai memakai bahasa orang itu tanpa mengubah bahasa perangkat; kembali jadi Dev,
+  bahasanya pulih (perbaikan 2.29.0).
 - `test/bahasa.test.js` memastikan setiap teks `tr('…')` di app.js punya terjemahan dengan
   `{isian}` yang sama.
 

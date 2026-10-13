@@ -36,6 +36,11 @@ test('tr(): Indonesia apa adanya; English memakai terjemahan, yang belum ada tet
     assert.equal(B.tr('{n} jam lalu', { n: 3 }), '3 h ago');
     assert.equal(B.tr('Teks yang belum diterjemahkan'), 'Teks yang belum diterjemahkan');
     assert.equal(B.lokal(), 'en-GB');
+    // Kunci berkonteks (2.29.0): bagian sesudah § tak pernah tampil.
+    assert.equal(B.tr('Proyek§satu'), 'Project');
+    assert.equal(B.tr('Proyek'), 'Projects');
     assert.equal(B.atur('fr'), 'id', 'bahasa lain = Indonesia');
+    assert.equal(B.tr('Proyek§satu'), 'Proyek');
+    assert.equal(B.tr('Teks§konteks tanpa terjemahan'), 'Teks');
   } finally { B.atur('id'); }
 });

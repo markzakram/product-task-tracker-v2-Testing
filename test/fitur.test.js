@@ -63,6 +63,8 @@ test('Link Saya: milik sendiri, folder Umum di akhir, hapus folder memindah isin
   I.simpanLink(d, 'ali', { url: 'contoh.id/bank', folder: 'Kerja' }, '', WAKTU);
   I.simpanLink(d, 'ali', { url: 'https://a.id', title: 'A', folder: 'umum' }, '', WAKTU + 1);
   I.simpanLink(d, 'ali', { url: 'https://b.id', title: 'B', folder: 'Arsip' }, '', WAKTU + 2);
+  assert.equal(I.simpanLink(d, 'ali', { url: 'https://g.id', title: 'G', folder: 'General' }, '', WAKTU + 2).folder, '', 'General (nama Inggris Umum) = folder bawaan');
+  d.links.pop();
   const milikKiki = I.simpanLink(d, 'kiki', { url: 'https://k.id', title: 'K' }, '', WAKTU + 3);
   const punyaAli = () => d.links.filter(l => l.user === 'ali');
   assert.deepEqual(I.kelompokFolder(punyaAli()).map(g => [g.folder, g.isi.length]), [['Arsip', 1], ['Kerja', 1], ['Umum', 1]]);

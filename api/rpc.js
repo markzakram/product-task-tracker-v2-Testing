@@ -93,7 +93,6 @@ async function wajibProfil(konteks, k, orang) {
    dan menonaktifkan isian Master), yang terbukti lewat PIN-nya kalau profilnya ber-PIN. Selama
    belum ada Manager yang ber-PIN, siapa pun boleh (seperti data prototipe lainnya). PIN profil
    sendiri hanya diatur mode Dev (0.14.1). */
-const PERAN_MASTER = ['manager', 'lead'];
 /* Sumber data sesi ini: data contoh untuk sesi Dev yang memakai mode uji, selain itu sumber
    global. */
 async function modeSesi(konteks, k, id, opsi) {
@@ -113,15 +112,22 @@ async function profilAgenda(konteks, k) {
   if (!me || !Inti.ORANG.some(o => o.id === me && o.aktif !== false)) throw new GalatIzin('Pilih profil Anda dulu: Kalender Saya hanya untuk profil yang sedang dipakai.');
   return me;
 }
+/* Sejak 2.29.0 siapa yang boleh mengubah Master mengikuti izin master.ubah (Panel Dev → Izin);
+   panggil sesudah Inti.aturMaster supaya izin terkini yang berlaku. */
 async function bolehMaster(konteks, k) {
   if (konteks.dev) return;
   const me = await meSah(konteks, k);
-  if (me && PERAN_MASTER.includes(Inti.orang(me).peran)) return;
+  if (me && Inti.izin(me, 'master.ubah')) return;
   const pin = await sheet.bacaPin(k, sheet.idSpreadsheet());
   if (!Inti.ORANG.some(o => o.peran === 'manager' && pin.has(o.id))) return;
   // Sesi yang mengaku Lead/Manager tapi PIN-nya belum (atau tak lagi) cocok: minta PIN-nya lagi.
-  if (konteks.meKlaim && pin.has(konteks.meKlaim) && PERAN_MASTER.includes(Inti.orang(konteks.meKlaim).peran)) throw perluPin(konteks.meKlaim);
-  throw new GalatIzin('Hanya Lead, Manager, atau mode Dev yang bisa mengubah Master.');
+  if (konteks.meKlaim && pin.has(konteks.meKlaim) && Inti.izin(konteks.meKlaim, 'master.ubah')) throw perluPin(konteks.meKlaim);
+  throw new GalatIzin(pesanTolakMaster());
+}
+/* "Hanya Lead, Manager, atau mode Dev yang bisa mengubah Master." — peran mengikuti izin master.ubah. */
+function pesanTolakMaster() {
+  const nama = ['staff', 'lead', 'manager'].filter(p => Inti.izinPeran('master.ubah').includes(p)).map(p => Inti.PERAN[p]).concat('mode Dev');
+  return `Hanya ${nama.length > 2 ? `${nama.slice(0, -1).join(', ')}, atau ${nama[nama.length - 1]}` : nama.join(' atau ')} yang bisa mengubah Master.`;
 }
 const POLA_PIN = /^\d{4,8}$/;
 const hashPin = (pin, garam) => crypto.scryptSync(String(pin), garam, 32).toString('hex');
@@ -363,12 +369,14 @@ const AKSI = {
   },
   /* ----- Master & PIN (0.14.0) ----- */
   async simpanMaster(jenis, isian) {
+    // Izin per peran (2.29.0) hanya diatur mode Dev.
+    if (String(jenis) === 'izin') hanyaDev(this);
     const k = await sheet.klien();
     await terapkanOrang(k);   // Lead yang ditambah lewat mode Dev ikut terhitung
-    await bolehMaster(this, k);
     const id = sheet.idSpreadsheet();
     const baris = await sheet.bacaMaster(k, id);
     Inti.aturMaster(baris);
+    await bolehMaster(this, k);
     let bersih;
     try { bersih = Inti.periksaMaster(String(jenis || ''), isian && typeof isian === 'object' ? isian : {}, baris); } catch (err) { throw new GalatIsian(err.message); }
     // Hapus sub-stage (2.24.0): hanya yang belum dipakai task di data yang sedang dipakai semua
@@ -386,10 +394,10 @@ const AKSI = {
   async pindahSub(dari, ke) {
     const k = await sheet.klien();
     await terapkanOrang(k);
-    await bolehMaster(this, k);
     const id = sheet.idSpreadsheet();
     const baris = await sheet.bacaMaster(k, id);
     Inti.aturMaster(baris);
+    await bolehMaster(this, k);
     const kode = String(dari || '').trim().toUpperCase();
     const sumber = await taskSumber(k, id);
     let tulis;

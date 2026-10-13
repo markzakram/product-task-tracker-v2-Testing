@@ -43,6 +43,58 @@
   ];
   const PERAN = { manager: 'Manager', lead: 'Lead', staff: 'Staff' };
 
+  /* ---------- Izin per peran (2.29.0, permintaan user) ----------
+     Semua yang boleh dilakukan Manager, Lead, dan Staff, dalam satu daftar. Yang tanpa "tetap"
+     diatur Dev di Panel Dev → Izin (centang per peran), tersimpan di tab master (jenis izin) dan
+     berlaku di browser dan server. Yang "tetap" mengikuti struktur tim dan alur tinjauan (siapa
+     Lead tim pemiliknya, siapa peninjaunya), jadi hanya ditampilkan supaya daftarnya lengkap.
+     aksi = sisa kalimat penolakan: "Hanya Manager yang <aksi>." */
+  const PERAN_IZIN = ['manager', 'lead', 'staff'];
+  const IZIN = [
+    { kunci: 'proyek.buat', grup: 'Proyek', label: 'Membuat proyek', aksi: 'membuat proyek', peran: ['manager'] },
+    { kunci: 'proyek.ubah', grup: 'Proyek', label: 'Mengubah nama, platform, dan tujuan proyek', aksi: 'mengubah proyek', peran: ['manager'] },
+    { kunci: 'proyek.hapus', grup: 'Proyek', label: 'Menghapus proyek', aksi: 'menghapus proyek', peran: ['manager'] },
+    { kunci: 'proyek.arsip', grup: 'Proyek', label: 'Mengarsipkan dan mengaktifkan lagi proyek', aksi: 'mengarsipkan proyek', peran: ['manager'] },
+    { kunci: 'proyek.siklus', grup: 'Proyek', label: 'Memulai siklus baru', aksi: 'memulai siklus baru', peran: ['manager'] },
+    { kunci: 'proyek.keputusan', grup: 'Proyek', label: 'Mengubah keputusan proyek (Build, Improve, Maintain, Hold)', aksi: 'memutuskan', peran: ['manager'] },
+    { kunci: 'proyek.paket', grup: 'Proyek', label: 'Menautkan proyek ke rancangan paket', aksi: 'menautkan proyek ke paket', peran: ['manager'] },
+    { kunci: 'paket.buat', grup: 'Rancangan Paket', label: 'Membuat rancangan paket', aksi: 'membuat paket', peran: ['manager', 'lead'] },
+    { kunci: 'paket.bagikan', grup: 'Rancangan Paket', label: 'Membagikan paket ke Lintas Divisi', aksi: 'bisa membagikan paket', peran: ['manager', 'lead'] },
+    { kunci: 'paket.hapus', grup: 'Rancangan Paket', label: 'Menghapus rancangan paket', aksi: 'menghapus paket', peran: ['manager'] },
+    { kunci: 'paket.elaborasi', grup: 'Rancangan Paket', label: 'Mengelaborasi paket jadi proyek', aksi: 'mengelaborasi paket', peran: ['manager', 'lead'] },
+    { kunci: 'paket.setoran', grup: 'Rancangan Paket', label: 'Mengatur setoran task ke paket (pada task yang boleh ia ubah)', aksi: 'mengatur setoran', peran: ['manager', 'lead'] },
+    { kunci: 'task.hapusSemua', grup: 'Task', label: 'Menghapus task siapa pun', aksi: 'menghapus task siapa pun', peran: ['manager'] },
+    { kunci: 'task.urutanSemua', grup: 'Task', label: 'Mengatur urutan tunggu task tim mana pun', aksi: 'mengatur urutan tunggu semua tim', peran: ['manager'] },
+    { kunci: 'master.ubah', grup: 'Pengaturan', label: 'Mengubah Master (sub-stage, kategori, platform, label)', aksi: 'bisa mengubah Master', peran: ['manager', 'lead'] },
+    { kunci: 'tautanTim.kelola', grup: 'Pengaturan', label: 'Mengelola Tautan tim', aksi: 'mengelola tautan tim', peran: ['manager'] },
+    { kunci: 'halaman.laporan', grup: 'Halaman', label: 'Membuka Laporan', aksi: 'membuka Laporan', peran: ['manager', 'lead'] },
+    { kunci: 'halaman.riwayat', grup: 'Halaman', label: 'Membuka Riwayat Aktivitas', aksi: 'membuka Riwayat Aktivitas', peran: ['manager'] },
+    // Tetap: mengikuti struktur tim dan alur tinjauan.
+    { kunci: 'task.buat', grup: 'Task', label: 'Menambah task (staff: untuk dirinya sendiri)', peran: ['manager', 'lead', 'staff'], tetap: true },
+    { kunci: 'task.ubah', grup: 'Task', label: 'Mengubah task: Manager semua, Lead task timnya, staff yang ia buat sendiri', peran: ['manager', 'lead', 'staff'], tetap: true },
+    { kunci: 'task.kerjakan', grup: 'Task', label: 'Mengisi output, tautan, dan ceklis pengerjaan task yang dipegangnya', peran: ['manager', 'lead', 'staff'], tetap: true },
+    { kunci: 'task.turunan', grup: 'Task', label: 'Membagi task jadi task turunan (Lead tim pemiliknya)', peran: ['lead'], tetap: true },
+    { kunci: 'task.tinjau', grup: 'Task', label: 'Meninjau task: Lead untuk staff timnya, Manager untuk Lead dan sub-stage bertanda Manager', peran: ['manager', 'lead'], tetap: true },
+    { kunci: 'task.hapusTim', grup: 'Task', label: 'Menghapus task di tab timnya sendiri', peran: ['lead'], tetap: true },
+    { kunci: 'task.urutanTim', grup: 'Task', label: 'Mengatur urutan tunggu task timnya sendiri', peran: ['lead'], tetap: true },
+    { kunci: 'kalender.saya', grup: 'Ruang Saya', label: 'Kalender Saya, Link Saya, Catatan Saya, dan tampilan pribadi', peran: ['manager', 'lead', 'staff'], tetap: true },
+    { kunci: 'dev.atur', grup: 'Pengaturan', label: 'Orang, PIN profil, sumber data, dan izin ini (hanya mode Dev)', peran: [], tetap: true },
+  ];
+  const IZIN_PER = new Map(IZIN.map(x => [x.kunci, x]));
+  /* Peran yang sedang berlaku per izin yang bisa diatur (dari tab master; kosong = bawaan). */
+  const IZIN_KINI = new Map();
+  const izinPeran = kunci => IZIN_KINI.get(kunci) || (IZIN_PER.get(kunci) || {}).peran || [];
+  // Dev (akun teknis) selalu boleh: dialah yang mengatur izin ini.
+  const izin = (me, kunci) => me === DEV || izinPeran(kunci).includes(orang(me).peran);
+  /* Galat penolakan: "Hanya Lead atau Manager yang membuat paket." (urutan staff, lead, manager). */
+  function tolakIzin(kunci) {
+    const x = IZIN_PER.get(kunci);
+    const nama = ['staff', 'lead', 'manager'].filter(p => izinPeran(kunci).includes(p)).map(p => PERAN[p]);
+    const daftar = nama.length > 2 ? `${nama.slice(0, -1).join(', ')}, atau ${nama[nama.length - 1]}` : nama.join(' atau ');
+    return new Error(nama.length ? `Hanya ${daftar} yang ${x.aksi}.` : `Tak ada peran yang boleh ${x.aksi} (diatur di Panel Dev → Izin).`);
+  }
+  const wajibIzin = (me, kunci) => { if (!izin(me, kunci)) throw tolakIzin(kunci); };
+
   /* Organogram Divisi Produk (sama dengan PRD). Sejak 0.13.0 mode Dev bisa mengubah dan
      menambah orang: perubahannya disimpan di tab `orang` spreadsheet v2 dan diterapkan lewat
      aturOrang (di browser dan di server). ORANG dan ORANG_PER_ID diubah di tempat, jadi semua
@@ -758,7 +810,8 @@
     if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur ceklis.');
     const judul = teks(f.title).slice(0, 200);
     if (!judul) throw new Error('Judul butir ceklis wajib diisi.');
-    const s = { id: `s${waktu}-${t.subtasks.length}`, title: judul, pic: teks(f.pic) || t.pic, due: '', done: false, link: tautanSub(f.link) };
+    // Sejak 2.29.0 butir ceklis tak punya PIC sendiri: selalu PIC task itu.
+    const s = { id: `s${waktu}-${t.subtasks.length}`, title: judul, pic: t.pic, due: '', done: false, link: tautanSub(f.link) };
     t.subtasks.push(s);
     t.updatedAt = waktu;
     catatLog(data, 'update', `${t.id} · ${t.title}`, 'Ceklis ditambah: ' + judul, me, waktu);
@@ -773,7 +826,6 @@
     const linkLama = s.link || '';
     const link = f.link === undefined ? linkLama : tautanSub(f.link);
     s.title = judul;
-    if (f.pic !== undefined) s.pic = teks(f.pic) || t.pic;
     if (link !== linkLama) s.link = link;
     t.updatedAt = waktu;
     const ket = link === linkLama ? '' : `; tautan ${!link ? 'dihapus' : linkLama ? 'diganti' : 'ditambah'}`;
@@ -788,10 +840,10 @@
     catatLog(data, 'update', `${t.id} · ${t.title}`, 'Ceklis dihapus: ' + s.title, me, waktu);
     return s;
   }
-  /* Mencentang juga boleh PIC butir ceklis itu sendiri. */
+  /* Sejak 2.29.0 butir ceklis milik PIC task: yang mencentang PIC task, Lead-nya, atau Manager. */
   function centangSubtask(data, t, id, done, me, waktu) {
     const s = cariSubtask(t, id);
-    if (!bolehUbah(t, me) && s.pic !== me) throw new Error('Hanya PIC butir ceklis, PIC task, Lead-nya, atau Manager yang mencentangnya.');
+    if (!bolehUbah(t, me)) throw new Error('Hanya PIC task, Lead-nya, atau Manager yang mencentang ceklisnya.');
     s.done = !!done;
     t.updatedAt = waktu;
     catatLog(data, 'update', `${t.id} · ${t.title}`, `Ceklis ${s.done ? 'selesai' : 'dibuka lagi'}: ${s.title}`, me, waktu);
@@ -846,7 +898,9 @@
     // tetap di tahap yang sama, dan induk yang sudah dibagi tetap dipegang PIC-nya.
     const anak = data.tasks.filter(x => x.induk === t.id);
     const induk = t.induk ? data.tasks.find(x => x.id === t.induk) || null : null;
-    if (pic !== t.pic && orang(t.pic).peran === 'lead' && orang(pic).peran === 'staff') {
+    // Task turunan (2.29.0): PIC-nya boleh dipindah dari Lead ke staff timnya, karena turunan
+    // memang cara membagi pekerjaan Lead; yang tak diserahkan hanya task Lead yang bukan turunan.
+    if (pic !== t.pic && !induk && orang(t.pic).peran === 'lead' && orang(pic).peran === 'staff') {
       throw new Error('Task Lead tak diserahkan ke staff. Buat task turunan untuk staff dari detail task-nya.');
     }
     if (pic !== t.pic && anak.length) throw new Error('Task ini sudah dibagi ke task turunan, jadi PIC-nya tetap.');
@@ -871,6 +925,8 @@
       Object.assign(t, lama);
       throw new Error(`Perubahan ini membuat task saling menunggu: ${putar.join(' → ')}. Atur ulang urutan tunggunya dulu.`);
     }
+    // Butir ceklis milik PIC task (2.29.0): ikut pindah bersama task-nya.
+    if (t.pic !== lama.pic) for (const s of t.subtasks || []) s.pic = t.pic;
     Object.assign(t, {
       title: judul, due: teks(ambil('due', t.due)), priority: teks(ambil('priority', t.priority)) || 'Normal',
       output: teks(ambil('output', t.output)), detail: teks(ambil('detail', t.detail)), updatedAt: waktu,
@@ -883,7 +939,7 @@
   /* Proyek tidak punya Lead tetap (PRD 7 Okt): tanggung jawabnya mengikuti tim pemilik
      sub-stage task-task di dalamnya. */
   function proyekBaru(data, f, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang membuat proyek.');
+    wajibIzin(me, 'proyek.buat');
     if (!String(f.name || '').trim()) throw new Error('Nama proyek wajib diisi.');
     const p = {
       id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ', data), name: String(f.name).trim(), platform: f.platform || 'All Platform',
@@ -897,7 +953,7 @@
   /* Ubah proyek (2.28.0, permintaan user): nama, platform, dan tujuan proyek yang sudah dibuat.
      Hanya Manager, yang juga membuat proyek. ID, siklus, tahap, dan task-nya tetap. */
   function ubahProyek(data, p, f, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengubah proyek.');
+    wajibIzin(me, 'proyek.ubah');
     if (!p || data.projects.indexOf(p) < 0) throw new Error('Proyek tidak ditemukan.');
     const nama = teks(f.name === undefined ? p.name : f.name).replace(/\s+/g, ' ');
     if (!nama) throw new Error('Nama proyek wajib diisi.');
@@ -992,7 +1048,7 @@
 
   /* Sesudah E12 disetujui, Manager memulai siklus berikutnya: kembali ke Analysis. */
   function mulaiSiklus(data, p, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang memulai siklus baru.');
+    wajibIzin(me, 'proyek.siklus');
     if (!siklusTutup(data, p)) throw new Error('Siklus ditutup lewat task E12 · Final approval yang sudah disetujui.');
     const dari = p.cycle || 1;
     p.cycle = dari + 1;
@@ -1005,7 +1061,7 @@
   /* Keputusan proyek (PRD: dicatat di gate Analysis). Hold juga menahan proyek. */
   const KEPUTUSAN = ['Build', 'Improve', 'Maintain', 'Hold'];
   function setKeputusan(data, p, keputusan, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang memutuskan.');
+    wajibIzin(me, 'proyek.keputusan');
     if (!KEPUTUSAN.includes(keputusan)) throw new Error('Keputusan tidak dikenal.');
     p.decision = keputusan;
     catatLog(data, 'gate', `${p.id} · ${p.name}`, keputusan === 'Hold' ? 'Proyek ditahan' : `Keputusan proyek: ${keputusan}`, me, waktu);
@@ -1014,7 +1070,7 @@
   /* Proyek yang seluruh pekerjaannya sudah selesai (termasuk kolaborasi v1 yang
      tuntas) diarsipkan: tak muncul di daftar aktif maupun antrean keputusan. */
   function setArsip(data, p, arsip, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengarsipkan proyek.');
+    wajibIzin(me, 'proyek.arsip');
     p.arsip = !!arsip;
     catatLog(data, 'gate', `${p.id} · ${p.name}`, arsip ? 'Proyek diarsipkan' : 'Proyek diaktifkan lagi', me, waktu);
   }
@@ -1043,8 +1099,6 @@
       ['hari', 'Hari ini', jalan.filter(t => t.due === hariIni).map(t => mau(t))],
       ['minggu', '7 hari ke depan', jalan.filter(t => t.due > hariIni && t.due <= batasMinggu).map(t => mau(t))],
       ['nanti', 'Nanti', jalan.filter(t => !t.due || t.due > batasMinggu).map(t => mau(t))],
-      ['sub', 'Ceklis untuk saya', data.tasks.filter(t => aktif(t) && t.pic !== me)
-        .flatMap(t => t.subtasks.filter(s => !s.done && s.pic === me).map(s => mau(t, 'Ceklis: ' + s.title)))],
       ['tunggu', 'Belum bisa dikerjakan', tunggu.map(t => mau(t, alasanTunggu(t, perId)))],
       ['bantu', 'Saya bantu', data.tasks.filter(t => aktif(t) && t.pic !== me && (t.support || []).includes(me)).map(t => mau(t, 'PIC: ' + orang(t.pic).pendek))],
     ];
@@ -1195,7 +1249,6 @@
         return {
           id: o.id,
           aktif: aktifSemua.filter(t => t.pic === o.id).length,
-          subTerbuka: data.tasks.filter(t => aktif(t) && t.pic !== o.id).reduce((n, t) => n + t.subtasks.filter(s => !s.done && s.pic === o.id).length, 0),
           telat: nTelat, menahan, tinjau, bottleneck: menahan * 2 + tinjau * 2 + nTelat,
           selesai30: tasks.filter(t => t.pic === o.id && dalam30(t)).length,
         };
@@ -1890,7 +1943,7 @@
   }
 
   function paketBaru(data, f, me, waktu) {
-    if (!['manager', 'lead'].includes(orang(me).peran)) throw new Error('Hanya Lead atau Manager yang membuat paket.');
+    wajibIzin(me, 'paket.buat');
     if (!String(f.namaPaket || '').trim()) throw new Error('Nama paket wajib diisi.');
     const p = {
       id: 'PKG-' + String(nomorBerikut(data.packages, 'PKG', data)).padStart(3, '0'),
@@ -2039,7 +2092,7 @@
     const namaPaket = teks(f.namaPaket);
     if (!namaPaket) throw new Error('Nama paket wajib diisi.');
     const mirror = f.mirror === undefined ? !!p.mirror : !!f.mirror;
-    if (mirror !== !!p.mirror && !['manager', 'lead'].includes(orang(me).peran)) throw new Error('Hanya Lead atau Manager yang bisa membagikan paket.');
+    if (mirror !== !!p.mirror) wajibIzin(me, 'paket.bagikan');
     const kategori = new Set(KATEGORI_SEMUA.map(([l]) => l));
     const items = (f.items || []).map((it, i) => ({
       id: teks(it.id) || `i${waktu}-${i}`, urutan: i + 1,
@@ -2068,7 +2121,7 @@
   }
 
   function hapusPaket(data, p, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menghapus paket.');
+    wajibIzin(me, 'paket.hapus');
     const i = data.packages.indexOf(p);
     if (i < 0) throw new Error('Paket tidak ditemukan.');
     catatNomor(data, data.packages, 'PKG');
@@ -2094,7 +2147,7 @@
     };
   }
   function hapusProyek(data, p, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menghapus proyek.');
+    wajibIzin(me, 'proyek.hapus');
     if (!p || data.projects.indexOf(p) < 0) throw new Error('Proyek tidak ditemukan.');
     const r = ringkasHapusProyek(data, p);
     const ids = new Set(data.tasks.filter(t => t.project === p.id).map(t => t.id));
@@ -2116,7 +2169,7 @@
   function bolehHapusTask(t, me, perId) {
     if (!t) return false;
     const r = orang(me).peran;
-    if (r === 'manager' || bolehUbahTask(t, me)) return true;
+    if (izin(me, 'task.hapusSemua') || bolehUbahTask(t, me)) return true;
     if (r !== 'lead' || !t.project) return false;
     const tim = TIM[timJalur(t, perId)];
     return !!tim && tim.lead === me;
@@ -2207,8 +2260,7 @@
        f.jumlah   { idTarget: n } — mis. target 10 tapi proyek ini cukup 5; sisanya tetap
                   terbuka untuk elaborasi berikutnya */
   function elaborasiPaket(data, p, f, me, waktu, hariIni) {
-    const peran = orang(me).peran;
-    if (!['manager', 'lead'].includes(peran)) throw new Error('Hanya Lead atau Manager yang mengelaborasi paket.');
+    wajibIzin(me, 'paket.elaborasi');
     let proj = null;
     if (teks(f.proyek)) {
       proj = data.projects.find(x => x.id === f.proyek);
@@ -2369,7 +2421,7 @@
   function bolehAturTunggu(t, me, perId) {
     if (!t || !tungguTahap(t) || t.induk || t.sub === 'E12') return false;
     const r = orang(me).peran;
-    if (r === 'manager') return true;
+    if (izin(me, 'task.urutanSemua')) return true;
     const tim = TIM[timJalur(t, perId)];
     return r === 'lead' && !!tim && tim.lead === me;
   }
@@ -2400,7 +2452,7 @@
     return t;
   }
 
-  const bolehSetor = (t, me) => ['manager', 'lead'].includes(orang(me).peran) && bolehUbah(t, me);
+  const bolehSetor = (t, me) => izin(me, 'paket.setoran') && bolehUbah(t, me);
 
   /* Setoran manual dari detail task, untuk task yang dibuat di luar elaborasi.
      Satu task + satu target = satu setoran; menyetor lagi mengganti jumlah dan capaiannya. */
@@ -2425,14 +2477,15 @@
     const i = daftar.findIndex(s => s.id === id);
     if (i < 0) throw new Error('Setoran tidak ditemukan.');
     const t = indeks(data).get(daftar[i].task);
-    if (!['manager', 'lead'].includes(orang(me).peran) || (t && !bolehUbah(t, me))) throw new Error('Hanya Lead atau Manager task ini yang mengatur setoran.');
+    wajibIzin(me, 'paket.setoran');
+    if (t && !bolehUbah(t, me)) throw new Error('Hanya Lead atau Manager task ini yang mengatur setoran.');
     const [s] = daftar.splice(i, 1);
     catatLog(data, 'update', t ? `${t.id} · ${t.title}` : s.task, `Setoran ke ${s.paket} dihapus`, me, waktu);
   }
 
   /* Menautkan proyek yang sudah ada (mis. kolaborasi v1) ke rancangan paket. */
   function tautkanPaket(data, proj, paketId, me, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menautkan proyek ke paket.');
+    wajibIzin(me, 'proyek.paket');
     if (paketId && !data.packages.some(p => p.id === paketId)) throw new Error('Paket tidak ditemukan.');
     proj.paket = paketId || '';
     catatLog(data, 'update', `${proj.id} · ${proj.name}`, paketId ? `Ditautkan ke rancangan paket ${paketId}` : 'Tautan rancangan paket dilepas', me, waktu);
@@ -2442,7 +2495,8 @@
 
   const FOLDER_UMUM = 'Umum';
   const namaFolder = f => teks(f) || FOLDER_UMUM;
-  const folderSimpan = f => (teks(f).toLowerCase() === FOLDER_UMUM.toLowerCase() ? '' : teks(f));
+  // "General" = nama tampilan Umum dalam bahasa Inggris (2.29.0), jadi juga berarti folder bawaan.
+  const folderSimpan = f => ([FOLDER_UMUM.toLowerCase(), 'general'].includes(teks(f).toLowerCase()) ? '' : teks(f));
 
   /* Alamat tanpa skema ("docs.google.com/…") diberi https://. Selain http/https —
      javascript:, data:, file: — ditolak supaya tak jadi tautan berbahaya di layar orang. */
@@ -2698,7 +2752,7 @@
   const IKON_DASHBOARD = ['dashboard', 'bar_chart', 'timeline', 'table_chart', 'description', 'assignment', 'school', 'event'];
 
   function simpanDashboard(data, me, f, id, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola tautan tim.');
+    wajibIzin(me, 'tautanTim.kelola');
     const title = teks(f.title);
     if (!title) throw new Error('Judul tautan tim wajib diisi.');
     const url = tautanRapi(f.url);
@@ -2716,7 +2770,7 @@
   }
 
   function hapusDashboard(data, me, id, waktu) {
-    if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang mengelola tautan tim.');
+    wajibIzin(me, 'tautanTim.kelola');
     const i = data.dashboards.findIndex(x => x.id === id);
     if (i < 0) throw new Error('Tautan tim tidak ditemukan.');
     const [d] = data.dashboards.splice(i, 1);
@@ -2742,7 +2796,7 @@
      Kunci yang sudah dipakai data (kode sub-stage, nama platform, kategori, satuan) tak bisa
      diganti atau dihapus, hanya dinonaktifkan: tak ditawarkan lagi, tapi data lamanya tetap
      terbaca. Status, tahap ADDIE, dan peran mengikuti alur kerja, jadi bukan bagian Master. */
-  const JENIS_MASTER = ['tim', 'substage', 'platform', 'satuan', 'prioritas', 'capaian', 'kategori'];
+  const JENIS_MASTER = ['tim', 'substage', 'platform', 'satuan', 'prioritas', 'capaian', 'kategori', 'izin'];
   const BAWAAN = {
     tim: Object.values(TIM).map(t => ({ kunci: t.kode, nama: t.nama, singkat: t.singkat, aktif: true })),
     substage: SUB_TAHAP.map(s => ({ kunci: s.kode, nama: s.nama, tim: s.tim, reviewManager: s.reviewManager, aktif: true })),
@@ -2751,6 +2805,7 @@
     prioritas: PRIORITAS.map(([kunci, label]) => ({ kunci, label, aktif: true })),
     capaian: CAPAIAN.map(c => ({ kunci: c.kode, nama: c.nama, bobot: Math.round(c.bobot * 100), aktif: true })),
     kategori: KATEGORI_PAKET.map(([label, kunci], i) => ({ kunci, label, alur: ALUR_PAKET[label].slice(), aktif: true, urutan: i + 1 })),
+    izin: IZIN.filter(x => !x.tetap).map(x => ({ kunci: x.kunci, peran: x.peran.slice(), aktif: true })),
   };
   /* Daftar lengkap (termasuk yang nonaktif) yang sedang berlaku, untuk halaman Master. */
   const MASTER_KINI = {};
@@ -2844,6 +2899,13 @@
         }
         return { kunci, label, alur: langkah, aktif, urutan };
       }
+      case 'izin': {
+        // Izin per peran (2.29.0): hanya yang bisa diatur; urutan peran tetap.
+        const iz = IZIN_PER.get(kunci);
+        if (!iz || iz.tetap) return salah('Izin tidak dikenal atau tak bisa diatur.');
+        const daftar = Array.isArray(x.peran) ? x.peran : String(x.peran || '').split(',');
+        return { kunci, peran: PERAN_IZIN.filter(p => daftar.map(teksM).includes(p)), aktif: true };
+      }
       default:
         return salah('Jenis master tidak dikenal.');
     }
@@ -2925,6 +2987,10 @@
   /* Terapkan satu jenis ke daftar hidup (di tempat). */
   function pakaiMaster(jenis, daftar) {
     MASTER_KINI[jenis] = daftar;
+    if (jenis === 'izin') {
+      IZIN_KINI.clear();
+      for (const x of daftar) IZIN_KINI.set(x.kunci, x.peran.slice());
+    }
     if (jenis === 'tim') for (const t of daftar) Object.assign(TIM[t.kunci], { nama: t.nama, singkat: t.singkat || SINGKAT_TIM[t.kunci] });
     if (jenis === 'substage') {
       SUB_TAHAP.length = 0;
@@ -3258,7 +3324,7 @@
     tampilanBawaan, periksaTampilan, statusAktif, tokenAksen, kontras,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
     centangSubtask, dataKosong, AKSI_DATA, jalankanPerintah, periksaPerintah, ringkasHasil, KOLEKSI_REAL, bedaData, terapkanUbah,
-    KODE_AI, AKSI_AGEN, PESAN_AGEN,
+    KODE_AI, AKSI_AGEN, PESAN_AGEN, PERAN_IZIN, IZIN, izin, izinPeran,
     ULANG_AGENDA, PENGINGAT_AGENDA, periksaAgenda, adaPadaTanggal, kejadianAgenda, waktuPengingat, periksaEmail,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
     SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
