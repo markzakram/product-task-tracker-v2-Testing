@@ -6,7 +6,7 @@ const I = require('../public/inti');
 const { tambahDemo } = require('../scripts/_demo');
 const { dataDemo: data, SEKARANG, HARI } = require('./bantu/data-demo');
 
-test('skenario contoh: proyek berjalan per tim ADDIE — task anak, gate, capaian, penutupan siklus', () => {
+test('skenario contoh: proyek berjalan per tim ADDIE — task turunan, gate, capaian, penutupan siklus', () => {
   const d = data();
   const r = tambahDemo(d, SEKARANG);
   const perId = I.indeks(d);
@@ -29,19 +29,19 @@ test('skenario contoh: proyek berjalan per tim ADDIE — task anak, gate, capaia
   const rTka = ringkas('PKG-001');
   assert.ok(rTka.persen > rTka.persenTayang, 'progres berbobot di atas yang sudah tayang');
   assert.ok(rTka.persen < 100);
-  assert.ok(tTka.some(t => t.induk && I.labelKeadaan(t, perId) === 'Revisi'), 'ada task anak yang dikembalikan');
+  assert.ok(tTka.some(t => t.induk && I.labelKeadaan(t, perId) === 'Revisi'), 'ada task turunan yang dikembalikan');
   assert.equal(tTka.filter(t => t.tertahan).length, 1);
   assert.equal(tTka.filter(t => I.telat(t, HARI) && !t.tertahan).length, 1);
-  assert.ok(tTka.some(t => t.induk && t.status === 'Ditinjau' && I.orang(I.peninjau(t)).peran === 'lead'), 'task anak menunggu tinjauan Lead');
+  assert.ok(tTka.some(t => t.induk && t.status === 'Ditinjau' && I.orang(I.peninjau(t)).peran === 'lead'), 'task turunan menunggu tinjauan Lead');
   assert.ok(tTka.some(t => !t.induk && t.status === 'Ditinjau' && I.peninjau(t) === I.MANAGER), 'langkah Lead menunggu tinjauan Manager');
   const antrean = I.pekerjaanSaya(d, 'alya', HARI).grup.find(g => g.kunci === 'antrean');
   assert.ok(antrean && antrean.isi.length >= 2, 'langkah siap di antrean Alya, menunggu dibagi');
   assert.ok(tTka.filter(t => I.selesai(t)).every(t => t.output && t.evidence.length), 'setiap langkah yang lolos punya output & bukti');
 
-  // Hirarki: task anak dipegang staff tim Lead induknya, di tahap yang sama; induk yang lolos,
-  // semua anaknya lolos lebih dulu. Tak ada lagi langkah Lead yang diserahkan ke staff.
+  // Hirarki: task turunan dipegang staff tim Lead induknya, di tahap yang sama; induk yang lolos,
+  // semua turunannya lolos lebih dulu. Tak ada lagi langkah Lead yang diserahkan ke staff.
   const anak = d.tasks.filter(t => t.induk);
-  assert.ok(tTka.filter(t => t.induk).length > 10, 'pekerjaan dibagi ke staff lewat task anak');
+  assert.ok(tTka.filter(t => t.induk).length > 10, 'pekerjaan dibagi ke staff lewat task turunan');
   for (const a of anak) {
     const induk = perId.get(a.induk);
     assert.ok(I.timDari(induk.pic).includes(a.pic) && a.stage === induk.stage && a.project === induk.project, `${a.id} di bawah ${induk.id}`);

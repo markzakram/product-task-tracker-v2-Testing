@@ -39,7 +39,7 @@ setiap orang memilih profilnya sendiri; sejak 0.14.0 profil bisa dikunci dengan 
 | Ringkasan | Hari Ini · Dashboard · Laporan (Lead & Manager) |
 | Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Task · Komunikasi |
 | Ruang Saya | Link Saya (termasuk Tautan tim) · Catatan Saya |
-| Manajer | Riwayat Aktivitas · Master (Manager) |
+| Manajer | Riwayat Aktivitas (Manager) · Master (Lead & Manager) |
 | Bantuan | Panduan |
 
 Urutan Pekerjaan mengikuti alurnya: paket dirancang, dielaborasi jadi proyek, lalu proyek
@@ -62,15 +62,19 @@ dengan satu penyederhanaan: tetap empat status.
   dipindah. A1, A6, D1, I8, dan E12 selalu direview Manager. Itu daftar bawaan PRD; sejak 0.14.0
   Manager mengaturnya di halaman **Master** (termasuk nama dan singkatan tim), dan form task tak
   lagi memilihkan sub-stage: harus dipilih sendiri.
-- **Task anak (0.15.0).** Lead memberi task ke timnya sendiri, atau ke Lead tim pemilik
+- **Task turunan (0.15.0).** Lead memberi task ke timnya sendiri, atau ke Lead tim pemilik
   sub-stage-nya (mis. Andika memberi DV8 Input ke Alya). Task yang dipegang Lead **tidak
   diserahkan ke staff**: langkah yang sudah bisa dimulai masuk **Antrean tim** di Hari Ini Lead
-  itu, dan ia membaginya dengan membuat **task anak** untuk staff timnya, dari bagian Task anak
-  di detail task atau dari kolom **Task induk** di form Tambah task. Task anak ada di proyek,
-  siklus, dan tahap yang sama dengan induknya, tampil menjorok di bawahnya di halaman proyek dan
-  di Task, ditinjau Lead itu (juga di sub-stage bertanda Manager), dan tak beranak lagi.
-  Induknya baru bisa diajukan atau ditandai selesai setelah semua task anaknya selesai; induk
+  itu, dan ia membaginya dengan membuat **task turunan** untuk staff timnya, dari bagian Task
+  turunan di detail task atau dari kolom **Task induk** di form Tambah task. Task turunan ada di
+  proyek, siklus, dan tahap yang sama dengan induknya, tampil menjorok di bawahnya di halaman
+  proyek dan di Task, ditinjau Lead itu (juga di sub-stage bertanda Manager), dan tak beranak lagi.
+  Induknya baru bisa diajukan atau ditandai selesai setelah semua task turunannya selesai; induk
   yang masih antre ikut mulai begitu dibagi. Induk yang sudah dibagi tetap dipegang PIC-nya.
+  Sejak 2.21.0 namanya **task turunan** (dulu "task anak"; nama fungsi dan kolom `induk` di data
+  tetap). PIC-nya boleh **Lead itu sendiri**: turunan yang ia pegang tak ditinjau lagi dan langsung
+  ditandai selesai, karena induknya tetap ditinjau Manager. Lead tanpa staff pun bisa memecah
+  task-nya.
 - **ADDIE per tim (2.19.0, keputusan user 13 Okt 2026).** Halaman proyek dibagi per tim: tab
   **DAE · RAD · LNA · CLO** ditambah **Ringkasan**, dan tiap tim menjalankan ADDIE-nya sendiri.
   Sebuah task proyek menunggu (`Inti.ditunggu`):
@@ -83,7 +87,7 @@ dengan satu penyederhanaan: tetap empat status.
   - **tutup** — **E12** menunggu semua task lain di siklusnya, supaya siklus tak tertutup
     selagi masih ada pekerjaan.
 
-  Tim yang berbeda tak saling menunggu di luar itu. Task anak mengikuti induknya, dan task rutin
+  Tim yang berbeda tak saling menunggu di luar itu. Task turunan mengikuti induknya, dan task rutin
   tetap menunggu task di `deps`-nya. Urutan yang membuat task saling menunggu ditolak saat
   disimpan, juga saat sub-stage atau PIC diubah. Task yang diatur menunggu task setim di fase
   lebih lambat (mis. I4 tayang menunggu QC) berdiri di fase itu, jadi urutan bawaan dan yang
@@ -95,10 +99,10 @@ dengan satu penyederhanaan: tetap empat status.
 - **Sub-task** bisa ditambah, diubah (judul dan PIC), dan dihapus oleh PIC task, Lead-nya, atau
   Manager; PIC sub-task boleh mencentangnya.
 - **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, ada minimal satu
-  tautan bukti, semua sub-task selesai, semua task anak selesai (kalau ada), task yang ditunggu
+  tautan bukti, semua sub-task selesai, semua task turunan selesai (kalau ada), task yang ditunggu
   selesai, dan tidak tertahan. Staff mengisi output dan bukti sendiri dari detail task; daftar
   periksanya tampil di sana.
-- **Tinjauan:** task staff oleh Lead-nya (termasuk task anak), task Lead oleh Manager, sub-stage
+- **Tinjauan:** task staff oleh Lead-nya (termasuk task turunan), task Lead oleh Manager, sub-stage
   bertanda Manager oleh Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
 - **Proyek tanpa Lead tetap.** Yang tampil adalah tim yang punya task di siklus ini beserta
   fasenya, mis. **RAD V**, **CLO ✓**.
@@ -135,7 +139,7 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
    Buat task baru aktif sesudahnya. Setiap target yang dipilih menjadi satu **batch**: rangkaian task sesuai alur jenisnya. Contoh Latsol: DV1
    Produksi soal → E1 QC soal → DV8 Input → I1 Generate → E4 QC SIADU → E5 QC Web → E6 QC
    Android → I4 Show/hide. Setiap langkah dipegang Lead tim pemilik sub-stage-nya, yang
-   membaginya ke staff lewat task anak. Sejak 2.19.0 langkahnya dikerjakan menurut **fase ADDIE
+   membaginya ke staff lewat task turunan. Sejak 2.19.0 langkahnya dikerjakan menurut **fase ADDIE
    tim pemiliknya**, dan elaborasi memasang urutan batch itu: **serah-terima** (langkah pertama
    sebuah tim menunggu langkah tim lain sebelumnya yang fasenya sama atau lebih awal: input LNA
    menunggu produksi soal RAD, tapi tak menunggu QC-nya) dan **urutan alur** di dalam tim (I4
@@ -415,7 +419,7 @@ disentuh `npm run impor:v1` maupun Reset data contoh.
 **Cara kerjanya.**
 
 - **Satu pintu.** Setiap perubahan data bersama lewat `ubahData(aksi, isi)` di `public/app.js`.
-  `aksi` adalah nama aturan di `Inti.AKSI_DATA` (24 aksi: task baru dan task anak, ubah task,
+  `aksi` adalah nama aturan di `Inti.AKSI_DATA` (24 aksi: task baru dan task turunan, ubah task,
   aksi status, output dan bukti, sub-task, setoran, proyek, keputusan, siklus, arsip, paket,
   elaborasi, Tautan tim).
 - **Seketika, lalu diperiksa server.** Browser menjalankan perintahnya dulu supaya terasa
@@ -536,11 +540,12 @@ diganti membatalkan sesi lama), dan **menolak menulis atas nama profil ber-PIN**
 pesan Komunikasi dan foto profil. Browser lalu meminta PIN itu lagi. PIN disimpan sebagai hash
 scrypt bergaram di tab `pin` dan tak pernah dikirim ke browser.
 
-**Siapa yang boleh.** Master: Dev, atau Manager yang terbukti lewat PIN-nya. Selama belum ada
-Manager yang ber-PIN, Master masih terbuka bagi siapa pun yang memilih profil Manager (seperti
-data prototipe lainnya); peringatannya hanya tampil di mode Dev. PIN profil: **hanya Dev**
-(`aturPin` menolak sesi lain, termasuk Manager). **Dev sebaiknya memasang PIN Manager lebih
-dulu.**
+**Siapa yang boleh.** Master: Dev, Manager, atau **Lead** (sejak 2.21.0, keputusan user: Lead
+juga menambah, mengubah, dan menonaktifkan isian), yang terbukti lewat PIN-nya bila profilnya
+ber-PIN. Menghapus di Master = menonaktifkan, supaya task dan paket lama yang memakainya tetap
+terbaca. Selama belum ada Manager yang ber-PIN, Master masih terbuka bagi siapa pun (seperti data
+prototipe lainnya); peringatannya hanya tampil di mode Dev. PIN profil: **hanya Dev** (`aturPin`
+menolak sesi lain, termasuk Manager). **Dev sebaiknya memasang PIN Manager lebih dulu.**
 
 **Cara kerjanya.** Tab `master` berisi satu baris per isian yang diubah (`jenis`, `kunci`,
 `data` JSON, `aktif`, `urutan`); bawaannya tetap di kode (`public/inti.js`). Isian diperiksa di
@@ -565,6 +570,48 @@ Diuji di `test/master.test.js` dan `test/rpc.test.js`.
   dihitung dari data yang sudah ada (riwayat, tinjauan, komentar, keadaan task) oleh
   `notifikasi()` di `public/inti.js`, tidak disimpan terpisah. Tanda sudah dibaca disimpan per
   profil di browser itu.
+
+### Tampilan pribadi & status (2.21.0)
+
+Keputusan user: tiap profil mengatur tampilannya sendiri, **disimpan per profil** (ikut ke
+perangkat mana pun). Dibuka lewat foto sendiri di kanan atas → **Sesuaikan tampilan** /
+**Setel status**, atau Ctrl+K.
+
+- **Warna aksen**: 8 pilihan atau warna sendiri.
+  - Dipakai tombol, tautan, menu aktif, dan sorotan.
+  - `Inti.tokenAksen` menggeser kecerahannya sampai terbaca di kedua tema (teks ≥ 4,6:1 di
+    latar terang, ≥ 6,5:1 di latar gelap, tombol bertulisan putih ≥ 4,6:1). Diuji untuk warna
+    ekstrem, termasuk putih, hitam, dan kuning terang.
+  - Biru yang bermakna (status Dikerjakan, capaian paket, sebutan, kategori notifikasi, kode
+    lepas) memakai token `--info-*` dan tak ikut aksen, supaya warna status sama untuk semua
+    orang.
+- **Latar (wallpaper)**: gradasi aksen, Senja, Laut, Hutan, pola titik/garis, atau **sampul
+  sendiri** yang diburamkan, dengan penggeser Samar–Jelas (10–60%).
+  - Lapisannya ada di belakang semua isi; kartu, sidebar, dan bilah atas tetap pejal.
+  - Kabut (`--kabut-latar`, 70% putih atau hitam sesuai tema) dan teks sekunder yang sedikit
+    lebih tegas menjaga keterbacaan. Diuji dengan gambar terburuk (hitam, putih, merah, biru,
+    hijau, kuning, sian) pada 60%: semua teks di atas latar ≥ 4,5:1 di 8 halaman, kedua tema.
+- **Sampul profil**: gambar 3:1 yang dipotong dan diperkecil di perangkat (≤ `SAMPUL_MAKS`
+  karakter). Tampil di menu akun seperti media sosial, dan bisa jadi latar.
+- **Kepadatan** Nyaman/Ringkas (Ringkas hanya di layar lebar) dan **ukuran huruf**
+  Kecil/Sedang/Besar. Semua `font-size` di app.css memakai `--skala-huruf`, jadi hanya huruf
+  yang membesar; kotak dan sasaran sentuh tetap.
+- **Halaman awal**: halaman pertama tiap kali profil dipilih dan saat logo diklik; bawaannya
+  Hari Ini (Staff, Lead) atau Proyek (Manager).
+- **Status**: emoji dari daftar (🎯 Fokus, 📅 Rapat, 🏠 WFH, 🏖️ Cuti, 🤒 Sakit, …) dengan teks
+  ≤ 60 karakter dan "hapus setelah" (1 jam, 4 jam, akhir hari, akhir minggu, atau tanpa batas).
+  - Terlihat semua orang sebagai lencana di avatar dan chip di samping nama (Komunikasi, detail
+    task, Per orang, pemilih profil).
+  - Dipasang lewat satu lembar gaya (`#gaya-status`), jadi berganti tanpa menggambar ulang
+    halaman. Teksnya di-escape per karakter.
+- **Penyimpanan**: tab `tampilan` (satu baris per orang: `orang`, `setelan` JSON, `diperbarui`,
+  `sampul`), tabel `v2_tampilan` di MySQL.
+  - Aksi `muatTampilan(sejak)` (tanpa gambar, ditarik tiap 2 menit), `muatSampul(orang)`, dan
+    `simpanTampilan({ orang, setelan, sampul? })`.
+  - Seperti foto, profil ber-PIN hanya diubah dari sesi yang sudah memasukkan PIN-nya; sesi
+    agen AI tak bisa mengubahnya.
+  - Pilihan terakhir disalin ke `pt2_tampilan_awal`, yang dipasang `<head>` index.html sebelum
+    CSS supaya tak berkedip warna bawaan.
 
 ### Menu akun, mode gelap, dan posisi gulir (2.20)
 
@@ -834,7 +881,7 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
 
 - **TKA_CEREBRUM** (target asli v1) dielaborasi dua minggu lalu dengan alur lengkap. Design
   sudah tuntas dan proyeknya di Development: ada batch yang sudah ter-input, langkah Lead yang
-  menunggu tinjauan Manager, task anak yang dikerjakan, dikembalikan (Revisi), terlambat,
+  menunggu tinjauan Manager, task turunan yang dikerjakan, dikembalikan (Revisi), terlambat,
   tertahan, dan menunggu tinjauan Lead, serta langkah yang masih di antrean Lead. Input LNA
   menunggu soal RAD; Implementation dan Evaluation tiap tim menunggu fase Development tim itu.
   Setiap langkah yang lolos punya output dan bukti, dan pekerjaannya dibagi ke staff lewat task
@@ -864,8 +911,8 @@ Google Sheets ditiru di dalam tes, jadi tak butuh kredensial maupun jaringan. Te
 penting adalah *sheet v1 ditolak — dan tak satu pun tulisan terjadi*.
 
 Selain tes per aturan, `test/acak.test.js` menjalankan simulasi acak dengan benih tetap:
-ratusan aksi sungguhan (status, output & bukti, task anak, ganti PIC dan sub-stage, sub-task)
-oleh orang yang berganti-ganti. Tiap langkah memeriksa hirarki task anak, urutan tahap, dan
+ratusan aksi sungguhan (status, output & bukti, task turunan, ganti PIC dan sub-stage, sub-task)
+oleh orang yang berganti-ganti. Tiap langkah memeriksa hirarki task turunan, urutan tahap, dan
 bahwa semua hitungan tampilan tetap jalan.
 
 Data real diuji di dua tingkat. `test/real.test.js` memastikan perubahan yang disimpan selalu
@@ -921,11 +968,11 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
   berjalan sejajar sampai Lead-nya mengatur urutan. Impor v1 juga tak memasang urutan antartim,
   karena proses v1 yang diselingi tim lain bisa saling mengunci.
 - **Data contoh yang diimpor sebelum 0.15.0** dijalankan dengan aturan lama: langkah batch
-  berurutan, dan langkah Lead diserahkan ke staff (PIC staff, bukan task anak). Di 0.15.0 task
+  berurutan, dan langkah Lead diserahkan ke staff (PIC staff, bukan task turunan). Di 0.15.0 task
   tahap berikutnya di sana yang sudah berjalan ikut menunggu tahap sebelumnya selesai. Impor
   ulang `npm run impor:v1 -- --demo` memasang skenario contoh baru; kolom `induk` di tab `tasks`
   hanya menambah, jadi versi live lama tetap membacanya.
-- Task anak hanya satu tingkat dan tak bisa dipindah ke induk lain.
+- Task turunan hanya satu tingkat dan tak bisa dipindah ke induk lain.
 - Task belum bisa dihapus.
 - Satu task hanya menyetor saat task-nya Selesai; setoran per sub-task belum ada.
 - Bobot capaian bawaan (40/60/85/100) serta alur Dibimbing dan Live Class masih usulan PRD;
@@ -944,7 +991,7 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
    Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 21 tabel berawalan `v2_` di skema
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 22 tabel berawalan `v2_` di skema
    `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
    salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
    dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru

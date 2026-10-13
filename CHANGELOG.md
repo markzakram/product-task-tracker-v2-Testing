@@ -1,5 +1,61 @@
 # Changelog — ProductTrack v2
 
+## 2.21.0 — Tampilan pribadi & status; Master untuk Lead; task turunan (2026-10-13)
+
+Permintaan user:
+- tiap orang bisa mengatur tampilan ProductTrack-nya sendiri. Pilihan user: warna aksen,
+  wallpaper, kepadatan & ukuran huruf, halaman awal, sampul profil, status ber-emoji, dan
+  disimpan **per profil**;
+- revisi:
+  1. Master boleh diubah Lead juga;
+  2. judul di detail task memenuhi lebar;
+  3. PIC task anak boleh Lead itu sendiri;
+  4. "task anak" diganti "task turunan".
+
+- **Sesuaikan tampilan** (menu foto di kanan atas, atau Ctrl+K). Setiap pilihan langsung
+  terlihat (pratinjau). Tersimpan setelah Simpan; Batal atau Esc mengembalikannya.
+  - **Warna aksen**: 8 pilihan + warna sendiri.
+    - `Inti.tokenAksen` menggeser kecerahan sampai terbaca di tema terang dan gelap.
+    - Biru bermakna (status Dikerjakan, capaian paket, sebutan, kategori notifikasi, kode
+      lepas, batang timeline) dipindah ke token `--info-*` dan tak ikut aksen.
+  - **Latar**: gradasi aksen, Senja, Laut, Hutan, titik, garis, atau sampul sendiri yang
+    diburamkan, dengan penggeser Samar–Jelas 10–60%.
+    - Lapisan `#latar` di belakang semua isi.
+    - Kabut `--kabut-latar` (70%) dan teks sekunder yang lebih tegas menjaga keterbacaan.
+      Diuji dengan gambar terburuk di 8 halaman, kedua tema: semua teks ≥ 4,5:1.
+  - **Sampul profil**: dipotong 3:1 dan diperkecil di perangkat. Tampil sebagai banner di menu
+    akun.
+  - **Kepadatan** Nyaman/Ringkas (layar lebar) dan **ukuran huruf** Kecil/Sedang/Besar (335
+    `font-size` kini memakai `--skala-huruf`).
+  - **Halaman awal** sendiri, dipakai saat profil dipilih dan saat logo diklik.
+- **Status singkat**: emoji dari daftar + teks ≤ 60 karakter + "hapus setelah".
+  - Terlihat semua orang sebagai lencana di avatar dan chip di samping nama (Komunikasi, detail
+    task, Per orang, pemilih profil).
+  - Dipasang lewat satu lembar gaya, tanpa menggambar ulang halaman.
+- **Penyimpanan per profil**: tab `tampilan` (orang, setelan, diperbarui, sampul) dan tabel
+  `v2_tampilan` (22 tabel).
+  - Aksi `muatTampilan(sejak)` (tanpa gambar, ditarik tiap 2 menit), `muatSampul(orang)`, dan
+    `simpanTampilan`.
+  - Profil ber-PIN perlu PIN-nya; sesi agen AI ditolak; akun Dev memakai tampilan bawaan.
+  - Pilihan terakhir dipasang `<head>` index.html dari `pt2_tampilan_awal`.
+  - Perangkat baru langsung memakai tampilan profil begitu profilnya dipilih (diuji).
+- **Master untuk Lead**: tambah, ubah, dan nonaktifkan isian Master (menghapus = menonaktifkan,
+  supaya data lama tetap terbaca).
+  - Lead ber-PIN perlu memasukkan PIN-nya; bagian PIN profil tetap khusus Dev.
+  - Server juga menerapkan organogram terkini sebelum memeriksa izin.
+- **Task turunan** (dulu "task anak") di semua teks aplikasi, Panduan, README, dan agen AI.
+  Nama fungsi dan kolom data `induk` tetap.
+- **PIC task turunan boleh Lead itu sendiri** ("saya sendiri" di pilihan PIC).
+  - Turunan yang ia pegang tak ditinjau lagi, karena induknya tetap ditinjau Manager.
+  - Lead tanpa staff pun bisa memecah task-nya.
+  - Di form Tambah task, task induk ditawarkan tapi tak dipilih otomatis bila PIC-nya diri sendiri.
+- **Judul detail task memenuhi lebar.** Aturan `.detail-atas > div` ikut membuat kolom tombol
+  (tautan, tutup) melebar setengah. Kini kolom tombol hanya selebar ikonnya, berjajar di kanan
+  atas.
+- Bilah atas di atas tombol + (FAB) di ponsel, supaya panel akun dan notifikasi tak tertimpa.
+- Tes baru `test/tampilan.test.js` (aturan, kontras aksen, RPC per profil, PIN). Tes Master untuk
+  Lead, turunan untuk Lead sendiri, dan agen. 235 tes.
+
 ## 2.20.2 — Tombol tema di samping lonceng (2026-10-13)
 
 Permintaan user: "tambahkan juga tombol tema di samping lonceng".

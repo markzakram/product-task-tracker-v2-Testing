@@ -35,9 +35,9 @@ test('setiap koleksi _skema.js punya tabel v2_<nama> dengan semua field-nya', ()
   }
 });
 
-test('tab aplikasi (obrolan, foto, orang, master, pin) juga punya tabelnya', () => {
+test('tab aplikasi (obrolan, foto, tampilan, orang, master, pin) juga punya tabelnya', () => {
   const pasangan = [
-    ['v2_obrolan', skema.OBROLAN], ['v2_foto', skema.FOTO], ['v2_orang', skema.ORANG_KOLOM],
+    ['v2_obrolan', skema.OBROLAN], ['v2_foto', skema.FOTO], ['v2_tampilan', skema.TAMPILAN], ['v2_orang', skema.ORANG_KOLOM],
     ['v2_master', skema.MASTER_KOLOM], ['v2_pin', skema.PIN_KOLOM],
   ];
   for (const [nama, field] of pasangan) {
@@ -56,7 +56,7 @@ test('riwayat tahap proyek dan penanda pemilik ada', () => {
 test('semua tabel berawalan v2_ — tak satu pun bernama sama dengan tabel salinan v1', () => {
   const V1 = ['users', 'auth_pins', 'options', 'tasks', 'checklists', 'comments', 'activity_log', 'notifications', 'collabs',
     'collab_steps', 'packages', 'package_items', 'package_contribs', 'package_links', 'package_variants', 'user_links', 'user_notes', 'dashboards'];
-  assert.equal(TABEL.size, 21);
+  assert.equal(TABEL.size, 22);
   for (const nama of TABEL.keys()) {
     assert.ok(nama.startsWith('v2_'), nama);
     assert.ok(!V1.includes(nama), nama);

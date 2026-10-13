@@ -554,7 +554,7 @@ test('PIN profil: hanya mode Dev yang mengatur; hash tak pernah keluar; PIN sala
   assert.equal((await panggil({ body: { action: 'kirimObrolan', args: [pesan] }, cookie })).status, 200);
 });
 
-test('Master: begitu Manager ber-PIN, hanya Manager (lewat PIN) atau Dev yang bisa mengubahnya', async () => {
+test('Master: begitu Manager ber-PIN, hanya Lead dan Manager (lewat PIN-nya bila ber-PIN) atau Dev yang bisa mengubahnya', async () => {
   const I = require('../public/inti');
   await sheetContoh();
   const cookie = await masuk();
@@ -565,10 +565,20 @@ test('Master: begitu Manager ber-PIN, hanya Manager (lewat PIN) atau Dev yang bi
     const isian = ['platform', { baru: true, kunci: 'SNBT' }];
     const tolak = await panggil({ body: { action: 'simpanMaster', args: isian }, cookie });
     assert.equal(tolak.status, 403);
-    assert.match(tolak.json.message, /Manager/);
+    assert.match(tolak.json.message, /Lead, Manager/);
     // Staff yang terbukti lewat PIN-nya pun tak bisa.
     const kiki = pakai(await panggil({ body: { action: 'masukProfil', args: ['kiki', ''] }, cookie }));
     assert.equal((await panggil({ body: { action: 'simpanMaster', args: isian }, cookie: kiki })).status, 403);
+    // 2.21.0: Lead boleh menambah, mengubah, dan menonaktifkan isian Master.
+    const alya = pakai(await panggil({ body: { action: 'masukProfil', args: ['alya', ''] }, cookie }));
+    assert.equal((await panggil({ body: { action: 'simpanMaster', args: ['satuan', { baru: true, kunci: 'Modul' }] }, cookie: alya })).status, 200);
+    assert.equal((await panggil({ body: { action: 'simpanMaster', args: ['satuan', { kunci: 'Modul', aktif: false }] }, cookie: alya })).status, 200);
+    // Lead ber-PIN: dari sesi yang belum memasukkan PIN-nya, diminta PIN lagi.
+    assert.equal((await panggil({ body: { action: 'aturPin', args: ['alya', '1357'] }, cookie: dev })).status, 200);
+    const alyaLama = await panggil({ body: { action: 'simpanMaster', args: ['satuan', { kunci: 'Modul', aktif: true }] }, cookie: alya });
+    assert.deepEqual([alyaLama.status, alyaLama.json.kode], [403, 'PERLU_PIN']);
+    const alyaPin = pakai(await panggil({ body: { action: 'masukProfil', args: ['alya', '1357'] }, cookie }));
+    assert.equal((await panggil({ body: { action: 'simpanMaster', args: ['satuan', { kunci: 'Modul', aktif: true }] }, cookie: alyaPin })).status, 200);
     const nynda = pakai(await panggil({ body: { action: 'masukProfil', args: ['nynda', '8642'] }, cookie }));
     assert.equal((await panggil({ body: { action: 'simpanMaster', args: isian }, cookie: nynda })).status, 200);
     // Manager yang terbukti pun tak mengatur PIN: hanya mode Dev.

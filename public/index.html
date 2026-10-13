@@ -14,6 +14,19 @@
       var gelap = p === 'gelap' || (p !== 'terang' && !!window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.setAttribute('data-tema', gelap ? 'gelap' : 'terang');
       if (gelap) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#171C23');
+      // Tampilan pribadi terakhir di browser ini (2.21.0): warna aksen, kepadatan, ukuran huruf.
+      try {
+        var t = JSON.parse(localStorage.getItem('pt2_tampilan_awal')) || {};
+        var akar = document.documentElement;
+        if (t.padat) akar.setAttribute('data-padat', String(t.padat));
+        if (t.huruf) akar.setAttribute('data-huruf', String(t.huruf));
+        if (typeof t.css === 'string' && t.css) {
+          var gaya = document.createElement('style');
+          gaya.id = 'gaya-aksen';
+          gaya.textContent = t.css;
+          document.head.appendChild(gaya);
+        }
+      } catch (e) { /* diblokir atau rusak: tampilan bawaan */ }
     })();
   </script>
   <title>ProductTrack v2</title>
@@ -23,9 +36,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- ?v= = versi package.json (dijaga tes berkas): browser atau proxy tak bisa mencampur berkas lama dan baru. -->
-  <link rel="stylesheet" href="/app.css?v=2.20.2">
+  <link rel="stylesheet" href="/app.css?v=2.21.0">
 </head>
 <body>
+
+  <!-- Wallpaper pribadi (2.21.0): lapisan di belakang semua isi, diatur app.js. -->
+  <div id="latar" aria-hidden="true"></div>
 
   <!-- Layar kunci: PIN server bersama -->
   <div id="kunci" class="layar">
@@ -82,8 +98,8 @@
 
   <div id="toast" class="toast-wadah" aria-live="polite"></div>
 
-  <script src="/inti.js?v=2.20.2"></script>
-  <script src="/panduan.js?v=2.20.2"></script>
-  <script src="/app.js?v=2.20.2"></script>
+  <script src="/inti.js?v=2.21.0"></script>
+  <script src="/panduan.js?v=2.21.0"></script>
+  <script src="/app.js?v=2.21.0"></script>
 </body>
 </html>

@@ -56,6 +56,13 @@ const OBROLAN = ['id', 'jenis', 'ruang', 'oleh', 'at', 'teks', 'target', 'kode',
 const TAB_FOTO = 'foto';
 const FOTO = ['orang', 'gambar', 'diperbarui'];
 
+/* Tab tampilan (tampilan pribadi & status, 2.21.0), juga BUKAN data contoh. Satu baris per orang,
+   ditimpa saat diubah. setelan = JSON (aksen, latar, kepadatan, huruf, halaman awal, status,
+   sampulAt); sampul = data URL gambar sampul di kolom terakhir, supaya tarikan rutin (A:C) tak
+   ikut membawa gambarnya. */
+const TAB_TAMPILAN = 'tampilan';
+const TAMPILAN = ['orang', 'setelan', 'diperbarui', 'sampul'];
+
 /* Tab orang (kelola orang di mode Dev, 0.13.0), juga BUKAN data contoh. Satu baris per orang
    yang diubah atau ditambah; organogram bawaan ada di public/inti.js (ORANG_BAWAAN). */
 const TAB_ORANG = 'orang';
@@ -135,6 +142,15 @@ const fotoKeBaris = f => [String(f.orang || ''), String(f.gambar || ''), keSel('
 function fotoDariBaris(judul, baris) {
   const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
   return { orang: sel('orang'), gambar: sel('gambar'), diperbarui: dariSel('at', sel('diperbarui')) };
+}
+
+const tampilanKeBaris = t => [String(t.orang || ''), JSON.stringify(t.setelan || {}), keSel('at', t.diperbarui), String(t.sampul || '')];
+function tampilanDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  let setelan = {};
+  try { setelan = JSON.parse(sel('setelan') || '{}') || {}; } catch (e) { setelan = {}; }
+  if (typeof setelan !== 'object' || Array.isArray(setelan)) setelan = {};
+  return { orang: sel('orang'), setelan, diperbarui: dariSel('at', sel('diperbarui')), sampul: sel('sampul') };
 }
 
 const orangKeBaris = o => ORANG_KOLOM.map(k => (k === 'aktif' ? (o.aktif === false ? 'tidak' : 'ya')
@@ -293,8 +309,8 @@ function nomorTerbesar(daftar, awalan) {
 
 module.exports = {
   TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
-  TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, SEL_MAKS,
-  keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
+  TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, SEL_MAKS, TAB_TAMPILAN, TAMPILAN,
+  keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris, tampilanKeBaris, tampilanDariBaris,
   masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   urai, rakit, nomorTerbesar,
 };

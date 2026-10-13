@@ -103,6 +103,18 @@ CREATE TABLE IF NOT EXISTS `v2_foto` (
   PRIMARY KEY (`orang`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
+-- Tampilan pribadi & status (2.21.0): satu baris per orang. `setelan` = aksen, latar,
+-- kepadatan, ukuran huruf, halaman awal, status ber-emoji, sampulAt. `sampul` = data URL
+-- gambar sampul (Inti.SAMPUL_MAKS karakter), dibaca terpisah dari setelan.
+CREATE TABLE IF NOT EXISTS `v2_tampilan` (
+  `orang`      VARCHAR(64) NOT NULL,
+  `setelan`    JSON        NOT NULL DEFAULT (JSON_OBJECT()),
+  `diperbarui` DATETIME(3) NULL,
+  `sampul`     MEDIUMTEXT  NULL,
+  `_diubah`    DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`orang`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
 -- Halaman Master: satu baris per isian daftar pilihan yang diubah. `data` = sisa
 -- isiannya (nama, tim, alur, bobot, ...). Kunci tak pernah diganti, hanya dinonaktifkan;
 -- urutan pecahan supaya bisa digeser tanpa menomori ulang semuanya.
@@ -424,7 +436,7 @@ CREATE TABLE IF NOT EXISTS `v2_obrolan` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Periksa: harus 21 tabel berawalan v2_ dan penanda app = producttrack-v2.
+-- Periksa: harus 22 tabel berawalan v2_ dan penanda app = producttrack-v2.
 SELECT COUNT(*) AS tabel_v2
   FROM information_schema.TABLES
  WHERE TABLE_SCHEMA = 'produk_base' AND TABLE_NAME LIKE 'v2\_%';

@@ -85,7 +85,7 @@
     { grup: 'Ruang Saya', id: 'link', judul: 'Link Saya', ikon: 'penanda' },
     { grup: 'Ruang Saya', id: 'catatan', judul: 'Catatan Saya', ikon: 'catatan' },
     { grup: 'Manajer', id: 'riwayat', judul: 'Riwayat Aktivitas', ikon: 'riwayat', peran: ['manager'] },
-    { grup: 'Manajer', id: 'master', judul: 'Master', ikon: 'atur', peran: ['manager'] },
+    { grup: 'Manajer', id: 'master', judul: 'Master', ikon: 'atur', peran: ['lead', 'manager'] },
     { grup: 'Bantuan', id: 'panduan', judul: 'Panduan', ikon: 'buku' },
     { grup: 'Dev', id: 'dev', judul: 'Panel Dev', ikon: 'kode', dev: true },
   ];
@@ -116,7 +116,14 @@
     if (h.dev) return modeDev();
     return !h.peran || h.peran.includes(I.orang(S.me).peran);
   }
-  const halamanAwal = () => (S.me === I.DEV ? 'dev' : I.orang(S.me).peran === 'manager' ? 'proyek' : 'hari');
+  /* Halaman pertama sesudah memilih profil: pilihan sendiri di Sesuaikan tampilan (2.21.0),
+     kalau boleh dibuka perannya; bawaannya Hari Ini (Staff, Lead) atau Proyek (Manager). */
+  function halamanAwal() {
+    if (S.me === I.DEV) return 'dev';
+    const pilihan = setelanSaya().awal;
+    if (pilihan && halamanBoleh(pilihan)) return pilihan;
+    return I.orang(S.me).peran === 'manager' ? 'proyek' : 'hari';
+  }
   /* Saringan task bersama semua tampilan Task (PRD: per tahap, sub-stage, tim, platform). */
   const SARING_KOSONG = { jalur: '', tahap: '', sub: '', tim: '', platform: '' };
   /* Preferensi Task tersimpan. lk 2 = lingkup per peran (0.9.0); lingkup tersimpan sebelum itu
@@ -178,6 +185,12 @@
     /* Foto profil dari tab foto spreadsheet v2: isi = { orang: { gambar, diperbarui } }, sejak =
        waktu foto terbaru yang dimiliki (tarikan berikutnya hanya yang berubah). */
     foto: Object.assign({ sejak: 0, isi: {} }, ambil('foto', {}), { ditarik: 0, menarik: false }),
+    // Tampilan pribadi & status semua orang (2.21.0); sampul hanya untuk profil di browser ini.
+    tampilan: Object.assign({ sejak: 0, isi: {} }, ambil('tampilan', {}), { ditarik: 0, menarik: false }),
+    sampul: ambil('sampul', {}),
+    drafTampilan: null,   // sedang diubah di Sesuaikan tampilan (pratinjau langsung)
+    drafSampul: undefined,   // undefined = sampul tak diubah; '' = dihapus; data URL = baru
+    drafStatus: null,
     navBuka: false,
     modal: null,
     seret: null,
@@ -464,6 +477,8 @@
 
   const JALUR_IKON = {
     matahari: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+    palet: '<circle cx="13.5" cy="6.5" r="1.3"/><circle cx="17.5" cy="10.5" r="1.3"/><circle cx="8.5" cy="7.5" r="1.3"/><circle cx="6.5" cy="12.5" r="1.3"/><path d="M12 2a10 10 0 0 0 0 20c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-5-4.5-8.6-10-8.6z"/>',
+    senyum: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>',
     bulan: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
     layar: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
     kolom: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
@@ -722,15 +737,15 @@
   const chipKeadaan = k => `<span class="pill kd-${k}">${KEADAAN[k]}</span>`;
 
   /* ---------- Hirarki task (0.15.0) ----------
-     Lead tak menyerahkan task yang ia pegang ke staff; ia membuat task anak untuk staff timnya
-     di bawah task itu. Di daftar, anak tampil menjorok tepat di bawah induknya. */
+     Lead tak menyerahkan task yang ia pegang ke staff; ia membuat task turunan untuk staff timnya
+     di bawah task itu. Di daftar, turunan tampil menjorok tepat di bawah induknya. */
   function ringkasAnak(t) {
     const anak = I.anakTask(perIdKini(), t.id);
-    return anak.length ? `${anak.filter(I.selesai).length}/${anak.length} task anak` : '';
+    return anak.length ? `${anak.filter(I.selesai).length}/${anak.length} task turunan` : '';
   }
   function chipInduk(t) {
     const induk = perIdKini().get(t.induk);
-    return `<span class="chip-induk" title="${esc(`Task anak dari ${t.induk}${induk ? ' · ' + induk.title : ''}`)}">↳ ${esc(t.induk)}</span>`;
+    return `<span class="chip-induk" title="${esc(`Task turunan dari ${t.induk}${induk ? ' · ' + induk.title : ''}`)}">↳ ${esc(t.induk)}</span>`;
   }
   /* Anak diletakkan tepat sesudah induknya bila induknya ada di daftar yang sama; kalau tidak,
      ia tetap di tempatnya dengan tanda ↳ induknya. */
@@ -951,7 +966,7 @@
     const kelompok = ['manager', 'lead', 'staff'].map(peran => `
       <p class="subjudul">${I.PERAN[peran]}</p>
       <div class="pilih-profil">${I.ORANG.filter(o => o.peran === peran).map(o => `
-        <button type="button" data-aksi="pilih-profil" data-id="${o.id}">${avatar(o.id, 'besar')}<span>${esc(o.nama)}<span>${esc(o.jabatan)}</span></span>${S.berpin.has(o.id) ? `<span class="profil-gembok" title="Memakai PIN pribadi">${ikon('gembok', 16)}<span class="sr">memakai PIN</span></span>` : ''}</button>`).join('')}
+        <button type="button" data-aksi="pilih-profil" data-id="${o.id}">${avatar(o.id, 'besar')}<span>${esc(o.nama)}${statusHtml(o.id)}<span>${esc(o.jabatan)}</span></span>${S.berpin.has(o.id) ? `<span class="profil-gembok" title="Memakai PIN pribadi">${ikon('gembok', 16)}<span class="sr">memakai PIN</span></span>` : ''}</button>`).join('')}
       </div>`).join('');
     // Mode Dev sengaja tak tampil di sini (0.14.3): masuknya hanya lewat tekan-tahan logo.
     $('#profil').innerHTML = `<div class="kartu-layar lebar">
@@ -1044,6 +1059,10 @@
     Object.assign(S.ctt, { pilih: null, warna: '', folderBaru: '', versiSesi: '' });
     S.lnk.penuh = new Set();
     S.notif.buka = false;
+    S.akun.buka = false;
+    // Tampilan pribadi profil yang baru dipilih (2.21.0).
+    terapkanTampilan();
+    pastikanSampul();
   }
 
   /* Alamat yang dibuka orang (mis. tautan task yang dikirim lewat chat) dipakai sekali,
@@ -1129,6 +1148,7 @@
     // Pesan Komunikasi tersimpan bersama di spreadsheet, terpisah dari data contoh.
     tarikObrolan(true).then(jadwalkanTarik);
     tarikFoto();
+    tarikTampilan();
   }
 
   /* Galat saat menyiapkan data atau menggambar layar pertama: pesannya ditampilkan, bukan
@@ -1303,10 +1323,17 @@
     const dev = S.me === I.DEV;
     const tema = pilihanTema();
     const butir = (aksi, ik, label, kelas = '') => `<button type="button" class="akun-butir ${kelas}" data-aksi="${aksi}">${ikon(ik, 18)}<span>${label}</span></button>`;
+    const sampul = dev ? '' : sampulSaya();
+    const st = dev ? null : I.statusAktif(setelanSaya());
     return `<div class="panel-akun" aria-label="Akun">
+      ${dev ? '' : `<div class="akun-sampul" ${sampul ? `style="background-image:url('${sampul}')"` : ''}></div>`}
       <div class="akun-kepala">${avatar(S.me, 'besar')}<span><strong>${esc(o.nama)}</strong><small>${dev ? 'Akun teknis' : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
+      ${dev ? '' : `<button type="button" class="akun-status" data-aksi="status">${st
+    ? `<b>${esc(st.emoji)}</b><span>${esc(st.teks || 'Status')}</span>${st.sampai ? `<small>${esc(teksSampai(st.sampai))}</small>` : ''}`
+    : `${ikon('senyum', 18)}<span>Setel status…</span>`}</button>`}
       <div class="akun-grup">
         ${dev ? '' : butir('foto-profil', 'kamera', 'Ganti foto profil')}
+        ${dev ? '' : butir('tampilan', 'palet', 'Sesuaikan tampilan')}
         ${butir('ganti-profil', 'orang', 'Ganti profil')}
       </div>
       <div class="akun-grup akun-tema"><span class="akun-label" id="label-tema">Tema</span>
@@ -1515,7 +1542,7 @@
       case 'tambah': return `${siapa}menambah task untuk dirinya sendiri: ${judul}`;
       case 'serah': return `${siapa}menyerahkan ${judul} ke Anda`;
       case 'siap': return t && I.orang(S.me).peran === 'lead' && t.lane === 'proyek' && I.timDari(S.me).length
-        ? `${judul} siap: kerjakan, atau bagi ke staff lewat task anak` : `${judul} siap dikerjakan: yang ditunggunya sudah selesai`;
+        ? `${judul} siap: kerjakan, atau bagi ke staff lewat task turunan` : `${judul} siap dikerjakan: yang ditunggunya sudah selesai`;
       case 'tinjau': return `${siapa}mengajukan ${judul} untuk Anda tinjau`;
       case 'kembali': return `${siapa}mengembalikan ${judul}.${kutip(n.teks)}`;
       case 'setuju': return `${siapa}menyetujui ${judul}`;
@@ -1578,6 +1605,8 @@
       ['lonceng', 'Buka notifikasi', () => bukaTutupNotif(true)],
       ['orang', 'Ganti profil', () => tampilProfil()],
       ['kamera', 'Foto profil', () => bukaFoto()],
+      S.me !== I.DEV && ['palet', 'Sesuaikan tampilan (warna, latar, huruf)', () => bukaTampilan()],
+      S.me !== I.DEV && ['senyum', 'Setel status', () => bukaStatus()],
       ...TEMA.filter(([k]) => k !== pilihanTema()).map(([k, l, ik]) => [ik, `Tema: ${l.toLowerCase()}`, () => { gantiTema(k); render(); }]),
       ['buku', 'Buka Panduan', () => pindahHalaman('panduan')],
       S.mode !== 'real' && ['ulang', 'Reset data contoh', () => resetData()],
@@ -1805,27 +1834,28 @@
     </section>`;
   }
 
-  /* Task anak: Lead membagi task yang ia pegang ke staff timnya (0.15.0, pengganti "Serahkan
-     ke staff"). Anak ditinjau Lead itu; induknya baru bisa diajukan setelah semua anaknya selesai. */
+  /* Task turunan: Lead membagi task yang ia pegang ke staff timnya (0.15.0, pengganti "Serahkan
+     ke staff"). Turunan ditinjau Lead itu; induknya baru bisa diajukan setelah semua turunannya selesai. */
   function bagianAnak(t, perId) {
     const anak = I.anakTask(perId, t.id).slice().sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
     const bisa = I.bolehBuatAnak(t, S.me);
     if (!anak.length && !bisa) return '';
     const id = esc(t.id);
-    const staf = I.timDari(S.me);
+    // PIC turunan: staff tim, atau Lead itu sendiri (2.21.0).
+    const staf = [...I.timDari(S.me), S.me];
     const beres = anak.filter(I.selesai).length;
-    return `<section><p class="subjudul">Task anak ${anak.length ? `· ${beres}/${anak.length} selesai` : ''}${tanya('lead-antrean', 'membagi task ke staff')}</p>
+    return `<section><p class="subjudul">Task turunan ${anak.length ? `· ${beres}/${anak.length} selesai` : ''}${tanya('lead-antrean', 'membagi task ke staff')}</p>
       ${anak.length ? `<div class="grup daftar-anak">${anak.map(x => barisTask(x, x.tertahan ? I.alasanTunggu(x, perId) : '', 'di-induk')).join('')}</div>` : ''}
       ${bisa ? `<form class="baris-form form-anak" data-form="anak" data-id="${id}">
-          <label class="sr" for="anak-${id}">Judul task anak</label>
-          <input class="input" id="anak-${id}" name="judul" placeholder="Bagian untuk staff, mis. Soal paket 1–2" required maxlength="200" autocomplete="off">
-          <label class="sr" for="anakpic-${id}">PIC task anak</label>
-          <select class="input" id="anakpic-${id}" name="pic">${opsiHtml(staf.map(x => [x, I.orang(x).nama]), staf[0])}</select>
-          <label class="sr" for="anakdue-${id}">Tenggat task anak</label>
+          <label class="sr" for="anak-${id}">Judul task turunan</label>
+          <input class="input" id="anak-${id}" name="judul" placeholder="Bagian pekerjaannya, mis. Soal paket 1–2" required maxlength="200" autocomplete="off">
+          <label class="sr" for="anakpic-${id}">PIC task turunan</label>
+          <select class="input" id="anakpic-${id}" name="pic">${opsiHtml(staf.map(x => [x, x === S.me ? `${I.orang(x).nama} (saya sendiri)` : I.orang(x).nama]), staf[0])}</select>
+          <label class="sr" for="anakdue-${id}">Tenggat task turunan</label>
           <input class="input tenggat-anak" type="date" id="anakdue-${id}" name="due" value="${esc(t.due || '')}" title="Tenggat">
-          <button class="tombol">${ikon('tambah', 16)} Buat task anak</button>
+          <button class="tombol">${ikon('tambah', 16)} Buat task turunan</button>
         </form>
-        <p class="hint">Bagi pekerjaan task ini ke staff tim Anda. Task anak tampil menjorok di bawah task ini dan ditinjau Anda; task ini baru bisa ${I.peninjau(t) ? 'diajukan' : 'ditandai selesai'} setelah semua task anaknya selesai.</p>` : ''}
+        <p class="hint">Bagi pekerjaan task ini ke staff tim Anda, atau pecah untuk Anda kerjakan sendiri. Task turunan tampil menjorok di bawah task ini; yang dipegang staff ditinjau Anda, yang Anda pegang sendiri langsung ditandai selesai. Task ini baru bisa ${I.peninjau(t) ? 'diajukan' : 'ditandai selesai'} setelah semua task turunannya selesai.</p>` : ''}
     </section>`;
   }
 
@@ -1864,10 +1894,10 @@
       <div class="detail-atas"><div>
         <p class="detail-asal">${p ? `<button type="button" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button>` : `${jenis === 'lepas' ? 'Lepas' : 'Rutin'} · ${esc(t.kategori || 'Umum')}`} · ${esc(t.id)}</p>
         <h2>${esc(t.title)}</h2>
-        ${induk ? `<p class="detail-induk">↳ Task anak dari <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
+        ${induk ? `<p class="detail-induk">↳ Task turunan dari <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
         <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : '<span class="pill lb-menunggu">Belum ber-sub-stage</span>'}${tim ? ` · Tim ${esc(I.labelTim(tim.kode))}` : ''}${s && s.reviewManager ? ' · direview Manager' : ''}${tanya('konsep-kode', 'sub-stage dan tim')}</p>
         <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}</div>
-        <div class="detail-orang">${avatar(t.pic)} PIC ${nama(t.pic)}
+        <div class="detail-orang">${avatar(t.pic)} PIC ${nama(t.pic)}${statusHtml(t.pic)}
           ${t.support.length ? ` · bantuan ${t.support.map(nama).join(', ')}` : ''}
           · ${tinjau ? 'ditinjau ' + nama(tinjau) : jenis === 'proyek' ? 'tanpa tinjauan' : 'tanpa tinjauan (di luar proyek)'}</div>
       </div>
@@ -2057,7 +2087,7 @@
       const daftar = (judul, isi, alasan) => (isi.length ? `<div class="grup"><h3 class="sub-kecil">${judul} (${isi.length})</h3>${isi.map(t => barisTask(t, alasan ? alasan(t) : '')).join('')}</div>` : '');
       return `<section class="kartu-orang ${buka ? 'buka' : ''}">
         <button type="button" class="kartu-orang-kepala" data-aksi="lap-buka" data-id="${esc(b.id)}" aria-expanded="${buka}">
-          <span class="kartu-orang-nama">${avatar(b.id)}<span><strong>${nama(b.id)}</strong><small>${esc(I.orang(b.id).jabatan)}</small></span></span>
+          <span class="kartu-orang-nama">${avatar(b.id)}<span><strong>${nama(b.id)}${statusHtml(b.id)}</strong><small>${esc(I.orang(b.id).jabatan)}</small></span></span>
           <span class="kartu-orang-angka">${angka.map(([l, n, k]) => `<span class="${k}"><b>${n}</b><small>${l}</small></span>`).join('')}</span>
           ${ikon(buka ? 'bawah' : 'kanan', 18)}
         </button>
@@ -2166,11 +2196,11 @@
   function badanDaftar() {
     const f = S.task;
     const semua = daftarSaring();
-    // Task anak tepat di bawah induknya, sebelum dibagi per halaman.
+    // Task turunan tepat di bawah induknya, sebelum dibagi per halaman.
     const tersusun = susunHirarki(semua);
     const jumlahHal = Math.max(1, Math.ceil(tersusun.length / PER_HAL));
     f.hal = Math.min(Math.max(1, f.hal), jumlahHal);
-    // Task anak yang induknya tertinggal di halaman sebelumnya tampil dengan tanda ↳, tak menjorok.
+    // Task turunan yang induknya tertinggal di halaman sebelumnya tampil dengan tanda ↳, tak menjorok.
     const potongan = tersusun.slice((f.hal - 1) * PER_HAL, f.hal * PER_HAL);
     const diHalaman = new Set(potongan.map(x => x.t.id));
     const isi = potongan.map(x => (x.anak && !diHalaman.has(x.t.induk) ? { ...x, anak: false } : x));
@@ -2612,7 +2642,7 @@
           <section class="kartu-polos samping-tumpuk"><p class="subjudul">Ringkasan</p>
             <p class="hint">${r.semuaSelesai} dari ${r.semua} task selesai${(p.cycle || 1) > 1 ? ' (semua siklus)' : ''}.</p>
             ${r.tenggat ? `<p class="hint">Tenggat task aktif terjauh: ${esc(fmtTanggal(r.tenggat))}.</p>` : ''}
-            <p class="hint">Tanpa Lead tetap: tiap task dipegang Lead tim pemilik sub-stage-nya, yang membaginya ke staff lewat task anak. Tiap tim menjalankan ADDIE-nya sendiri; tim lain hanya ditunggu lewat serah-terima yang diatur Lead dan gerbang Manager.</p>
+            <p class="hint">Tanpa Lead tetap: tiap task dipegang Lead tim pemilik sub-stage-nya, yang membaginya ke staff lewat task turunan. Tiap tim menjalankan ADDIE-nya sendiri; tim lain hanya ditunggu lewat serah-terima yang diatur Lead dan gerbang Manager.</p>
           </section>
           ${(p.history || []).length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">Riwayat tahap proyek</p><ul class="riwayat">${p.history.slice(0, 20).map(x => `
             <li>${teksRiwayat(x)} <small>· ${esc(relatif(x.at))}</small></li>`).join('')}</ul></section>` : ''}
@@ -3521,7 +3551,7 @@
     const saya = m.oleh === S.me;
     const kena = !saya && !m.dihapus && (m.tanya.includes(S.me) || I.menyebut(m.teks, S.me));
     const lokal = !m.bersama && m.at > (S.dimuat || 0);
-    const kepala = sambung ? '' : `<div class="km-psn-kepala"><strong>${saya ? 'Anda' : esc(I.orang(m.oleh).nama)}</strong>${tandaAi(m.ai)}
+    const kepala = sambung ? '' : `<div class="km-psn-kepala"><strong>${saya ? 'Anda' : esc(I.orang(m.oleh).nama)}</strong>${statusHtml(m.oleh)}${tandaAi(m.ai)}
         <small>${esc(fmtJam(m.at))}${m.diubah ? ' · diubah' : ''}${lokal ? ' · hanya di browser ini' : ''}</small></div>`;
     const isi = m.dihapus ? `<i class="km-dihapus">${m.dimoderasi ? 'Pesan dihapus oleh Dev' : 'Pesan dihapus'}</i>` : `<div class="km-teks">${formatPesan(m.teks)}</div>`;
     const status = m.tertunda ? '<div class="km-status">Mengirim…</div>'
@@ -5516,6 +5546,328 @@
   }, { passive: false });
 
 
+  /* ---------- Tampilan pribadi & status (2.21.0) ----------
+     Disimpan per profil di tab tampilan (lihat Inti.periksaTampilan). Setelan semua orang
+     ditarik paling lama tiap 2 menit (status terlihat semua orang); gambar sampul hanya milik
+     profil yang dipakai di browser ini, dan hanya diambil saat berubah (sampulAt). Pilihan
+     terakhir disalin ke pt2_tampilan_awal supaya index.html bisa memasangnya sebelum CSS
+     dimuat, tanpa berkedip warna bawaan. */
+  const setelanOrang = id => I.periksaTampilan((S.tampilan.isi[id] || {}).setelan);
+  const setelanSaya = () => (S.me && S.me !== I.DEV ? setelanOrang(S.me) : I.tampilanBawaan());
+  function sampulSaya() {
+    if (S.drafSampul !== undefined && S.modal && S.modal.jenis === 'tampilan') return I.sampulSah(S.drafSampul) ? S.drafSampul : '';
+    const s = S.me && S.sampul[S.me];
+    return s && I.sampulSah(s.gambar) ? s.gambar : '';
+  }
+  const aturAtribut = (el, nama, nilai) => { if (nilai) el.setAttribute(nama, nilai); else el.removeAttribute(nama); };
+  function terapkanTampilan(t = S.drafTampilan || setelanSaya()) {
+    const akar = document.documentElement;
+    const token = I.tokenAksen(t.aksen);
+    // html:root (spesifisitas 0,2,1) mengalahkan blok token di app.css di mana pun urutannya.
+    const css = token ? [['terang', token.terang], ['gelap', token.gelap]]
+      .map(([tema, isi]) => `html:root[data-tema="${tema}"]{${Object.entries(isi).map(([k, v]) => `${k}:${v}`).join(';')}}`).join('\n') : '';
+    let gaya = document.getElementById('gaya-aksen');
+    if (!gaya) {
+      gaya = document.createElement('style');
+      gaya.id = 'gaya-aksen';
+      document.head.appendChild(gaya);
+    }
+    if (gaya.textContent !== css) gaya.textContent = css;
+    const gambar = t.latar === 'sampul' ? sampulSaya() : '';
+    const latar = t.latar === 'sampul' && !gambar ? '' : t.latar;
+    aturAtribut(akar, 'data-latar', latar);
+    aturAtribut(akar, 'data-padat', t.padat);
+    aturAtribut(akar, 'data-huruf', t.huruf);
+    const lapis = $('#latar');
+    if (lapis) {
+      lapis.dataset.latar = latar;
+      lapis.style.setProperty('--kuat-latar', String(t.kuatLatar / 100));
+      lapis.style.setProperty('--latar-gambar', gambar ? `url("${gambar}")` : 'none');
+    }
+    if (!S.drafTampilan) simpan('tampilan_awal', { css, latar: latar === 'sampul' ? '' : latar, kuat: t.kuatLatar, padat: t.padat, huruf: t.huruf });
+  }
+
+  /* Status: lencana emoji di avatar dan chip "🎯 Fokus" di samping nama, lewat satu lembar gaya,
+     jadi berganti tanpa menggambar ulang halaman. Teksnya di-escape per karakter (\\HEX) supaya
+     tak bisa keluar dari string CSS maupun dari elemen <style>. */
+  const statusHtml = id => (id && /^[a-z0-9-]+$/.test(id) ? `<span class="status-teks st-${id}"></span>` : '');
+  const strCss = s => [...String(s)].map(c => (/[A-Za-z0-9 ,.]/.test(c) ? c : '\\' + c.codePointAt(0).toString(16) + ' ')).join('');
+  function pasangGayaStatus() {
+    let gaya = document.getElementById('gaya-status');
+    if (!gaya) {
+      gaya = document.createElement('style');
+      gaya.id = 'gaya-status';
+      document.head.appendChild(gaya);
+    }
+    const sekarang = Date.now();
+    const aturan = [];
+    for (const id of Object.keys(S.tampilan.isi || {})) {
+      if (!/^[a-z0-9-]+$/.test(id)) continue;
+      const st = I.statusAktif(setelanOrang(id), sekarang);
+      if (!st) continue;
+      aturan.push(`.avatar.av-${id}::after{content:"${strCss(st.emoji)}"}`);
+      aturan.push(`.status-teks.st-${id}::after{content:"${strCss(st.emoji + (st.teks ? ' ' + st.teks : ''))}"}`);
+    }
+    const css = aturan.join('\n');
+    if (gaya.textContent !== css) gaya.textContent = css;
+  }
+  const HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  function teksSampai(sampai) {
+    const d = new Date(sampai);
+    const jam = `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`;
+    return new Date().toDateString() === d.toDateString() ? `sampai ${jam}` : `sampai ${HARI_PENDEK[d.getDay()]} ${jam}`;
+  }
+  /* Pilihan "hapus setelah" → waktu (ms), 0 = tanpa batas. */
+  function sampaiDari(durasi) {
+    const d = new Date();
+    if (durasi === '60' || durasi === '240') return Date.now() + Number(durasi) * 60000;
+    if (durasi === 'hari') { d.setHours(23, 59, 0, 0); return d.getTime(); }
+    if (durasi === 'minggu') { d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); d.setHours(23, 59, 0, 0); return d.getTime(); }
+    return 0;
+  }
+
+  const simpanCacheTampilan = () => simpan('tampilan', { sejak: S.tampilan.sejak, isi: S.tampilan.isi });
+  /* Hanya yang berubah sejak yang terbaru dimiliki; tumpang-tindih semenit seperti foto. */
+  async function tarikTampilan() {
+    const t = S.tampilan;
+    if (t.menarik) return;
+    t.menarik = true;
+    t.ditarik = Date.now();
+    try {
+      const h = await api('muatTampilan', [Math.max(0, (Number(t.sejak) || 0) - 60000)]);
+      if (!h.success || !Array.isArray(h.tampilan)) return;
+      let saya = false;
+      for (const x of h.tampilan) {
+        if (!x || !/^[a-z0-9-]+$/.test(x.orang)) continue;
+        t.sejak = Math.max(Number(t.sejak) || 0, Number(x.diperbarui) || 0);
+        const lama = t.isi[x.orang];
+        if (lama && lama.diperbarui >= x.diperbarui) continue;
+        t.isi[x.orang] = { setelan: x.setelan, diperbarui: Number(x.diperbarui) || 0 };
+        if (x.orang === S.me) saya = true;
+      }
+      simpanCacheTampilan();
+      pasangGayaStatus();
+      if (saya && !S.drafTampilan) {
+        terapkanTampilan();
+        pastikanSampul();
+        if (S.akun.buka) renderKepala();
+      }
+    } finally {
+      t.menarik = false;
+    }
+  }
+  setInterval(() => {
+    pasangGayaStatus();   // status yang lewat waktunya hilang tanpa menunggu tarikan
+    if (!document.hidden && S.data && !$('#app').hidden && Date.now() - S.tampilan.ditarik > 2 * 60000) tarikTampilan();
+  }, 60000);
+  /* Gambar sampul profil ini diambil kalau berubah sejak yang tersimpan di browser. */
+  async function pastikanSampul() {
+    if (!S.me || S.me === I.DEV) return;
+    const id = S.me;
+    const at = setelanSaya().sampulAt;
+    const ada = S.sampul[id];
+    if (!at) {
+      if (ada) { delete S.sampul[id]; simpan('sampul', S.sampul); terapkanTampilan(); }
+      return;
+    }
+    if (ada && ada.at === at) return;
+    const h = await api('muatSampul', [id]);
+    if (!h.success || S.me !== id) return;
+    if (I.sampulSah(h.sampul)) S.sampul[id] = { at: Number(h.sampulAt) || at, gambar: h.sampul };
+    else delete S.sampul[id];
+    simpan('sampul', S.sampul);
+    terapkanTampilan();
+    if (S.akun.buka) renderKepala();
+  }
+
+  /* ----- Sesuaikan tampilan: setiap pilihan langsung terlihat (pratinjau), baru tersimpan
+     saat Simpan; Batal atau menutup jendela mengembalikannya. ----- */
+  function bukaTampilan() {
+    if (!S.me || S.me === I.DEV) return toast('Akun Dev memakai tampilan bawaan.', true);
+    S.drafTampilan = { ...setelanSaya() };
+    S.drafSampul = undefined;
+    bukaModal({ jenis: 'tampilan' }, formTampilan());
+  }
+  function ubahDraf(ubah, gambarUlang = false) {
+    if (!S.drafTampilan) return;
+    const bersih = Object.fromEntries(Object.entries(ubah).filter(([, v]) => v !== undefined));
+    S.drafTampilan = I.periksaTampilan({ ...S.drafTampilan, ...bersih });
+    terapkanTampilan();
+    if (gambarUlang) segarkanFormTampilan();
+  }
+  function segarkanFormTampilan() {
+    const p = $('#modal-panel');
+    if (!p || !S.modal || S.modal.jenis !== 'tampilan') return;
+    const atas = p.scrollTop;
+    p.innerHTML = formTampilan();
+    p.scrollTop = atas;
+  }
+  function formTampilan() {
+    const t = S.drafTampilan;
+    const sampul = sampulSaya();
+    const tombolSeg = (aksi, daftar, nilai) => `<div class="segmen" role="group">${daftar.map(([k, l]) => `<button type="button" data-aksi="${aksi}" data-nilai="${k}" aria-pressed="${nilai === k}">${l}</button>`).join('')}</div>`;
+    const bawaanAwal = I.orang(S.me).peran === 'manager' ? 'Proyek' : 'Hari Ini';
+    const halaman = HALAMAN.filter(h => I.HALAMAN_AWAL.includes(h.id) && halamanBoleh(h.id));
+    const aksenSendiri = t.aksen && !I.AKSEN.some(([, w]) => w === t.aksen);
+    return `<form data-form="modal" class="form-tampilan" novalidate>
+      <h2>Sesuaikan tampilan</h2>
+      <p class="hint">Hanya untuk ${esc(I.orang(S.me).pendek)}, dan ikut ke perangkat mana pun yang memakai profil ini. Setiap pilihan langsung terlihat; tersimpan setelah <strong>Simpan</strong>.</p>
+      <section><p class="subjudul">Warna aksen</p>
+        <div class="pilih-aksen" role="group" aria-label="Warna aksen">${I.AKSEN.map(([l, w]) => `<button type="button" data-aksi="tpl-aksen" data-nilai="${w === I.AKSEN_BAWAAN ? '' : w}" style="--warna:${w}" aria-pressed="${(t.aksen || I.AKSEN_BAWAAN) === w}" title="${l}" aria-label="${l}"></button>`).join('')}
+          <label class="aksen-sendiri"><input type="color" id="tpl-aksen-sendiri" value="${esc((t.aksen || I.AKSEN_BAWAAN).toLowerCase())}" aria-label="Warna sendiri">${aksenSendiri ? '<b>Warna sendiri</b>' : 'Warna sendiri'}</label></div>
+        <p class="hint">Dipakai tombol, tautan, menu aktif, dan sorotan. Warna yang bermakna (status, terlambat, capaian paket) tetap sama untuk semua orang. Kecerahannya disesuaikan sendiri supaya tulisan tetap terbaca di tema terang dan gelap.</p>
+      </section>
+      <section><p class="subjudul">Latar (wallpaper)</p>
+        <div class="pilih-latar" role="group" aria-label="Latar">${I.LATAR.map(([k, l]) => `<button type="button" data-aksi="tpl-latar" data-nilai="${k}" aria-pressed="${t.latar === k}" ${k === 'sampul' && !sampul ? 'disabled title="Pasang sampul profil dulu"' : ''}>
+          <span class="latar-contoh" data-latar="${k}" ${k === 'sampul' && sampul ? `style="--latar-gambar:url('${sampul}')"` : ''}></span><span>${l}</span></button>`).join('')}</div>
+        <label class="kuat-latar">Samar<input type="range" id="tpl-kuat" min="${I.KUAT_LATAR[0]}" max="${I.KUAT_LATAR[1]}" step="5" value="${t.kuatLatar}" ${t.latar ? '' : 'disabled'} aria-label="Seberapa terlihat latarnya">Jelas</label>
+        <p class="hint">Terlihat di sela-sela kartu; kartu dan tulisan tetap di atas latar yang pejal.</p>
+      </section>
+      <section><p class="subjudul">Sampul profil</p>
+        <div class="sampul-pratinjau" ${sampul ? `style="background-image:url('${sampul}')"` : ''}></div>
+        <div class="baris-tombol">
+          <button type="button" class="tombol kecil" data-aksi="tpl-sampul-pilih">${ikon('kamera', 16)} ${sampul ? 'Ganti gambar…' : 'Pilih gambar…'}</button>
+          ${sampul ? `<button type="button" class="tombol kecil" data-aksi="tpl-sampul-hapus">${ikon('hapus', 16)} Hapus sampul</button>` : ''}
+        </div>
+        <p class="hint">Tampil di menu akun, dan bisa dipakai sebagai latar (diburamkan). Dipotong 3:1 dan diperkecil di perangkat ini.</p>
+        <input type="file" id="tpl-sampul-berkas" accept="image/jpeg,image/png,image/webp,image/*" hidden>
+      </section>
+      <section><p class="subjudul">Kepadatan</p>${tombolSeg('tpl-padat', I.PADAT, t.padat)}
+        <p class="hint">Ringkas memuat lebih banyak baris di satu layar (layar lebar; di ponsel tetap nyaman disentuh).</p>
+        <p class="subjudul">Ukuran huruf</p>${tombolSeg('tpl-huruf', I.HURUF, t.huruf)}
+      </section>
+      <section><label class="isian">Halaman awal
+        <select id="tpl-awal"><option value="">Bawaan (${bawaanAwal})</option>${halaman.map(h => `<option value="${h.id}" ${t.awal === h.id ? 'selected' : ''}>${esc(h.judul)}</option>`).join('')}</select>
+        <small>Halaman pertama setiap kali profil ini dipilih, dan saat logo diklik.</small></label>
+      </section>
+      <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
+      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tpl-bawaan">Kembalikan bawaan</button><button type="button" class="tombol" data-aksi="tutup-modal">Batal</button><button class="tombol utama">Simpan</button></div>
+    </form>`;
+  }
+  /* Gambar sampul: dipotong tengah 3:1, diperkecil, JPEG sampai muat di satu sel (SAMPUL_MAKS). */
+  function olahSampul(berkas) {
+    if (!berkas || !S.modal || S.modal.jenis !== 'tampilan') return;
+    if (!/^image\//.test(berkas.type)) return galatModal('Itu bukan berkas gambar. Pilih JPG, PNG, atau WebP.');
+    if (berkas.size > 30 * 1024 * 1024) return galatModal('Gambarnya terlalu besar (lebih dari 30 MB). Pilih gambar lain.');
+    const url = URL.createObjectURL(berkas);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (!S.modal || S.modal.jenis !== 'tampilan' || !img.naturalWidth) return;
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const sw = Math.min(w, h * 3), sh = sw / 3;
+      for (const lebar of [960, 840, 720, 600]) {
+        const k = document.createElement('canvas');
+        k.width = lebar;
+        k.height = Math.round(lebar / 3);
+        const c = k.getContext('2d');
+        c.fillStyle = '#FFFFFF';
+        c.fillRect(0, 0, k.width, k.height);
+        c.imageSmoothingQuality = 'high';
+        c.drawImage(img, (w - sw) / 2, (h - sh) / 2, sw, sh, 0, 0, k.width, k.height);
+        for (const q of [0.82, 0.72, 0.62]) {
+          const data = k.toDataURL('image/jpeg', q);
+          if (I.sampulSah(data)) {
+            S.drafSampul = data;
+            $('#galat-modal').hidden = true;
+            return ubahDraf({}, true);
+          }
+        }
+      }
+      galatModal('Gambar ini tidak bisa diperkecil. Coba gambar lain.');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      galatModal('Gambar ini tidak bisa dibaca browser. Pilih JPG, PNG, atau WebP (foto HEIC dari iPhone: simpan dulu sebagai JPG).');
+    };
+    img.src = url;
+  }
+  /* Simpanan ke tab tampilan; berhasil = setelan profil ini diganti hasil dari server. */
+  async function kirimTampilan(setelan, sampul) {
+    if (S.pratinjau) return { success: false, message: 'Tak bisa diubah saat Lihat sebagai.' };
+    const isian = { orang: S.me, setelan };
+    if (sampul !== undefined) isian.sampul = sampul;
+    const h = await api('simpanTampilan', [isian]);
+    if (!h.success || !h.tampilan) return h;
+    const t = h.tampilan;
+    S.tampilan.isi[t.orang] = { setelan: t.setelan, diperbarui: t.diperbarui };
+    S.tampilan.sejak = Math.max(Number(S.tampilan.sejak) || 0, t.diperbarui);
+    simpanCacheTampilan();
+    if (sampul !== undefined) {
+      if (sampul) S.sampul[t.orang] = { at: t.setelan.sampulAt, gambar: sampul };
+      else delete S.sampul[t.orang];
+      simpan('sampul', S.sampul);
+    }
+    pasangGayaStatus();
+    return h;
+  }
+  async function simpanTampilanSaya() {
+    const tombol = $$('#modal-panel button');
+    tombol.forEach(b => { b.disabled = true; });
+    const h = await kirimTampilan({ ...S.drafTampilan, status: setelanSaya().status }, S.drafSampul);
+    if (!h.success) {
+      tombol.forEach(b => { b.disabled = false; });
+      return galatModal(h.message || 'Tampilan gagal disimpan. Coba lagi.');
+    }
+    S.drafTampilan = null;
+    S.drafSampul = undefined;
+    terapkanTampilan();
+    tutupModal();
+    render();
+    toast('Tampilan disimpan untuk profil ini, juga di perangkat lain.');
+  }
+
+  /* ----- Status singkat: emoji + teks, hilang sendiri sesudah waktunya. Terlihat semua orang. ----- */
+  function bukaStatus() {
+    if (!S.me || S.me === I.DEV) return;
+    const st = I.statusAktif(setelanSaya());
+    S.drafStatus = { emoji: st ? st.emoji : I.STATUS_SIAP[0][0], teks: st ? st.teks : '' };
+    bukaModal({ jenis: 'status' }, formStatus());
+  }
+  function segarkanFormStatus() {
+    const p = $('#modal-panel');
+    if (!p || !S.modal || S.modal.jenis !== 'status') return;
+    const isian = $('#st-teks');
+    if (isian) S.drafStatus.teks = isian.value;
+    const durasi = $('#st-durasi') ? $('#st-durasi').value : 'hari';
+    p.innerHTML = formStatus(durasi);
+  }
+  function formStatus(durasi = 'hari') {
+    const d = S.drafStatus;
+    const ada = !!I.statusAktif(setelanSaya());
+    const opsi = [['60', '1 jam'], ['240', '4 jam'], ['hari', 'Akhir hari ini'], ['minggu', 'Akhir minggu ini'], ['', 'Jangan dihapus']];
+    return `<form data-form="modal" class="form-tampilan" novalidate>
+      <h2>Status</h2>
+      <p class="hint">Terlihat semua orang di samping nama dan foto Anda, mis. supaya Lead tahu Anda sedang cuti atau fokus.</p>
+      <div class="status-siap">${I.STATUS_SIAP.map(([e, l]) => `<button type="button" class="chip-pilih" data-aksi="st-siap" data-emoji="${e}" data-teks="${esc(l)}" aria-pressed="${d.emoji === e && d.teks === l}">${e} ${esc(l)}</button>`).join('')}</div>
+      <div class="pilih-emoji" role="group" aria-label="Emoji">${I.EMOJI_STATUS.map(e => `<button type="button" data-aksi="st-emoji" data-nilai="${e}" aria-pressed="${d.emoji === e}" aria-label="${e}">${e}</button>`).join('')}</div>
+      <label class="isian">Teks status <input id="st-teks" name="teks" maxlength="${I.STATUS_TEKS_MAKS}" value="${esc(d.teks)}" placeholder="mis. Cuti sampai Jumat"></label>
+      <label class="isian">Hapus setelah <select id="st-durasi" name="durasi">${opsi.map(([k, l]) => `<option value="${k}" ${k === durasi ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
+      <div class="modal-kaki">${ada ? '<button type="button" class="tombol bahaya" data-aksi="st-hapus">Hapus status</button>' : ''}<button type="button" class="tombol" data-aksi="tutup-modal">Batal</button><button class="tombol utama">Pasang status</button></div>
+    </form>`;
+  }
+  async function simpanStatus(status) {
+    const tombol = $$('#modal-panel button');
+    tombol.forEach(b => { b.disabled = true; });
+    let setelan;
+    try { setelan = I.periksaTampilan({ ...setelanSaya(), status }, { ketat: true }); } catch (err) {
+      tombol.forEach(b => { b.disabled = false; });
+      return galatModal(err.message);
+    }
+    const h = await kirimTampilan(setelan);
+    if (!h.success) {
+      tombol.forEach(b => { b.disabled = false; });
+      return galatModal(h.message || 'Status gagal disimpan. Coba lagi.');
+    }
+    S.drafStatus = null;
+    tutupModal();
+    renderKepala();
+    toast(status ? 'Status dipasang. Orang lain melihatnya paling lama 2 menit lagi.' : 'Status dihapus.');
+  }
+  terapkanTampilan();
+  pasangGayaStatus();
+
   /* ---------- Mode Dev (0.13.0) ----------
      Seperti v1: tekan-tahan logo ProductTrack (±2 detik) atau buka #/dev, lalu isi PIN Dev
      (env DEV_PIN di Vercel; kosong = mode Dev tertutup). Sesinya dijaga server: cookie bertanda
@@ -5722,7 +6074,7 @@
     const sama = !x.versi || !vb || x.versi === vb;
     const sp = x.spreadsheet || {};
     const tab = (x.tab || []).slice().sort((a, b) => a.nama.localeCompare(b.nama));
-    const milikApp = ['obrolan', 'foto', 'orang', 'master', 'pin', 'setelan', 'data_real', 'obrolan_real'];
+    const milikApp = ['obrolan', 'foto', 'tampilan', 'orang', 'master', 'pin', 'setelan', 'data_real', 'obrolan_real'];
     const ag = x.agen || null;
     return `<dl class="dev-daftar">
         <dt>Lingkungan</dt><dd>${esc(x.lingkungan || '—')}${x.wilayah ? ' · ' + esc(x.wilayah) : ''}</dd>
@@ -5795,7 +6147,11 @@
     simpanCacheFoto();
     pasangGayaFoto();
     tarikFoto();
-    toast('Menarik ulang semua pesan dan foto dari spreadsheet…');
+    Object.assign(S.tampilan, { sejak: 0, isi: {} });
+    simpanCacheTampilan();
+    pasangGayaStatus();
+    tarikTampilan();
+    toast('Menarik ulang semua pesan, foto, dan tampilan dari spreadsheet…');
   }
 
   /* --- Pengguna (kelola orang) --- */
@@ -6017,7 +6373,7 @@
           <label class="isian">Kode<input name="kunci" value="${esc(kodeSubBerikut(tahap))}" maxlength="4" autocomplete="off" required><small>Terisi sendiri: nomor berikutnya di tahap itu.</small></label></div>`}
       <label class="isian">Nama<input name="nama" value="${esc(x.nama)}" maxlength="80" required></label>
       <label class="isian">Tim pemilik<select name="tim">${opsiHtml([['', '— tim pemilik output yang dikerjakan —'], ...Object.values(I.TIM).map(t => [t.kode, I.labelTim(t.kode)])], x.tim || '')}</select>
-        <small>Lead tim ini memegang task-nya (masuk antrean di Hari Ini-nya) dan membaginya ke staff lewat task anak. Kosong: dipegang tim pemilik output yang dikerjakan, mis. revisi.</small></label>
+        <small>Lead tim ini memegang task-nya (masuk antrean di Hari Ini-nya) dan membaginya ke staff lewat task turunan. Kosong: dipegang tim pemilik output yang dikerjakan, mis. revisi.</small></label>
       <label class="dev-cek" data-bagian-sub="review" ${tahap === 'R' ? 'hidden' : ''}><input type="checkbox" name="reviewManager" ${x.reviewManager ? 'checked' : ''}> Direview Manager sebelum selesai</label>
       ${s ? `<label class="dev-cek"><input type="checkbox" name="aktif" ${x.aktif ? 'checked' : ''}> Aktif — ditawarkan untuk task baru</label>` : ''}
       ${kakiModal(s ? 'Simpan' : 'Tambah')}
@@ -6290,10 +6646,10 @@
       <ul class="riwayat"><li><strong>Dikembalikan</strong> oleh Andika <small>· 2 hari lalu</small><br>Bobot soal nomor 12–15 belum sesuai kisi-kisi.</li>
         <li><strong>Diajukan</strong> oleh Wildan <small>· 3 hari lalu</small></li></ul>`,
     tahan: () => `<div class="banner merah">Tertahan: Menunggu akses SIADU untuk tahun ajaran baru.</div><div class="ilu-baris">${tombolPalsu('Lepas tanda tertahan')}</div>`,
-    antrean: () => `<p class="subjudul">Task anak</p>
-      <div class="ilu-task">${pillStatus('Dikerjakan')}<span><b>DV8 · Latsol Fisika — 3 Paket</b><small><span class="chip-sub">DV8</span> Input ke SIADU/Markaz · 0/1 task anak</small></span></div>
+    antrean: () => `<p class="subjudul">Task turunan</p>
+      <div class="ilu-task">${pillStatus('Dikerjakan')}<span><b>DV8 · Latsol Fisika — 3 Paket</b><small><span class="chip-sub">DV8</span> Input ke SIADU/Markaz · 0/1 task turunan</small></span></div>
       <div class="ilu-task ilu-anak">${pillStatus('Antre')}<span><b>Input paket 1–3</b><small>Kiki · ditinjau Alya</small></span></div>
-      <div class="ilu-baris">${tombolPalsu('Kiki ▾', 'input-palsu')}${tombolPalsu(`${ikon('tambah', 16)} Buat task anak`)}</div>`,
+      <div class="ilu-baris">${tombolPalsu('Kiki ▾', 'input-palsu')}${tombolPalsu(`${ikon('tambah', 16)} Buat task turunan`)}</div>`,
     tinjau: () => `<p class="subjudul">Output & bukti</p><p class="teks-panjang">40 soal Latsol Fisika lolos QC</p>
       <p class="ilu-tautan">${ikon('tautan', 16)} Google Sheets · hasil QC</p>
       <div class="ilu-baris">${tombolPalsu('Setujui', 'utama')}${tombolPalsu('Kembalikan', 'bahaya')}</div>`,
@@ -6430,6 +6786,9 @@
     const editorTutup = editorDiJendela();
     if (editorTutup) simpanCatatanTertunda();
     if (m && m.jenis === 'foto') akhiriPotong();
+    // Sesuaikan tampilan ditutup tanpa disimpan: pratinjaunya dikembalikan.
+    if (m && m.jenis === 'tampilan') { S.drafTampilan = null; S.drafSampul = undefined; terapkanTampilan(); }
+    if (m && m.jenis === 'status') S.drafStatus = null;
     S.modal = null;
     $('#modal').hidden = true;
     $('#modal-panel').innerHTML = '';
@@ -6450,7 +6809,7 @@
   /* Pilihan sub-stage. Task proyek: kode ADDIE per tahap. Di luar proyek: kode R; kode ADDIE
      task "lepas" warisan v1 tetap ditawarkan supaya tak hilang saat task diubah. */
   /* baru = form task baru: tanpa pilihan bawaan, sub-stage wajib dipilih sendiri (0.14.0).
-     tahap = hanya sub-stage tahap itu (mis. "Tambah task di Development", atau task induk/anak
+     tahap = hanya sub-stage tahap itu (mis. "Tambah task di Development", atau task induk/turunan
      yang tahapnya tetap). */
   /* tim = hanya sub-stage milik tim itu (tombol Tambah task di tab tim, 2.19.0). */
   function opsiSub(jenis, terpilih, baru = false, tahap = '', tim = '') {
@@ -6481,12 +6840,12 @@
     const pemilik = I.orang(S.me).peran === 'lead' ? I.leadSub(kode) : '';
     return [...new Set([...I.picBoleh(S.me), ...(pemilik ? [pemilik] : []), ...(sekarang ? [sekarang] : [])])];
   }
-  /* PIC yang boleh dipilih saat mengubah task (0.15.0): task anak → staff tim Lead induknya;
-     task yang sudah dibagi ke task anak → tetap; task Lead → tanpa staff (dibagi lewat task anak). */
+  /* PIC yang boleh dipilih saat mengubah task (0.15.0): task turunan → staff tim Lead induknya;
+     task yang sudah dibagi ke task turunan → tetap; task Lead → tanpa staff (dibagi lewat task turunan). */
   function pilihanPicUbah(t, kode) {
     const perId = perIdKini();
     const induk = t.induk ? perId.get(t.induk) : null;
-    if (induk) return [...new Set([...I.timDari(induk.pic), t.pic])];
+    if (induk) return [...new Set([...I.timDari(induk.pic), induk.pic, t.pic])];
     if (I.anakTask(perId, t.id).length) return [t.pic];
     const daftar = pilihanPic(kode, t.pic);
     return I.orang(t.pic).peran === 'lead' ? daftar.filter(id => I.orang(id).peran !== 'staff') : daftar;
@@ -6526,11 +6885,12 @@
     pic.innerHTML = opsiPic(daftar, daftar.includes(pilih) ? pilih : daftar[0], kode);
     segarkanInduk(form);
   }
-  /* Lead yang memberi task proyek ke staff-nya bisa memasangnya sebagai task anak dari task yang
+  /* Lead yang memberi task proyek ke staff-nya bisa memasangnya sebagai task turunan dari task yang
      ia pegang di proyek, siklus, dan tahap yang sama. */
   function calonInduk(form) {
     if (form.dataset.task !== 'baru' || I.orang(S.me).peran !== 'lead' || isianForm(form, 'jalur').value !== 'proyek') return [];
-    if (!I.timDari(S.me).includes(isianForm(form, 'pic').value)) return [];
+    const pic = isianForm(form, 'pic').value;
+    if (pic !== S.me && !I.timDari(S.me).includes(pic)) return [];
     const s = I.subTahap(isianForm(form, 'subProyek').value);
     const p = proyekDari(isianForm(form, 'project').value);
     if (!s || !p) return [];
@@ -6543,8 +6903,10 @@
     const sel = isianForm(form, 'induk');
     const lama = sel.value;
     kotak.hidden = !calon.length;
-    // Satu calon: langsung terpilih, kecuali orang sudah memilih "tanpa task induk" sendiri.
-    const pilih = calon.some(t => t.id === lama) ? lama : calon.length === 1 && !(sel.dataset.disentuh && !lama) ? calon[0].id : '';
+    // Satu calon: langsung terpilih, kecuali orang sudah memilih "tanpa task induk" sendiri, atau
+    // PIC-nya Lead itu sendiri (task pribadinya tak otomatis jadi turunan).
+    const sendiri = isianForm(form, 'pic').value === S.me;
+    const pilih = calon.some(t => t.id === lama) ? lama : calon.length === 1 && !sendiri && !(sel.dataset.disentuh && !lama) ? calon[0].id : '';
     sel.innerHTML = opsiHtml([['', '— tanpa task induk —'], ...calon.map(t => [t.id, `${t.id} · ${potong(t.title, 60)}`])], pilih);
   }
 
@@ -6585,7 +6947,7 @@
         <label class="isian">Tenggat <input type="date" name="due"></label>
       </div>
       ${lead ? `<label class="isian" data-bagian-induk hidden>Task induk <select name="induk"><option value="">— tanpa task induk —</option></select>
-        <small>Task untuk staff Anda bisa dipasang di bawah task yang Anda pegang di tahap ini: tampil menjorok di bawahnya dan ditinjau Anda; task induknya baru bisa diajukan setelah semua task anaknya selesai.</small></label>` : ''}
+        <small>Task untuk staff Anda, atau untuk Anda sendiri, bisa dipasang di bawah task yang Anda pegang di tahap ini sebagai task turunan: tampil menjorok di bawahnya, dan task induknya baru bisa diajukan setelah semua turunannya selesai.</small></label>` : ''}
       <div class="dua-isian">
         <label class="isian">Prioritas <select name="priority">${opsiHtml(I.PRIORITAS, 'Normal')}</select></label>
         <label class="isian">Output <input name="output" maxlength="200" placeholder="mis. 40 soal lolos QC"></label>
@@ -6622,7 +6984,7 @@
       <input class="input" id="tunggu-cari" type="search" placeholder="Cari ID, kode, atau judul…" aria-label="Cari task" autocomplete="off">
       <div class="pilih-tunggu">${grup.map(g => `<fieldset><legend>${chipTim(g.kode)} ${esc(I.TIM[g.kode].nama)}</legend>${g.isi.map(pilihan).join('')}</fieldset>`).join('')
         || '<p class="hint">Belum ada task lain di siklus ini.</p>'}</div>
-      <p class="hint">Pilih serah-terima dari tim lain (mis. input menunggu soal jadi) atau urutan di dalam tim. Task anak mengikuti induknya, dan E12 selalu menunggu semua task lain. Urutan yang membuat task saling menunggu ditolak.</p>
+      <p class="hint">Pilih serah-terima dari tim lain (mis. input menunggu soal jadi) atau urutan di dalam tim. Task turunan mengikuti induknya, dan E12 selalu menunggu semua task lain. Urutan yang membuat task saling menunggu ditolak.</p>
       ${kakiModal('Simpan urutan')}
     </form>`;
   }
@@ -6645,13 +7007,13 @@
     const lepas = I.jenisJalur(t) === 'lepas';
     const induk = t.induk ? perIdKini().get(t.induk) : null;
     const dibagi = I.anakTask(perIdKini(), t.id).length > 0;
-    // Induk dan anaknya tetap di tahap yang sama.
+    // Induk dan turunannya tetap di tahap yang sama.
     const tahap = t.lane === 'proyek' && (induk || dibagi) ? t.stage : '';
     return `<form data-form="modal" data-task="ubah" data-id="${esc(t.id)}" data-pic-lama="${esc(t.pic)}" novalidate>
       <h2>Ubah task</h2>
       <p class="hint">${t.project ? 'Proyek ' + esc(asal(t)) : (lepas ? 'Lepas' : 'Rutin') + ' · ' + esc(t.kategori || 'Umum')} · ${esc(t.id)}</p>
-      ${induk ? `<p class="hint">Task anak dari ${esc(induk.id)} · ${esc(potong(induk.title, 70))}: PIC-nya staff tim ${esc(I.orang(induk.pic).pendek)}${tahap ? `, tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>`
-        : dibagi ? `<p class="hint">Task ini sudah dibagi ke task anak: PIC-nya tetap${tahap ? ` dan tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>` : ''}
+      ${induk ? `<p class="hint">Task turunan dari ${esc(induk.id)} · ${esc(potong(induk.title, 70))}: PIC-nya ${esc(I.orang(induk.pic).pendek)} sendiri atau staff timnya${tahap ? `, tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>`
+        : dibagi ? `<p class="hint">Task ini sudah dibagi ke task turunan: PIC-nya tetap${tahap ? ` dan tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>` : ''}
       <label class="isian">Judul task <input name="title" required maxlength="200" value="${esc(t.title)}"></label>
       <label class="isian">Sub-stage <select name="sub" data-sub>${opsiSub(jenis, t.sub, false, tahap)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(t.sub))}</p>
@@ -6719,7 +7081,7 @@
       }).join('')}</ol></fieldset>`).join('');
     return `<form data-form="modal" class="form-elaborasi" novalidate>
       <h2>Elaborasi jadi proyek</h2>
-      <p class="hint">Setiap target terpilih menjadi satu <b>batch</b>: rangkaian langkah sesuai jenisnya. Tiap langkah dipegang <b>Lead tim pemilik</b> sub-stage-nya, yang membaginya ke staff lewat task anak. Langkah dikerjakan per tahap ADDIE: yang setahap berjalan bersamaan, tahap berikutnya dimulai setelah tahap sebelumnya selesai. Progres ${esc(judulPaket(p))} naik setiap langkah bercapaian disetujui.</p>
+      <p class="hint">Setiap target terpilih menjadi satu <b>batch</b>: rangkaian langkah sesuai jenisnya. Tiap langkah dipegang <b>Lead tim pemilik</b> sub-stage-nya, yang membaginya ke staff lewat task turunan. Langkah dikerjakan per tahap ADDIE: yang setahap berjalan bersamaan, tahap berikutnya dimulai setelah tahap sebelumnya selesai. Progres ${esc(judulPaket(p))} naik setiap langkah bercapaian disetujui.</p>
       <div class="isian"><span class="judul-pilih-target">Target yang dikerjakan
           ${terbuka.size ? '<button type="button" class="tombol kecil" data-aksi="elab-semua">Centang semua</button>' : ''}</span>${blok}
         <small>Centang target yang dikerjakan proyek ini; belum ada yang tercentang. Jumlahnya bisa dikecilkan bila proyek ini hanya mengerjakan sebagian; sisanya tetap terbuka untuk elaborasi berikutnya.</small></div>
@@ -6859,7 +7221,7 @@
           if (asal) I.simpanCatatan(S.data, S.me, { title: asal.title, body: I.tandaiBarisTask(asal.body, m.baris, t.id), folder: asal.folder }, asal.id, waktu);
           tutupModal();
           if (!asal) S.pilih = t.id;
-          return selesaiUbah(`${t.id} · ${t.sub} ditambahkan untuk ${I.orang(t.pic).pendek}${t.induk ? ` sebagai task anak ${t.induk}` : ''}.${asal ? ' Nomornya ditempel di baris catatan.' : ''}`);
+          return selesaiUbah(`${t.id} · ${t.sub} ditambahkan untuk ${I.orang(t.pic).pendek}${t.induk ? ` sebagai task turunan ${t.induk}` : ''}.${asal ? ' Nomornya ditempel di baris catatan.' : ''}`);
         }
         case 'ubah': {
           const lama = (S.data.tasks.find(x => x.id === m.id) || {}).pic;
@@ -6875,6 +7237,8 @@
           S.proyek = p.id;
           return selesaiUbah(`${p.name} dibuat. Tambahkan task pertamanya; tahap proyek mengikuti task terbuka paling awal.`);
         }
+        case 'tampilan': simpanTampilanSaya(); return;
+        case 'status': simpanStatus({ emoji: S.drafStatus.emoji, teks: f.teks, sampai: sampaiDari(f.durasi) }); return;
         case 'tunggu': {
           const t = ubahData('aturTunggu', { task: m.id, tunggu: new FormData(form).getAll('tunggu'), lepasFase: f.ikutFase !== 'ya' });
           tutupModal();
@@ -7119,6 +7483,27 @@
         if (confirm('Hapus foto profil Anda? Avatar kembali ke inisial, untuk semua orang.')) kirimFoto('');
         break;
       case 'tema': gantiTema(d.nilai); render(); break;
+      case 'tampilan': bukaTampilan(); break;
+      case 'status': bukaStatus(); break;
+      case 'tpl-aksen': ubahDraf({ aksen: d.nilai }, true); break;
+      case 'tpl-latar': ubahDraf({ latar: d.nilai }, true); break;
+      case 'tpl-padat': ubahDraf({ padat: d.nilai }, true); break;
+      case 'tpl-huruf': ubahDraf({ huruf: d.nilai }, true); break;
+      case 'tpl-sampul-pilih': { const b = $('#tpl-sampul-berkas'); if (b) b.click(); break; }
+      case 'tpl-sampul-hapus':
+        S.drafSampul = '';
+        ubahDraf(S.drafTampilan.latar === 'sampul' ? { latar: '' } : {}, true);
+        break;
+      case 'tpl-bawaan': ubahDraf({ ...I.tampilanBawaan(), status: undefined, sampulAt: undefined }, true); break;
+      case 'st-emoji': S.drafStatus.emoji = d.nilai; segarkanFormStatus(); break;
+      case 'st-siap': {
+        S.drafStatus.emoji = d.emoji;
+        const isian = $('#st-teks');
+        if (isian) isian.value = d.teks;
+        segarkanFormStatus();
+        break;
+      }
+      case 'st-hapus': simpanStatus(null); break;
       case 'tema-cepat': gantiTema(document.documentElement.dataset.tema === 'gelap' ? 'terang' : 'gelap'); render(); break;
       case 'ganti-profil':
         if (!bolehTinggalkanPaket()) return;
@@ -7612,6 +7997,13 @@
       el.value = '';
       return;
     }
+    if (el.id === 'tpl-sampul-berkas') {
+      olahSampul(el.files && el.files[0]);
+      el.value = '';
+      return;
+    }
+    if (el.id === 'tpl-awal') { ubahDraf({ awal: el.value }); return; }
+    if (el.id === 'tpl-aksen-sendiri') { ubahDraf({ aksen: el.value }, true); return; }
     if (el.dataset.aksi === 'centang-sub') {
       try { ubahData('centangSubtask', { task: el.dataset.id, sub: el.dataset.sub, done: el.checked }); selesaiUbah(); } catch (err) { toast(err.message, true); render(); }
     } else if (el.dataset.slicer) {
@@ -7738,6 +8130,8 @@
     if (el.id === 'foto-zoom') { if (kerat) aturZoom(Number(el.value)); return; }
     if (el.id === 'palet-q') { S.palet.q = el.value; S.palet.pilih = 0; $('#palet-hasil').innerHTML = hasilPalet(); return; }
     if (el.id === 'tunggu-cari') { saringTunggu(el.value); return; }
+    if (el.id === 'tpl-aksen-sendiri') { ubahDraf({ aksen: el.value }); return; }
+    if (el.id === 'tpl-kuat') { ubahDraf({ kuatLatar: Number(el.value) }); return; }
     if (el.classList.contains('km-isian')) {
       // Draf per ruang; teks yang sedang diubah bukan draf.
       if (!S.kom.ubah) S.kom.draf[el.closest('form').dataset.ruang] = el.value;

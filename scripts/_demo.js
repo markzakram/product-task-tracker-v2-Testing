@@ -5,7 +5,7 @@
 
    Tujuannya supaya alur kerja v2 langsung terlihat: elaborasi paket menjadi batch langkah
    (mis. Latsol DV1 › E1 › DV8 › I1 › E4 › E5 › E6 › I4), langkah dipegang Lead tim pemilik lalu
-   DIBAGI ke staff timnya lewat task anak, gate per langkah, progres paket yang naik per
+   DIBAGI ke staff timnya lewat task turunan, gate per langkah, progres paket yang naik per
    capaian, dan proyek yang berjalan per tim (2.19.0): tiap tim menjalankan fase ADDIE-nya
    sendiri, tim yang berbeda sejajar, ditambah serah-terima antartim dan gerbang Manager di
    Analysis. Semua langkah memakai aturan yang sama dengan tombol di aplikasi (public/inti.js):
@@ -15,7 +15,7 @@
    Tiga paket v1 dipakai:
    - PKG-001 TKA_CEREBRUM: target ASLI dari v1. Dielaborasi dua pekan lalu. Design sudah tuntas
      dan proyeknya kini di Development: ada batch yang sudah ter-input, langkah Lead yang
-     menunggu tinjauan Manager, task anak yang sedang dikerjakan, terlambat, tertahan,
+     menunggu tinjauan Manager, task turunan yang sedang dikerjakan, terlambat, tertahan,
      dikembalikan, dan menunggu tinjauan Lead, serta langkah yang masih di antrean Lead.
      Implementation dan Evaluation tiap tim menunggu fase Development tim itu.
    - PKG-004 OJK: di v1 belum ada target. Diberi target contoh, lalu proyeknya dijalankan penuh:
@@ -57,7 +57,7 @@ const TARGET_CONTOH = {
   ],
 };
 
-/* Staff yang menerima task anak per sub-stage, mengikuti organogram: soal oleh staff akademik
+/* Staff yang menerima task turunan per sub-stage, mengikuti organogram: soal oleh staff akademik
    (tim Andika; batch 4 paket ke atas dibagi ke dua orang), input/generate/QC aplikasi/
    show-hide oleh Kiki dan live class oleh Bilar (tim Alya), materi dan guru oleh Nadya
    (tim Dhea). D5 dikerjakan Alya sendiri. */
@@ -95,7 +95,7 @@ function kerjakan(data, t, mulai, ajukanPada) {
 }
 const setujui = (data, t, w) => Inti.terapkanAksi(data, t, 'setujui', Inti.peninjau(t), w);
 
-/* Lead membagi langkah yang ia pegang ke staff timnya lewat task anak (sejak 0.15.0 task Lead
+/* Lead membagi langkah yang ia pegang ke staff timnya lewat task turunan (sejak 0.15.0 task Lead
    tak diserahkan ke staff). Membagi langkah yang masih antre sekaligus memulainya. */
 function bagi(data, t, staf, waktu) {
   const nama = Inti.subTahap(t.sub).nama;
@@ -134,14 +134,14 @@ const jumlahBatch = (data, langkah) => {
   return s ? Number(s.jumlah) || 1 : 1;
 };
 
-/* Membawa satu langkah Development sampai keadaan contoh tertentu (PKG-001). Task anaknya yang
+/* Membawa satu langkah Development sampai keadaan contoh tertentu (PKG-001). Task turunannya yang
    pertama memperlihatkan keadaan itu; anak kedua (batch besar) sedang dikerjakan. */
 function sampaiKeadaan(data, t, staf, keadaan, sekarang) {
   const hariIni = Inti.isoHari(sekarang);
   if (keadaan === 'antrean') { t.due = Inti.tambahHari(hariIni, 6); return; }   // masih di Lead, belum dibagi
   t.due = Inti.tambahHari(hariIni, 4);
   if (keadaan === 'tinjau-manager') {
-    // Task anaknya sudah lolos; Lead mengajukan langkahnya ke Manager.
+    // Task turunannya sudah lolos; Lead mengajukan langkahnya ke Manager.
     bagi(data, t, staf, sekarang - 4 * HARI).forEach((a, k) => {
       kerjakan(data, a, sekarang - 4 * HARI + (1 + k) * JAM, sekarang - 2 * HARI);
       setujui(data, a, sekarang - 1.5 * HARI);
@@ -262,8 +262,8 @@ function ruangSayaContoh(data, sekarang) {
   const catatan = {
     nynda: [['Rapat mingguan produk', 'Agenda:\n1. Progres paket TKA_CEREBRUM\n2. Mulai siklus berikutnya untuk OJK\n3. Elaborasi paket UTBK'],
       ['Prioritas Oktober', '- Tuntaskan Development batch Latsol TKA\n- Evaluasi siklus 1 OJK\n- Elaborasi UTBK minggu depan']],
-    andika: [['Kisi-kisi TKA', 'Bagi DV1 per mapel ke Uma, Tri, Wildan lewat task anak.\nCek ulang bobot soal sebelum menyetujui.']],
-    alya: [['Antrean input & QC', '- Bagi DV8 ke Kiki lewat task anak begitu soalnya siap\n- QC Web/Android/iOS di tahap Evaluation']],
+    andika: [['Kisi-kisi TKA', 'Bagi DV1 per mapel ke Uma, Tri, Wildan lewat task turunan.\nCek ulang bobot soal sebelum menyetujui.']],
+    alya: [['Antrean input & QC', '- Bagi DV8 ke Kiki lewat task turunan begitu soalnya siap\n- QC Web/Android/iOS di tahap Evaluation']],
     ali: [['Ide fitur', 'Notifikasi saat batch naik capaian (konten siap, ter-input, tayang).']],
   };
   let n = 0;
@@ -296,7 +296,7 @@ function tambahDemo(data, sekarang = Date.now()) {
   if (data.log.length > 1000) data.log.length = 1000;
   const proyek = [tka, ojk].filter(Boolean).map(x => ({ ...x, semua: data.tasks.filter(t => t.project === x.project.id) }));
   return {
-    proyek: proyek.map(x => `${x.project.id} ${x.project.name} (${x.semua.length} task, ${x.semua.filter(t => t.induk).length} di antaranya task anak)`),
+    proyek: proyek.map(x => `${x.project.id} ${x.project.name} (${x.semua.length} task, ${x.semua.filter(t => t.induk).length} di antaranya task turunan)`),
     task: proyek.reduce((n, x) => n + x.semua.length, 0),
     setoran: data.setoran.length,
     ...ruang,

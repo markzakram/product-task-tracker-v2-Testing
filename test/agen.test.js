@@ -100,7 +100,7 @@ test('sesi agen: hanya aksi yang diizinkan dan atas nama Ali; kunci diganti = se
   const p = sheetV2();
   const agen = await masukAgen();
   const larang = [['masukProfil', 'nynda', ''], ['keluarDev'], ['aturSumber', 'real'], ['sistem'], ['status'], ['siapkan'],
-    ['simpanFoto', { orang: 'ali', gambar: '' }], ['simpanMaster', 'platform', {}], ['aturPin', 'ali', '1234'], ['simpanOrang', {}]];
+    ['simpanFoto', { orang: 'ali', gambar: '' }], ['simpanTampilan', { orang: 'ali', setelan: {} }], ['simpanMaster', 'platform', {}], ['aturPin', 'ali', '1234'], ['simpanOrang', {}]];
   for (const [a, ...args] of larang) {
     const r = await aksi(agen, a, ...args);
     assert.deepEqual([r.status, r.json.kode], [403, 'AGEN'], a);

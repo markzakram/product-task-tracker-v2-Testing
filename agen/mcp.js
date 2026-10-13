@@ -72,7 +72,7 @@ function teksDetail(k, id) {
   ];
   if ((t.support || []).length) out.push(`Pendukung: ${t.support.map(nama).join(', ')}`);
   if (induk) out.push(`Task induk: ${K.barisTask(induk, k)}`);
-  if (anak.length) { out.push('Task anak:'); for (const a of anak) out.push('- ' + K.barisTask(a, k, `PIC ${nama(a.pic)}`)); }
+  if (anak.length) { out.push('Task turunan:'); for (const a of anak) out.push('- ' + K.barisTask(a, k, `PIC ${nama(a.pic)}`)); }
   if (t.detail || t.notes) out.push(`Keterangan: ${K.potong([t.detail, t.notes].filter(Boolean).join(' / '), 1200)}`);
   out.push(`Output: ${t.output ? K.potong(t.output, 1200) : '(kosong)'}`);
   out.push(`Bukti: ${t.evidence.length ? '' : '(belum ada)'}`);

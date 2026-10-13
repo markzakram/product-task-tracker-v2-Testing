@@ -20,6 +20,7 @@ const {
   dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
   masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, rakit, nomorTerbesar,
   TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
+  TAB_TAMPILAN, TAMPILAN, tampilanKeBaris, tampilanDariBaris,
 } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
@@ -546,6 +547,72 @@ async function tulisFoto(k, id, f) {
   return baris;
 }
 
+/* ---------- Tampilan pribadi & status (2.21.0) --------------------------
+   Tab `tampilan`: satu baris per orang (orang, setelan, diperbarui, sampul), ditimpa seperti
+   foto. Tarikan rutin hanya membaca A:C (setelan kecil, termasuk status semua orang); gambar
+   sampul dibaca terpisah (bacaSampul) dan hanya saat berubah. */
+async function barisTampilan(k, id, kolom = 'A:D') {
+  try {
+    const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(TAB_TAMPILAN, kolom) }));
+    return r.data.values || [];
+  } catch (err) {
+    if (tabBelumAda(err)) return null;
+    throw err;
+  }
+}
+/* Satu baris per orang; kalau ganda (dua simpanan bersamaan), yang terbaru menang. */
+function tampilanTerbaru(nilai) {
+  const [judul = [], ...isi] = nilai || [];
+  const per = new Map();
+  isi.forEach((b, i) => {
+    const t = { ...tampilanDariBaris(judul, b), baris: i + 1 };
+    if (!t.orang) return;
+    const lama = per.get(t.orang);
+    if (!lama || t.diperbarui >= lama.diperbarui) per.set(t.orang, t);
+  });
+  return per;
+}
+async function bacaTampilan(k, id, sejak = 0) {
+  await pastikanV2(k, id);
+  const batas = Number(sejak) || 0;
+  const semua = [...tampilanTerbaru(await barisTampilan(k, id, 'A:C')).values()]
+    .map(({ orang, setelan, diperbarui }) => ({ orang, setelan, diperbarui }));
+  return { tampilan: batas ? semua.filter(t => t.diperbarui >= batas) : semua, waktu: Date.now() };
+}
+async function bacaSampul(k, id, orang) {
+  await pastikanV2(k, id);
+  const t = tampilanTerbaru(await barisTampilan(k, id)).get(orang);
+  return { orang, sampul: t ? t.sampul : '', sampulAt: t ? Number(t.setelan.sampulAt) || 0 : 0 };
+}
+/* t = { orang, setelan (sudah dibersihkan Inti.periksaTampilan), sampul }. sampul undefined =
+   tetap seperti sebelumnya; '' = dihapus; data URL = diganti. Waktu diberikan server. */
+async function tulisTampilan(k, id, t) {
+  await pastikanV2(k, id);
+  const sekarang = Date.now();
+  let nilai = await barisTampilan(k, id);
+  if (!nilai) {
+    await buatTabAplikasi(k, id, TAB_TAMPILAN, TAMPILAN, 100);
+    nilai = [TAMPILAN];
+  }
+  const lama = tampilanTerbaru(nilai).get(t.orang);
+  const sampul = t.sampul === undefined ? (lama ? lama.sampul : '') : t.sampul;
+  const sampulAt = t.sampul === undefined ? (lama ? Number(lama.setelan.sampulAt) || 0 : 0) : (t.sampul ? sekarang : 0);
+  const baris = { orang: t.orang, setelan: { ...t.setelan, sampulAt }, diperbarui: sekarang, sampul };
+  if (lama) {
+    const n = lama.baris + 1;
+    await panggil(() => k.api.spreadsheets.values.update({
+      spreadsheetId: id, range: rentang(TAB_TAMPILAN, `A${n}:D${n}`), valueInputOption: 'RAW',
+      requestBody: { values: [tampilanKeBaris(baris)] },
+    }), { tulis: true });
+  } else {
+    await panggil(() => k.api.spreadsheets.values.append({
+      spreadsheetId: id, range: rentang(TAB_TAMPILAN, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [tampilanKeBaris(baris)] },
+    }), { tulis: true });
+  }
+  return { orang: baris.orang, setelan: baris.setelan, diperbarui: baris.diperbarui };
+}
+
 /* ---------- Orang (kelola orang di mode Dev, 0.13.0) ---------------------
    Tab `orang`: satu baris per orang yang diubah atau ditambah mode Dev (organogram bawaan ada
    di public/inti.js). Seperti foto, baris orang yang sama ditimpa. Server juga memakainya untuk
@@ -811,7 +878,7 @@ module.exports = {
   PENANDA, GalatSetelan, GalatDitolak,
   setelanAda, idSpreadsheet, kredensial, emailAkun, klien,
   panggil, kenaKuota, gangguanSesaat,
-  periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto,
+  periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto, bacaTampilan, bacaSampul, tulisTampilan,
   bacaSetelan, tulisSetelan, sumberData, bacaReal, tulisReal,
   bacaOrang, tulisOrang, bacaMaster, tulisMaster, bacaPin, tulisPin, hitungTab, jelaskanGalat,
 };

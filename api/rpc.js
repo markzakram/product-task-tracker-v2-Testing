@@ -12,13 +12,16 @@
      POST /api/rpc  { action: 'kirimObrolan', args: [peristiwa] } satu pesan/ubah/hapus/reaksi/beres
      POST /api/rpc  { action: 'muatFoto', args: [sejak] }      foto profil yang berubah sejak waktu itu
      POST /api/rpc  { action: 'simpanFoto', args: [{ orang, gambar }] }  ganti atau hapus (gambar '')
+     POST /api/rpc  { action: 'muatTampilan', args: [sejak] }  tampilan & status semua orang (tanpa gambar sampul)
+     POST /api/rpc  { action: 'muatSampul', args: [orang] }    gambar sampul satu orang
+     POST /api/rpc  { action: 'simpanTampilan', args: [{ orang, setelan, sampul? }] }  sampul '' = hapus
      POST /api/rpc  { action: 'masukDev', args: [pinDev] }     sesi mode Dev (12 jam), tanpa sesi pun boleh
      POST /api/rpc  { action: 'keluarDev' }                    kembali ke sesi biasa
      POST /api/rpc  { action: 'sistem' }                       [Dev] diagnosa server & spreadsheet
      POST /api/rpc  { action: 'simpanOrang', args: [orang] }   [Dev] ubah/tambah orang di tab orang
      kirimObrolan dengan jenis 'moderasi'                      [Dev] sembunyikan pesan siapa pun
      POST /api/rpc  { action: 'masukProfil', args: [orang, pin] }  pilih profil (PIN kalau profil itu ber-PIN)
-     POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Manager/Dev] daftar pilihan (halaman Master)
+     POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Lead/Manager/Dev] daftar pilihan (halaman Master)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
      POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
      POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
@@ -83,18 +86,20 @@ async function wajibProfil(konteks, k, orang) {
   if (await meSah(konteks, k) === orang) return;
   throw perluPin(orang);
 }
-/* Halaman Master: Dev, atau Manager yang terbukti lewat PIN. Selama belum ada Manager yang
-   ber-PIN, siapa pun yang memilih profil Manager boleh (seperti data prototipe lainnya).
-   PIN profil sendiri hanya diatur mode Dev (0.14.1). */
+/* Halaman Master: Dev, Manager, atau Lead (2.21.0, keputusan user: Lead juga menambah, mengubah,
+   dan menonaktifkan isian Master), yang terbukti lewat PIN-nya kalau profilnya ber-PIN. Selama
+   belum ada Manager yang ber-PIN, siapa pun boleh (seperti data prototipe lainnya). PIN profil
+   sendiri hanya diatur mode Dev (0.14.1). */
+const PERAN_MASTER = ['manager', 'lead'];
 async function bolehMaster(konteks, k) {
   if (konteks.dev) return;
   const me = await meSah(konteks, k);
-  if (me && Inti.orang(me).peran === 'manager') return;
+  if (me && PERAN_MASTER.includes(Inti.orang(me).peran)) return;
   const pin = await sheet.bacaPin(k, sheet.idSpreadsheet());
   if (!Inti.ORANG.some(o => o.peran === 'manager' && pin.has(o.id))) return;
-  // Sesi yang mengaku Manager tapi PIN-nya belum (atau tak lagi) cocok: minta PIN-nya lagi.
-  if (konteks.meKlaim && pin.has(konteks.meKlaim) && Inti.orang(konteks.meKlaim).peran === 'manager') throw perluPin(konteks.meKlaim);
-  throw new GalatIzin('Hanya Manager (dengan PIN-nya) atau mode Dev yang bisa mengubah Master.');
+  // Sesi yang mengaku Lead/Manager tapi PIN-nya belum (atau tak lagi) cocok: minta PIN-nya lagi.
+  if (konteks.meKlaim && pin.has(konteks.meKlaim) && PERAN_MASTER.includes(Inti.orang(konteks.meKlaim).peran)) throw perluPin(konteks.meKlaim);
+  throw new GalatIzin('Hanya Lead, Manager, atau mode Dev yang bisa mengubah Master.');
 }
 const POLA_PIN = /^\d{4,8}$/;
 const hashPin = (pin, garam) => crypto.scryptSync(String(pin), garam, 32).toString('hex');
@@ -258,9 +263,40 @@ const AKSI = {
     try { bersih = Inti.periksaFoto(foto); } catch (err) { throw new GalatIsian(err.message); }
     return { foto: await sheet.tulisFoto(k, sheet.idSpreadsheet(), bersih) };
   },
+  /* Tampilan pribadi & status (2.21.0): tab tampilan, satu baris per orang. Setelan semua orang
+     ikut ditarik (status terlihat semua orang); sampul dibaca terpisah. */
+  async muatTampilan(sejak) {
+    const k = await sheet.klien();
+    const h = await sheet.bacaTampilan(k, sheet.idSpreadsheet(), sejak);
+    return { tampilan: h.tampilan.map(t => ({ ...t, setelan: Inti.periksaTampilan(t.setelan) })), waktu: h.waktu };
+  },
+  async muatSampul(orang) {
+    const k = await sheet.klien();
+    const h = await sheet.bacaSampul(k, sheet.idSpreadsheet(), String(orang || ''));
+    return { ...h, sampul: Inti.sampulSah(h.sampul) ? h.sampul : '' };
+  },
+  async simpanTampilan(isian) {
+    const x = isian && typeof isian === 'object' ? isian : {};
+    const orang = String(x.orang || '');
+    const k = await sheet.klien();
+    await terapkanOrang(k);
+    if (!Inti.ORANG.some(o => o.id === orang)) throw new GalatIsian('Profil tidak dikenal. Akun Dev memakai tampilan bawaan.');
+    // Seperti foto: profil ber-PIN hanya diubah dari sesi yang sudah memasukkan PIN-nya.
+    await wajibProfil(this, k, orang);
+    let setelan;
+    try { setelan = Inti.periksaTampilan(x.setelan, { ketat: true }); } catch (err) { throw new GalatIsian(err.message); }
+    let sampul;
+    if (x.sampul !== undefined && x.sampul !== null) {
+      sampul = String(x.sampul);
+      if (sampul.length > Inti.SAMPUL_MAKS) throw new GalatIsian('Gambar sampul terlalu besar. Pilih gambar lain.');
+      if (sampul && !Inti.sampulSah(sampul)) throw new GalatIsian('Format gambar sampul tidak dikenal. Pakai JPG, PNG, atau WebP.');
+    }
+    return { tampilan: await sheet.tulisTampilan(k, sheet.idSpreadsheet(), { orang, setelan, sampul }) };
+  },
   /* ----- Master & PIN (0.14.0) ----- */
   async simpanMaster(jenis, isian) {
     const k = await sheet.klien();
+    await terapkanOrang(k);   // Lead yang ditambah lewat mode Dev ikut terhitung
     await bolehMaster(this, k);
     const id = sheet.idSpreadsheet();
     const baris = await sheet.bacaMaster(k, id);

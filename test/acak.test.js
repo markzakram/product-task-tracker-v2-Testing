@@ -1,5 +1,5 @@
 /* Simulasi acak dengan benih tetap: ratusan aksi sungguhan di atas skenario contoh — aksi status,
-   output & bukti, task anak, ganti PIC dan sub-stage, sub-task — oleh orang yang berganti-ganti.
+   output & bukti, task turunan, ganti PIC dan sub-stage, sub-task — oleh orang yang berganti-ganti.
    Tiap langkah memeriksa bahwa hirarki task tetap utuh, task tak pernah dimulai selagi menunggu
    tahap sebelumnya, aksi yang ditolak ditolak dengan pesan (bukan galat program), dan semua
    hitungan tampilan tetap jalan. Pelengkap tes per aturan: menangkap kombinasi yang tak
@@ -35,15 +35,15 @@ function periksaHirarki(d, langkah) {
     assert.equal(a.project, p.project, `${ket}: proyek sama`);
     assert.equal(a.cycle || 1, p.cycle || 1, `${ket}: siklus sama`);
     if (p.lane === 'proyek') assert.equal(a.stage, p.stage, `${ket}: tahap sama`);
-    assert.equal(I.orang(a.pic).peran, 'staff', `${ket}: dipegang staff`);
-    assert.ok(I.timDari(p.pic).includes(a.pic), `${ket}: staff tim ${p.pic}`);
+    // Sejak 2.21.0 turunan dipegang staff tim Lead induknya, atau Lead itu sendiri.
+    assert.ok(a.pic === p.pic || (I.orang(a.pic).peran === 'staff' && I.timDari(p.pic).includes(a.pic)), `${ket}: dipegang ${p.pic} atau staff timnya`);
   }
   for (const p of d.tasks) {
     const anak = I.anakTask(perId, p.id);
     if (!anak.length) continue;
     assert.equal(I.orang(p.pic).peran, 'lead', `langkah ${langkah}, ${p.id}: induk dipegang Lead`);
     if (p.status === 'Ditinjau' || I.selesai(p)) {
-      assert.ok(anak.every(I.selesai), `langkah ${langkah}, ${p.id} ${p.status}: semua task anaknya selesai (${anak.map(x => x.id + ' ' + x.status).join(', ')})`);
+      assert.ok(anak.every(I.selesai), `langkah ${langkah}, ${p.id} ${p.status}: semua task turunannya selesai (${anak.map(x => x.id + ' ' + x.status).join(', ')})`);
     }
   }
 }

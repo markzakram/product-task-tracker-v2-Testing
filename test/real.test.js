@@ -27,7 +27,7 @@ function jalankanDua(a, b, p) {
   return { ...r, ubah };
 }
 
-test('dari data kosong: proyek, paket, elaborasi, task anak, tinjauan — perubahan = perintah', () => {
+test('dari data kosong: proyek, paket, elaborasi, task turunan, tinjauan — perubahan = perintah', () => {
   const a = I.dataKosong(), b = I.dataKosong();
   let w = SEKARANG;
   const jalan = (aksi, isi, oleh) => {

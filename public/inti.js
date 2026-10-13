@@ -14,7 +14,7 @@
      pemilik, dan peninjaunya.
    - Jalur PROYEK: task-nya ditinjau sebelum selesai (staff oleh Lead-nya, Lead oleh
      Manager; sub-stage bertanda Manager selalu oleh Manager), dan baru bisa diajukan
-     bila syaratnya lengkap: output, tautan bukti, sub-task, task anak, tahap sebelumnya.
+     bila syaratnya lengkap: output, tautan bukti, sub-task, task turunan, tahap sebelumnya.
      Jalur RUTIN (kode R, di luar proyek) tanpa tinjauan.
    - Sejak 0.15.0 task proyek di tahap ADDIE yang sama dikerjakan PARALEL; yang berurutan
      hanya tahapnya: task menunggu tahap sebelumnya di siklus itu selesai. Lead tak
@@ -292,14 +292,14 @@
        atur    — task yang dipilih Lead timnya (t.tunggu), boleh dari tim lain: serah-terima;
        gerbang — task Manager di Analysis (A1, A6): Design dan sesudahnya di tiap tim menunggunya;
        tutup   — E12 menunggu semua task lain di siklusnya.
-     Tim yang berbeda tak saling menunggu kecuali lewat gerbang atau yang diatur. Task anak
+     Tim yang berbeda tak saling menunggu kecuali lewat gerbang atau yang diatur. Task turunan
      mengikuti induknya. Task yang diatur menunggu task setim di fase lebih lambat (mis. I4 tayang
      menunggu QC E4–E6) berdiri di fase itu (faseUrut), sehingga task fase itu tak balik
      menunggunya: urutan bawaan dan yang diatur tak pernah saling mengunci. Task lain (rutin,
      atau proyek tanpa tahap) tetap menunggu task di deps-nya. */
   const tungguTahap = t => t.lane === 'proyek' && !!t.project && URUT_TAHAP.includes(t.stage);
   const urutFase = s => URUT_TAHAP.indexOf(s);
-  /* Tim sebuah task di halaman proyek: tim pemilik sub-stage-nya; task anak ikut induknya. */
+  /* Tim sebuah task di halaman proyek: tim pemilik sub-stage-nya; task turunan ikut induknya. */
   function timJalur(t, perId) {
     const induk = t.induk && perId ? perId.get(t.induk) : null;
     return timTask(induk || t);
@@ -353,7 +353,7 @@
     return ditunggu(t, perId).map(x => x.t).filter(aktif);
   }
   /* Jalur saling menunggu yang kembali ke task ini (mis. urutan yang diatur tak sengaja
-     memutar), atau null. Task anak diwakili induknya. */
+     memutar), atau null. Task turunan diwakili induknya. */
   function putaranTunggu(t, perId) {
     const asal = akarTask(t, perId);
     const lihat = new Set([asal.id]);
@@ -388,8 +388,11 @@
     if (t.lane !== 'proyek') return t.status === 'Ditinjau' ? MANAGER : null;
     const o = orang(t.pic);
     if (o.peran === 'manager') return null;
-    // Task anak ditinjau atasan PIC-nya (Lead yang membaginya), juga untuk sub-stage bertanda Manager.
+    // Task turunan ditinjau atasan PIC-nya (Lead yang membaginya), juga untuk sub-stage bertanda Manager.
     if (t.induk && o.peran === 'staff') return o.lead || MANAGER;
+    // Turunan yang dikerjakan Lead itu sendiri (2.21.0) tak ditinjau lagi: induknya tetap ditinjau
+    // Manager, dan baru bisa diajukan setelah semua turunannya selesai.
+    if (t.induk && o.peran === 'lead') return null;
     const s = subTahap(t.sub);
     if (s && s.reviewManager) return MANAGER;
     if (o.peran === 'lead') return MANAGER;
@@ -428,20 +431,21 @@
   /* Form Ubah: Lead/Manager untuk task timnya; staff hanya untuk task yang ia buat sendiri. */
   const bolehUbahTask = (t, me) => bolehUbah(t, me) && (orang(me).peran !== 'staff' || (t.assignedBy === me && t.pic === me));
 
-  /* ---------- Task anak (0.15.0) ----------
-     Lead tak menyerahkan task yang ia pegang ke staff. Ia membaginya: membuat task anak untuk
+  /* ---------- Task turunan (0.15.0) ----------
+     Lead tak menyerahkan task yang ia pegang ke staff. Ia membaginya: membuat task turunan untuk
      staff timnya di bawah task itu. Anak ada di proyek, siklus, dan tahap yang sama dengan
      induknya, ditinjau Lead itu, dan tak beranak lagi; induknya baru bisa diajukan atau
-     ditandai selesai setelah semua anaknya selesai. */
+     ditandai selesai setelah semua turunannya selesai. */
+  // Sejak 2.21.0 Lead boleh memegang turunannya sendiri, jadi Lead tanpa staff pun bisa membagi.
   const bolehBuatAnak = (t, me) => !!t && !t.induk && t.pic === me && orang(me).peran === 'lead' && aktif(t)
-    && t.status !== 'Ditinjau' && jenisJalur(t) !== 'lepas' && timDari(me).length > 0;
+    && t.status !== 'Ditinjau' && jenisJalur(t) !== 'lepas';
   function salahInduk(induk, me, anak) {
     if (!induk) return 'Task induk tidak ditemukan.';
-    if (!bolehBuatAnak(induk, me)) return 'Task anak dibuat Lead dari task yang ia pegang sendiri, selama task itu belum diajukan atau selesai.';
-    if (!timDari(me).includes(anak.pic)) return 'Task anak untuk staff tim Anda sendiri.';
-    if ((induk.project || '') !== (anak.project || '')) return 'Task anak ada di proyek yang sama dengan induknya.';
+    if (!bolehBuatAnak(induk, me)) return 'Task turunan dibuat Lead dari task yang ia pegang sendiri, selama task itu belum diajukan atau selesai.';
+    if (anak.pic !== me && !timDari(me).includes(anak.pic)) return 'PIC task turunan: Anda sendiri atau staff tim Anda.';
+    if ((induk.project || '') !== (anak.project || '')) return 'Task turunan ada di proyek yang sama dengan induknya.';
     if (induk.project && ((induk.cycle || 1) !== anak.cycle || induk.stage !== anak.stage)) {
-      return `Task anak ada di tahap yang sama dengan induknya (${namaTahap(induk.stage)}).`;
+      return `Task turunan ada di tahap yang sama dengan induknya (${namaTahap(induk.stage)}).`;
     }
     return '';
   }
@@ -483,7 +487,7 @@
   }
 
   /* Syarat sebelum output task proyek diajukan ke gate (PRD): output terisi, ada tautan
-     bukti, semua sub-task dan task anak beres, tahap sebelumnya (atau task yang ditunggu)
+     bukti, semua sub-task dan task turunan beres, tahap sebelumnya (atau task yang ditunggu)
      selesai, dan tidak tertahan. */
   function syaratAjukan(t, perId) {
     const anak = t.id ? anakTask(perId, t.id) : [];
@@ -491,7 +495,7 @@
       { kunci: 'output', label: 'Output terisi', ok: !!String(t.output || '').trim() },
       { kunci: 'bukti', label: 'Minimal satu tautan bukti', ok: (t.evidence || []).some(e => /^https?:\/\//i.test(String(e.url || ''))) },
       { kunci: 'sub', label: 'Semua sub-task selesai', ok: (t.subtasks || []).every(s => s.done) },
-      ...(anak.length ? [{ kunci: 'anak', label: `Semua task anak selesai (${anak.filter(selesai).length}/${anak.length})`, ok: anak.every(selesai) }] : []),
+      ...(anak.length ? [{ kunci: 'anak', label: `Semua task turunan selesai (${anak.filter(selesai).length}/${anak.length})`, ok: anak.every(selesai) }] : []),
       { kunci: 'deps', label: 'Task yang ditunggu sudah selesai', ok: depsBelum(t, perId).length === 0 },
       { kunci: 'tahan', label: 'Tidak sedang tertahan', ok: !t.tertahan },
     ];
@@ -518,7 +522,7 @@
     const tinjau = peninjau(t);
     if (selesai(t)) {
       if (!bolehUbah(t, me)) return [];
-      // Task anak tak dibuka lagi selagi induknya sedang ditinjau atau sudah selesai.
+      // Task turunan tak dibuka lagi selagi induknya sedang ditinjau atau sudah selesai.
       const induk = t.induk ? perId.get(t.induk) : null;
       const kunci = !!induk && (selesai(induk) || induk.status === 'Ditinjau');
       return [{ kunci: 'buka', label: 'Buka kembali', nonaktif: kunci,
@@ -546,7 +550,7 @@
         if (kurang.length) alasan = 'Lengkapi dulu: ' + kurang.join(', ');
       } else if (!alasan) {
         const buka = anakTask(perId, t.id).filter(aktif);
-        if (buka.length) alasan = 'Selesaikan dulu task anaknya: ' + buka.map(x => x.id).join(', ');
+        if (buka.length) alasan = 'Selesaikan dulu task turunannya: ' + buka.map(x => x.id).join(', ');
       }
       daftar.push(tinjau
         ? { kunci: 'ajukan', label: 'Ajukan tinjau ke ' + orang(tinjau).pendek, utama: true, nonaktif: !!alasan, alasan }
@@ -665,17 +669,17 @@
       subtasks: [], comments: [], tinjauan: [], evidence: [],
     };
     data.tasks.unshift(t);
-    catatLog(data, 'create', `${t.id} · ${t.title}`, `Dibuat untuk ${orang(t.pic).pendek}${s ? ' · ' + s.kode : ''}${pInduk ? ' · task anak ' + pInduk.id : ''}`, me, waktu);
+    catatLog(data, 'create', `${t.id} · ${t.title}`, `Dibuat untuk ${orang(t.pic).pendek}${s ? ' · ' + s.kode : ''}${pInduk ? ' · task turunan ' + pInduk.id : ''}`, me, waktu);
     // Membagi task yang masih antre (dan tak menunggu apa pun) sekaligus memulainya.
     if (pInduk && pInduk.status === 'Antre' && !pInduk.tertahan && !depsBelum(pInduk, indeks(data)).length) {
       pInduk.status = 'Dikerjakan';
       pInduk.updatedAt = waktu;
-      catatLog(data, 'update', `${pInduk.id} · ${pInduk.title}`, 'Mulai dikerjakan: dibagi ke task anak', me, waktu);
+      catatLog(data, 'update', `${pInduk.id} · ${pInduk.title}`, 'Mulai dikerjakan: dibagi ke task turunan', me, waktu);
     }
     return t;
   }
 
-  /* Task anak dari detail task induk: sub-stage, proyek, siklus, dan platform ikut induknya. */
+  /* Task turunan dari detail task induk: sub-stage, proyek, siklus, dan platform ikut induknya. */
   function taskAnak(data, induk, f, me, waktu, hariIni) {
     const salah = salahInduk(induk, me, { pic: f.pic, project: induk ? induk.project || '' : '', cycle: induk ? induk.cycle || 1 : 1, stage: induk ? induk.stage : '' });
     if (salah) throw new Error(salah);
@@ -776,17 +780,19 @@
     if (t.lane !== 'proyek' && s && s.tahap !== 'R' && kode !== t.sub) throw new Error('Task di luar proyek memakai sub-stage rutin (kode R).');
     const pic = teks(ambil('pic', t.pic));
     if (pic !== t.pic && !picSah(me, pic, kode)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
-    // 0.15.0: task Lead tak diserahkan ke staff — dibagi lewat task anak. Induk dan anaknya
+    // 0.15.0: task Lead tak diserahkan ke staff — dibagi lewat task turunan. Induk dan turunannya
     // tetap di tahap yang sama, dan induk yang sudah dibagi tetap dipegang PIC-nya.
     const anak = data.tasks.filter(x => x.induk === t.id);
     const induk = t.induk ? data.tasks.find(x => x.id === t.induk) || null : null;
     if (pic !== t.pic && orang(t.pic).peran === 'lead' && orang(pic).peran === 'staff') {
-      throw new Error('Task Lead tak diserahkan ke staff. Buat task anak untuk staff dari detail task-nya.');
+      throw new Error('Task Lead tak diserahkan ke staff. Buat task turunan untuk staff dari detail task-nya.');
     }
-    if (pic !== t.pic && anak.length) throw new Error('Task ini sudah dibagi ke task anak, jadi PIC-nya tetap.');
-    if (pic !== t.pic && induk && !timDari(induk.pic).includes(pic)) throw new Error(`PIC task anak dipilih dari staff tim ${orang(induk.pic).pendek}.`);
+    if (pic !== t.pic && anak.length) throw new Error('Task ini sudah dibagi ke task turunan, jadi PIC-nya tetap.');
+    if (pic !== t.pic && induk && pic !== induk.pic && !timDari(induk.pic).includes(pic)) {
+      throw new Error(`PIC task turunan: ${orang(induk.pic).pendek} sendiri atau staff timnya.`);
+    }
     if (t.lane === 'proyek' && s && s.tahap !== t.stage && (anak.length || induk)) {
-      throw new Error(`Task ${induk ? 'anak' : 'induk'} tetap di tahap ${namaTahap(t.stage)}, sama dengan ${induk ? 'induknya' : 'task anaknya'}.`);
+      throw new Error(`Task ${induk ? 'anak' : 'induk'} tetap di tahap ${namaTahap(t.stage)}, sama dengan ${induk ? 'induknya' : 'task turunannya'}.`);
     }
     const ubah = [];
     const lama = { sub: t.sub, stage: t.stage, kategori: t.kategori, pic: t.pic };
@@ -875,7 +881,7 @@
     return pindah;
   }
 
-  /* Siklus ditutup oleh task E12 · Final approval yang sudah disetujui (bukan task anaknya). */
+  /* Siklus ditutup oleh task E12 · Final approval yang sudah disetujui (bukan task turunannya). */
   const penutupSiklus = t => t.sub === 'E12' && !t.induk && selesai(t);
   const siklusTutup = (data, p) => tugasSiklus(data, p).some(penutupSiklus);
 
@@ -944,7 +950,7 @@
     const milik = data.tasks.filter(t => t.pic === me && aktif(t));
     const tunggu = milik.filter(t => terhambat(t, perId) || t.status === 'Ditinjau');
     /* Antrean tim (PRD): langkah proyek milik tim Lead ini yang sudah bisa dimulai, tetapi
-       belum dimulai dan belum dibagi ke staff lewat task anak. */
+       belum dimulai dan belum dibagi ke staff lewat task turunan. */
     const antrean = orang(me).peran === 'lead' && timDari(me).length
       ? milik.filter(t => t.lane === 'proyek' && t.status === 'Antre' && !tunggu.includes(t) && leadSub(t.sub) === me
         && !anakTask(perId, t.id).length) : [];
@@ -953,7 +959,7 @@
 
     const grup = [
       ['tinjau', 'Perlu Anda tinjau', data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t) === me).map(t => mau(t, 'Dari ' + orang(t.pic).pendek))],
-      ['antrean', 'Antrean tim · siap dibagi', antrean.map(t => mau(t, `${namaSub(t.sub)} siap. Kerjakan sendiri, atau bagi ke staff lewat task anak di detail task.`))],
+      ['antrean', 'Antrean tim · siap dibagi', antrean.map(t => mau(t, `${namaSub(t.sub)} siap. Kerjakan sendiri, atau bagi ke staff lewat task turunan di detail task.`))],
       ['telat', 'Terlambat', jalan.filter(t => t.due && t.due < hariIni).map(t => mau(t))],
       ['hari', 'Hari ini', jalan.filter(t => t.due === hariIni).map(t => mau(t))],
       ['minggu', '7 hari ke depan', jalan.filter(t => t.due > hariIni && t.due <= batasMinggu).map(t => mau(t))],
@@ -1266,6 +1272,129 @@
     if (gambar.length > FOTO_MAKS) throw new Error('Foto terlalu besar. Pilih foto lain atau perbesar potongannya.');
     if (gambar && !POLA_FOTO.test(gambar)) throw new Error('Format foto tidak dikenal. Pakai JPG, PNG, atau WebP.');
     return { orang, gambar };
+  }
+
+  /* ---------- Tampilan pribadi & status (2.21.0) ----------
+     Keputusan user 2026-10-13: tiap profil mengatur tampilannya sendiri — warna aksen, latar
+     (wallpaper), kepadatan, ukuran huruf, halaman awal, sampul profil — dan memasang status
+     singkat ber-emoji yang terlihat semua orang. Disimpan PER PROFIL di tab `tampilan` (satu
+     baris per orang, seperti foto), jadi ikut ke perangkat mana pun. Sampul = gambar di kolom
+     sendiri; setelan hanya mencatat kapan sampul terakhir diganti (sampulAt, diisi server). */
+  const AKSEN_BAWAAN = '#0068B4';
+  const AKSEN = [['Biru', '#0068B4'], ['Teal', '#0E7C86'], ['Hijau', '#2E7D32'], ['Ungu', '#6E3FC1'],
+    ['Magenta', '#B4237A'], ['Oranye', '#C2560A'], ['Indigo', '#3949AB'], ['Grafit', '#4A5563']];
+  const LATAR = [['', 'Polos'], ['aksen', 'Gradasi aksen'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'],
+    ['titik', 'Titik'], ['garis', 'Garis'], ['sampul', 'Sampul saya']];
+  const KUAT_LATAR = [10, 60, 40];   // paling samar, paling jelas, bawaan (%)
+  const PADAT = [['', 'Nyaman'], ['ringkas', 'Ringkas']];
+  const HURUF = [['kecil', 'Kecil'], ['', 'Sedang'], ['besar', 'Besar']];
+  const HALAMAN_AWAL = ['hari', 'dashboard', 'laporan', 'paket', 'proyek', 'task', 'komunikasi', 'link', 'catatan', 'riwayat', 'panduan'];
+  /* Status: emoji dari daftar ini (bukan teks bebas, supaya aman dipasang di CSS) + teks pendek. */
+  const STATUS_SIAP = [['🎯', 'Fokus'], ['📅', 'Rapat'], ['🏠', 'WFH'], ['🏖️', 'Cuti'], ['🤒', 'Sakit'], ['🚗', 'Di jalan'],
+    ['☕', 'Istirahat'], ['🕌', 'Ibadah']];
+  const EMOJI_STATUS = [...STATUS_SIAP.map(([e]) => e), '💬', '🎧', '✈️', '📚', '🔥', '✅', '🙏', '🎉'];
+  const STATUS_TEKS_MAKS = 60;
+  const STATUS_BATAS = 31 * 864e5;
+  const SAMPUL_MAKS = 45000;
+  const sampulSah = g => typeof g === 'string' && g.length <= SAMPUL_MAKS && POLA_FOTO.test(g);
+  const tampilanBawaan = () => ({ aksen: '', latar: '', kuatLatar: KUAT_LATAR[2], padat: '', huruf: '', awal: '', status: null, sampulAt: 0 });
+
+  /* ketat = isian dari browser (galat bila tak sah); longgar = baris tab (yang tak sah jadi
+     bawaan, supaya satu sel rusak tak menghentikan aplikasi). Status yang sudah lewat waktunya
+     dibuang saat disimpan; saat dibaca, statusAktif() yang menyaringnya. */
+  function periksaTampilan(x, { ketat = false, sekarang = Date.now() } = {}) {
+    const v = x && typeof x === 'object' ? x : {};
+    const b = tampilanBawaan();
+    const salah = pesan => { if (ketat) throw new Error(pesan); };
+    const pilih = (nilai, daftar, pesan) => {
+      const s = String(nilai == null ? '' : nilai);
+      if (daftar.some(([k]) => k === s)) return s;
+      salah(pesan);
+      return '';
+    };
+    let aksen = String(v.aksen || '').trim().toUpperCase();
+    if (aksen && !/^#[0-9A-F]{6}$/.test(aksen)) { salah('Warna aksen tidak sah.'); aksen = ''; }
+    if (aksen === AKSEN_BAWAAN) aksen = '';
+    let kuat = Math.round(Number(v.kuatLatar));
+    if (!Number.isFinite(kuat)) kuat = b.kuatLatar;
+    kuat = Math.min(KUAT_LATAR[1], Math.max(KUAT_LATAR[0], kuat));
+    let awal = String(v.awal || '');
+    if (awal && !HALAMAN_AWAL.includes(awal)) { salah('Halaman awal tidak dikenal.'); awal = ''; }
+    let status = null;
+    if (v.status && typeof v.status === 'object') {
+      const teks = String(v.status.teks || '').replace(/\s+/g, ' ').trim();
+      let emoji = String(v.status.emoji || '');
+      const sampai = Math.max(0, Number(v.status.sampai) || 0);
+      if (teks.length > STATUS_TEKS_MAKS) salah(`Teks status paling panjang ${STATUS_TEKS_MAKS} karakter.`);
+      if (emoji && !EMOJI_STATUS.includes(emoji)) { salah('Emoji status tidak dikenal.'); emoji = ''; }
+      if (sampai && sampai - sekarang > STATUS_BATAS) salah('Status paling lama 31 hari.');
+      if ((emoji || teks) && !(ketat && sampai && sampai <= sekarang)) {
+        status = { emoji: emoji || '💬', teks: teks.slice(0, STATUS_TEKS_MAKS), sampai: sampai ? Math.min(sampai, sekarang + STATUS_BATAS) : 0 };
+      }
+    }
+    return {
+      aksen, latar: pilih(v.latar, LATAR, 'Latar tidak dikenal.'), kuatLatar: kuat,
+      padat: pilih(v.padat, PADAT, 'Kepadatan tidak dikenal.'), huruf: pilih(v.huruf, HURUF, 'Ukuran huruf tidak dikenal.'),
+      awal, status, sampulAt: Math.max(0, Number(v.sampulAt) || 0),
+    };
+  }
+  const statusAktif = (setelan, sekarang = Date.now()) => {
+    const s = setelan && setelan.status;
+    return s && s.emoji && (!s.sampai || s.sampai > sekarang) ? s : null;
+  };
+
+  /* Warna aksen → token CSS untuk tema terang dan gelap, atau null untuk biru bawaan (lembar
+     gaya yang berlaku). Kecerahannya digeser sampai teksnya terbaca (WCAG): aksen sebagai teks
+     ≥ 4,6:1 di latar terang dan ≥ 6:1 di latar gelap; isi pekat bertulisan putih ≥ 4,6:1.
+     Yang bermakna (status, capaian, sebutan) tetap memakai token --info-*, tak ikut aksen. */
+  const hexKeRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  function rgbKeHsl([r, g, b]) {
+    r /= 255; g /= 255; b /= 255;
+    const maks = Math.max(r, g, b), min = Math.min(r, g, b), l = (maks + min) / 2;
+    if (maks === min) return [0, 0, l];
+    const d = maks - min;
+    const s = l > 0.5 ? d / (2 - maks - min) : d / (maks + min);
+    const h = maks === r ? (g - b) / d + (g < b ? 6 : 0) : maks === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [h * 60, s, l];
+  }
+  function hslKeHex(h, s, l) {
+    l = Math.min(1, Math.max(0, l));
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+  const luminansi = hex => {
+    const [r, g, b] = hexKeRgb(hex).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const kontras = (a, b) => { const x = luminansi(a), y = luminansi(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  function tokenAksen(hex) {
+    const asal = String(hex || '').toUpperCase();
+    if (!/^#[0-9A-F]{6}$/.test(asal) || asal === AKSEN_BAWAAN) return null;
+    const [h, s0, l0] = rgbKeHsl(hexKeRgb(asal));
+    const s = s0;
+    const w = l => hslKeHex(h, s, l);
+    // Geser kecerahan selangkah demi selangkah sampai syaratnya terpenuhi.
+    const geser = (l, arah, syarat) => {
+      let x = l;
+      for (let i = 0; i < 120 && !syarat(w(x)) && x >= 0 && x <= 1; i++) x += arah * 0.01;
+      return Math.min(1, Math.max(0, x));
+    };
+    const lIsi = geser(Math.min(l0, 0.6), -1, c => kontras(c, '#FFFFFF') >= 4.6);
+    const lTeks = geser(lIsi, -1, c => kontras(c, '#F6F7F9') >= 4.6);
+    const lGelap = geser(Math.max(l0, 0.5), 1, c => kontras(c, '#171C23') >= 6.5);
+    const sp = Math.min(s, 0.85);
+    return {
+      terang: {
+        '--biru': w(lTeks), '--biru-tua': w(Math.max(0.1, lTeks - 0.1)), '--isi-biru': w(lIsi), '--isi-biru-tua': w(Math.max(0.08, lIsi - 0.08)),
+        '--biru-muda': hslKeHex(h, sp, 0.955), '--biru-muda-2': hslKeHex(h, sp, 0.91), '--biru-garis': hslKeHex(h, sp, 0.8), '--langit': hslKeHex(h, sp, 0.62),
+      },
+      gelap: {
+        '--biru': w(lGelap), '--biru-tua': w(Math.min(0.9, lGelap + 0.12)), '--isi-biru': w(lIsi), '--isi-biru-tua': w(Math.min(0.6, lIsi + 0.06)),
+        '--biru-muda': hslKeHex(h, s * 0.55, 0.15), '--biru-muda-2': hslKeHex(h, s * 0.55, 0.21), '--biru-garis': hslKeHex(h, s * 0.6, 0.32), '--langit': hslKeHex(h, sp, 0.6),
+      },
+    };
   }
 
   function periksaPeristiwa(e) {
@@ -1984,7 +2113,7 @@
 
   /* Lead tim pemilik task (atau Manager) mengatur siapa yang ditunggu task itu di tab timnya:
      ikut urutan fase tim (bawaan) atau tidak, dan task lain yang harus selesai dulu — boleh dari
-     tim lain di proyek dan siklus yang sama. Task anak mengikuti induknya; E12 tetap menunggu
+     tim lain di proyek dan siklus yang sama. Task turunan mengikuti induknya; E12 tetap menunggu
      semua task lain. */
   function bolehAturTunggu(t, me, perId) {
     if (!t || !tungguTahap(t) || t.induk || t.sub === 'E12') return false;
@@ -1996,7 +2125,7 @@
   function aturTunggu(data, t, f, me, waktu) {
     const perId = indeks(data);
     if (!bolehAturTunggu(t, me, perId)) {
-      throw new Error(t && t.induk ? 'Task anak mengikuti urutan induknya.' : t && t.sub === 'E12' ? 'E12 selalu menunggu semua task lain di siklusnya.'
+      throw new Error(t && t.induk ? 'Task turunan mengikuti urutan induknya.' : t && t.sub === 'E12' ? 'E12 selalu menunggu semua task lain di siklusnya.'
         : 'Urutan tunggu diatur Lead tim pemilik task ini, atau Manager.');
     }
     const siklus = sesiklus(t, perId);
@@ -2004,7 +2133,7 @@
     for (const id of pilih) {
       const x = perId.get(id);
       if (!x || x === t || !siklus.includes(x)) throw new Error(`${id} bukan task lain di proyek dan siklus yang sama.`);
-      if (x.induk) throw new Error(`${id} adalah task anak: pilih induknya, ${x.induk}.`);
+      if (x.induk) throw new Error(`${id} adalah task turunan: pilih induknya, ${x.induk}.`);
       if (x.sub === 'E12') throw new Error('E12 menutup siklus sesudah semua task lain, jadi tak bisa ditunggu.');
     }
     const lama = { tunggu: t.tunggu, lepasFase: t.lepasFase };
@@ -2781,6 +2910,8 @@
     WARNA_CATATAN, warnaiCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
     JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar,
     FOTO_MAKS, fotoSah, periksaFoto,
+    AKSEN, AKSEN_BAWAAN, LATAR, KUAT_LATAR, PADAT, HURUF, HALAMAN_AWAL, STATUS_SIAP, EMOJI_STATUS, STATUS_TEKS_MAKS, SAMPUL_MAKS, sampulSah,
+    tampilanBawaan, periksaTampilan, statusAktif, tokenAksen, kontras,
     IKON_DASHBOARD, simpanDashboard, hapusDashboard,
     centangSubtask, dataKosong, AKSI_DATA, jalankanPerintah, periksaPerintah, ringkasHasil, KOLEKSI_REAL, bedaData, terapkanUbah,
     KODE_AI, AKSI_AGEN, PESAN_AGEN,

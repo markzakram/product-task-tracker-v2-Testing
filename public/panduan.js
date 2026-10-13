@@ -63,7 +63,8 @@
         '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
-        '**Manajer** (hanya Manager): **Riwayat Aktivitas** dan **Master**, tempat daftar pilihan bersama diatur.',
+        '**Manajer**: **Riwayat Aktivitas** (Manager) dan **Master** (Lead dan Manager), tempat daftar pilihan bersama diatur.',
+        '**Sesuaikan tampilan** dan **Setel status** ada di menu foto Anda di kanan atas: warna aksen, latar, sampul, kepadatan, ukuran huruf, halaman awal, dan status ber-emoji. Semuanya milik profil Anda dan ikut ke perangkat lain.',
         '**Tema**: tombol bulan/matahari di samping lonceng memindah terang ↔ gelap dengan sekali klik. Untuk mengikuti tema perangkat, klik foto Anda di kanan atas lalu pilih **Sistem**; di menu yang sama ada **Ganti profil** dan **Keluar**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
       ],
     },
@@ -113,8 +114,8 @@
       langkah: [
         'Setiap task berkode **sub-stage**. Awalannya menunjukkan tahap: **A** Analysis, **D** Design, **DV** Development, **I** Implementation, **E** Evaluation. Kode **R** (R1–R4) untuk pekerjaan rutin di luar proyek.',
         'Kode menentukan **tim pemilik**: **DAE** Data & AI Engineer, **RAD** Research, Academic & Development, **LNA** Learning & Architecture, **CLO** Content & Learning Operation, dan **MG** Manager. Arahkan kursor ke kode untuk melihat nama lengkapnya.',
-        'Peninjau: task staff ditinjau Lead-nya, task Lead ditinjau Manager. Kode **A1, A6, D1, I8, dan E12** selalu ditinjau Manager, kecuali task anak: itu ditinjau Lead yang membaginya.',
-        'Daftar sub-stage diatur Manager di halaman **Master**: kode baru bisa ditambah, nama, tim pemilik, dan tinjauannya diubah, dan yang tak dipakai lagi dinonaktifkan.',
+        'Peninjau: task staff ditinjau Lead-nya, task Lead ditinjau Manager. Kode **A1, A6, D1, I8, dan E12** selalu ditinjau Manager, kecuali task turunan: itu ditinjau Lead yang membaginya.',
+        'Daftar sub-stage diatur Lead dan Manager di halaman **Master**: kode baru bisa ditambah, nama, tim pemilik, dan tinjauannya diubah, dan yang tak dipakai lagi dinonaktifkan.',
         'Kode berwarna biru muda menandai pekerjaan **lepas** warisan v1: pekerjaan produk yang tidak masuk proyek mana pun.',
       ],
     },
@@ -134,7 +135,7 @@
       id: 'konsep-progres', peran: 'konsep', judul: 'Progres rancangan paket', tujuan: 'Membaca angka progres paket.', ilustrasi: 'progres', coba: true,
       langkah: [
         'Setiap target paket yang dielaborasi menjadi satu **batch**: rangkaian langkah kerja. Contoh Latsol: DV1 → E1 → DV8 → I1 → E4 → E5 → E6 → I4. Tiap langkah dikerjakan menurut fase ADDIE timnya; input LNA (DV8) menunggu soal RAD (DV1), dan tayang (I4) menunggu QC.',
-        'Progres naik per **capaian**, saat langkahnya disetujui: konten siap **40%**, ter-input **60%**, lolos QC **85%**, tayang **100%** (bawaan PRD; nama dan bobotnya diatur Manager di **Master**).',
+        'Progres naik per **capaian**, saat langkahnya disetujui: konten siap **40%**, ter-input **60%**, lolos QC **85%**, tayang **100%** (bawaan PRD; nama dan bobotnya diatur Lead atau Manager di **Master**).',
         'Batang progres: biru = sudah tayang, biru muda = sebagian jalan, arsir ungu = sedang digarap.',
         'Di tabel target, satu chip = satu batch. Klik chip untuk membuka langkah bercapaian berikutnya.',
       ],
@@ -205,12 +206,12 @@
     },
 
     {
-      id: 'lead-antrean', peran: 'lead', judul: 'Membagi langkah ke staff (task anak)', tujuan: 'Membagi pekerjaan langkah yang Anda pegang ke staff tim.', ilustrasi: 'antrean', coba: true,
+      id: 'lead-antrean', peran: 'lead', judul: 'Memecah langkah jadi task turunan', tujuan: 'Membagi pekerjaan langkah yang Anda pegang ke staff tim, atau ke diri sendiri.', ilustrasi: 'antrean', coba: true,
       langkah: [
         'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Antrean tim · siap dibagi** di Hari Ini.',
-        'Buka langkahnya. Di bagian **Task anak**, tulis bagian pekerjaannya, pilih staff dan tenggat, lalu tekan **Buat task anak**. Ulangi untuk staff lain.',
-        'Task anak tampil menjorok di bawah langkah Anda, dan Anda yang meninjaunya. Langkahnya sendiri tetap Anda pegang: task Lead tidak diserahkan ke staff.',
-        'Setelah semua task anak disetujui, lengkapi output & bukti langkah Anda, lalu ajukan ke Manager. Tanpa task anak pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
+        'Buka langkahnya. Di bagian **Task turunan**, tulis bagian pekerjaannya, pilih PIC-nya (staff tim, atau **Anda sendiri**) dan tenggat, lalu tekan **Buat task turunan**. Ulangi untuk bagian lain.',
+        'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Langkahnya sendiri tetap Anda pegang: task Lead tidak diserahkan ke staff.',
+        'Setelah semua task turunan disetujui, lengkapi output & bukti langkah Anda, lalu ajukan ke Manager. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
       ],
     },
     {
@@ -228,7 +229,7 @@
         'Tekan **Tambah task**, lalu pilih jalur **Proyek** atau **Rutin**. Dari tab tim di halaman proyek, **Tambah task di …** langsung memakai jalur Proyek dan hanya menawarkan sub-stage tim dan fase itu.',
         'Pilih proyek dan **sub-stage**-nya (wajib; tidak ada pilihan bawaan). Keterangan di bawahnya menyebut fase dan tim pemiliknya.',
         'Pilih **PIC**: anggota tim Anda, atau Lead tim pemilik kalau sub-stage itu milik tim lain (mis. DV8 Input dipegang Lead LNA).',
-        'Kalau PIC-nya staff Anda dan Anda memegang task di fase yang sama, pilih **Task induk** supaya task ini menjadi task anaknya.',
+        'Kalau PIC-nya staff Anda (atau Anda sendiri) dan Anda memegang task di fase yang sama, pilih **Task induk** supaya task ini menjadi task turunannya.',
         'Isi tenggat dan keterangan, lalu tekan **Tambah task**.',
       ],
     },
@@ -295,7 +296,7 @@
       ],
     },
     {
-      id: 'manager-master', peran: 'manager', judul: 'Mengatur Master', tujuan: 'Mengubah daftar pilihan yang dipakai semua orang.', coba: true,
+      id: 'manager-master', peran: 'manager', judul: 'Mengatur Master (Lead dan Manager)', tujuan: 'Mengubah daftar pilihan yang dipakai semua orang.', coba: true,
       langkah: [
         'Buka **Master** di grup Manajer. Isinya daftar pilihan yang dipakai semua orang: **sub-stage**, **kategori paket** dan alurnya, **platform**, **satuan**, label prioritas, capaian dan bobotnya, serta nama tim.',
         'Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi, tapi task dan paket lamanya tetap terbaca. Panah atas-bawah mengatur urutan platform, satuan, dan kategori.',
@@ -309,12 +310,12 @@
   const ISTILAH = [
     ['Status', 'Antre, Dikerjakan, Ditinjau, atau Selesai. Hanya empat ini.'],
     ['Label', 'Keadaan yang dihitung dari status: **Siap**, **Menunggu**, **Revisi**, dan **Tertahan**.'],
-    ['Sub-stage', 'Kode langkah kerja: A, D, DV, I, dan E di dalam proyek; R untuk rutin. Daftarnya diatur Manager di Master.'],
+    ['Sub-stage', 'Kode langkah kerja: A, D, DV, I, dan E di dalam proyek; R untuk rutin. Daftarnya diatur Lead dan Manager di Master.'],
     ['Tim pemilik', 'Tim yang memegang sebuah sub-stage: DAE, RAD, LNA, CLO, atau MG (Manager). Nama dan singkatannya diatur di Master.'],
-    ['Antrean tim', 'Langkah proyek yang sudah bisa dimulai, di Hari Ini Lead tim pemiliknya: dikerjakan sendiri atau dibagi ke staff lewat task anak.'],
-    ['Task anak', 'Task yang dibuat Lead untuk staff timnya di bawah task yang ia pegang. Tampil menjorok di bawah induknya dan ditinjau Lead itu; induknya baru bisa diajukan setelah semua anaknya selesai.'],
-    ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, tautan bukti, sub-task, task anak (kalau ada), task yang ditunggu selesai, dan tidak tertahan.'],
-    ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task anak), Manager untuk task Lead dan kode bertanda Manager.'],
+    ['Antrean tim', 'Langkah proyek yang sudah bisa dimulai, di Hari Ini Lead tim pemiliknya: dikerjakan sendiri atau dibagi ke staff lewat task turunan.'],
+    ['Task turunan', 'Bagian pekerjaan yang dibuat Lead di bawah task yang ia pegang, untuk staff timnya atau untuk dirinya sendiri (dulu disebut task anak). Tampil menjorok di bawah induknya; yang dipegang staff ditinjau Lead itu. Induknya baru bisa diajukan setelah semua turunannya selesai.'],
+    ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, tautan bukti, sub-task, task turunan (kalau ada), task yang ditunggu selesai, dan tidak tertahan.'],
+    ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task turunan), Manager untuk task Lead dan kode bertanda Manager.'],
     ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1).'],
     ['Fase', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation, dijalankan tiap tim di proyek. Task sefase dalam satu tim dikerjakan bersamaan; fase berikutnya menunggu fase sebelumnya tim itu selesai.'],
     ['Urutan tunggu', 'Yang harus selesai dulu sebelum sebuah task jalan: fase timnya (bawaan), serah-terima yang diatur Lead (boleh dari tim lain), gerbang Manager (A1, A6), dan untuk E12 semua task lain di siklusnya.'],
@@ -329,7 +330,9 @@
     ['Data contoh', 'Data latihan di aplikasi ini. **Reset data contoh** di kaki sidebar mengembalikannya ke awal. Pesan Komunikasi tidak ikut di-reset.'],
     ['Ruang', 'Tempat obrolan di Komunikasi: utas per task, ruang proyek (terbuka untuk semua), dan ruang tim (anggota tim dan Manager).'],
     ['Blok', 'Satu bagian catatan: paragraf, judul, daftar, checklist, tabel, kutipan, atau garis pemisah. Ketik / di catatan untuk memilihnya.'],
-    ['Master', 'Halaman Manager (dan Dev) untuk daftar pilihan bersama: sub-stage, kategori paket, platform, satuan, prioritas, capaian, dan nama tim.'],
+    ['Master', 'Halaman Lead dan Manager (dan Dev) untuk daftar pilihan bersama: sub-stage, kategori paket, platform, satuan, prioritas, capaian, dan nama tim. Menghapus = menonaktifkan, supaya data lama yang memakainya tetap terbaca.'],
+    ['Tampilan pribadi', 'Warna aksen, latar (wallpaper), sampul profil, kepadatan, ukuran huruf, dan halaman awal milik satu profil. Diatur lewat foto Anda di kanan atas → Sesuaikan tampilan, dan ikut ke perangkat mana pun.'],
+    ['Status', 'Emoji dan teks singkat (mis. 🏖️ Cuti) di samping nama dan foto Anda, terlihat semua orang, dan hilang sendiri sesudah waktunya.'],
     ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu dan dipasang lewat mode Dev. Berbeda dari PIN aplikasi yang dipakai bersama.'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];
