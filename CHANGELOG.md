@@ -1,5 +1,17 @@
 # Changelog — ProductTrack v2
 
+## 2.20.2 — Tombol tema di samping lonceng (2026-10-13)
+
+Permintaan user: "tambahkan juga tombol tema di samping lonceng".
+
+- **Tombol bulan/matahari** di bilah atas, tepat di kiri lonceng (juga di ponsel).
+  - Sekali klik pindah terang ↔ gelap dan tersimpan seperti pilihan di menu akun.
+  - Ikonnya tema tujuan: bulan saat terang, matahari saat gelap. Labelnya "Ganti ke tema
+    gelap/terang".
+- **Ikuti sistem** tetap di menu akun. Selama pilihan itu aktif, ikon tombolnya ikut berganti
+  saat tema perangkat berganti, atau saat tab kembali aktif.
+- Panduan (Peta menu) dan README menyebut tombol ini.
+
 ## 2.20.1 — Menu akun di kanan atas: ganti profil, tema, dan keluar (2026-10-13)
 
 Masukan user (dengan tangkapan layar kaki sidebar 2.20.0): sakelar tema di bawah sidebar kurang

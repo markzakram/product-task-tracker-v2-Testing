@@ -64,7 +64,7 @@
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
         '**Manajer** (hanya Manager): **Riwayat Aktivitas** dan **Master**, tempat daftar pilihan bersama diatur.',
-        '**Tema**: klik foto Anda di kanan atas (di samping lonceng), lalu pilih **Sistem**, **Terang**, atau **Gelap**. Di menu yang sama ada **Ganti profil** dan **Keluar**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
+        '**Tema**: tombol bulan/matahari di samping lonceng memindah terang ↔ gelap dengan sekali klik. Untuk mengikuti tema perangkat, klik foto Anda di kanan atas lalu pilih **Sistem**; di menu yang sama ada **Ganti profil** dan **Keluar**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
       ],
     },
     {

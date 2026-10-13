@@ -571,10 +571,13 @@ Diuji di `test/master.test.js` dan `test/rpc.test.js`.
 - **Menu akun di kanan atas**, di samping lonceng, seperti di media sosial. Klik foto sendiri
   untuk melihat siapa yang sedang masuk, lalu Ganti foto profil, Ganti profil, Tema, dan
   Keluar. Kaki sidebar kini hanya foto, nama, dan jabatan (permintaan user).
-- **Tema** dipilih di menu akun atau lewat Ctrl+K, lalu ketik "tema":
+- **Tombol tema** di samping lonceng (2.20.2): sekali klik pindah terang ↔ gelap. Ikonnya
+  tema tujuan: bulan saat terang, matahari saat gelap.
+- **Tema** lengkap dipilih di menu akun atau lewat Ctrl+K, lalu ketik "tema":
   - **Ikuti sistem** (bawaan) mengikuti pengaturan perangkat, juga saat perangkat berganti tema
     selagi aplikasi terbuka;
-  - **Terang** dan **Gelap** menetapkan tema sendiri.
+  - **Terang** dan **Gelap** menetapkan tema sendiri; tombol tema di bilah atas memilih salah
+    satunya.
 
   Pilihannya per browser (`pt2_tema`), tidak ikut profil. Skrip kecil di `<head>`
   `public/index.html` memasang `data-tema` sebelum CSS dimuat, jadi halaman tak sempat berkedip

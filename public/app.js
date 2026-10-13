@@ -65,9 +65,11 @@
     simpan('tema', pilihan);
     pasangTema(pilihan);
   }
-  if (temaSistem && temaSistem.addEventListener) temaSistem.addEventListener('change', () => { if (pilihanTema() === 'sistem') pasangTema(); });
+  // Tema perangkat berganti selagi aplikasi terbuka: ikon tombol tema di bilah atas ikut berganti.
+  const ikutSistem = () => { if (pilihanTema() !== 'sistem') return; pasangTema(); if (S.data && S.me) renderKepala(); };
+  if (temaSistem && temaSistem.addEventListener) temaSistem.addEventListener('change', ikutSistem);
   // Cadangan bila peramban tak mengirim 'change': dicek lagi saat tab kembali aktif dan di render().
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) pasangTema(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) ikutSistem(); });
   pasangTema();
 
   /* ---------- Halaman di sidebar ---------- */
@@ -1276,6 +1278,7 @@
       <button type="button" class="cari" data-aksi="palet">${ikon('cari', 16)}<span>Cari task, proyek, paket, atau halaman…</span><kbd>${PINTASAN}</kbd></button>
       <button type="button" class="ikon-tombol cari-hp" data-aksi="palet" aria-label="Cari atau lompat">${ikon('cari', 20)}</button>
       ${I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama tombol-tambah" data-aksi="tambah-task">${ikon('tambah', 16)} Tambah task</button>` : ''}
+      ${tombolTema()}
       <div class="notif">
         <button type="button" class="ikon-tombol tombol-notif" data-aksi="notif" aria-expanded="${S.notif.buka}" aria-label="Notifikasi${baru ? `, ${baru} baru` : ''}">${ikon('lonceng', 20)}${baru ? `<span class="lencana">${baru > 9 ? '9+' : baru}</span>` : ''}</button>
         ${S.notif.buka ? panelNotif() : ''}
@@ -1286,7 +1289,14 @@
       </div>
     </div>${spandukPratinjau()}`;
   }
-  /* Menu akun di kanan atas (2.20.0, seperti di media sosial): siapa yang sedang masuk, ganti
+  /* Tombol tema di samping lonceng (2.20.2): sekali klik pindah terang ↔ gelap. Ikonnya tema
+     tujuan (bulan saat terang, matahari saat gelap). "Ikuti sistem" ada di menu akun. */
+  function tombolTema() {
+    const gelap = document.documentElement.dataset.tema === 'gelap';
+    const label = gelap ? 'Ganti ke tema terang' : 'Ganti ke tema gelap';
+    return `<button type="button" class="ikon-tombol tombol-tema" data-aksi="tema-cepat" title="${label}" aria-label="${label}">${ikon(gelap ? 'matahari' : 'bulan', 20)}</button>`;
+  }
+  /* Menu akun di kanan atas (2.20.1, seperti di media sosial): siapa yang sedang masuk, ganti
      foto, ganti profil, tema, dan keluar. Kaki sidebar cukup foto, nama, dan jabatan. */
   function panelAkun() {
     const o = I.orang(S.me);
@@ -7109,6 +7119,7 @@
         if (confirm('Hapus foto profil Anda? Avatar kembali ke inisial, untuk semua orang.')) kirimFoto('');
         break;
       case 'tema': gantiTema(d.nilai); render(); break;
+      case 'tema-cepat': gantiTema(document.documentElement.dataset.tema === 'gelap' ? 'terang' : 'gelap'); render(); break;
       case 'ganti-profil':
         if (!bolehTinggalkanPaket()) return;
         S.navBuka = false;
