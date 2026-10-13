@@ -111,7 +111,7 @@ test('daftarUtas: saringan Belum dibaca, Menyebut saya, Perlu jawaban; ruang tim
   ]);
   const utas = (saring, o = {}) => I.daftarUtas(d, 'kiki', s, { saring, sejak: () => 200, ...o });
   assert.deepEqual(utas('semua').map(x => [x.ruang, x.judul, x.baru]), [
-    ['task:PRD-999', 'Task baru Alya', 1], ['proyek:PRJ-1', 'Produksi OJK', 1], ['tim:LA', 'Tim Learning Architecture', 1],
+    ['task:PRD-999', 'Task baru Alya', 1], ['proyek:PRJ-1', 'Produksi OJK', 1], ['tim:LA', 'Tim LNA · Learning & Architecture', 1],
     ['task:' + a.id, 'Input Kimia', 1], ['task:' + b.id, 'QC Web', 0],
   ], 'ruang tim AK dan task yang tak melibatkan Kiki tak muncul; task dari browser lain memakai judul pesannya');
   assert.deepEqual(utas('baru').map(x => x.ruang), ['task:PRD-999', 'proyek:PRJ-1', 'tim:LA', 'task:' + a.id]);

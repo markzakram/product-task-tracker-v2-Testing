@@ -6,14 +6,13 @@ const I = require('../public/inti');
 const { tambahDemo } = require('../scripts/_demo');
 const { dataDemo: data, SEKARANG, HARI } = require('./bantu/data-demo');
 
-test('skenario contoh: proyek berjalan per tahap ADDIE — task anak, gate, capaian, penutupan siklus', () => {
+test('skenario contoh: proyek berjalan per tim ADDIE — task anak, gate, capaian, penutupan siklus', () => {
   const d = data();
   const r = tambahDemo(d, SEKARANG);
   const perId = I.indeks(d);
   const per = id => d.packages.find(p => p.id === id);
   const ringkas = id => I.ringkasPaket(per(id), I.setoranPaket(d, per(id)));
   const proyekDari = id => d.projects.find(p => p.paket === id);
-  const urut = I.TAHAP.map(x => x.id);
 
   // PKG-001: Design tuntas, Development berjalan; Implementation & Evaluation menunggu.
   const tka = proyekDari('PKG-001');
@@ -21,7 +20,9 @@ test('skenario contoh: proyek berjalan per tahap ADDIE — task anak, gate, capa
   assert.equal(tka.stage, 'V');
   assert.ok(tTka.filter(t => t.stage === 'D').every(I.selesai), 'Design tuntas');
   assert.ok(tTka.filter(t => ['I', 'E'].includes(t.stage)).every(t => t.status === 'Antre' && I.depsBelum(t, perId).length),
-    'Implementation & Evaluation menunggu Development selesai');
+    'Implementation & Evaluation menunggu fase Development timnya');
+  assert.ok(tTka.some(t => t.sub === 'DV8' && t.status === 'Antre' && I.depsBelum(t, perId).some(x => x.sub === 'DV1')),
+    'input LNA menunggu soal RAD (serah-terima)');
   const h = id => I.hitungTarget(per('PKG-001').items.find(i => i.id === id), I.setoranPaket(d, per('PKG-001')).get(id));
   assert.equal(h('ITM-1').capaian.konten, 1, 'Dibimbing: rancangan D5 lolos = konten siap');
   assert.ok(per('PKG-001').items.some(it => h(it.id).capaian.input > 0), 'ada batch yang sudah ter-input');
@@ -48,7 +49,7 @@ test('skenario contoh: proyek berjalan per tahap ADDIE — task anak, gate, capa
   assert.ok(d.tasks.filter(t => I.selesai(t) && !t.induk).every(t => I.anakTask(perId, t.id).every(x => I.selesai(x) && x.selesaiAt <= t.selesaiAt)));
   assert.ok(d.tasks.filter(t => t.project && !t.induk).every(t => I.orang(t.pic).peran !== 'staff'), 'langkah proyek tetap dipegang Lead/Manager');
 
-  // PKG-004: satu siklus penuh, tahap demi tahap, ditutup E12 → antrean keputusan Manager.
+  // PKG-004: satu siklus penuh menurut urutan yang berlaku, ditutup E12 → antrean keputusan Manager.
   const ojk = proyekDari('PKG-004');
   const tOjk = d.tasks.filter(t => t.project === ojk.id);
   assert.equal(per('PKG-004').items.length, 5);
@@ -57,9 +58,13 @@ test('skenario contoh: proyek berjalan per tahap ADDIE — task anak, gate, capa
   assert.ok(I.siklusTutup(d, ojk));
   assert.deepEqual(I.antreKeputusan(d, HARI).map(p => p.id), [ojk.id]);
   for (const t of tOjk) {
-    const dulu = tOjk.filter(x => t.sub === 'E12' && !t.induk ? x.sub !== 'E12' : urut.indexOf(x.stage) < urut.indexOf(t.stage));
-    assert.ok(dulu.every(x => x.selesaiAt < t.selesaiAt), `${t.id} ${t.sub} selesai setelah tahap sebelumnya tuntas`);
+    const dulu = I.ditunggu(t, perId).map(x => x.t);
+    assert.ok(dulu.every(x => x.selesaiAt < t.selesaiAt), `${t.id} ${t.sub} selesai setelah yang ditunggunya tuntas`);
   }
+  const selesaiPertama = sub => Math.min(...tOjk.filter(t => t.sub === sub && !t.induk).map(t => t.selesaiAt));
+  assert.ok(selesaiPertama('I6') < selesaiPertama('DV8'), 'live class CLO tak menunggu Development tim lain');
+  assert.ok(tOjk.filter(t => t.sub === 'I4' && !t.induk).every(t => t.tunggu.length && t.tunggu.every(id => perId.get(id).selesaiAt < t.selesaiAt)),
+    'tayang sesudah QC LNA');
 
   // PKG-006: target contoh, belum dielaborasi.
   assert.equal(per('PKG-006').items.length, 6);

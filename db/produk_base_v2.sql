@@ -222,7 +222,8 @@ CREATE TABLE IF NOT EXISTS `v2_project_history` (
 -- =============================================================================
 
 -- project NULL = jalur rutin (di aplikasi ''). induk = task anak (satu tingkat).
--- support dan deps adalah larik ID; disimpan JSON karena aplikasi memakainya utuh.
+-- support, deps, dan tunggu adalah larik ID; disimpan JSON karena aplikasi memakainya utuh.
+-- tunggu + lepasFase (2.19.0) = urutan yang diatur Lead tim di tab timnya di halaman proyek.
 CREATE TABLE IF NOT EXISTS `v2_tasks` (
   `id`             VARCHAR(64)  NOT NULL,
   `project`        VARCHAR(64)  NULL,
@@ -243,6 +244,8 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   `alasanTertahan` VARCHAR(500) NOT NULL DEFAULT '',
   `output`         TEXT         NULL,
   `deps`           JSON         NOT NULL DEFAULT (JSON_ARRAY()),
+  `tunggu`         JSON         NOT NULL DEFAULT (JSON_ARRAY()),
+  `lepasFase`      BOOLEAN      NOT NULL DEFAULT FALSE,
   `notes`          TEXT         NULL,
   `assignedBy`     VARCHAR(64)  NOT NULL DEFAULT '',
   `cycle`          INT          NOT NULL DEFAULT 1,

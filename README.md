@@ -37,7 +37,7 @@ setiap orang memilih profilnya sendiri; sejak 0.14.0 profil bisa dikunci dengan 
 | Grup | Halaman |
 |---|---|
 | Ringkasan | Hari Ini · Dashboard · Laporan (Lead & Manager) |
-| Pekerjaan | Rancangan Paket · Proyek (bertahap ADDIE) · Task · Komunikasi |
+| Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Task · Komunikasi |
 | Ruang Saya | Link Saya (termasuk Tautan tim) · Catatan Saya |
 | Manajer | Riwayat Aktivitas · Master (Manager) |
 | Bantuan | Panduan |
@@ -51,14 +51,17 @@ Sejak 0.6.0 alurnya mengikuti PRD v3 dari Manager (*ProductTrack v3 Product Oper
 dengan satu penyederhanaan: tetap empat status.
 
 - **Empat status:** Antre → Dikerjakan → Ditinjau → Selesai. Keadaan lain di PRD tidak jadi
-  status sendiri; ia dihitung dan tampil sebagai label: **Siap** (tahap sebelumnya sudah
-  selesai), **Menunggu** (tahap sebelumnya belum selesai), **Revisi** (dikembalikan peninjau),
+  status sendiri; ia dihitung dan tampil sebagai label: **Siap** (yang ditunggunya sudah
+  selesai), **Menunggu** (yang ditunggunya belum selesai), **Revisi** (dikembalikan peninjau),
   dan **Tertahan** (tanda yang disertai alasan).
 - **Sub-stage.** Setiap task berkode: A1–A6, D1–D7, DV1–DV9, I1–I8, E1–E12 di dalam proyek;
-  R1–R4 untuk pekerjaan rutin. Kode menentukan tahap task dan **tim pemiliknya** (MG Manager,
-  AK Akademik, LA Learning Architecture, CO Content Ops, SI Sistem). A1, A6, D1, I8, dan E12
-  selalu direview Manager. Itu daftar bawaan PRD; sejak 0.14.0 Manager mengaturnya di halaman
-  **Master**, dan form task tak lagi memilihkan sub-stage: harus dipilih sendiri.
+  R1–R4 untuk pekerjaan rutin. Kode menentukan fase task dan **tim pemiliknya**: **DAE** Data &
+  AI Engineer, **RAD** Research, Academic & Development, **LNA** Learning & Architecture,
+  **CLO** Content & Learning Operation, dan **MG** Manager. Sejak 2.19.0 tim tampil dengan
+  singkatan itu; kode lamanya (SI, AK, LA, CO) tetap dipakai di data, jadi tak ada yang perlu
+  dipindah. A1, A6, D1, I8, dan E12 selalu direview Manager. Itu daftar bawaan PRD; sejak 0.14.0
+  Manager mengaturnya di halaman **Master** (termasuk nama dan singkatan tim), dan form task tak
+  lagi memilihkan sub-stage: harus dipilih sendiri.
 - **Task anak (0.15.0).** Lead memberi task ke timnya sendiri, atau ke Lead tim pemilik
   sub-stage-nya (mis. Andika memberi DV8 Input ke Alya). Task yang dipegang Lead **tidak
   diserahkan ke staff**: langkah yang sudah bisa dimulai masuk **Antrean tim** di Hari Ini Lead
@@ -68,24 +71,42 @@ dengan satu penyederhanaan: tetap empat status.
   di Task, ditinjau Lead itu (juga di sub-stage bertanda Manager), dan tak beranak lagi.
   Induknya baru bisa diajukan atau ditandai selesai setelah semua task anaknya selesai; induk
   yang masih antre ikut mulai begitu dibagi. Induk yang sudah dibagi tetap dipegang PIC-nya.
-- **Paralel per tahap (0.15.0).** Task proyek di tahap ADDIE yang sama dalam satu siklus
-  dikerjakan bersamaan, siapa pun Lead-nya, dan tak saling menunggu. Yang berurutan hanya
-  tahapnya: task Design baru bisa dimulai setelah semua task Analysis di siklus itu selesai, dan
-  seterusnya. Pengecualian: **E12** menunggu semua task lain di siklusnya, supaya siklus tak
-  tertutup selagi masih ada pekerjaan. Task rutin tetap menunggu task di `deps`-nya.
+- **ADDIE per tim (2.19.0, keputusan user 13 Okt 2026).** Halaman proyek dibagi per tim: tab
+  **DAE · RAD · LNA · CLO** ditambah **Ringkasan**, dan tiap tim menjalankan ADDIE-nya sendiri.
+  Sebuah task proyek menunggu (`Inti.ditunggu`):
+  - **fase** — task tim yang sama di fase lebih awal, di siklus yang sama (bawaan; bisa
+    dimatikan per task). Yang sefase dalam satu tim dikerjakan bersamaan.
+  - **atur** — task yang dipilih Lead timnya lewat **Atur urutan tunggu** (`t.tunggu`), boleh
+    dari tim lain: serah-terima, mis. input LNA menunggu soal dari RAD.
+  - **gerbang** — task Manager di Analysis (A1 intake, A6 target): fase Design dan sesudahnya di
+    semua tim menunggunya.
+  - **tutup** — **E12** menunggu semua task lain di siklusnya, supaya siklus tak tertutup
+    selagi masih ada pekerjaan.
+
+  Tim yang berbeda tak saling menunggu di luar itu. Task anak mengikuti induknya, dan task rutin
+  tetap menunggu task di `deps`-nya. Urutan yang membuat task saling menunggu ditolak saat
+  disimpan, juga saat sub-stage atau PIC diubah. Task yang diatur menunggu task setim di fase
+  lebih lambat (mis. I4 tayang menunggu QC) berdiri di fase itu, jadi urutan bawaan dan yang
+  diatur tak pernah saling mengunci. Ini menggantikan "paralel per tahap" sejak 0.15.0, saat
+  seluruh proyek menunggu tahap sebelumnya selesai, siapa pun timnya.
+- **Yang mengatur urutan:** Lead tim pemilik task, atau Manager. Tombolnya ada di samping
+  setiap task di tab tim dan di detail task, yang juga menampilkan semua yang ditunggu task itu
+  beserta jenisnya.
 - **Sub-task** bisa ditambah, diubah (judul dan PIC), dan dihapus oleh PIC task, Lead-nya, atau
   Manager; PIC sub-task boleh mencentangnya.
 - **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, ada minimal satu
-  tautan bukti, semua sub-task selesai, semua task anak selesai (kalau ada), tahap sebelumnya
+  tautan bukti, semua sub-task selesai, semua task anak selesai (kalau ada), task yang ditunggu
   selesai, dan tidak tertahan. Staff mengisi output dan bukti sendiri dari detail task; daftar
   periksanya tampil di sana.
 - **Tinjauan:** task staff oleh Lead-nya (termasuk task anak), task Lead oleh Manager, sub-stage
   bertanda Manager oleh Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
-- **Proyek tanpa Lead tetap.** Yang tampil adalah tim pemegang task terbukanya.
-- **Tahap proyek dihitung, bukan diputuskan:** tahap task terbuka paling awal di siklus aktif.
-  Tahap pindah sendiri dan tercatat di riwayat tahap. **Siklus ditutup** oleh task E12 · Final
-  approval yang disetujui. Jalur **A D V I E** di halaman proyek dan detail task bisa diklik untuk
-  membuka task tahap itu. Sesudah Evaluation tidak ada tahap keenam; Manager memilih:
+- **Proyek tanpa Lead tetap.** Yang tampil adalah tim yang punya task di siklus ini beserta
+  fasenya, mis. **RAD V**, **CLO ✓**.
+- **Fase tim dihitung, bukan diputuskan:** fase task terbuka tim itu yang paling awal. Jalur
+  **A D V I E** tiap tim (di Ringkasan, tab tim, dan detail task) bisa diklik untuk membuka task
+  fase itu di tab timnya. Tahap proyek (fase paling awal di antara semua task terbukanya) tetap
+  dihitung untuk riwayat tahap dan Dashboard. **Siklus ditutup** oleh task E12 · Final approval
+  yang disetujui. Sesudah Evaluation tidak ada tahap keenam; Manager memilih:
   **arsipkan** (proyek tuntas, pilihan utama kalau semua task beres), **mulai siklus
   berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau
   **tahan**. Keputusan proyek: Build, Improve, Maintain, Hold.
@@ -114,10 +135,12 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
    Buat task baru aktif sesudahnya. Setiap target yang dipilih menjadi satu **batch**: rangkaian task sesuai alur jenisnya. Contoh Latsol: DV1
    Produksi soal → E1 QC soal → DV8 Input → I1 Generate → E4 QC SIADU → E5 QC Web → E6 QC
    Android → I4 Show/hide. Setiap langkah dipegang Lead tim pemilik sub-stage-nya, yang
-   membaginya ke staff lewat task anak. Sejak 0.15.0 langkahnya dikerjakan **per tahap ADDIE**,
-   bukan satu per satu: DV1 dan DV8 berjalan bersamaan, I1 dan I4 setelah Development selesai,
-   dan QC (E1, E4–E7) setelah Implementation selesai. Langkah yang tak perlu bisa dicoret. Mode
-   **Satu task per target** (cara 0.5.0) tetap ada.
+   membaginya ke staff lewat task anak. Sejak 2.19.0 langkahnya dikerjakan menurut **fase ADDIE
+   tim pemiliknya**, dan elaborasi memasang urutan batch itu: **serah-terima** (langkah pertama
+   sebuah tim menunggu langkah tim lain sebelumnya yang fasenya sama atau lebih awal: input LNA
+   menunggu produksi soal RAD, tapi tak menunggu QC-nya) dan **urutan alur** di dalam tim (I4
+   tayang menunggu QC E4–E6 yang di alur datang lebih dulu). Lead tim bisa mengubahnya. Langkah
+   yang tak perlu bisa dicoret. Mode **Satu task per target** (cara 0.5.0) tetap ada.
 2. Jumlah per target bisa dikecilkan bila proyek ini hanya mengerjakan sebagian (target 10,
    proyek ini 5); sisanya tetap terbuka untuk elaborasi berikutnya. Tujuannya boleh proyek baru
    atau proyek yang sudah ada.
@@ -125,9 +148,9 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
    ter-input 60% (DV8), lolos QC output 85% (QC aplikasi terakhir), tayang 100% (I4). Setiap
    batch dinilai dari langkah bercapaian tertinggi yang sudah disetujui; target baru dihitung
    **terpenuhi** saat batch-nya tayang. Bobot itu bawaan dari usulan PRD; sejak 0.14.0 nama dan
-   bobotnya diatur Manager di halaman **Master** (tayang tetap 100%). Karena sejak 0.15.0 QC
-   (Evaluation) dikerjakan sesudah Implementation, batch dengan alur bawaan biasanya naik dari
-   ter-input (60%) langsung ke tayang (100%) begitu I4 disetujui.
+   bobotnya diatur Manager di halaman **Master** (tayang tetap 100%). Sejak 2.19.0 tayang (I4)
+   menunggu QC lagi, jadi batch dengan alur bawaan naik ter-input (60%) → lolos QC (85%) →
+   tayang (100%).
 4. Progres **dihitung, bukan dipicu**: tak ada yang ditulis saat task selesai. Task yang dibuka
    kembali otomatis menurunkan progresnya lagi.
 
@@ -780,12 +803,15 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
 - **TKA_CEREBRUM** (target asli v1) dielaborasi dua minggu lalu dengan alur lengkap. Design
   sudah tuntas dan proyeknya di Development: ada batch yang sudah ter-input, langkah Lead yang
   menunggu tinjauan Manager, task anak yang dikerjakan, dikembalikan (Revisi), terlambat,
-  tertahan, dan menunggu tinjauan Lead, serta langkah yang masih di antrean Lead.
-  Implementation dan Evaluation menunggu Development selesai. Setiap langkah yang lolos punya
-  output dan bukti, dan pekerjaannya dibagi ke staff lewat task anak.
-- **OJK** diberi target contoh dan menjalani satu siklus penuh, tahap demi tahap: A1/A6 oleh
-  Manager, keputusan Build, Development, Implementation (semua batch tayang), Evaluation, lalu
-  E12 disetujui. Siklusnya tertutup dan menunggu keputusan Manager.
+  tertahan, dan menunggu tinjauan Lead, serta langkah yang masih di antrean Lead. Input LNA
+  menunggu soal RAD; Implementation dan Evaluation tiap tim menunggu fase Development tim itu.
+  Setiap langkah yang lolos punya output dan bukti, dan pekerjaannya dibagi ke staff lewat task
+  anak.
+- **OJK** diberi target contoh dan menjalani satu siklus penuh: A1/A6 oleh Manager sebagai
+  gerbang, keputusan Build, lalu langkah batch dikerjakan per putaran begitu tak menunggu apa pun
+  lagi (soal RAD dan live class CLO lebih dulu, input LNA sesudah soalnya jadi, tayang sesudah
+  QC), sampai semua batch tayang dan E12 disetujui. Siklusnya tertutup dan menunggu keputusan
+  Manager.
 - **UTBK** diberi target contoh tanpa dielaborasi, untuk mencoba tombol **Elaborasi jadi
   proyek** sendiri.
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
@@ -856,9 +882,12 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
   tetapi seluruh data contoh tetap dikirim ke browser dan profil dipilih sendiri. v1 menyaring
   data di server untuk magang dan Lintas Divisi; v2 belum. Siapa pun yang tahu PIN v2 bisa
   melihat seluruh data contoh, jadi jangan bagikan PIN v2 ke magang atau Lintas Divisi.
-- **Urutan tahap menggantikan urutan langkah alur (0.15.0).** Dengan alur bawaan, QC (E1,
-  E4–E7) baru berjalan setelah I4 Show/hide, dan task Analysis yang terlambat menahan seluruh
-  tahap sesudahnya di siklus itu.
+- **Fase per tim (2.19.0).** Fase Evaluation sebuah tim menunggu semua task tim itu di fase
+  sebelumnya di proyek yang sama, juga dari batch lain (mis. QC LNA sebuah Latsol menunggu
+  tayang live class LNA). Lead bisa melepas task tertentu dari urutan fase timnya. Proyek dan
+  task yang dibuat sebelum 2.19.0 belum punya urutan serah-terima: tim yang berbeda langsung
+  berjalan sejajar sampai Lead-nya mengatur urutan. Impor v1 juga tak memasang urutan antartim,
+  karena proses v1 yang diselingi tim lain bisa saling mengunci.
 - **Data contoh yang diimpor sebelum 0.15.0** dijalankan dengan aturan lama: langkah batch
   berurutan, dan langkah Lead diserahkan ke staff (PIC staff, bukan task anak). Di 0.15.0 task
   tahap berikutnya di sana yang sudah berjalan ikut menunggu tahap sebelumnya selesai. Impor

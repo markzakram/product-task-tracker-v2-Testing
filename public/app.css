@@ -256,10 +256,7 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .jalur-tahap .nama { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--redup); }
 .jalur-tahap .kini .nama { color: var(--navy); font-weight: 700; }
 .jalur-tahap .milik .kotak { outline: 2px dashed var(--langit); outline-offset: 2px; }
-.jalur-mini { display: inline-flex; gap: 3px; }
-.jalur-mini span { width: 24px; height: 24px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--abu); color: var(--redup); }
-.jalur-mini .lewat { background: var(--biru); color: #fff; }
-.jalur-mini .kini { background: var(--navy); color: #fff; }
+
 
 .ceklis { display: flex; flex-direction: column; }
 .ceklis label { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 4px; border-bottom: 1px solid #F0F1F4; font-size: 14px; }
@@ -1473,6 +1470,7 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 .mst-baris { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .mst-baris .input { flex: 1 1 140px; min-width: 0; }
 .mst-kunci { flex: 0 0 64px; font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--redup); }
+.mst-baris .input.mst-singkat { flex: 0 0 80px; width: 80px; text-transform: uppercase; }
 .mst-bobot { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; font-size: 13px; color: var(--redup); }
 .mst-bobot .input { flex: 0 0 64px; width: 64px; }
 .mst-bobot .input[readonly] { background: var(--dasar); color: var(--redup); }
@@ -1496,28 +1494,61 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 
 /* ---------- Daftar proyek & kolom samping (0.14.2) ---------- */
 
-/* Kolom tetap: jalur ADDIE, progres, dan keadaan lurus di semua baris, berapa pun panjang nama
-   proyek dan label keadaannya. Kalau daftarnya sempit, progres turun ke bawah nama; di ponsel
-   semuanya bertumpuk. */
+/* Kolom tetap: progres dan keadaan lurus di semua baris, berapa pun panjang nama proyek dan
+   label keadaannya. Kalau daftarnya sempit, progres turun ke bawah nama. Fase tiap tim tampil
+   sebagai chip di bawah nama (2.19.0). */
 .daftar-proyek { container-type: inline-size; }
-.daftar-proyek > .baris-proyek { display: grid; grid-template-columns: minmax(0, 1fr) auto 190px 136px; grid-template-areas: "nama jalur maju keadaan"; align-items: center; gap: 8px 18px; }
+.daftar-proyek > .baris-proyek { display: grid; grid-template-columns: minmax(0, 1fr) 190px 136px; grid-template-areas: "nama maju keadaan"; align-items: center; gap: 8px 18px; }
 .daftar-proyek > .baris-proyek > .baris-proyek-nama { grid-area: nama; }
-.daftar-proyek > .baris-proyek > .jalur-mini { grid-area: jalur; }
 .daftar-proyek > .baris-proyek > .baris-proyek-maju { grid-area: maju; width: 100%; max-width: 280px; }
 /* flex: 1 dari .batang membuat tingginya 0 di kolom flex; batangnya tak pernah tampil. */
 .baris-proyek-maju .batang { flex: none; width: 100%; }
 .daftar-proyek > .baris-proyek > .pill { grid-area: keadaan; justify-self: end; max-width: 100%; white-space: normal; text-align: center; }
 @container (max-width: 780px) {
-  .daftar-proyek > .baris-proyek { grid-template-columns: minmax(0, 1fr) auto 136px; grid-template-areas: "nama jalur keadaan" "maju jalur keadaan"; }
+  .daftar-proyek > .baris-proyek { grid-template-columns: minmax(0, 1fr) 136px; grid-template-areas: "nama keadaan" "maju keadaan"; }
 }
 @container (max-width: 520px) {
-  .daftar-proyek > .baris-proyek { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nama nama" "jalur keadaan" "maju maju"; }
+  .daftar-proyek > .baris-proyek { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nama nama" "maju keadaan"; }
 }
 @supports not (container-type: inline-size) {
   @media (max-width: 899px) {
-    .daftar-proyek > .baris-proyek { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nama nama" "jalur keadaan" "maju maju"; }
+    .daftar-proyek > .baris-proyek { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nama nama" "maju keadaan"; }
   }
 }
+
+/* ---------- ADDIE per tim (2.19.0) ----------
+   Chip tim berfase di daftar proyek, tab DAE · RAD · LNA · CLO di halaman proyek, kartu tiap
+   tim di Ringkasan, daftar yang ditunggu di detail task, dan form Atur urutan tunggu. */
+.chip-tim.fase { gap: 4px; }
+.chip-tim.fase b { padding: 0 4px; border-radius: 4px; background: var(--navy); color: #fff; font-size: 10px; line-height: 16px; }
+.chip-tim.fase.beres b { background: var(--hijau); }
+.tab-tim { margin: 16px 0 12px; }
+.tab-tim .tab-fokus .jumlah { font-weight: 700; }
+.kartu-tim-daftar { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.kartu-tim { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.kartu-tim-daftar .kartu-tim { margin-bottom: 0; }
+.kartu-tim-kepala { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kartu-tim-kepala small { color: var(--redup); }
+.kartu-tim .hint svg { vertical-align: -2px; }
+.baris-aksi { display: flex; align-items: center; gap: 4px; }
+.baris-aksi > .baris { flex: 1 1 auto; min-width: 0; }
+.daftar-tunggu { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.daftar-tunggu li { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 13px; }
+.daftar-tunggu li > svg { flex: none; color: var(--kuning); }
+.daftar-tunggu li.beres > svg { color: var(--hijau); }
+.daftar-tunggu li.beres .tautan-kecil { color: var(--redup); }
+.daftar-tunggu small { display: inline-flex; align-items: center; gap: 4px; color: var(--redup); }
+.modal-panel:has(.form-tunggu) { max-width: 640px; }
+.form-tunggu .subjudul { margin-top: 6px; }
+.pilih-tunggu { max-height: min(46vh, 420px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.pilih-tunggu fieldset { border: 1px solid var(--garis); border-radius: 12px; margin: 0; padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.pilih-tunggu legend { padding: 0 6px; font-size: 13px; font-weight: 700; color: var(--navy); }
+.calon-tunggu { display: flex; align-items: flex-start; gap: 8px; min-height: 44px; padding: 6px 8px; border: 1px solid var(--garis); border-radius: 10px; font-size: 13px; cursor: pointer; }
+.calon-tunggu[hidden], .pilih-tunggu fieldset[hidden] { display: none; }
+.calon-tunggu:has(input:checked) { border-color: var(--biru-garis); background: var(--biru-muda); }
+.calon-tunggu input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--biru); flex-shrink: 0; }
+.calon-tunggu small { display: block; font-size: 12px; color: var(--redup); }
+.calon-tunggu.ikut-fase { border-style: dashed; }
 /* Task di kolom samping (mis. Menunggu tinjauan Anda di Proyek): judul selebar kartu, status,
    tenggat, dan PIC di bawahnya — susunan yang sama dengan di ponsel. */
 .kolom-sisi .baris { display: grid; grid-template-columns: auto 1fr auto auto; grid-template-areas: "isi isi isi isi" "status . orang tenggat"; gap: 8px 10px; padding: 12px 14px; }

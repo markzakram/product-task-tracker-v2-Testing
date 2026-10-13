@@ -2,8 +2,9 @@
    per target: rangkaian langkah sesuai jenisnya (mis. Latsol: DV1 › E1 › DV8 › I1 › E4 › E5 ›
    E6 › I4), diserahkan ke Lead tim pemilik tiap sub-stage. Progres paket dihitung dari status
    task — naik per capaian (konten siap, ter-input, lolos QC, tayang) dan turun lagi bila
-   langkahnya dibuka kembali. Sejak 0.15.0 langkah dikerjakan menurut tahap ADDIE (yang setahap
-   paralel), bukan menurut urutan alurnya. Semua langkah dijalankan dengan aturan sungguhan. */
+   langkahnya dibuka kembali. Sejak 2.19.0 langkah dikerjakan menurut fase ADDIE tiap tim,
+   ditambah urutan yang dipasang elaborasi: serah-terima antartim dan urutan alur di dalam tim
+   (I4 tayang menunggu QC). Semua langkah dijalankan dengan aturan sungguhan. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const I = require('../public/inti');
@@ -58,10 +59,21 @@ test('elaborasi beralur: satu batch per target terbuka, langkah sesuai jenis, di
   assert.equal(fisika[0].title, 'DV1 · Latsol Fisika — 3 Paket');
   assert.deepEqual(fisika.slice(1).map((t, i) => t.deps), fisika.slice(0, -1).map(t => [t.id]), 'urutan langkah tercatat (untuk menemukan batch-nya)');
   const perId = I.indeks(d);
-  assert.deepEqual(fisika.map(t => I.depsBelum(t, perId).length > 0), [false, true, false, true, true, true, true, true],
-    'yang menahan hanya tahap ADDIE: DV1 dan DV8 jalan bersamaan, Implementation & Evaluation menunggu');
+  assert.deepEqual(fisika.map(t => I.depsBelum(t, perId).length > 0), [false, true, true, true, true, true, true, true],
+    'hanya produksi soal yang langsung jalan');
+  const id = kode => fisika.find(t => t.sub === kode).id;
+  assert.deepEqual(fisika.map(t => t.tunggu), [[], [], [id('DV1')], [], [], [], [], [id('E4'), id('E5'), id('E6')]],
+    'serah-terima: input LNA menunggu produksi soal RAD (bukan QC-nya); I4 tayang menunggu QC LNA yang di alur datang lebih dulu');
+  const tunggu = kode => I.ditunggu(fisika.find(t => t.sub === kode), perId).map(x => `${x.jenis}:${x.t.sub}`).sort();
+  assert.deepEqual(tunggu('E1'), ['fase:DV1'], 'QC soal menunggu fase Development RAD');
+  assert.deepEqual(tunggu('I1'), ['fase:DV8']);
+  assert.deepEqual(tunggu('E4'), ['fase:DV8', 'fase:I1', 'fase:I7'],
+    'fase Evaluation LNA menunggu Implementation LNA di batch mana pun (I7 live class); I4 berdiri di Evaluation karena menunggu E4–E6, jadi tak ditunggu');
+  assert.deepEqual(tunggu('I4'), ['atur:E4', 'atur:E5', 'atur:E6', 'fase:DV8']);
   const kelas = tasks.filter(t => /Kelas Strategi/.test(t.title));
   assert.deepEqual(kelas.map(t => [t.sub, t.pic]), [['I6', 'dhea'], ['I7', 'alya']]);
+  assert.deepEqual(kelas.map(t => t.tunggu), [[], [kelas[0].id]], 'tayang live class LNA menunggu pelaksanaan CLO');
+  assert.equal(I.depsBelum(kelas[0], perId).length, 0, 'CLO tak menunggu tim lain');
   const st = d.setoran.filter(s => s.item === 'ITM-A');
   assert.deepEqual(st.map(s => [tasks.find(t => t.id === s.task).sub, s.tahap, s.jumlah]), [['E1', 'konten', 3], ['DV8', 'input', 3], ['E6', 'qc', 3], ['I4', 'tayang', 3]]);
   assert.equal(new Set(st.map(s => s.batch)).size, 1, 'satu batch');
@@ -69,25 +81,30 @@ test('elaborasi beralur: satu batch per target terbuka, langkah sesuai jenis, di
   assert.throws(() => elaborasi(d), /Tidak ada target terbuka/, 'yang sedang digarap tak dibuatkan batch kedua');
 });
 
-test('progres per capaian mengikuti tahap ADDIE: DV8 → 60%, I4 → tayang; dibuka kembali turun ke capaian yang masih lolos', () => {
+test('progres per capaian mengikuti urutan tim: DV8 → 60%, QC → 85%, I4 → tayang; dibuka kembali turun ke capaian yang masih lolos', () => {
   const d = data();
   const { project, tasks } = elaborasi(d, { items: ['ITM-A'] });
   const langkah = kode => tasks.find(t => t.sub === kode);
   const persen = () => target(d, 'ITM-A').persen;
   assert.deepEqual([persen(), target(d, 'ITM-A').digarap, target(d, 'ITM-A').status], [40, 3, 'digarap'], 'sudah ada 2 dari 5');
-  assert.throws(() => lolos(d, langkah('E1')), /Menunggu tahap Development selesai/, 'QC soal (Evaluation) menunggu tahap sebelumnya');
-  lolos(d, langkah('DV8'));
-  assert.equal(persen(), 76, 'ter-input: 2 + 3×60% — DV8 tak menunggu DV1 yang setahap');
+  assert.throws(() => lolos(d, langkah('E1')), /Menunggu fase Development RAD selesai: PRD-\d+ "DV1 · Latsol Fisika — 3 Paket" \(RAD · Andika\)/,
+    'QC soal (Evaluation) menunggu fase Development timnya');
+  assert.throws(() => lolos(d, langkah('DV8')), /Menunggu PRD-\d+ "DV1 · Latsol Fisika — 3 Paket" \(RAD · Andika\)/, 'serah-terima dari RAD');
   lolos(d, langkah('DV1'));
-  assert.equal(persen(), 76, 'produksi saja tak menaikkan progres');
+  assert.equal(persen(), 40, 'produksi saja tak menaikkan progres');
+  lolos(d, langkah('DV8'));
+  assert.equal(persen(), 76, 'ter-input: 2 + 3×60% — input tak menunggu QC soal');
+  lolos(d, langkah('E1'));
+  assert.equal(persen(), 76, 'capaian tertinggi yang lolos tetap input');
   I.segarkanTahap(d);
   assert.equal(project.stage, 'I', 'tahap proyek ikut task terbuka paling awal');
   lolos(d, langkah('I1'));
   assert.equal(persen(), 76);
+  assert.throws(() => lolos(d, langkah('I4')), /Menunggu PRD-\d+ "E4 · /, 'tayang menunggu QC');
+  for (const k of ['E4', 'E5', 'E6']) lolos(d, langkah(k));
+  assert.equal(persen(), 91, 'lolos QC: 2 + 3×85%');
   lolos(d, langkah('I4'));
   assert.deepEqual([persen(), target(d, 'ITM-A').terpenuhi, target(d, 'ITM-A').status], [100, 5, 'penuh'], 'tayang');
-  for (const k of ['E1', 'E4', 'E5', 'E6']) lolos(d, langkah(k));
-  assert.equal(persen(), 100, 'QC di Evaluation sesudah tayang tak mengubah progres');
   I.terapkanAksi(d, langkah('I4'), 'buka', 'nynda', WAKTU);
   assert.deepEqual([persen(), target(d, 'ITM-A').status], [91, 'digarap'], 'show/hide dibuka kembali: turun ke capaian tertinggi yang masih lolos (QC 85%)');
 });

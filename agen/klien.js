@@ -54,6 +54,7 @@ function rapikan(d) {
     tasks: daftar(d.tasks).map(t => ({
       ...t, sub: t.sub || '', support: daftar(t.support), deps: daftar(t.deps), subtasks: daftar(t.subtasks), comments: daftar(t.comments),
       tinjauan: daftar(t.tinjauan), evidence: daftar(t.evidence), output: t.output || '', selesaiAt: Number(t.selesaiAt) || 0, induk: t.induk || '',
+      tunggu: daftar(t.tunggu), lepasFase: !!t.lepasFase,
     })),
     packages: daftar(d.packages),
     setoran: daftar(d.setoran),
@@ -97,7 +98,7 @@ function judulRuang(data, ruang, susunan = null) {
     return m ? m.judul : id;
   }
   if (jenis === 'proyek') { const p = data.projects.find(x => x.id === id); return p ? p.name : id; }
-  return 'Tim ' + ((I.TIM[id] || {}).nama || id);
+  return 'Tim ' + (I.TIM[id] ? I.labelTim(id) : id);
 }
 
 /* Satu baris ringkas untuk sebuah task. */

@@ -164,7 +164,7 @@ const ALAT = [
   {
     name: 'baca_ruang', title: 'Baca ruang obrolan',
     description: 'Pesan di satu ruang Komunikasi: task:PRD-123, proyek:PRJ-3, atau tim:SI. Tiap pesan dengan id, pengirim, waktu, balasan, dan pertanyaan.',
-    inputSchema: { type: 'object', properties: { ruang: { ...teks, description: 'task:PRD-123, proyek:PRJ-3, atau tim:AK/LA/CO/SI' }, batas: { type: 'integer', minimum: 1, maximum: 100, description: 'jumlah pesan terakhir (bawaan 30)' } }, required: ['ruang'], additionalProperties: false },
+    inputSchema: { type: 'object', properties: { ruang: { ...teks, description: 'task:PRD-123, proyek:PRJ-3, atau tim:SI (DAE), tim:AK (RAD), tim:LA (LNA), tim:CO (CLO)' }, batas: { type: 'integer', minimum: 1, maximum: 100, description: 'jumlah pesan terakhir (bawaan 30)' } }, required: ['ruang'], additionalProperties: false },
     baca: true,
     jalankan: async (c, a) => teksRuang(await c.keadaan(), String(a.ruang || ''), a.batas),
   },

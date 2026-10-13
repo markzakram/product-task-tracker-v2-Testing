@@ -79,7 +79,7 @@ function pengingat(k, jejak = null) {
   const item = [];
   const tambah = (id, teks) => { if (!sudah[id]) { item.push(teks); sudah[id] = k.sekarang; } };
 
-  // Sama dengan "Terlambat" di ringkasan: task yang masih menunggu (tahap sebelumnya, tertahan)
+  // Sama dengan "Terlambat" di ringkasan: task yang masih menunggu (task lain, tertahan)
   // belum diingatkan; begitu bisa dikerjakan dan tenggatnya lewat, baru diingatkan.
   for (const t of k.data.tasks) {
     if (t.pic !== k.me || !I.aktif(t) || t.status === 'Ditinjau' || !t.due || I.terhambat(t, k.perId)) continue;

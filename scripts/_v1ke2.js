@@ -248,7 +248,7 @@ function taskDariV1(t, id, selesaiLog) {
     start: tanggal(t.created_date), due: tanggal(t.due_date),
     status, tertahan: st === 'hold', alasanTertahan: st === 'hold' ? 'Ditahan (Hold) di v1' : '',
     output: [teks(t.jumlah), teks(t.objek)].filter(Boolean).join(' '),
-    deps: [],
+    deps: [], tunggu: [], lepasFase: false,
     notes: [teks(t.pic_notes), teks(t.pm_notes) && `Catatan PM: ${teks(t.pm_notes)}`].filter(Boolean).join('\n\n'),
     assignedBy: idOrang(t.dibuat_oleh) || MANAGER, cycle: 1,
     createdAt: dibuat, updatedAt: kapan || selesaiAt || dibuat, selesaiAt,
@@ -257,8 +257,10 @@ function taskDariV1(t, id, selesaiLog) {
   };
 }
 
-/* Kolaborasi v1 → proyek. Prosesnya yang beruntun → task yang saling menunggu:
-   proses N menunggu proses N-1, persis aturan dependency di v2. */
+/* Kolaborasi v1 → proyek. Urutan prosesnya tercatat di deps (proses N → proses N-1) sebagai
+   jejak v1. Di v2 task proyek menunggu menurut fase ADDIE timnya (2.19.0); urutan lintas tim
+   tidak dipasang otomatis karena proses v1 yang diselingi tim lain bisa saling mengunci. Lead
+   mengaturnya di tab timnya bila perlu. */
 function proyekDariV1(c, langkah, idBaru, idTask) {
   const prj = 'PRJ-' + nomor(c.collab_id);
   const pl = platformV2(c.platform, c.title);
@@ -285,7 +287,7 @@ function proyekDariV1(c, langkah, idBaru, idTask) {
       detail: `Langkah ${s.urutan} dari kolaborasi v1 ${c.collab_id}.`,
       pic: idOrang(s.pic), support: [], priority: 'Normal',
       start: tanggal(c.created_at), due: tanggal(s.deadline),
-      status, tertahan: false, alasanTertahan: '', output: '', deps: sebelumnya ? [sebelumnya] : [],
+      status, tertahan: false, alasanTertahan: '', output: '', deps: sebelumnya ? [sebelumnya] : [], tunggu: [], lepasFase: false,
       notes: teks(s.note), assignedBy: idOrang(c.created_by) || MANAGER, cycle: 1,
       createdAt: dibuat, updatedAt: kapan || dibuat, selesaiAt: beres ? (kapan || dibuat) : 0,
       subtasks: [], comments: [],

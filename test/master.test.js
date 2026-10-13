@@ -63,12 +63,26 @@ test('aturMaster: daftar hidup ikut (di tempat); yang nonaktif tak ditawarkan ta
   assert.ok(!I.PLATFORM.includes('TOEFL') && I.PLATFORM.includes('SNBT'));
   assert.equal(I.CAPAIAN[0].bobot, 0.3);
   assert.equal(I.TIM.SI.nama, 'Data & Otomasi');
+  assert.equal(I.singkatTim('SI'), 'DAE', 'baris tim sebelum 2.19.0 (tanpa singkatan) memakai singkatan bawaan');
   assert.equal(I.labelPrioritas('Urgent'), 'Darurat');
   assert.ok(I.SATUAN_PAKET.includes('Modul'));
   assert.ok(!I.KATEGORI_PAKET.some(([l]) => l === 'Drilling'), 'kategori nonaktif tak ditawarkan untuk item baru');
   assert.ok(I.KATEGORI_SEMUA.some(([l]) => l === 'Drilling'), 'tapi item lamanya tetap punya kategori');
   assert.deepEqual(I.langkahAlur('Bank Soal').map(x => x.kode), ['DV10', 'E1', 'I4']);
   assert.deepEqual(I.PAKET_PRODUK.map(([k]) => k).slice(-2), ['banksoal', 'catatan']);
+});
+
+test('tim (2.19.0): singkatan DAE · RAD · LNA · CLO, bisa diganti di Master, dan tak boleh kembar', () => {
+  assert.deepEqual(I.TIM_PROYEK.map(I.singkatTim), ['DAE', 'RAD', 'LNA', 'CLO']);
+  assert.deepEqual(['SI', 'AK', 'LA', 'CO', 'MG'].map(k => I.TIM[k].nama),
+    ['Data & AI Engineer', 'Research, Academic & Development', 'Learning & Architecture', 'Content & Learning Operation', 'Manager']);
+  assert.deepEqual(I.periksaMaster('tim', { kunci: 'SI', singkat: ' dai ' }), { jenis: 'tim', kunci: 'SI', nama: 'Data & AI Engineer', singkat: 'DAI', aktif: true });
+  assert.throws(() => I.periksaMaster('tim', { kunci: 'SI', singkat: 'rad' }), /Singkatan tim "RAD" ganda/);
+  assert.throws(() => I.periksaMaster('tim', { kunci: 'SI', singkat: 'D-AE' }), /2–6 huruf atau angka/);
+  assert.deepEqual(I.aturMaster([{ jenis: 'tim', kunci: 'CO', nama: 'Content Ops', singkat: 'COPS' }]), {});
+  assert.deepEqual([I.TIM.CO.nama, I.singkatTim('CO'), I.TIM.CO.kode], ['Content Ops', 'COPS', 'CO'], 'kode tetap: data tak berubah');
+  I.aturMaster([]);
+  assert.equal(I.singkatTim('CO'), 'CLO', 'kembali ke bawaan');
 });
 
 test('aturMaster: jenis yang rusak (tab diubah manual) kembali ke bawaan, alasannya dikembalikan', () => {

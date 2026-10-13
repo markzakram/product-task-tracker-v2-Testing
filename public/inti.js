@@ -86,13 +86,23 @@
 
   /* ---------- Tim & sub-stage (PRD v3, daftar resmi 7 Okt 2026) ---------- */
 
+  /* Sejak 2.19.0 tim tampil dengan singkatannya: DAE (SI), RAD (AK), LNA (LA), CLO (CO). Kode
+     lamanya tetap dipakai di data (sub-stage, ruang tim, organogram, Master), jadi tak ada data
+     yang perlu diubah. Nama dan singkatan bisa diganti Manager di Master. */
+  const SINGKAT_TIM = { MG: 'MG', AK: 'RAD', LA: 'LNA', CO: 'CLO', SI: 'DAE' };
   const TIM = {
-    MG: { kode: 'MG', nama: 'Manager', lead: 'nynda' },
-    AK: { kode: 'AK', nama: 'Akademik', lead: 'andika' },
-    LA: { kode: 'LA', nama: 'Learning Architecture', lead: 'alya' },
-    CO: { kode: 'CO', nama: 'Content Ops', lead: 'dhea' },
-    SI: { kode: 'SI', nama: 'Sistem', lead: 'ali' },
+    MG: { kode: 'MG', singkat: 'MG', nama: 'Manager', lead: 'nynda' },
+    AK: { kode: 'AK', singkat: 'RAD', nama: 'Research, Academic & Development', lead: 'andika' },
+    LA: { kode: 'LA', singkat: 'LNA', nama: 'Learning & Architecture', lead: 'alya' },
+    CO: { kode: 'CO', singkat: 'CLO', nama: 'Content & Learning Operation', lead: 'dhea' },
+    SI: { kode: 'SI', singkat: 'DAE', nama: 'Data & AI Engineer', lead: 'ali' },
   };
+  const singkatTim = kode => (TIM[kode] ? TIM[kode].singkat || kode : kode || '');
+  /* "LNA · Learning & Architecture": untuk judul ruang tim dan keterangan. */
+  const labelTim = kode => (TIM[kode] ? `${singkatTim(kode)} · ${TIM[kode].nama}` : kode || '');
+  /* Tim yang punya tab di halaman proyek, berurutan: DAE, RAD, LNA, CLO. Task Manager (A1, A6,
+     I8, E12) menjadi gerbang proyek, bukan tab. */
+  const TIM_PROYEK = ['SI', 'AK', 'LA', 'CO'];
   const timOrang = id => {
     const o = orang(id);
     const lead = o.peran === 'manager' ? o.id : o.peran === 'lead' ? o.id : o.lead;
@@ -129,7 +139,7 @@
     const jabatan = String(x.jabatan == null ? '' : x.jabatan).replace(/\s+/g, ' ').trim();
     if (jabatan.length > 80) return salah('Jabatan paling panjang 80 karakter.');
     const tim = peran === 'manager' ? 'MG' : peran === 'lead' ? String(x.tim || '').toUpperCase() : '';
-    if (peran === 'lead' && !TIM_LEAD.includes(tim)) return salah('Lead harus memegang salah satu tim: AK, LA, CO, atau SI.');
+    if (peran === 'lead' && !TIM_LEAD.includes(tim)) return salah('Lead harus memegang salah satu tim: DAE, RAD, LNA, atau CLO.');
     const lead = peran === 'manager' ? null : peran === 'lead' ? MANAGER : String(x.lead || '').trim().toLowerCase();
     if (peran === 'staff' && !lead) return salah('Pilih atasan untuk staff.');
     return { id, nama, pendek, peran, jabatan, lead, ...(tim ? { tim } : {}), aktif: x.aktif === undefined || x.aktif === null || x.aktif === '' ? true : ya(x.aktif) };
@@ -274,23 +284,93 @@
     return k;
   }
   const anakTask = (perId, id) => kelompok(perId).anak.get(id) || [];
-  /* Yang harus selesai dulu sebelum task ini jalan (keputusan user 2026-10-09). Task proyek
-     hanya menunggu TAHAP ADDIE sebelumnya di siklus yang sama: task di tahap yang sama — siapa
-     pun Lead-nya, apa pun urutan langkah alurnya — dikerjakan paralel. Satu pengecualian: E12
-     (final approval & penutupan) menunggu semua task lain di siklusnya, supaya siklus tak
-     tertutup selagi masih ada pekerjaan. Task lain (rutin, atau proyek tanpa tahap) tetap
-     menunggu task yang tercatat di deps-nya. */
+  /* ---------- Yang ditunggu sebuah task: ADDIE per tim (2.19.0) ----------
+     Halaman proyek dibagi per tim pemilik sub-stage (tab DAE · RAD · LNA · CLO), dan tiap tim
+     menjalankan ADDIE-nya sendiri (keputusan user 2026-10-13, menggantikan tahap ADDIE bersama
+     sejak 0.15.0). Task proyek menunggu:
+       fase    — task tim yang sama di fase lebih awal, siklus sama (bawaan; mati bila lepasFase);
+       atur    — task yang dipilih Lead timnya (t.tunggu), boleh dari tim lain: serah-terima;
+       gerbang — task Manager di Analysis (A1, A6): Design dan sesudahnya di tiap tim menunggunya;
+       tutup   — E12 menunggu semua task lain di siklusnya.
+     Tim yang berbeda tak saling menunggu kecuali lewat gerbang atau yang diatur. Task anak
+     mengikuti induknya. Task yang diatur menunggu task setim di fase lebih lambat (mis. I4 tayang
+     menunggu QC E4–E6) berdiri di fase itu (faseUrut), sehingga task fase itu tak balik
+     menunggunya: urutan bawaan dan yang diatur tak pernah saling mengunci. Task lain (rutin,
+     atau proyek tanpa tahap) tetap menunggu task di deps-nya. */
   const tungguTahap = t => t.lane === 'proyek' && !!t.project && URUT_TAHAP.includes(t.stage);
-  function pendahuluTahap(t, perId) {
-    const ke = URUT_TAHAP.indexOf(t.stage);
-    const siklus = t.cycle || 1;
-    const tutup = t.sub === 'E12';
-    return (kelompok(perId).proyek.get(t.project) || []).filter(x => x !== t && (x.cycle || 1) === siklus
-      && URUT_TAHAP.indexOf(x.stage) >= 0 && (tutup ? x.sub !== 'E12' : URUT_TAHAP.indexOf(x.stage) < ke));
+  const urutFase = s => URUT_TAHAP.indexOf(s);
+  /* Tim sebuah task di halaman proyek: tim pemilik sub-stage-nya; task anak ikut induknya. */
+  function timJalur(t, perId) {
+    const induk = t.induk && perId ? perId.get(t.induk) : null;
+    return timTask(induk || t);
+  }
+  const akarTask = (t, perId) => (t.induk && perId.get(t.induk)) || t;
+  const sesiklus = (t, perId) => (kelompok(perId).proyek.get(t.project) || [])
+    .filter(x => (x.cycle || 1) === (t.cycle || 1) && URUT_TAHAP.includes(x.stage));
+  /* Fase tempat task berdiri di urutan timnya: fasenya sendiri, atau fase task setim paling
+     lambat yang diatur untuk ditunggunya (I4 yang menunggu E6 berdiri di Evaluation). */
+  function faseUrut(x, perId, memo = new Map(), jalan = new Set()) {
+    const akar = akarTask(x, perId);
+    if (memo.has(akar.id)) return memo.get(akar.id);
+    let f = urutFase(akar.stage);
+    if (jalan.has(akar.id)) return f;   // putaran yang diatur: berhenti di sini
+    jalan.add(akar.id);
+    const tim = timTask(akar);
+    for (const id of akar.tunggu || []) {
+      const y = perId.get(id);
+      if (y && y.project === akar.project && (y.cycle || 1) === (akar.cycle || 1) && timJalur(y, perId) === tim) f = Math.max(f, faseUrut(y, perId, memo, jalan));
+    }
+    jalan.delete(akar.id);
+    memo.set(akar.id, f);
+    return f;
+  }
+  /* Semua yang ditunggu sebuah task, selesai maupun belum: [{ t, jenis }]. */
+  function ditunggu(t, perId) {
+    if (!tungguTahap(t)) return (t.deps || []).map(id => perId.get(id)).filter(Boolean).map(x => ({ t: x, jenis: 'atur' }));
+    const akar = akarTask(t, perId);
+    const siklus = sesiklus(akar, perId);
+    const out = [];
+    const ada = new Set([t.id, akar.id]);
+    const tambah = (x, jenis) => { if (!ada.has(x.id)) { ada.add(x.id); out.push({ t: x, jenis }); } };
+    if (akar.sub === 'E12') {
+      for (const x of siklus) if (x.sub !== 'E12') tambah(x, 'tutup');
+      return out;
+    }
+    for (const id of akar.tunggu || []) {
+      const x = perId.get(id);
+      if (x && siklus.includes(x)) tambah(x, 'atur');
+    }
+    const tim = timTask(akar);
+    const fase = urutFase(akar.stage);
+    if (tim !== 'MG' && fase > 0) for (const x of siklus) if (x.stage === 'A' && timJalur(x, perId) === 'MG') tambah(x, 'gerbang');
+    if (!akar.lepasFase) {
+      const memo = new Map();
+      for (const x of siklus) if (timJalur(x, perId) === tim && faseUrut(x, perId, memo) < fase) tambah(x, 'fase');
+    }
+    return out;
   }
   function depsBelum(t, perId) {
-    if (!tungguTahap(t)) return (t.deps || []).map(id => perId.get(id)).filter(d => d && !selesai(d));
-    return pendahuluTahap(t, perId).filter(aktif);
+    return ditunggu(t, perId).map(x => x.t).filter(aktif);
+  }
+  /* Jalur saling menunggu yang kembali ke task ini (mis. urutan yang diatur tak sengaja
+     memutar), atau null. Task anak diwakili induknya. */
+  function putaranTunggu(t, perId) {
+    const asal = akarTask(t, perId);
+    const lihat = new Set([asal.id]);
+    const jalur = [asal.id];
+    const cari = x => {
+      for (const y0 of depsBelum(x, perId)) {
+        const y = akarTask(y0, perId);
+        if (y === asal) return true;
+        if (lihat.has(y.id)) continue;
+        lihat.add(y.id);
+        jalur.push(y.id);
+        if (cari(y)) return true;
+        jalur.pop();
+      }
+      return false;
+    };
+    return cari(asal) ? [...jalur, asal.id] : null;
   }
   /* terhambat = belum bisa dikerjakan sekarang (ditandai tertahan, atau menunggu task
      lain). ditandaiTertahan = hanya yang sengaja ditandai orang dengan alasan; inilah
@@ -371,15 +451,35 @@
   /* Alasan task belum bisa jalan, dalam kalimat untuk layar. */
   function alasanTunggu(t, perId) {
     if (t.tertahan) return 'Tertahan: ' + (t.alasanTertahan || 'tanpa alasan');
-    const d = depsBelum(t, perId);
+    const d = ditunggu(t, perId).filter(x => aktif(x.t));
     if (d.length && tungguTahap(t)) {
-      const tahap = URUT_TAHAP.find(s => d.some(x => x.stage === s));
-      const satu = d.find(x => x.stage === tahap && !x.induk) || d.find(x => x.stage === tahap);
-      return `Menunggu tahap ${namaTahap(tahap)} selesai: ${satu.id} "${potong(satu.title, 40)}" (${orang(satu.pic).pendek})${d.length > 1 ? ` dan ${d.length - 1} task lain` : ''}`;
+      const sebut = x => `${x.id} "${potong(x.title, 40)}" (${singkatTim(timJalur(x, perId))} · ${orang(x.pic).pendek})`;
+      const jenis = ['atur', 'gerbang', 'fase', 'tutup'].find(j => d.some(x => x.jenis === j));
+      const sejenis = d.filter(x => x.jenis === jenis).map(x => x.t);
+      const dan = d.length > 1 ? ` dan ${d.length - 1} task lain` : '';
+      if (jenis === 'tutup') return `Menunggu semua task lain di siklus ini selesai (${d.length} lagi)`;
+      if (jenis === 'gerbang') return `Menunggu gerbang Manager: ${sebut(sejenis[0])}${dan}`;
+      if (jenis === 'fase') {
+        const tahap = URUT_TAHAP.find(s => sejenis.some(x => x.stage === s));
+        const satu = sejenis.find(x => x.stage === tahap && !x.induk) || sejenis.find(x => x.stage === tahap);
+        return `Menunggu fase ${namaTahap(tahap)} ${singkatTim(timJalur(t, perId))} selesai: ${sebut(satu)}${dan}`;
+      }
+      return `Menunggu ${sebut(sejenis[0])}${dan}`;
     }
-    if (d.length) return 'Menunggu ' + d.map(x => `${x.id} "${potong(x.title, 48)}" (${orang(x.pic).pendek})`).join(', ');
+    if (d.length) return 'Menunggu ' + d.map(x => `${x.t.id} "${potong(x.t.title, 48)}" (${orang(x.t.pic).pendek})`).join(', ');
     if (t.status === 'Ditinjau') return 'Menunggu tinjauan ' + orang(peninjau(t) || MANAGER).pendek;
     return '';
+  }
+  /* Versi singkat untuk kartu kanban: "Menunggu RAD · PRD-12", "Menunggu fase Design LNA", … */
+  function tungguSingkat(t, perId) {
+    const d = ditunggu(t, perId).filter(x => aktif(x.t));
+    if (!d.length) return '';
+    if (!tungguTahap(t)) return 'Menunggu ' + d[0].t.id;
+    const x = ['atur', 'gerbang', 'fase', 'tutup'].map(j => d.find(y => y.jenis === j)).find(Boolean);
+    if (x.jenis === 'tutup') return 'Menunggu semua task lain';
+    if (x.jenis === 'gerbang') return 'Menunggu gerbang Manager';
+    if (x.jenis === 'fase') return `Menunggu fase ${namaTahap(x.t.stage)} ${singkatTim(timJalur(t, perId))}`;
+    return `Menunggu ${singkatTim(timJalur(x.t, perId))} · ${x.t.id}`;
   }
 
   /* Syarat sebelum output task proyek diajukan ke gate (PRD): output terisi, ada tautan
@@ -392,7 +492,7 @@
       { kunci: 'bukti', label: 'Minimal satu tautan bukti', ok: (t.evidence || []).some(e => /^https?:\/\//i.test(String(e.url || ''))) },
       { kunci: 'sub', label: 'Semua sub-task selesai', ok: (t.subtasks || []).every(s => s.done) },
       ...(anak.length ? [{ kunci: 'anak', label: `Semua task anak selesai (${anak.filter(selesai).length}/${anak.length})`, ok: anak.every(selesai) }] : []),
-      { kunci: 'deps', label: tungguTahap(t) ? 'Tahap sebelumnya sudah selesai' : 'Task yang ditunggu sudah selesai', ok: depsBelum(t, perId).length === 0 },
+      { kunci: 'deps', label: 'Task yang ditunggu sudah selesai', ok: depsBelum(t, perId).length === 0 },
       { kunci: 'tahan', label: 'Tidak sedang tertahan', ok: !t.tertahan },
     ];
   }
@@ -559,7 +659,8 @@
       stage: p ? s.tahap : '', sub: s ? s.kode : '', detail: String(f.detail || '').trim(),
       pic: f.pic, support: (f.support || []).filter(x => x !== f.pic), priority: f.priority || 'Normal',
       start: hariIni, due: f.due || '', status: 'Antre', tertahan: false, alasanTertahan: '',
-      output: String(f.output || '').trim(), deps: (f.deps || []).slice(), notes: '', assignedBy: me, cycle: p ? p.cycle || 1 : 1, induk: pInduk ? pInduk.id : '',
+      output: String(f.output || '').trim(), deps: (f.deps || []).slice(), tunggu: [], lepasFase: false,
+      notes: '', assignedBy: me, cycle: p ? p.cycle || 1 : 1, induk: pInduk ? pInduk.id : '',
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
       subtasks: [], comments: [], tinjauan: [], evidence: [],
     };
@@ -688,6 +789,7 @@
       throw new Error(`Task ${induk ? 'anak' : 'induk'} tetap di tahap ${namaTahap(t.stage)}, sama dengan ${induk ? 'induknya' : 'task anaknya'}.`);
     }
     const ubah = [];
+    const lama = { sub: t.sub, stage: t.stage, kategori: t.kategori, pic: t.pic };
     if (kode !== t.sub) {
       ubah.push(`sub-stage ${t.sub || '—'} → ${kode || '—'}`);
       t.sub = kode;
@@ -695,6 +797,12 @@
       else if (s) t.kategori = s.nama;
     }
     if (pic !== t.pic) { ubah.push('diserahkan ke ' + orang(pic).pendek); t.pic = pic; }
+    // Pindah fase atau tim bisa membuat urutan yang diatur saling mengunci (2.19.0).
+    const putar = t.lane === 'proyek' && (t.sub !== lama.sub || t.pic !== lama.pic) ? putaranTunggu(t, indeks(data)) : null;
+    if (putar) {
+      Object.assign(t, lama);
+      throw new Error(`Perubahan ini membuat task saling menunggu: ${putar.join(' → ')}. Atur ulang urutan tunggunya dulu.`);
+    }
     Object.assign(t, {
       title: judul, due: teks(ambil('due', t.due)), priority: teks(ambil('priority', t.priority)) || 'Normal',
       output: teks(ambil('output', t.output)), detail: teks(ambil('detail', t.detail)), updatedAt: waktu,
@@ -787,6 +895,7 @@
     return {
       total: kini.length, selesai: kini.filter(selesai).length, telat: nTelat, tertahan: nTertahan, siapMaju, keadaan, tenggat,
       buka: buka.length, tutup, semua: milik.length, semuaSelesai: milik.filter(selesai).length,
+      totalSiklus: siklus.length, selesaiSiklus: siklus.length - buka.length,
     };
   }
 
@@ -1318,7 +1427,7 @@
       // Task yang tak ada di data browser ini (dibuat di browser lain): tampil bagi yang terlibat.
       if (jenis === 'task' && !t && l !== 'semua' && !pesan.some(m => m.oleh === me || m.tanya.includes(me) || menyebut(m.teks, me))) continue;
       const cadangan = (pesan.find(m => m.judul) || {}).judul || id;
-      const judul = jenis === 'task' ? (t ? t.title : cadangan) : jenis === 'proyek' ? (p ? p.name : cadangan) : 'Tim ' + TIM[id].nama;
+      const judul = jenis === 'task' ? (t ? t.title : cadangan) : jenis === 'proyek' ? (p ? p.name : cadangan) : 'Tim ' + labelTim(id);
       if (!cocok([judul, id, p ? p.name : '', t ? orang(t.pic).nama : ''].join(' '), pesan)) continue;
       const lain = pesan.filter(m => m.oleh !== me && !m.dihapus);
       const baru = lain.filter(m => m.at > sejak(ruang, m));
@@ -1365,13 +1474,13 @@
     const tambah = (jenis, t, at, oleh, isi = '', ai = false) => { if (at) out.push({ id: `${jenis}-${t.id}-${at}`, jenis, task: t.id, at, oleh, teks: isi, ...(ai ? { ai: true } : {}) }); };
     for (const t of data.tasks) {
       if (t.pic === me && t.status === 'Antre' && tungguTahap(t)) {
-        // Tahap sebelumnya baru tuntas: task ini siap dimulai (kecuali sudah siap sejak dibuat).
-        const sebelum = pendahuluTahap(t, perId);
+        // Yang ditunggunya baru tuntas: task ini siap dimulai (kecuali sudah siap sejak dibuat).
+        const sebelum = ditunggu(t, perId).map(x => x.t);
         const at = Math.max(0, ...sebelum.map(x => x.selesaiAt || 0));
         if (sebelum.length && sebelum.every(selesai) && at > (t.createdAt || 0)) tambah('siap', t, at, '');
       } else if (t.pic === me && t.status === 'Antre' && (t.deps || []).length) {
-        const ditunggu = t.deps.map(id => perId.get(id)).filter(Boolean);
-        if (ditunggu.length && ditunggu.every(selesai)) tambah('siap', t, Math.max(...ditunggu.map(d => d.selesaiAt || 0)), '');
+        const dep = t.deps.map(id => perId.get(id)).filter(Boolean);
+        if (dep.length && dep.every(selesai)) tambah('siap', t, Math.max(...dep.map(d => d.selesaiAt || 0)), '');
       }
       for (const r of t.tinjauan || []) {
         if (r.by === me) continue;
@@ -1778,6 +1887,7 @@
       const satuan = it.satuan || 'Paket';
       const batch = `${it.kategori} ${it.nama || 'Tanpa nama'} — ${fmtJumlah(jumlah)} ${satuan}`;
       let idBatch = '';   // = 'B-' + ID task langkah pertamanya, jadi pasti unik
+      const batchIni = [];
       let sebelumnya = '';
       langkah.forEach((l, i) => {
         const sub = subTahap(l.kode);
@@ -1793,10 +1903,121 @@
         if (l.capaian) data.setoran.push({ id: `st-${t.id}-${it.id}`, paket: p.id, item: it.id, task: t.id, jumlah, tahap: l.capaian, batch: idBatch, catatan: '' });
         sebelumnya = t.id;
         tasks.push(t);
+        batchIni.push(t);
       });
+      /* Urutan yang dipasang untuk batch ini (2.19.0), lihat ditunggu(); Lead timnya bisa
+         mengubahnya:
+         - serah-terima: langkah pertama sebuah tim menunggu langkah tim lain sebelumnya di batch
+           ini yang fasenya sama atau lebih awal (Input LNA menunggu Produksi soal RAD, tapi tak
+           menunggu QC soal RAD);
+         - urutan alur: langkah yang di alur paket datang sesudah langkah setim di fase lebih
+           lambat menunggu langkah itu (I4 tayang menunggu QC E4–E6, seperti PRD). */
+      batchIni.forEach((t, i) => {
+        if (!i) return;
+        const tim = timTask(t);
+        const fase = urutFase(t.stage);
+        const dulu = batchIni.slice(0, i);
+        const serah = timTask(batchIni[i - 1]) !== tim ? dulu.filter(x => timTask(x) !== tim && urutFase(x.stage) <= fase) : [];
+        const alur = dulu.filter(x => timTask(x) === tim && urutFase(x.stage) > fase);
+        if (serah.length || alur.length) t.tunggu = [...new Set([...serah, ...alur].map(x => x.id))];
+      });
+      // Pengaman untuk alur kategori yang disusun sendiri di Master: urutan otomatis tak boleh
+      // membuat task saling menunggu. Yang memutar dilepas; Lead bisa mengaturnya sendiri.
+      const perIdBatch = indeks(data);
+      for (const t of batchIni) if (t.tunggu.length && putaranTunggu(t, perIdBatch)) t.tunggu = [];
     }
     segarkanTahap(data);
     return { project: proj, tasks };
+  }
+
+  /* ---------- Tab tim di halaman proyek (2.19.0) ---------- */
+
+  /* Ringkasan tiap tim di siklus aktif proyek, urut tab. fase = fase task terbuka paling awal
+     tim itu; 'selesai' kalau semuanya selesai; '' kalau tim itu belum punya task. */
+  function faseTim(data, p, perId = indeks(data), hariIni = '') {
+    const kini = tugasSiklus(data, p);
+    return TIM_PROYEK.map(kode => {
+      const milik = kini.filter(t => timJalur(t, perId) === kode);
+      const buka = milik.filter(aktif);
+      return {
+        kode, fase: buka.length ? URUT_TAHAP.find(s => buka.some(t => t.stage === s)) : milik.length ? 'selesai' : '',
+        total: milik.length, selesai: milik.length - buka.length, buka: buka.length,
+        menunggu: buka.filter(t => !t.tertahan && depsBelum(t, perId).length).length,
+        tertahan: buka.filter(ditandaiTertahan).length,
+        telat: hariIni ? buka.filter(t => telat(t, hariIni) && !t.tertahan).length : 0,
+      };
+    });
+  }
+  /* Gerbang proyek: task Manager di siklus aktif (A1, A6 di awal; I8; E12 menutup siklus). */
+  const gerbangProyek = (data, p, perId = indeks(data)) => tugasSiklus(data, p).filter(t => timJalur(t, perId) === 'MG');
+
+  /* Putaran saling menunggu di siklus aktif proyek, untuk peringatan di halaman proyek:
+     [[id, …], …]. Biasanya karena urutan yang diatur, lalu sub-stage atau status berubah. */
+  function putaranProyek(data, p, perId = indeks(data)) {
+    const simpul = tugasSiklus(data, p).filter(t => aktif(t) && !t.induk);
+    const tepi = new Map(simpul.map(t => [t.id, [...new Set(depsBelum(t, perId).map(x => akarTask(x, perId).id))]]));
+    let urut = 0;
+    const idx = new Map();
+    const rendah = new Map();
+    const tumpuk = [];
+    const diTumpuk = new Set();
+    const hasil = [];
+    const kunjungi = v => {
+      idx.set(v, urut);
+      rendah.set(v, urut++);
+      tumpuk.push(v);
+      diTumpuk.add(v);
+      for (const w of tepi.get(v) || []) {
+        if (!tepi.has(w)) continue;
+        if (!idx.has(w)) { kunjungi(w); rendah.set(v, Math.min(rendah.get(v), rendah.get(w))); }
+        else if (diTumpuk.has(w)) rendah.set(v, Math.min(rendah.get(v), idx.get(w)));
+      }
+      if (rendah.get(v) !== idx.get(v)) return;
+      const komponen = [];
+      let w;
+      do { w = tumpuk.pop(); diTumpuk.delete(w); komponen.push(w); } while (w !== v);
+      if (komponen.length > 1) hasil.push(komponen.reverse());
+    };
+    for (const t of simpul) if (!idx.has(t.id)) kunjungi(t.id);
+    return hasil;
+  }
+
+  /* Lead tim pemilik task (atau Manager) mengatur siapa yang ditunggu task itu di tab timnya:
+     ikut urutan fase tim (bawaan) atau tidak, dan task lain yang harus selesai dulu — boleh dari
+     tim lain di proyek dan siklus yang sama. Task anak mengikuti induknya; E12 tetap menunggu
+     semua task lain. */
+  function bolehAturTunggu(t, me, perId) {
+    if (!t || !tungguTahap(t) || t.induk || t.sub === 'E12') return false;
+    const r = orang(me).peran;
+    if (r === 'manager') return true;
+    const tim = TIM[timJalur(t, perId)];
+    return r === 'lead' && !!tim && tim.lead === me;
+  }
+  function aturTunggu(data, t, f, me, waktu) {
+    const perId = indeks(data);
+    if (!bolehAturTunggu(t, me, perId)) {
+      throw new Error(t && t.induk ? 'Task anak mengikuti urutan induknya.' : t && t.sub === 'E12' ? 'E12 selalu menunggu semua task lain di siklusnya.'
+        : 'Urutan tunggu diatur Lead tim pemilik task ini, atau Manager.');
+    }
+    const siklus = sesiklus(t, perId);
+    const pilih = [...new Set((Array.isArray(f.tunggu) ? f.tunggu : []).map(teks).filter(Boolean))];
+    for (const id of pilih) {
+      const x = perId.get(id);
+      if (!x || x === t || !siklus.includes(x)) throw new Error(`${id} bukan task lain di proyek dan siklus yang sama.`);
+      if (x.induk) throw new Error(`${id} adalah task anak: pilih induknya, ${x.induk}.`);
+      if (x.sub === 'E12') throw new Error('E12 menutup siklus sesudah semua task lain, jadi tak bisa ditunggu.');
+    }
+    const lama = { tunggu: t.tunggu, lepasFase: t.lepasFase };
+    Object.assign(t, { tunggu: pilih, lepasFase: !!f.lepasFase });
+    const putar = putaranTunggu(t, perId);
+    if (putar) {
+      Object.assign(t, lama);
+      throw new Error(`Urutan ini membuat task saling menunggu: ${putar.join(' → ')}. Ubah salah satunya.`);
+    }
+    t.updatedAt = waktu;
+    const tim = singkatTim(timJalur(t, perId));
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Urutan tunggu diatur: ${t.lepasFase ? `lepas dari fase ${tim}` : `ikut fase ${tim}`}${pilih.length ? `, menunggu ${pilih.join(', ')}` : ''}`, me, waktu);
+    return t;
   }
 
   const bolehSetor = (t, me) => ['manager', 'lead'].includes(orang(me).peran) && bolehUbah(t, me);
@@ -2143,7 +2364,7 @@
      terbaca. Status, tahap ADDIE, dan peran mengikuti alur kerja, jadi bukan bagian Master. */
   const JENIS_MASTER = ['tim', 'substage', 'platform', 'satuan', 'prioritas', 'capaian', 'kategori'];
   const BAWAAN = {
-    tim: Object.values(TIM).map(t => ({ kunci: t.kode, nama: t.nama, aktif: true })),
+    tim: Object.values(TIM).map(t => ({ kunci: t.kode, nama: t.nama, singkat: t.singkat, aktif: true })),
     substage: SUB_TAHAP.map(s => ({ kunci: s.kode, nama: s.nama, tim: s.tim, reviewManager: s.reviewManager, aktif: true })),
     platform: PLATFORM.map((p, i) => ({ kunci: p, aktif: true, urutan: i + 1 })),
     satuan: SATUAN_PAKET.map((p, i) => ({ kunci: p, aktif: true, urutan: i + 1 })),
@@ -2221,7 +2442,9 @@
         if (!KODE_TIM.includes(kunci)) return salah('Tim tidak dikenal.');
         const nama = teksM(x.nama);
         if (nama.length < 2 || nama.length > 40) return salah('Nama tim wajib diisi (2–40 karakter).');
-        return { kunci, nama, aktif: true };
+        const singkat = teksM(x.singkat).toUpperCase() || SINGKAT_TIM[kunci];
+        if (!/^[A-Z0-9]{2,6}$/.test(singkat)) return salah('Singkatan tim 2–6 huruf atau angka, mis. DAE.');
+        return { kunci, nama, singkat, aktif: true };
       }
       case 'kategori': {
         const label = teksM(x.label);
@@ -2300,6 +2523,8 @@
       if (!daftar.some(s => s.aktif && tahapDariKode(s.kunci) === 'R')) return 'Sisakan paling sedikit satu jenis rutin (R) yang aktif.';
       return '';
     }
+    // Singkatan dipakai di tab proyek, chip, dan saringan, jadi tak boleh kembar (2.19.0).
+    if (jenis === 'tim') return unik('Singkatan tim', x => x.singkat || SINGKAT_TIM[x.kunci]);
     if (jenis === 'capaian') {
       const bobot = KODE_CAPAIAN.map(k => (daftar.find(x => x.kunci === k) || {}).bobot);
       if (bobot.some((b, i) => i && b <= bobot[i - 1])) return `Bobot capaian harus naik berurutan: ${KODE_CAPAIAN.join(' < ')}.`;
@@ -2312,7 +2537,7 @@
   /* Terapkan satu jenis ke daftar hidup (di tempat). */
   function pakaiMaster(jenis, daftar) {
     MASTER_KINI[jenis] = daftar;
-    if (jenis === 'tim') for (const t of daftar) TIM[t.kunci].nama = t.nama;
+    if (jenis === 'tim') for (const t of daftar) Object.assign(TIM[t.kunci], { nama: t.nama, singkat: t.singkat || SINGKAT_TIM[t.kunci] });
     if (jenis === 'substage') {
       SUB_TAHAP.length = 0;
       SUB_PER_KODE.clear();
@@ -2436,6 +2661,7 @@
     paketBaru: (d, x, me, w) => paketBaru(d, x.f || {}, me, w),
     simpanPaket: (d, x, me, w) => simpanPaket(d, paketX(d, x), x.f || {}, me, w),
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
+    aturTunggu: (d, x, me, w) => aturTunggu(d, tugas(d, x), x, me, w),
     ubahNamaPaket: (d, x, me, w) => ubahNamaPaket(d, paketX(d, x), x.nama, me, w),
     elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
     simpanDashboard: (d, x, me, w) => simpanDashboard(d, me, x.f || {}, x.id || '', w),
@@ -2559,5 +2785,7 @@
     centangSubtask, dataKosong, AKSI_DATA, jalankanPerintah, periksaPerintah, ringkasHasil, KOLEKSI_REAL, bedaData, terapkanUbah,
     KODE_AI, AKSI_AGEN, PESAN_AGEN,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
+    SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
+    bolehAturTunggu, aturTunggu,
   };
 }));

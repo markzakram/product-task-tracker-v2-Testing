@@ -1,5 +1,79 @@
 # Changelog — ProductTrack v2
 
+## 2.19.0 — ADDIE per tim: tab DAE · RAD · LNA · CLO, urutan tunggu diatur Lead (2026-10-13)
+
+Permintaan user: tab proyek bukan lagi satu ADDIE, melainkan per tim, dan tiap tim punya
+ADDIE-nya sendiri yang diatur Lead-nya. Pilihan user: CLO punya tab sendiri; Lead mengatur
+siapa menunggu siapa di tabnya; gerbang Manager mengikuti rekomendasi (tetap di tingkat
+proyek).
+
+- **Tim tampil dengan singkatannya.**
+  - DAE (Data & AI Engineer), RAD (Research, Academic & Development), LNA (Learning &
+    Architecture), CLO (Content & Learning Operation), MG (Manager).
+  - Kode lama (SI, AK, LA, CO) tetap dipakai di data: sub-stage, ruang tim, organogram, dan
+    Master. Tak ada data yang dipindah.
+  - Nama dan singkatan diatur di Master → Label & bobot. Singkatan 2–6 huruf atau angka dan tak
+    boleh kembar. Baris tim lama tanpa singkatan memakai bawaan (`SINGKAT_TIM`).
+  - Tampil di chip tim, form task, saringan, CSV, Komunikasi (ruang tim), Dashboard, dan Master.
+- **Aturan tunggu baru** (`Inti.ditunggu`), menggantikan "paralel per tahap" 0.15.0. Sebuah
+  task proyek menunggu:
+  - **fase**: task tim yang sama di fase lebih awal, di siklus yang sama. Ini bawaan dan bisa
+    dimatikan per task (`lepasFase`).
+  - **atur**: task pilihan Lead (`tunggu`), boleh dari tim lain.
+  - **gerbang**: task Manager di Analysis (A1, A6), untuk fase Design dan sesudahnya.
+  - **tutup**: E12 menunggu semua task lain di siklusnya.
+
+  Tim yang berbeda tak saling menunggu di luar itu. Task anak mengikuti induknya.
+- **Tak ada yang saling mengunci.**
+  - Task yang diatur menunggu task setim di fase lebih lambat berdiri di fase itu (`faseUrut`).
+  - Urutan yang saling menunggu ditolak saat disimpan (`putaranTunggu`), juga saat sub-stage atau
+    PIC diubah.
+  - Putaran yang lolos (mis. tab diubah manual) tampil sebagai peringatan merah di halaman
+    proyek (`putaranProyek`).
+- **Atur urutan tunggu** (`Inti.aturTunggu`, aksi data `aturTunggu`).
+  - Hanya Lead tim pemilik task, atau Manager.
+  - Form-nya memuat centang "Ikut urutan fase" dan daftar task lain di proyek dan siklus yang
+    sama per tim, dengan kotak cari. Pilihan yang sudah dicentang tampil paling atas.
+  - Tak bisa memilih task anak (pilih induknya), E12, atau task proyek lain.
+  - Tercatat di Riwayat Aktivitas.
+- **Elaborasi memasang urutan batch.**
+  - Serah-terima: langkah pertama sebuah tim menunggu langkah tim lain sebelumnya yang fasenya
+    sama atau lebih awal. Contohnya DV8 menunggu DV1 (bukan E1), Materi E2 dan DV8 menunggu DV3,
+    dan I7 menunggu I6.
+  - Urutan alur di dalam tim: I4 tayang menunggu QC E4–E7 yang datang lebih dulu di alur.
+  - Pengaman: urutan otomatis yang memutar dilepas, untuk alur kategori yang disusun sendiri di
+    Master.
+- **Halaman proyek.**
+  - Tab **Ringkasan** berisi kartu tiap tim (jalur fase, angka selesai, menunggu, terlambat, dan
+    tertahan) dan kartu **Gerbang Manager** dengan tombol A1, A6, E12.
+  - Tab **DAE · RAD · LNA · CLO** berisi bagian per fase. Lead melihat tombol urutan di samping
+    setiap task, dan tombol **Tambah task di …** hanya menawarkan sub-stage tim dan fase itu.
+  - Tab bawaan: tim sendiri untuk Lead dan staff, Ringkasan untuk Manager.
+  - Fase yang timnya tak punya sub-stage maupun task (mis. Analysis LNA) tak ditampilkan.
+- **Daftar proyek** menampilkan chip fase tiap tim (mis. "RAD V", "CLO ✓") dan progres siklus,
+  menggantikan jalur ADDIE mini proyek.
+- **Detail task.**
+  - Bagian "Fase LNA di proyek ini" (atau keterangan gerbang untuk task Manager).
+  - Daftar **Menunggu**: semua yang ditunggu beserta jenisnya, mana yang sudah selesai, dan
+    tombol **Atur urutan tunggu**.
+- **Alasan menunggu baru.** Contohnya: "Menunggu fase Development LNA selesai: …", "Menunggu
+  gerbang Manager: …", dan "Menunggu PRD-x "…" (RAD · Andika)".
+  - Kartu kanban memakai versi singkat (`tungguSingkat`).
+  - Syarat ajukan menjadi "Task yang ditunggu sudah selesai".
+- **Kolom baru `tunggu` dan `lepasFase`.**
+  - Di tab `tasks` (hanya menambah) dan di `v2_tasks` (`db/produk_base_v2.sql`).
+  - Impor v1 mengisinya kosong: proses v1 yang diselingi tim lain bisa saling mengunci kalau
+    urutannya dipasang.
+- **Skenario contoh.** OJK kini dijalankan per putaran kesiapan (soal RAD dan live class CLO
+  lebih dulu, tayang sesudah QC). Dua batch TKA menunjukkan input LNA di antrean Alya.
+- **Panduan.**
+  - "Tahap proyek dan siklus" menjadi "ADDIE per tim dan siklus", dengan ilustrasi fase per tim.
+  - Istilah baru: Fase dan Urutan tunggu.
+  - Teks tim, label, syarat, elaborasi, dan halaman Proyek ikut disesuaikan.
+- **Agen AI Ali:** persona menyebut tim DAE, dan alat `baca_ruang` menjelaskan kode ruang tim.
+- Tes baru (ADDIE per tim, aturTunggu, singkatan Master). Tes elaborasi, notifikasi, dan
+  skenario contoh disesuaikan. 227 tes.
+
 ## 2.18.0 — Rancangan Paket: platform ganda, jadwal pendaftaran, urutan seret, nama di tempat (2026-10-09)
 
 Permintaan user, semuanya di Rancangan Paket. Pilihan user: urutan disimpan per browser, dan

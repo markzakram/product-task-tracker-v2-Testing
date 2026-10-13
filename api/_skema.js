@@ -20,7 +20,7 @@
 const TAB = {
   projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket'],
   tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
-    'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'notes', 'assignedBy',
+    'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'tunggu', 'lepasFase', 'notes', 'assignedBy',
     'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk'],
   subtasks: ['id', 'task', 'title', 'pic', 'due', 'done'],
   comments: ['id', 'task', 'author', 'text', 'at'],
@@ -69,10 +69,10 @@ const MASTER_KOLOM = ['jenis', 'kunci', 'data', 'aktif', 'urutan', 'diperbarui']
 const TAB_PIN = 'pin';
 const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
 
-const DAFTAR = new Set(['support', 'deps']);
+const DAFTAR = new Set(['support', 'deps', 'tunggu']);
 const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
-const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror']);
+const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror', 'lepasFase']);
 
 function keSel(kolom, nilai) {
   if (nilai === undefined || nilai === null) return '';

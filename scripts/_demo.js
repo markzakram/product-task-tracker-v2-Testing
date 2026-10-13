@@ -6,21 +6,23 @@
    Tujuannya supaya alur kerja v2 langsung terlihat: elaborasi paket menjadi batch langkah
    (mis. Latsol DV1 › E1 › DV8 › I1 › E4 › E5 › E6 › I4), langkah dipegang Lead tim pemilik lalu
    DIBAGI ke staff timnya lewat task anak, gate per langkah, progres paket yang naik per
-   capaian, dan proyek yang berjalan per tahap ADDIE: task setahap dikerjakan paralel, tahap
-   berikutnya menunggu tahap sebelumnya tuntas (0.15.0). Semua langkah memakai aturan yang sama
-   dengan tombol di aplikasi (public/inti.js): elaborasiPaket, taskAnak, isiOutput, tambahBukti,
-   terapkanAksi. Yang tampil adalah hasil alur sungguhan, bukan angka yang ditulis tangan.
+   capaian, dan proyek yang berjalan per tim (2.19.0): tiap tim menjalankan fase ADDIE-nya
+   sendiri, tim yang berbeda sejajar, ditambah serah-terima antartim dan gerbang Manager di
+   Analysis. Semua langkah memakai aturan yang sama dengan tombol di aplikasi (public/inti.js):
+   elaborasiPaket, taskAnak, isiOutput, tambahBukti, terapkanAksi. Yang tampil adalah hasil alur
+   sungguhan, bukan angka yang ditulis tangan.
 
    Tiga paket v1 dipakai:
    - PKG-001 TKA_CEREBRUM: target ASLI dari v1. Dielaborasi dua pekan lalu. Design sudah tuntas
      dan proyeknya kini di Development: ada batch yang sudah ter-input, langkah Lead yang
      menunggu tinjauan Manager, task anak yang sedang dikerjakan, terlambat, tertahan,
      dikembalikan, dan menunggu tinjauan Lead, serta langkah yang masih di antrean Lead.
-     Implementation dan Evaluation menunggu Development selesai.
-   - PKG-004 OJK: di v1 belum ada target. Diberi target contoh, lalu proyeknya dijalankan penuh
-     tahap demi tahap: intake (A1) dan target (A6) oleh Manager, Development, Implementation
-     (semua batch tayang), Evaluation, lalu siklusnya ditutup E12 — menunggu Manager memulai
-     siklus berikutnya.
+     Implementation dan Evaluation tiap tim menunggu fase Development tim itu.
+   - PKG-004 OJK: di v1 belum ada target. Diberi target contoh, lalu proyeknya dijalankan penuh:
+     intake (A1) dan target (A6) oleh Manager sebagai gerbang, lalu langkah-langkah batch
+     dikerjakan begitu tak menunggu apa pun lagi — soal RAD dan live class CLO lebih dulu, input
+     LNA sesudah soalnya jadi, tayang sesudah QC — sampai semua batch tayang, lalu siklusnya
+     ditutup E12 — menunggu Manager memulai siklus berikutnya.
    - PKG-006 UTBK: di v1 belum ada target. Diberi target contoh tapi BELUM dielaborasi,
      untuk dicoba sendiri lewat tombol "Elaborasi jadi proyek".
    Ditambah beberapa Catatan Saya dan Link Saya contoh (folder "Contoh") memakai tautan
@@ -175,10 +177,11 @@ function sampaiKeadaan(data, t, staf, keadaan, sekarang) {
 }
 
 /* PKG-001: Design tuntas, Development berjalan. Per batch: [langkah Development yang sedang
-   berjalan, keadaannya]. 'semua' = seluruh langkah Development batch itu sudah lolos. */
+   berjalan, keadaannya]. 'semua' = seluruh langkah Development batch itu sudah lolos; 'akhir' =
+   produksi soal RAD sudah lolos dan input LNA (yang menunggunya) sedang berjalan. */
 const RENCANA_TKA = [
-  ['semua'], ['semua'], ['akhir', 'tinjau-manager'], ['akhir', 'dikerjakan'], ['akhir', 'antrean'],
-  ['awal', 'tertahan'], ['awal', 'revisi'], ['awal', 'ditinjau'], ['awal', 'telat'], ['awal', 'dikerjakan'], ['awal', 'antrean'],
+  ['semua'], ['semua'], ['akhir', 'tinjau-manager'], ['akhir', 'dikerjakan'], ['akhir', 'antrean'], ['akhir', 'antrean'],
+  ['awal', 'tertahan'], ['awal', 'revisi'], ['awal', 'ditinjau'], ['awal', 'telat'], ['awal', 'antrean'],
 ];
 function skenarioTka(data, sekarang) {
   const p = data.packages.find(x => x.id === 'PKG-001');
@@ -200,14 +203,14 @@ function skenarioTka(data, sekarang) {
       else if (k === kini) sampaiKeadaan(data, t, stafUntuk(t.sub, i, jumlah), keadaan, sekarang);
       else t.due = Inti.tambahHari(hariIni, 6 + k);
     });
-    // Implementation dan Evaluation menunggu Development selesai.
+    // Implementation dan Evaluation menunggu fase Development timnya selesai.
     langkah.filter(t => ['I', 'E'].includes(t.stage)).forEach((t, k) => { t.due = Inti.tambahHari(hariIni, 10 + k); });
   });
   return { project, tasks };
 }
 
-/* PKG-004: proyek penuh satu siklus, tahap demi tahap — A1 & A6 oleh Manager, lalu
-   Development, Implementation (semua batch tayang), Evaluation, dan E12 menutup siklus. */
+/* PKG-004: proyek penuh satu siklus — A1 & A6 oleh Manager (gerbang), lalu langkah-langkah
+   batch per putaran menurut urutan yang berlaku, dan E12 menutup siklus. */
 function skenarioOjk(data, sekarang) {
   const p = data.packages.find(x => x.id === 'PKG-004');
   if (!p) return null;
@@ -222,19 +225,25 @@ function skenarioOjk(data, sekarang) {
   kerjakan(data, a1, awal + 6 * JAM, awal + 1.5 * HARI);
   kerjakan(data, a6, awal + HARI, awal + 3.5 * HARI);
   Inti.setKeputusan(data, proj, 'Build', MANAGER, awal + 3.5 * HARI + JAM);
-  // Batch-batch dari rancangan paket, dikerjakan per tahap. Tiap tahap baru dimulai setelah
-  // tahap sebelumnya tuntas; di dalam satu tahap semua langkah berjalan bersamaan.
+  // Batch-batch dari rancangan paket. Tiap putaran mengerjakan bersamaan semua langkah yang
+  // sudah tak menunggu apa pun — fase tim, serah-terima antartim, gerbang Manager — sampai
+  // semuanya tuntas. Tim yang berbeda berjalan sejajar; di dalam tim menurut fase ADDIE-nya.
   const mulaiBatch = awal + 4 * HARI;
   const { tasks } = Inti.elaborasiPaket(data, p, { items: p.items.map(i => i.id), proyek: proj.id }, MANAGER, mulaiBatch, hari(mulaiBatch));
   const batch = batchDari(tasks);
+  const asal = new Map(batch.flatMap((langkah, i) => langkah.map(t => [t.id, [i, langkah]])));
   let w = mulaiBatch + 4 * JAM;
-  for (const tahap of ['D', 'V', 'I', 'E']) {
+  for (let putaran = 0; putaran < 20; putaran++) {
+    const perId = Inti.indeks(data);
+    const siap = tasks.filter(t => t.status === 'Antre' && !Inti.depsBelum(t, perId).length);
+    if (!siap.length) break;
     let akhir = w;
-    batch.forEach((langkah, i) => langkah.filter(t => t.stage === tahap).forEach((t, k) => {
-      const mulai = w + i * 10 * JAM + k * 4 * JAM;
-      tuntaskan(data, t, stafUntuk(t.sub, i, jumlahBatch(data, langkah)), mulai, mulai + 3.5 * HARI);
-      akhir = Math.max(akhir, mulai + 3.5 * HARI);
-    }));
+    siap.forEach((t, j) => {
+      const [i, langkah] = asal.get(t.id);
+      const mulai = w + j * 3 * JAM;
+      tuntaskan(data, t, stafUntuk(t.sub, i, jumlahBatch(data, langkah)), mulai, mulai + 2.5 * HARI);
+      akhir = Math.max(akhir, mulai + 2.5 * HARI);
+    });
     w = akhir + 6 * JAM;
   }
   // E12 menutup siklus setelah semua task lain tuntas: Alya menyiapkan, Manager menyetujui.
