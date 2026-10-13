@@ -284,6 +284,7 @@ CREATE TABLE IF NOT EXISTS `v2_subtasks` (
   `pic`        VARCHAR(64)  NOT NULL DEFAULT '',
   `due`        DATE         NULL,
   `done`       BOOLEAN      NOT NULL DEFAULT FALSE,
+  `link`       VARCHAR(2000) NOT NULL DEFAULT '',   -- tautan opsional (2.24.0)
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_subtask_task` (`task`, `urutan`),

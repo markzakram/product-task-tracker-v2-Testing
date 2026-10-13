@@ -574,6 +574,30 @@ test('sub-task: PIC, Lead-nya, atau Manager menambah, mengubah, dan menghapus', 
   assert.match(d.log[0].detail, /Sub-task dihapus: Cek urutan & kunci/);
 });
 
+test('sub-task: tautan opsional (2.24.0), dirapikan dan diperiksa; bisa ditambah, diganti, dan dihapus', () => {
+  const t = task({ lane: 'proyek', pic: 'kiki', status: 'Dikerjakan' });
+  const d = data([t]);
+  const tanpa = I.tambahSubtask(d, t, { title: 'Tanpa tautan' }, 'kiki', WAKTU);
+  assert.equal(tanpa.link, '');
+  const s = I.tambahSubtask(d, t, { title: 'Cek soal', link: ' docs.google.com/document/d/abc ' }, 'kiki', WAKTU + 1);
+  assert.equal(s.link, 'https://docs.google.com/document/d/abc', 'https:// ditambahkan sendiri');
+  assert.throws(() => I.tambahSubtask(d, t, { title: 'x', link: 'javascript:alert(1)' }, 'kiki', WAKTU), /Tautan sub-task tidak valid/);
+  assert.throws(() => I.tambahSubtask(d, t, { title: 'x', link: 'bukan tautan' }, 'kiki', WAKTU), /tidak valid/);
+  assert.throws(() => I.tambahSubtask(d, t, { title: 'x', link: 'https://a.co/' + 'x'.repeat(2000) }, 'kiki', WAKTU), /paling panjang 2000/);
+  // Mengubah judul saja tak menyentuh tautannya.
+  I.ubahSubtask(d, t, s.id, { title: 'Cek soal bab 1' }, 'kiki', WAKTU + 2);
+  assert.equal(s.link, 'https://docs.google.com/document/d/abc');
+  assert.doesNotMatch(d.log[0].detail, /tautan/);
+  I.ubahSubtask(d, t, s.id, { title: 'Cek soal bab 1', link: 'https://drive.google.com/x' }, 'kiki', WAKTU + 3);
+  assert.equal(s.link, 'https://drive.google.com/x');
+  assert.match(d.log[0].detail, /tautan diganti$/);
+  I.ubahSubtask(d, t, s.id, { title: 'Cek soal bab 1', link: '' }, 'alya', WAKTU + 4);
+  assert.equal(s.link, '');
+  assert.match(d.log[0].detail, /tautan dihapus$/);
+  I.ubahSubtask(d, t, tanpa.id, { title: 'Tanpa tautan', link: 'https://drive.google.com/y' }, 'kiki', WAKTU + 5);
+  assert.match(d.log[0].detail, /tautan ditambah$/);
+});
+
 test('antrean tim: langkah yang sudah dibagi ke task turunan tak lagi "siap dibagi"', () => {
   const d = data([], [proyek({ lead: '' })]);
   const dv = I.taskBaru(d, { title: 'DV8 input', project: 'PRJ-1', sub: 'DV8', pic: 'kiki' }, 'alya', WAKTU, HARI);

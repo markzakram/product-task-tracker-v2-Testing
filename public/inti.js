@@ -649,6 +649,7 @@
     if (f.project && !p) throw new Error('Proyek tidak ditemukan.');
     if (!String(f.title || '').trim()) throw new Error('Judul task wajib diisi.');
     const s = subTahap(f.sub);
+    if (s && s.dihapus && !teks(f.induk)) throw new Error(`Sub-stage ${s.kode} sudah dihapus dari Master. Pilih sub-stage lain.`);
     if (p && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
     if (!p && s && s.tahap !== 'R') throw new Error('Task di luar proyek memakai sub-stage rutin (kode R).');
     if (!bolehBuatTask(me)) throw new Error('Pilih profil dulu.');
@@ -702,11 +703,20 @@
     if (!s) throw new Error('Sub-task tidak ditemukan.');
     return s;
   }
+  /* Tautan sub-task (2.24.0, permintaan user): opsional; kalau diisi harus alamat http(s). */
+  const TAUTAN_SUB_MAKS = 2000;
+  function tautanSub(u) {
+    if (!teks(u)) return '';
+    const url = tautanRapi(u);
+    if (!url) throw new Error('Tautan sub-task tidak valid. Contoh: https://docs.google.com/… (atau kosongkan).');
+    if (url.length > TAUTAN_SUB_MAKS) throw new Error(`Tautan sub-task paling panjang ${TAUTAN_SUB_MAKS} karakter.`);
+    return url;
+  }
   function tambahSubtask(data, t, f, me, waktu) {
     if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang mengatur sub-task.');
     const judul = teks(f.title).slice(0, 200);
     if (!judul) throw new Error('Judul sub-task wajib diisi.');
-    const s = { id: `s${waktu}-${t.subtasks.length}`, title: judul, pic: teks(f.pic) || t.pic, due: '', done: false };
+    const s = { id: `s${waktu}-${t.subtasks.length}`, title: judul, pic: teks(f.pic) || t.pic, due: '', done: false, link: tautanSub(f.link) };
     t.subtasks.push(s);
     t.updatedAt = waktu;
     catatLog(data, 'update', `${t.id} · ${t.title}`, 'Sub-task ditambah: ' + judul, me, waktu);
@@ -718,10 +728,14 @@
     const judul = f.title === undefined ? s.title : teks(f.title).slice(0, 200);
     if (!judul) throw new Error('Judul sub-task wajib diisi.');
     const lama = s.title;
+    const linkLama = s.link || '';
+    const link = f.link === undefined ? linkLama : tautanSub(f.link);
     s.title = judul;
     if (f.pic !== undefined) s.pic = teks(f.pic) || t.pic;
+    if (link !== linkLama) s.link = link;
     t.updatedAt = waktu;
-    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Sub-task diubah: ' + (lama === judul ? judul : `${lama} → ${judul}`), me, waktu);
+    const ket = link === linkLama ? '' : `; tautan ${!link ? 'dihapus' : linkLama ? 'diganti' : 'ditambah'}`;
+    catatLog(data, 'update', `${t.id} · ${t.title}`, 'Sub-task diubah: ' + (lama === judul ? judul : `${lama} → ${judul}`) + ket, me, waktu);
     return s;
   }
   function hapusSubtask(data, t, id, me, waktu) {
@@ -2631,8 +2645,10 @@
         const tim = String(x.tim || '').toUpperCase();
         if (tim && !KODE_TIM.includes(tim)) return salah('Tim pemilik tidak dikenal.');
         const review = x.reviewManager === true || /^(ya|true|1)$/i.test(String(x.reviewManager == null ? '' : x.reviewManager).trim());
+        // Yang dihapus (2.24.0) tetap tersimpan sebagai penanda: kodenya tak dipakai ulang.
+        const dihapus = x.dihapus === true || /^(ya|true|1)$/i.test(String(x.dihapus == null ? '' : x.dihapus).trim());
         // Pekerjaan rutin tak ditinjau.
-        return { kunci: kode, nama, tim, reviewManager: tahapDariKode(kode) !== 'R' && review, aktif };
+        return { kunci: kode, nama, tim, reviewManager: tahapDariKode(kode) !== 'R' && review, aktif: aktif && !dihapus, ...(dihapus ? { dihapus: true } : {}) };
       }
       case 'platform':
       case 'satuan': {
@@ -2758,8 +2774,10 @@
       SUB_TAHAP.length = 0;
       SUB_PER_KODE.clear();
       for (const s of daftar) {
-        const o = { kode: s.kunci, nama: s.nama, tim: s.tim, reviewManager: !!s.reviewManager, tahap: tahapDariKode(s.kunci), aktif: s.aktif };
-        SUB_TAHAP.push(o);
+        const o = { kode: s.kunci, nama: s.nama, tim: s.tim, reviewManager: !!s.reviewManager, tahap: tahapDariKode(s.kunci), aktif: s.aktif, ...(s.dihapus ? { dihapus: true } : {}) };
+        // Yang dihapus tak ditawarkan di mana pun, tapi namanya tetap terbaca untuk data lama
+        // (mis. data contoh di browser lain atau impor ulang).
+        if (!s.dihapus) SUB_TAHAP.push(o);
         SUB_PER_KODE.set(o.kode, o);
       }
     }
@@ -2815,6 +2833,7 @@
     const isian = Object.fromEntries(Object.entries(b || {}).filter(([, v]) => v !== undefined));
     const x = bersihMaster(jenis, { ...(asal || {}), ...isian, kunci }, true);
     const lama = daftarKini.find(d => String(d.kunci).toLowerCase() === String(x.kunci).toLowerCase());
+    if (jenis === 'substage') periksaHapusSub(x, lama, baru);
     // Item paket merujuk kategorinya lewat nama, jadi nama kategori tetap.
     if (jenis === 'kategori' && !baru && lama && x.label !== lama.label) throw new Error(`Nama kategori "${lama.label}" tak bisa diganti: item paket lama merujuk ke nama itu. Buat kategori baru, lalu nonaktifkan yang lama.`);
     if (jenis === 'kategori' && baru) {
@@ -2834,6 +2853,45 @@
     return { jenis, ...x };
   }
   const daftarMaster = jenis => (MASTER_KINI[jenis] || susunMaster(jenis, [])).map(x => ({ ...x }));
+
+  /* ---------- Hapus sub-stage (2.24.0, permintaan user) ----------
+     Kode sub-stage adalah identitas: disimpan di task, tertulis di judul task hasil elaborasi,
+     Riwayat Aktivitas, komentar, dan pesan. Karena itu:
+     - hanya sub-stage yang belum dipakai task mana pun (data contoh dan data real) dan tak ada
+       di alur kategori paket yang bisa dihapus; yang sudah dipakai cukup dinonaktifkan;
+     - yang dihapus tetap tercatat (penanda dihapus) dan kodenya tak dipakai ulang; kode baru
+       melanjutkan dari nomor terbesar yang pernah ada di tahap itu;
+     - nomor yang tersisa tak digeser;
+     - E12 menutup siklus dan dirujuk langsung oleh aturan, jadi tak bisa dihapus atau
+       dinonaktifkan.
+     Yang terhapus bisa dipulihkan dengan kode yang sama. */
+  const SUB_TERKUNCI = ['E12'];
+  const awalanTahap = tahap => (tahap === 'V' ? 'DV' : tahap);
+  function kodeSubBerikut(tahap) {
+    const awal = awalanTahap(tahap);
+    const nomor = daftarMaster('substage').map(s => POLA_KODE_SUB.exec(s.kunci)).filter(m => m && m[1] === awal).map(m => Number(m[2]));
+    const n = Math.max(0, ...nomor) + 1;
+    return n < 100 ? awal + n : '';
+  }
+  /* sumber = [{ label, tasks }]: '' kalau kode itu belum dipakai task mana pun. */
+  function salahHapusSub(kode, sumber) {
+    const pakai = (sumber || []).map(x => [x.label, (x.tasks || []).filter(t => t.sub === kode).length]).filter(([, n]) => n);
+    if (!pakai.length) return '';
+    return `${kode} dipakai ${pakai.map(([l, n]) => `${n} task${l ? ' di ' + l : ''}`).join(' dan ')}, jadi tak bisa dihapus. Nonaktifkan saja: tak ditawarkan lagi untuk task baru, task lamanya tetap terbaca.`;
+  }
+  function periksaHapusSub(x, lama, baru) {
+    if (lama && lama.dihapus) {
+      if (baru) throw new Error(`${x.kunci} pernah ada lalu dihapus. Kode yang dihapus tak dipakai ulang supaya task dan riwayat lama tak berubah arti; pakai ${kodeSubBerikut(tahapDariKode(x.kunci))}.`);
+      if (x.dihapus) throw new Error(`${x.kunci} sudah dihapus. Pulihkan dulu kalau ingin mengubahnya.`);
+    }
+    if (SUB_TERKUNCI.includes(x.kunci) && (x.dihapus || !x.aktif)) {
+      throw new Error(`${x.kunci} · Final approval menutup siklus dan dirujuk langsung oleh aturan, jadi tak bisa dihapus atau dinonaktifkan.`);
+    }
+    if (x.dihapus) {
+      const alur = (MASTER_KINI.kategori || []).filter(k => k.alur.some(l => l.split(':')[0] === x.kunci)).map(k => k.label);
+      if (alur.length) throw new Error(`${x.kunci} dipakai alur kategori paket ${alur.join(', ')}. Ganti langkah alurnya dulu di bagian Kategori.`);
+    }
+  }
   const labelPrioritas = kunci => (PRIORITAS.find(([k]) => k === kunci) || [kunci, kunci])[1];
   for (const jenis of JENIS_MASTER) MASTER_KINI[jenis] = susunMaster(jenis, []);
 
@@ -3006,6 +3064,6 @@
     KODE_AI, AKSI_AGEN, PESAN_AGEN,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
     SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
-    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, tabAwalProyek, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
+    bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
   };
 }));

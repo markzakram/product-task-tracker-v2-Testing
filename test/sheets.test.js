@@ -250,7 +250,7 @@ const contoh = () => ({
       pic: 'andika', support: ['uma'], priority: 'High', start: '2026-07-01', due: '2026-07-05', status: 'Selesai',
       tertahan: false, alasanTertahan: '', output: '1 laporan', deps: [], tunggu: [], lepasFase: false, notes: '', assignedBy: 'nynda', cycle: 1,
       createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedAt: Date.parse('2026-07-05T01:00:00Z'), selesaiAt: Date.parse('2026-07-05T01:00:00Z'), induk: '',
-      subtasks: [{ id: 's1', title: 'Kumpulkan data', pic: 'uma', due: '', done: true }],
+      subtasks: [{ id: 's1', title: 'Kumpulkan data', pic: 'uma', due: '', done: true, link: 'https://docs.google.com/spreadsheets/d/contoh' }],
       comments: [{ id: 'k1', author: 'nynda', text: 'Mantap, lanjut', at: Date.parse('2026-07-04T02:00:00Z') }],
       tinjauan: [{ id: 'r1', by: 'nynda', action: 'Disetujui', note: 'Ditandai selesai di v1', at: Date.parse('2026-07-05T01:00:00Z') }],
       evidence: [{ id: 'e1', label: 'Google Docs', url: 'https://docs.google.com/document/d/x' }],

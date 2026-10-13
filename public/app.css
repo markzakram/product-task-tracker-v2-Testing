@@ -1985,3 +1985,21 @@ html[data-latar] { --redup: var(--redup-latar); --samar: var(--samar-latar); }
   .bilah-pilih-tombol { width: 100%; flex-wrap: nowrap; }
   .bilah-pilih-tombol .tombol { flex: 1 1 auto; min-height: 40px; padding: 0 8px; white-space: nowrap; }
 }
+
+/* Hapus sub-stage di Master (2.24.0). */
+.mst-aksi { display: inline-flex; align-items: center; gap: 2px; }
+.mst-aksi .ikon-tombol { width: 36px; height: 36px; }
+.mst-terhapus { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.mst-terhapus ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.mst-terhapus li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--tinta-2); }
+
+/* Tautan sub-task (2.24.0): di samping judulnya; di ponsel ikonnya saja. */
+.ceklis-tautan { display: inline-flex; align-items: center; gap: 4px; flex: 0 1 auto; max-width: 40%; min-height: 36px; padding: 0 8px; border-radius: 8px; color: var(--biru); font-size: calc(13px * var(--skala-huruf)); font-weight: 600; text-decoration: none; }
+.ceklis-tautan span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ceklis-tautan svg { flex: none; }
+.ceklis-tautan:hover { background: var(--abu); }
+.baris-form .input-tautan { flex: 1 1 160px; }
+@media (max-width: 600px) {
+  .ceklis-tautan { min-width: 36px; justify-content: center; padding: 0; }
+  .ceklis-tautan span { display: none; }
+}

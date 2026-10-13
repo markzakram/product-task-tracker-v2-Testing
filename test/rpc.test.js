@@ -600,3 +600,33 @@ test('Master: begitu Manager ber-PIN, hanya Lead dan Manager (lewat PIN-nya bila
     assert.equal((await panggil({ body: { action: 'muatContoh' }, cookie: devNynda })).json.me, 'nynda');
   } finally { I.aturMaster([]); }
 });
+
+test('hapus sub-stage (2.24.0): server menolak kode yang dipakai task data contoh; yang belum dipakai jadi penanda di tab master', async () => {
+  const I = require('../public/inti');
+  const { urai } = require('../api/_skema');
+  const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }], { email: EMAIL });
+  sheet.klien = async () => p.k;
+  const isi = { projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], log: [] };
+  I.taskBaru(isi, { title: 'Cek akun guru', sub: 'R1', pic: 'ali' }, 'ali', Date.UTC(2026, 9, 13), '2026-10-13');
+  isi.tasks[0].sub = 'E8';   // seolah task lama ber-E8 di data contoh
+  await sheet.tulisContoh(p.k, ID, urai(isi), { sumber: 'uji' });
+  const cookie = await masuk();
+  try {
+    const tolak = await panggil({ body: { action: 'simpanMaster', args: ['substage', { kunci: 'E8', dihapus: true }] }, cookie });
+    assert.equal(tolak.status, 400);
+    assert.match(tolak.json.message, /E8 dipakai 1 task di data contoh, jadi tak bisa dihapus/);
+    assert.equal(p.tab('master'), undefined, 'penolakan tak menulis apa pun');
+
+    const ok = await panggil({ body: { action: 'simpanMaster', args: ['substage', { kunci: 'E9', dihapus: true }] }, cookie });
+    assert.equal(ok.status, 200, ok.teks);
+    assert.deepEqual(ok.json.master.map(m => [m.kunci, m.aktif, m.dihapus]), [['E9', false, true]]);
+    I.aturMaster(ok.json.master);
+    assert.equal(I.kodeSubBerikut('E'), 'E13');
+    assert.equal(I.SUB_TAHAP.some(s => s.kode === 'E9'), false);
+    const ulang = await panggil({ body: { action: 'simpanMaster', args: ['substage', { baru: true, kunci: 'E9', nama: 'Monitoring baru' }] }, cookie });
+    assert.equal(ulang.status, 400);
+    assert.match(ulang.json.message, /pakai E13/);
+    const e12 = await panggil({ body: { action: 'simpanMaster', args: ['substage', { kunci: 'E12', dihapus: true }] }, cookie });
+    assert.equal(e12.status, 400);
+  } finally { I.aturMaster([]); }
+});

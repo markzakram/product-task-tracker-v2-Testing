@@ -21,7 +21,8 @@
      POST /api/rpc  { action: 'simpanOrang', args: [orang] }   [Dev] ubah/tambah orang di tab orang
      kirimObrolan dengan jenis 'moderasi'                      [Dev] sembunyikan pesan siapa pun
      POST /api/rpc  { action: 'masukProfil', args: [orang, pin] }  pilih profil (PIN kalau profil itu ber-PIN)
-     POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Lead/Manager/Dev] daftar pilihan (halaman Master)
+     POST /api/rpc  { action: 'simpanMaster', args: [jenis, isian] } [Lead/Manager/Dev] daftar pilihan (halaman Master);
+                    isian { kunci, dihapus: true } menghapus sub-stage yang belum dipakai (2.24.0)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
      POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
      POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
@@ -303,6 +304,14 @@ const AKSI = {
     Inti.aturMaster(baris);
     let bersih;
     try { bersih = Inti.periksaMaster(String(jenis || ''), isian && typeof isian === 'object' ? isian : {}, baris); } catch (err) { throw new GalatIsian(err.message); }
+    // Hapus sub-stage (2.24.0): hanya yang belum dipakai task mana pun, di data contoh maupun real.
+    if (bersih.jenis === 'substage' && bersih.dihapus) {
+      const [contoh, real] = await Promise.all([sheet.bacaContoh(k, id), dataReal.tasksKini(k, id)]);
+      const salah = Inti.salahHapusSub(bersih.kunci, [
+        { label: 'data contoh', tasks: contoh.data ? contoh.data.tasks : [] }, { label: 'data real', tasks: real },
+      ]);
+      if (salah) throw new GalatIsian(salah);
+    }
     return { master: await sheet.tulisMaster(k, id, bersih) };
   },
   async aturPin(orang, pin) {

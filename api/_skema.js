@@ -22,7 +22,7 @@ const TAB = {
   tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
     'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'tunggu', 'lepasFase', 'notes', 'assignedBy',
     'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk'],
-  subtasks: ['id', 'task', 'title', 'pic', 'due', 'done'],
+  subtasks: ['id', 'task', 'title', 'pic', 'due', 'done', 'link'],
   comments: ['id', 'task', 'author', 'text', 'at'],
   tinjauan: ['id', 'task', 'by', 'action', 'note', 'at'],
   evidence: ['id', 'task', 'label', 'url'],

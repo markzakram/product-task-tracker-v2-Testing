@@ -115,7 +115,7 @@
         'Setiap task berkode **sub-stage**. Awalannya menunjukkan tahap: **A** Analysis, **D** Design, **DV** Development, **I** Implementation, **E** Evaluation. Kode **R** (R1–R4) untuk pekerjaan rutin di luar proyek.',
         'Kode menentukan **tim pemilik**: **DAE** Data & AI Engineer, **RAD** Research, Academic & Development, **LNA** Learning & Architecture, **CLO** Content & Learning Operation, dan **MG** Manager. Arahkan kursor ke kode untuk melihat nama lengkapnya.',
         'Peninjau: task staff ditinjau Lead-nya, task Lead ditinjau Manager. Kode **A1, A6, D1, I8, dan E12** selalu ditinjau Manager, kecuali task turunan: itu ditinjau Lead yang membaginya.',
-        'Daftar sub-stage diatur Lead dan Manager di halaman **Master**: kode baru bisa ditambah, nama, tim pemilik, dan tinjauannya diubah, dan yang tak dipakai lagi dinonaktifkan.',
+        'Daftar sub-stage diatur Lead dan Manager di halaman **Master**: kode baru bisa ditambah, nama, tim pemilik, dan tinjauannya diubah, dan yang tak dipakai lagi dinonaktifkan. Yang belum pernah dipakai task bisa **dihapus**; nomor lain tak bergeser dan kodenya tak dipakai ulang, jadi kode baru melanjutkan dari nomor terbesar (mis. E13).',
         'Kode berwarna biru muda menandai pekerjaan **lepas** warisan v1: pekerjaan produk yang tidak masuk proyek mana pun.',
       ],
     },
@@ -159,6 +159,7 @@
         'Di **Output & bukti**, tulis hasil kerja (mis. "40 soal lolos QC"), lalu tekan **Simpan**.',
         'Tempel tautan hasil kerja (Drive, Sheets, SIADU, …) di kolom tautan bukti, lalu tekan **Tambah bukti**.',
         'Centang semua **sub-task**, kalau ada. Daftar **Syarat ajukan** berubah hijau satu per satu.',
+        'Sub-task boleh punya **tautan** (opsional), mis. dokumen atau folder kerjanya: isi kolom **Tautan** saat menambah atau mengubah sub-task, lalu buka dari ikon di sampingnya.',
         'Setelah lengkap, tombol **Ajukan tinjau ke …** aktif. Tekan, dan task pindah ke Ditinjau.',
       ],
     },
@@ -303,6 +304,7 @@
       langkah: [
         'Buka **Master** di grup Manajer. Isinya daftar pilihan yang dipakai semua orang: **sub-stage**, **kategori paket** dan alurnya, **platform**, **satuan**, label prioritas, capaian dan bobotnya, serta nama tim.',
         'Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi, tapi task dan paket lamanya tetap terbaca. Panah atas-bawah mengatur urutan platform, satuan, dan kategori.',
+        '**Hapus sub-stage**: tombol tempat sampah di baris sub-stage. Hanya yang belum dipakai task mana pun dan tak ada di alur paket; kalau sudah dipakai, jendelanya menawarkan **Nonaktifkan**. Kode yang dihapus tak dipakai ulang dan bisa **dipulihkan** dari bagian **Sudah dihapus**. E12 tak bisa dihapus karena menutup siklus.',
         '**Kategori paket**: susun alur langkahnya dan tandai capaiannya berurutan (konten, input, QC, tayang). Kategori baru langsung muncul di form rancangan paket dan di salinan sheet Marsel.',
 
         'Perubahan tersimpan di spreadsheet v2 dan berlaku bagi semua orang saat aplikasi dimuat ulang.',

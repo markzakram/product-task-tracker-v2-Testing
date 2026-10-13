@@ -127,4 +127,11 @@ async function ringkasan(k, id) {
   return { perubahan: sah, diulang: r.peristiwa.length - sah, generasi: r.generasi, rusak: r.rusak, ukuran };
 }
 
-module.exports = { GalatAturan, MELESET_MAKS, PERCOBAAN_MAKS, simpan, sejak, ringkasan };
+/* Task data real terkini (2.24.0): untuk memeriksa apakah kode sub-stage yang akan dihapus
+   masih dipakai. */
+async function tasksKini(k, id) {
+  const r = await sheet.bacaReal(k, id, { segar: true });
+  return keadaan(k, id, r).data.tasks;
+}
+
+module.exports = { GalatAturan, MELESET_MAKS, PERCOBAAN_MAKS, simpan, sejak, ringkasan, tasksKini };

@@ -96,8 +96,11 @@ dengan satu penyederhanaan: tetap empat status.
 - **Yang mengatur urutan:** Lead tim pemilik task, atau Manager. Tombolnya ada di samping
   setiap task di tab tim dan di detail task, yang juga menampilkan semua yang ditunggu task itu
   beserta jenisnya.
-- **Sub-task** bisa ditambah, diubah (judul dan PIC), dan dihapus oleh PIC task, Lead-nya, atau
-  Manager; PIC sub-task boleh mencentangnya.
+- **Sub-task** bisa ditambah, diubah (judul, PIC, dan **tautan opsional**), dan dihapus oleh PIC
+  task, Lead-nya, atau Manager; PIC sub-task boleh mencentangnya. Tautan (2.24.0) dirapikan
+  seperti tautan bukti (`https://` ditambahkan sendiri), hanya http(s), paling panjang 2000
+  karakter, dan tampil di samping judul sub-task (di ponsel ikonnya saja). Kolom `link` di tab
+  `subtasks` dan tabel `v2_subtasks`; agen AI bisa mengisinya lewat `tambah_subtask`.
 - **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, ada minimal satu
   tautan bukti, semua sub-task selesai, semua task turunan selesai (kalau ada), task yang ditunggu
   selesai, dan tidak tertahan. Staff mengisi output dan bukti sendiri dari detail task; daftar
@@ -547,8 +550,19 @@ Sejak 0.14.0, seperti tab Master di v1: halaman **Master** (grup Manajer; Manage
 mengatur daftar pilihan yang dipakai semua orang. Bagian **PIN profil** (PIN pribadi tiap
 profil) hanya tampil dan berlaku di mode Dev (0.14.1).
 
-- **Sub-stage**: tambah kode baru (nomor berikutnya terisi sendiri, mis. DV10 atau R5), ubah
-  nama, tim pemilik, dan "direview Manager", atau nonaktifkan.
+- **Sub-stage**: tambah kode baru (terisi sendiri sesudah nomor terbesar di tahapnya, mis.
+  DV10 atau E13), ubah nama, tim pemilik, dan "direview Manager", nonaktifkan, atau **hapus**
+  (2.24.0):
+  - yang bisa dihapus hanya sub-stage yang belum dipakai task mana pun (data contoh dan data
+    real, diperiksa server) dan tak ada di alur kategori paket; jendela hapusnya menjelaskan
+    alasannya bila tak bisa, lalu menawarkan **Nonaktifkan**;
+  - nomor sub-stage lain **tak bergeser**, dan kode yang dihapus **tak dipakai ulang**: kode adalah
+    identitas yang tersimpan di task dan tertulis di judul task, Riwayat Aktivitas, komentar,
+    dan pesan, jadi kode yang digeser atau dipakai ulang akan mengubah arti data lama;
+  - yang dihapus tercatat di tab `master` (penanda `dihapus` di kolom `data`, tanpa kolom baru)
+    dan tampil di bagian **Sudah dihapus**, tempat ia bisa **dipulihkan** dengan kode yang sama;
+  - **E12** (Final approval) menutup siklus dan dirujuk langsung oleh aturan, jadi tak bisa
+    dihapus atau dinonaktifkan.
 - **Kategori paket**: tambah kategori, susun **alur langkah** dan tanda capaiannya (konten →
   input → QC → tayang; tayang wajib), urutkan, nonaktifkan. Nama kategori tetap, karena item
   paket merujuk ke nama itu.
@@ -559,7 +573,8 @@ profil) hanya tampil dan berlaku di mode Dev (0.14.1).
   Panel Dev → Pengguna ada pintasan **PIN profil** ke bagian ini.
 
 Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi di form,
-tapi task dan paket lamanya tetap terbaca. Perubahan berlaku untuk semua orang saat aplikasi
+tapi task dan paket lamanya tetap terbaca. Sub-stage yang belum pernah dipakai bisa dihapus
+(lihat di atas). Perubahan berlaku untuk semua orang saat aplikasi
 dimuat ulang.
 
 **PIN profil.** Profil ber-PIN tampil bergembok di pemilih profil dan meminta PIN-nya. Server
@@ -571,7 +586,8 @@ scrypt bergaram di tab `pin` dan tak pernah dikirim ke browser.
 **Siapa yang boleh.** Master: Dev, Manager, atau **Lead** (sejak 2.21.0, keputusan user: Lead
 juga menambah, mengubah, dan menonaktifkan isian), yang terbukti lewat PIN-nya bila profilnya
 ber-PIN. Menghapus di Master = menonaktifkan, supaya task dan paket lama yang memakainya tetap
-terbaca. Selama belum ada Manager yang ber-PIN, Master masih terbuka bagi siapa pun (seperti data
+terbaca; sejak 2.24.0 sub-stage yang belum dipakai bisa benar-benar dihapus (Lead dan
+Manager). Selama belum ada Manager yang ber-PIN, Master masih terbuka bagi siapa pun (seperti data
 prototipe lainnya); peringatannya hanya tampil di mode Dev. PIN profil: **hanya Dev** (`aturPin`
 menolak sesi lain, termasuk Manager). **Dev sebaiknya memasang PIN Manager lebih dulu.**
 

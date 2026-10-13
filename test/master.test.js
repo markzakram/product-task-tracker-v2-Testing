@@ -128,3 +128,49 @@ test('simpan paket: kategori nonaktif dan catatan produk yang tak tampil di form
   assert.equal(p.drilling, 'catatan lama');
   assert.equal(p.latsol, 'baru');
 });
+
+test('hapus sub-stage (2.24.0): penanda dihapus, kode tak dipakai ulang, nomor lain tak bergeser, E12 terkunci', () => {
+  const baris = [];
+  const simpan = isian => { const x = I.periksaMaster('substage', isian, baris); baris.splice(0, baris.length, ...baris.filter(b => b.kunci !== x.kunci), x); I.aturMaster(baris); return x; };
+  assert.deepEqual(['A', 'D', 'V', 'I', 'E', 'R'].map(I.kodeSubBerikut), ['A7', 'D8', 'DV10', 'I9', 'E13', 'R5'], 'sesudah nomor terbesar');
+
+  // E8 belum dipakai alur mana pun: bisa dihapus; E9 dst. tetap kodenya.
+  const e8 = simpan({ kunci: 'E8', dihapus: true });
+  assert.deepEqual([e8.dihapus, e8.aktif, e8.nama], [true, false, 'QC akun dan sistem penilaian']);
+  assert.equal(I.SUB_TAHAP.some(s => s.kode === 'E8'), false, 'tak ditawarkan di mana pun');
+  assert.ok(I.SUB_TAHAP.some(s => s.kode === 'E9') && I.SUB_TAHAP.some(s => s.kode === 'E12'), 'nomor lain tak bergeser');
+  assert.equal(I.subTahap('E8').nama, 'QC akun dan sistem penilaian', 'data lama tetap terbaca');
+  assert.equal(I.kodeSubBerikut('E'), 'E13');
+  assert.throws(() => I.periksaMaster('substage', { baru: true, kunci: 'E8', nama: 'QC baru' }, baris), /tak dipakai ulang supaya .*; pakai E13./);
+  assert.throws(() => I.periksaMaster('substage', { kunci: 'E8', nama: 'Ganti' }, baris), /sudah dihapus/);
+
+  // Menghapus yang terbesar pun tak membuat nomornya dipakai lagi.
+  simpan({ baru: true, kunci: 'E13', nama: 'QC aksesibilitas', tim: 'LA' });
+  simpan({ kunci: 'E13', dihapus: true });
+  assert.equal(I.kodeSubBerikut('E'), 'E14');
+
+  // Penanda tetap terbaca dari tab (baris longgar) dan menimpa bawaan.
+  I.aturMaster(baris.map(b => ({ ...b, dihapus: 'true' })).filter(b => b.kunci === 'E8'));
+  assert.equal(I.SUB_TAHAP.some(s => s.kode === 'E8'), false);
+  I.aturMaster(baris);
+
+  // Yang dipakai alur paket dan E12 tak bisa dihapus; E12 juga tak bisa dinonaktifkan.
+  assert.throws(() => I.periksaMaster('substage', { kunci: 'E1', dihapus: true }, baris), /alur kategori paket Latsol/);
+  assert.throws(() => I.periksaMaster('substage', { kunci: 'E12', dihapus: true }, baris), /menutup siklus/);
+  assert.throws(() => I.periksaMaster('substage', { kunci: 'E12', aktif: false }, baris), /menutup siklus/);
+
+  // Task baru tak bisa memakai kode yang dihapus.
+  const d = { tasks: [], projects: [], log: [] };
+  assert.throws(() => I.taskBaru(d, { title: 'x', sub: 'E8', pic: 'ali' }, 'ali', 1, '2026-10-13'), /sudah dihapus/);
+
+  // Dipulihkan dengan kode yang sama.
+  const pulih = simpan({ kunci: 'E8', dihapus: false, aktif: true });
+  assert.deepEqual([pulih.dihapus, pulih.aktif], [undefined, true]);
+  assert.ok(I.SUB_TAHAP.some(s => s.kode === 'E8' && s.aktif));
+});
+
+test('salahHapusSub: kode yang dipakai task ditolak dengan jumlah dan sumbernya', () => {
+  assert.equal(I.salahHapusSub('E8', [{ label: 'data contoh', tasks: [{ sub: 'E4' }] }, { label: 'data real', tasks: [] }]), '');
+  assert.match(I.salahHapusSub('E4', [{ label: 'data contoh', tasks: [{ sub: 'E4' }, { sub: 'E4' }] }, { label: 'data real', tasks: [{ sub: 'E4' }] }]),
+    /^E4 dipakai 2 task di data contoh dan 1 task di data real, jadi tak bisa dihapus\. Nonaktifkan saja/);
+});

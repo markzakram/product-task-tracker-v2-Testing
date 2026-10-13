@@ -1,5 +1,42 @@
 # Changelog — ProductTrack v2
 
+## 2.24.0 — Hapus sub-stage di Master; tautan sub-task (2026-10-13)
+
+Permintaan user: sub-stage di Master (yang diatur Lead dan Manager) bisa dihapus juga, dan
+sub-stage baru melanjutkan ke kode terbaru. Usulan user untuk menggeser nomor yang tersisa
+(E3 jadi E1, dst.) tak dipakai, sesuai keputusan user sesudah membahasnya: kode adalah
+identitas yang tersimpan di task dan tertulis di judul task hasil elaborasi, Riwayat Aktivitas,
+komentar, pesan, alur paket, dan impor v1, jadi nomor yang digeser akan mengubah arti data lama.
+
+- **Tombol hapus** (tempat sampah) di tiap baris sub-stage di Master, untuk Lead dan Manager.
+  - Hanya sub-stage yang belum dipakai task mana pun dan tak ada di alur kategori paket. Browser
+    memeriksa data yang sedang dipakai; server memeriksa lagi data contoh dan data real
+    (`Inti.salahHapusSub`, `dataReal.tasksKini`).
+  - Bila tak bisa, jendelanya menjelaskan alasannya (mis. "E4 dipakai 57 task di data contoh")
+    dan menawarkan **Nonaktifkan**.
+- **Kode tak dipakai ulang, nomor lain tak bergeser.** Yang dihapus tercatat sebagai penanda
+  `dihapus` di kolom `data` tab `master` (tanpa kolom atau tabel baru), tak ditawarkan di mana
+  pun, tapi namanya tetap terbaca untuk data lama. Kode yang dihapus ditolak bila diketik lagi
+  untuk sub-stage baru, dengan saran kode berikutnya.
+- **Kode baru melanjutkan dari nomor terbesar** di tahapnya, termasuk yang sudah dihapus
+  (`Inti.kodeSubBerikut`, mis. E13). Sebelumnya kode baru mengisi nomor kosong pertama, yang
+  sesudah ada hapus bisa memakai ulang kode lama.
+- **Sudah dihapus**: daftar di bawah tabel sub-stage dengan tombol **Pulihkan** (kode yang sama,
+  aktif lagi).
+- **E12 terkunci**: menutup siklus dan dirujuk langsung oleh aturan, jadi tak bisa dihapus atau
+  dinonaktifkan. Task baru tak bisa memakai kode yang sudah dihapus; tombol tambah A1/A6/E12 di
+  Ringkasan proyek hanya tampil bila sub-stage-nya aktif.
+- **Tautan opsional di sub-task** (permintaan user): isian **Tautan** di form tambah dan ubah
+  sub-task di detail task; tampil di samping judulnya sebagai nama layanannya (Google Docs,
+  Google Drive, …), di ponsel ikonnya saja. Dirapikan seperti tautan bukti (`https://`
+  ditambahkan sendiri), hanya http(s), paling panjang 2000 karakter. Riwayat Aktivitas mencatat
+  tautan yang ditambah, diganti, atau dihapus. Kolom baru `link` di tab `subtasks` (spreadsheet
+  lama tanpa kolom itu tetap terbaca) dan `v2_subtasks`. Alat agen `tambah_subtask` menerima
+  `tautan`, dan `detail_task` menampilkannya.
+- README (Master & PIN profil; Sub-task) dan Panduan (Mengatur Master; Sub-stage dan tim
+  pemilik; Mengerjakan task proyek sampai diajukan) menyebutnya. Tes baru di
+  `test/master.test.js`, `test/rpc.test.js`, dan `test/inti.test.js`. 245 tes.
+
 ## 2.23.0 — Hapus banyak task di tab tim; tab bawaan proyek (2026-10-13)
 
 Permintaan user: task di tab tim proyek bisa dipilih untuk menentukan mana yang dihapus kalau

@@ -78,7 +78,7 @@ function teksDetail(k, id) {
   out.push(`Bukti: ${t.evidence.length ? '' : '(belum ada)'}`);
   for (const e of t.evidence) out.push(`- ${e.label} (${e.url})`);
   out.push(`Sub-task: ${t.subtasks.length ? '' : '(tidak ada)'}`);
-  for (const s of t.subtasks) out.push(`- [${s.done ? 'x' : ' '}] ${s.id} · ${s.title} · PIC ${nama(s.pic)}`);
+  for (const s of t.subtasks) out.push(`- [${s.done ? 'x' : ' '}] ${s.id} · ${s.title} · PIC ${nama(s.pic)}${s.link ? ` · ${s.link}` : ''}`);
   if (t.lane === 'proyek') out.push('Syarat ajukan: ' + I.syaratAjukan(t, k.perId).map(s => `${s.ok ? '✓' : '✗'} ${s.label}`).join('; '));
   const aksi = I.aksiUntuk(t, k.me, k.perId);
   out.push(`Aksi untuk ${nama(k.me)}: ${aksi.length ? aksi.map(a => `${a.kunci} (${a.label}${a.nonaktif ? `, nonaktif: ${a.alasan || 'belum bisa'}` : ''}${a.perluCatatan ? ', wajib catatan' : ''})`).join('; ') : '(tidak ada)'}`);
@@ -214,8 +214,8 @@ const ALAT = [
   {
     name: 'tambah_subtask', title: 'Tambah sub-task',
     description: 'Tambah sub-task ke task (PIC bawaannya PIC task). Perlu persetujuan Ali.',
-    inputSchema: { type: 'object', properties: { task: teks, judul: teks, pic: { ...teks, description: 'nama pendek PIC sub-task (opsional)' } }, required: ['task', 'judul'], additionalProperties: false },
-    jalankan: async (c, a) => tersimpan(await c.ubah('tambahSubtask', { task: String(a.task || '').toUpperCase(), f: { title: String(a.judul || ''), ...(a.pic ? { pic: profilDari(a.pic) } : {}) } }), `Sub-task ditambahkan ke ${String(a.task).toUpperCase()}.`),
+    inputSchema: { type: 'object', properties: { task: teks, judul: teks, pic: { ...teks, description: 'nama pendek PIC sub-task (opsional)' }, tautan: { ...teks, description: 'https://… (opsional; hanya tautan nyata dari Ali atau hasil kerjanya)' } }, required: ['task', 'judul'], additionalProperties: false },
+    jalankan: async (c, a) => tersimpan(await c.ubah('tambahSubtask', { task: String(a.task || '').toUpperCase(), f: { title: String(a.judul || ''), ...(a.pic ? { pic: profilDari(a.pic) } : {}), ...(a.tautan ? { link: String(a.tautan) } : {}) } }), `Sub-task ditambahkan ke ${String(a.task).toUpperCase()}.`),
   },
   {
     name: 'centang_subtask', title: 'Centang sub-task',

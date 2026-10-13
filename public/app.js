@@ -1873,6 +1873,8 @@
       <input class="input" id="subu-${id}" name="judul" value="${esc(s.title)}" required maxlength="200" autocomplete="off">
       <label class="sr" for="subupic-${id}">PIC sub-task</label>
       <select class="input" id="subupic-${id}" name="pic">${[...new Set([...pilihan, s.pic])].map(x => `<option value="${esc(x)}" ${x === s.pic ? 'selected' : ''}>${nama(x)}</option>`).join('')}</select>
+      <label class="sr" for="subulink-${id}">Tautan sub-task (opsional)</label>
+      <input class="input input-tautan" id="subulink-${id}" name="link" value="${esc(s.link || '')}" placeholder="Tautan (opsional)" inputmode="url" maxlength="2000" autocomplete="off" spellcheck="false">
       <button class="tombol utama">Simpan</button>
       <button type="button" class="tombol" data-aksi="sub-batal">Batal</button>
     </form>`;
@@ -1937,6 +1939,7 @@
           if (bisaSub && S.ubahSub && S.ubahSub.task === t.id && S.ubahSub.sub === s.id) return formUbahSub(t, s, pilihanPic);
           return `<div class="ceklis-baris"><label class="${s.done ? 'beres' : ''}"><input type="checkbox" data-aksi="centang-sub" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" ${s.done ? 'checked' : ''} ${boleh ? '' : 'disabled'}>
             <span>${esc(s.title)}</span><small>${nama(s.pic)}</small></label>
+            ${s.link ? `<a class="ceklis-tautan" href="${esc(s.link)}" target="_blank" rel="noopener noreferrer" title="${esc(s.link)}" aria-label="Buka tautan sub-task ${esc(s.title)} (${esc(I.judulTautan(s.link))})">${ikon('luar', 14)}<span>${esc(I.judulTautan(s.link))}</span></a>` : ''}
             ${bisaSub ? `<span class="ceklis-aksi">
               <button type="button" class="ikon-tombol" data-aksi="sub-ubah" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="Ubah sub-task" aria-label="Ubah sub-task ${esc(s.title)}">${ikon('sunting', 16)}</button>
               <button type="button" class="ikon-tombol" data-aksi="sub-hapus" data-id="${esc(t.id)}" data-sub="${esc(s.id)}" title="Hapus sub-task" aria-label="Hapus sub-task ${esc(s.title)}">${ikon('hapus', 16)}</button>
@@ -1947,6 +1950,8 @@
           <input class="input" id="sub-${esc(t.id)}" name="judul" placeholder="Tambah sub-task…" required maxlength="200">
           <label class="sr" for="subpic-${esc(t.id)}">PIC sub-task</label>
           <select class="input" id="subpic-${esc(t.id)}" name="pic">${pilihanPic.map(id => `<option value="${esc(id)}" ${id === t.pic ? 'selected' : ''}>${nama(id)}</option>`).join('')}</select>
+          <label class="sr" for="sublink-${esc(t.id)}">Tautan sub-task (opsional)</label>
+          <input class="input input-tautan" id="sublink-${esc(t.id)}" name="link" placeholder="Tautan (opsional)" inputmode="url" maxlength="2000" autocomplete="off" spellcheck="false">
           <button class="tombol">Tambah</button>
         </form>` : ''}
       </section>
@@ -2519,7 +2524,7 @@
     const lama = milik.filter(t => (t.cycle || 1) !== siklus).sort(urutTaskProyek);
     const bolehTambah = I.bolehBuatTask(S.me) && !p.arsip;
     // tim = hanya sub-stage milik tim itu (tombol di tab tim).
-    const adaKode = (tahap, sub, tim) => (sub ? I.subBolehBagi(S.me, sub)
+    const adaKode = (tahap, sub, tim) => (sub ? (I.subTahap(sub) || {}).aktif !== false && I.subBolehBagi(S.me, sub)
       : I.SUB_TAHAP.some(s => s.tahap === tahap && s.aktif !== false && (!tim || s.tim === tim) && I.subBolehBagi(S.me, s.kode)));
     const tambah = (tahap, sub, label, kelas = 'kecil', tim = '') => (bolehTambah && adaKode(tahap, sub, tim)
       ? `<button type="button" class="tombol ${kelas}" data-aksi="tambah-task" data-proyek="${esc(p.id)}" data-tahap="${tahap}" ${sub ? `data-sub="${sub}"` : ''} ${tim ? `data-tim="${tim}"` : ''}>${ikon('tambah', 16)} ${esc(label)}</button>` : '');
@@ -6370,7 +6375,8 @@
 
   /* --- Sub-stage --- */
   function mstSub() {
-    const semua = I.daftarMaster('substage');
+    const semua = I.daftarMaster('substage').filter(s => !s.dihapus);
+    const terhapus = I.daftarMaster('substage').filter(s => s.dihapus);
     const nTask = new Map();
     for (const t of S.data.tasks) if (t.sub) nTask.set(t.sub, (nTask.get(t.sub) || 0) + 1);
     const alur = new Map();
@@ -6387,22 +6393,61 @@
         <td>${tim ? esc(I.labelTim(tim.kode)) : '<span class="hint">tim pemilik output</span>'}</td>
         <td>${s.reviewManager ? 'Ya' : '—'}</td>
         <td>${s.aktif ? '<span class="chip-status hidup">Aktif</span>' : '<span class="chip-status mati">Nonaktif</span>'}</td>
-        <td><button type="button" class="tombol kecil" data-aksi="mst-sub-ubah" data-kunci="${esc(s.kunci)}">${ikon('sunting', 14)} Ubah</button></td></tr>`;
+        <td><span class="mst-aksi"><button type="button" class="tombol kecil" data-aksi="mst-sub-ubah" data-kunci="${esc(s.kunci)}">${ikon('sunting', 14)} Ubah</button>
+          ${I.SUB_TERKUNCI.includes(s.kunci) ? '' : `<button type="button" class="ikon-tombol bahaya" data-aksi="mst-sub-hapus" data-kunci="${esc(s.kunci)}" title="Hapus ${esc(s.kunci)}" aria-label="Hapus sub-stage ${esc(s.kunci)}">${ikon('hapus', 16)}</button>`}</span></td></tr>`;
     };
     const grup = [...I.TAHAP.map(t => [t.id, `${awalanKode(t.id)} · ${t.nama}`]), ['R', 'R · Rutin, di luar proyek']];
-    return `<div class="dev-alat"><p class="hint">Kode sub-stage menentukan tahap ADDIE task, tim pemiliknya (Lead tim itu menerima task-nya di antrean), dan apakah task-nya direview Manager. ${semua.length} sub-stage${nonaktif ? `, ${nonaktif} nonaktif` : ''}. Yang nonaktif tak ditawarkan untuk task baru; task lamanya tetap terbaca.</p>
+    const daftarTerhapus = terhapus.length ? `<section class="mst-terhapus"><p class="subjudul">Sudah dihapus</p>
+        <p class="hint">Kodenya tak dipakai ulang, supaya task, judul, dan riwayat lama tak berubah arti. Pulihkan kalau terhapus tak sengaja.</p>
+        <ul>${terhapus.map(s => `<li><span class="${I.tahapDariKode(s.kunci) === 'R' ? 'chip-rutin' : 'chip-sub'}">${esc(s.kunci)}</span> ${esc(s.nama)}
+          <button type="button" class="tautan-kecil" data-aksi="mst-sub-pulihkan" data-kunci="${esc(s.kunci)}">Pulihkan</button></li>`).join('')}</ul></section>` : '';
+    return `<div class="dev-alat"><p class="hint">Kode sub-stage menentukan tahap ADDIE task, tim pemiliknya (Lead tim itu menerima task-nya di antrean), dan apakah task-nya direview Manager. ${semua.length} sub-stage${nonaktif ? `, ${nonaktif} nonaktif` : ''}. Yang nonaktif tak ditawarkan untuk task baru; task lamanya tetap terbaca. Yang belum dipakai task mana pun bisa dihapus; kode baru melanjutkan dari nomor terbesar di tahapnya.</p>
         <button type="button" class="tombol utama" data-aksi="mst-sub-baru">${ikon('tambah', 16)} Tambah sub-stage</button></div>
       <div class="tabel-gulir"><table class="tabel dev-tabel mst-tabel"><thead><tr><th>Kode</th><th>Nama</th><th>Tim pemilik</th><th>Review Manager</th><th>Status</th><th></th></tr></thead>
         <tbody>${grup.map(([id, judul]) => {
           const isi = semua.filter(s => I.tahapDariKode(s.kunci) === id);
           return isi.length ? `<tr class="baris-grup"><td colspan="6">${esc(judul)}</td></tr>${isi.map(baris).join('')}` : '';
-        }).join('')}</tbody></table></div>`;
+        }).join('')}</tbody></table></div>
+      ${daftarTerhapus}`;
   }
-  function kodeSubBerikut(tahap) {
-    const awal = awalanKode(tahap);
-    const ada = new Set(I.daftarMaster('substage').map(s => s.kunci));
-    for (let n = 1; n < 100; n++) if (!ada.has(awal + n)) return awal + n;
-    return '';
+  /* Hapus sub-stage (2.24.0): jendelanya langsung menjelaskan kalau tak bisa (dipakai task di
+     data ini, alur paket, atau E12) dan menawarkan nonaktifkan. Server memeriksa lagi data
+     contoh dan data real. Aturannya di I.periksaMaster dan I.salahHapusSub. */
+  function formHapusSub(s) {
+    const nTask = S.data.tasks.filter(t => t.sub === s.kunci).length;
+    const alur = I.daftarMaster('kategori').filter(k => k.alur.some(l => l.split(':')[0] === s.kunci)).map(k => k.label);
+    const alasan = I.SUB_TERKUNCI.includes(s.kunci) ? `${s.kunci} menutup siklus dan dirujuk langsung oleh aturan.`
+      : nTask ? `${s.kunci} dipakai ${nTask} task di ${S.mode === 'real' ? 'data real' : 'data contoh'}.`
+        : alur.length ? `${s.kunci} dipakai alur kategori paket ${alur.join(', ')}. Ganti langkah alurnya dulu di bagian Kategori.` : '';
+    const judul = `${esc(s.kunci)} · ${esc(s.nama)}`;
+    if (alasan) {
+      return `<form data-form="mst-sub-hapus" class="form-hapus-proyek" novalidate>
+        <h2>${judul} tak bisa dihapus</h2>
+        <p>${esc(alasan)}</p>
+        <p class="hint">${s.aktif && !I.SUB_TERKUNCI.includes(s.kunci) ? 'Nonaktifkan saja: tak ditawarkan lagi untuk task baru, task lamanya tetap terbaca.' : 'Kodenya tetap dipakai supaya task, judul, dan riwayat lama tak berubah arti.'}</p>
+        <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">Tutup</button>
+          ${s.aktif && !I.SUB_TERKUNCI.includes(s.kunci) ? `<button type="button" class="tombol utama" data-aksi="mst-sub-nonaktif" data-kunci="${esc(s.kunci)}">Nonaktifkan</button>` : ''}</div>
+      </form>`;
+    }
+    return `<form data-form="mst-sub-hapus" class="form-hapus-proyek" novalidate>
+      <h2>Hapus ${judul}?</h2>
+      <p>Sub-stage ini belum dipakai task mana pun di ${S.mode === 'real' ? 'data real' : 'data contoh'} dan tak ada di alur paket. Server memeriksa lagi data contoh dan data real sebelum menghapus.</p>
+      <p class="hint">Nomor sub-stage lain tak bergeser. Kode ${esc(s.kunci)} tak dipakai ulang: sub-stage baru di tahap ini mulai dari ${esc(I.kodeSubBerikut(I.tahapDariKode(s.kunci)))}. Yang terhapus bisa dipulihkan dari halaman ini.</p>
+      <p id="galat-modal" class="pesan-galat" role="alert" hidden></p>
+      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">Batal</button><button class="tombol bahaya">${ikon('hapus', 16)} Hapus</button></div>
+    </form>`;
+  }
+  async function kirimHapusSub(form) {
+    const kunci = S.modal && S.modal.kunci;
+    if (!kunci || !await simpanMaster('substage', { kunci, dihapus: true }, form)) return;
+    tutupModal();
+    render();
+    toast(`${kunci} dihapus. Kodenya tak dipakai ulang; bisa dipulihkan dari bagian Sudah dihapus.`);
+  }
+  async function pulihkanSub(kunci) {
+    if (!await simpanMaster('substage', { kunci, dihapus: false, aktif: true }, null)) return;
+    render();
+    toast(`${kunci} dipulihkan dan aktif lagi.`);
   }
   function formMasterSub(s) {
     const x = s || { kunci: '', nama: '', tim: '', reviewManager: false, aktif: true };
@@ -6412,12 +6457,13 @@
       <h2>${s ? `Ubah ${esc(s.kunci)}` : 'Tambah sub-stage'}</h2>
       ${s ? `<p class="hint">Kode <code>${esc(s.kunci)}</code> tetap: dipakai task yang sudah ada.</p>`
     : `<div class="dua-isian"><label class="isian">Tahap<select name="tahap">${opsiHtml(opsiTahap, tahap)}</select></label>
-          <label class="isian">Kode<input name="kunci" value="${esc(kodeSubBerikut(tahap))}" maxlength="4" autocomplete="off" required><small>Terisi sendiri: nomor berikutnya di tahap itu.</small></label></div>`}
+          <label class="isian">Kode<input name="kunci" value="${esc(I.kodeSubBerikut(tahap))}" maxlength="4" autocomplete="off" required><small>Terisi sendiri: sesudah nomor terbesar di tahap itu. Kode yang pernah dihapus tak dipakai ulang.</small></label></div>`}
       <label class="isian">Nama<input name="nama" value="${esc(x.nama)}" maxlength="80" required></label>
       <label class="isian">Tim pemilik<select name="tim">${opsiHtml([['', '— tim pemilik output yang dikerjakan —'], ...Object.values(I.TIM).map(t => [t.kode, I.labelTim(t.kode)])], x.tim || '')}</select>
         <small>Lead tim ini memegang task-nya (masuk antrean di Hari Ini-nya) dan membaginya ke staff lewat task turunan. Kosong: dipegang tim pemilik output yang dikerjakan, mis. revisi.</small></label>
       <label class="dev-cek" data-bagian-sub="review" ${tahap === 'R' ? 'hidden' : ''}><input type="checkbox" name="reviewManager" ${x.reviewManager ? 'checked' : ''}> Direview Manager sebelum selesai</label>
-      ${s ? `<label class="dev-cek"><input type="checkbox" name="aktif" ${x.aktif ? 'checked' : ''}> Aktif — ditawarkan untuk task baru</label>` : ''}
+      ${!s ? '' : I.SUB_TERKUNCI.includes(s.kunci) ? `<p class="hint">${esc(s.kunci)} selalu aktif: menutup siklus.</p>`
+    : `<label class="dev-cek"><input type="checkbox" name="aktif" ${x.aktif ? 'checked' : ''}> Aktif — ditawarkan untuk task baru</label>`}
       ${kakiModal(s ? 'Simpan' : 'Tambah')}
     </form>`;
   }
@@ -6425,7 +6471,7 @@
     const lama = S.modal && S.modal.kunci ? I.daftarMaster('substage').find(s => s.kunci === S.modal.kunci) : null;
     const el = n => form.elements.namedItem(n);
     const isian = {
-      ...(lama ? { kunci: lama.kunci, aktif: el('aktif').checked } : { baru: true, kunci: el('kunci').value }),
+      ...(lama ? { kunci: lama.kunci, aktif: el('aktif') ? el('aktif').checked : true } : { baru: true, kunci: el('kunci').value }),
       nama: el('nama').value, tim: el('tim').value, reviewManager: el('reviewManager').checked,
     };
     if (!await simpanMaster('substage', isian, form)) return;
@@ -7669,6 +7715,13 @@
         break;
       }
       case 'mst-sub-baru': bukaModal({ jenis: 'mst-sub', kunci: '' }, formMasterSub(null)); break;
+      case 'mst-sub-hapus': {
+        const s = I.daftarMaster('substage').find(x => x.kunci === d.kunci && !x.dihapus);
+        if (s) bukaModal({ jenis: 'mst-sub-hapus', kunci: s.kunci }, formHapusSub(s));
+        break;
+      }
+      case 'mst-sub-nonaktif': tutupModal(); aktifkanMaster('substage', d.kunci, false); break;
+      case 'mst-sub-pulihkan': pulihkanSub(d.kunci); break;
       case 'mst-sub-ubah': {
         const s = I.daftarMaster('substage').find(x => x.kunci === d.kunci);
         if (s) bukaModal({ jenis: 'mst-sub', kunci: s.kunci }, formMasterSub(s));
@@ -8118,7 +8171,7 @@
     // Master, sub-stage baru: kode ikut tahap yang dipilih; pekerjaan rutin tak ditinjau.
     if (el.name === 'tahap' && el.closest('form[data-form="mst-sub"]')) {
       const form = el.closest('form');
-      form.elements.namedItem('kunci').value = kodeSubBerikut(el.value);
+      form.elements.namedItem('kunci').value = I.kodeSubBerikut(el.value);
       const review = $('[data-bagian-sub="review"]', form);
       if (review) review.hidden = el.value === 'R';
       return;
@@ -8184,7 +8237,7 @@
     if (form.dataset.form === 'masuk-dev') { e.preventDefault(); kirimMasukDev(form); return; }
     if (form.dataset.form === 'orang') { e.preventDefault(); kirimOrang(form); return; }
     // PIN profil dan halaman Master (0.14.0).
-    const khusus = { 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-kat': kirimMasterKategori,
+    const khusus = { 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-sub-hapus': kirimHapusSub, 'mst-kat': kirimMasterKategori,
       'mst-tambah': kirimMasterTambah, 'mst-label': kirimMasterLabel, 'mst-pin': kirimFormPin }[form.dataset.form];
     if (khusus) { e.preventDefault(); khusus(form); return; }
     const jenis = form.dataset.form;
@@ -8243,10 +8296,10 @@
     if (!t) return;
     try {
       if (jenis === 'sub-tambah') {
-        ubahData('tambahSubtask', { task: t.id, f: { title: form.judul.value, pic: form.pic.value } });
+        ubahData('tambahSubtask', { task: t.id, f: { title: form.judul.value, pic: form.pic.value, link: form.link.value } });
         selesaiUbah();
       } else if (jenis === 'sub-ubah') {
-        ubahData('ubahSubtask', { task: t.id, sub: form.dataset.sub, f: { title: form.judul.value, pic: form.pic.value } });
+        ubahData('ubahSubtask', { task: t.id, sub: form.dataset.sub, f: { title: form.judul.value, pic: form.pic.value, link: form.link.value } });
         S.ubahSub = null;
         selesaiUbah('Sub-task disimpan.');
       } else if (jenis === 'anak') {
