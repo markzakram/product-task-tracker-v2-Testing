@@ -465,6 +465,15 @@
       ? `Task turunan dibuat ${orang(lead).pendek} sebagai Lead tim pemilik task ini.`
       : 'Task turunan dibuat Lead tim pemilik task ini.';
   }
+  /* Siapa yang boleh jadi PIC task turunan dari induk ini: Lead pembaginya (yang memegang induk,
+     atau Lead tim/atasan staff pemegangnya, 2.25.0) dan staff timnya. */
+  function picTurunan(induk) {
+    if (!induk) return [];
+    const o = orang(induk.pic);
+    const tim = induk.project ? TIM[timTask(induk)] : null;
+    const pembagi = o.peran === 'lead' ? induk.pic : tim && orang(tim.lead).peran === 'lead' ? tim.lead : o.lead;
+    return [...new Set([pembagi, ...timDari(pembagi)].filter(Boolean))];
+  }
   function salahInduk(induk, me, anak) {
     if (!induk) return 'Task induk tidak ditemukan.';
     if (!bolehBuatAnak(induk, me)) return 'Task turunan dibuat Lead yang memegang task itu atau Lead tim pemiliknya, selama task itu belum diajukan atau selesai.';
@@ -653,13 +662,27 @@
 
   /* ---------- Membuat task & proyek ---------- */
 
-  function nomorBerikut(daftar, awalan) {
+  /* Nomor ID tak dipakai ulang (2.27.0): sesudah proyek, task, atau paket dihapus, yang baru
+     tetap melanjutkan nomor tertinggi, bukan mengisi ulang nomor yang dihapus (riwayat, pesan
+     Komunikasi, dan tautan lama ke PRD-… itu tak berpindah ke task baru). data.nomor =
+     [{ id: 'PRD', n }] mencatat nomor tertinggi saat sesuatu dihapus; selebihnya dari ID yang ada. */
+  function nomorBerikut(daftar, awalan, data) {
     let n = 0;
     for (const x of daftar) {
       const m = new RegExp('^' + awalan + '-(\\d+)$').exec(x.id);
       if (m) n = Math.max(n, Number(m[1]));
     }
-    return n + 1;
+    const catat = data && (data.nomor || []).find(x => x.id === awalan);
+    return Math.max(n, catat ? Number(catat.n) || 0 : 0) + 1;
+  }
+  /* Dipanggil sebelum menghapus: nomor tertinggi yang ada sekarang dicatat. */
+  function catatNomor(data, daftar, awalan) {
+    const n = nomorBerikut(daftar, awalan, data) - 1;
+    if (!n) return;
+    data.nomor = data.nomor || [];
+    const ada = data.nomor.find(x => x.id === awalan);
+    if (!ada) data.nomor.push({ id: awalan, n });
+    else if ((Number(ada.n) || 0) < n) ada.n = n;
   }
 
   /* Task proyek wajib bersub-stage ADDIE (tahapnya ikut kode, lalu terkunci); task di
@@ -684,7 +707,7 @@
       if (salah) throw new Error(salah);
     }
     const t = {
-      id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD')).padStart(3, '0'),
+      id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
       project: p ? p.id : '', lane: p ? 'proyek' : 'rutin', kategori: p ? '' : (s ? s.nama : f.kategori || 'Umum'),
       title: String(f.title).trim(), platform: f.platform || (p ? p.platform : 'All Platform'),
       stage: p ? s.tahap : '', sub: s ? s.kode : '', detail: String(f.detail || '').trim(),
@@ -828,11 +851,11 @@
       throw new Error('Task Lead tak diserahkan ke staff. Buat task turunan untuk staff dari detail task-nya.');
     }
     if (pic !== t.pic && anak.length) throw new Error('Task ini sudah dibagi ke task turunan, jadi PIC-nya tetap.');
-    if (pic !== t.pic && induk && pic !== induk.pic && !timDari(induk.pic).includes(pic)) {
-      throw new Error(`PIC task turunan: ${orang(induk.pic).pendek} sendiri atau staff timnya.`);
+    if (pic !== t.pic && induk && !picTurunan(induk).includes(pic)) {
+      throw new Error(`PIC task turunan: ${orang(picTurunan(induk)[0]).pendek} sendiri atau staff timnya.`);
     }
     if (t.lane === 'proyek' && s && s.tahap !== t.stage && (anak.length || induk)) {
-      throw new Error(`Task ${induk ? 'anak' : 'induk'} tetap di tahap ${namaTahap(t.stage)}, sama dengan ${induk ? 'induknya' : 'task turunannya'}.`);
+      throw new Error(`Task ${induk ? 'turunan' : 'induk'} tetap di tahap ${namaTahap(t.stage)}, sama dengan ${induk ? 'induknya' : 'task turunannya'}.`);
     }
     const ubah = [];
     const lama = { sub: t.sub, stage: t.stage, kategori: t.kategori, pic: t.pic };
@@ -864,7 +887,7 @@
     if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang membuat proyek.');
     if (!String(f.name || '').trim()) throw new Error('Nama proyek wajib diisi.');
     const p = {
-      id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ'), name: String(f.name).trim(), platform: f.platform || 'All Platform',
+      id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ', data), name: String(f.name).trim(), platform: f.platform || 'All Platform',
       stage: 'A', cycle: 1, decision: 'Build', goal: String(f.goal || '').trim(), lead: '', arsip: false, paket: '', history: [],
     };
     data.projects.unshift(p);
@@ -1852,7 +1875,7 @@
     if (!['manager', 'lead'].includes(orang(me).peran)) throw new Error('Hanya Lead atau Manager yang membuat paket.');
     if (!String(f.namaPaket || '').trim()) throw new Error('Nama paket wajib diisi.');
     const p = {
-      id: 'PKG-' + String(nomorBerikut(data.packages, 'PKG')).padStart(3, '0'),
+      id: 'PKG-' + String(nomorBerikut(data.packages, 'PKG', data)).padStart(3, '0'),
       platform: rapikanPlatform(f.platform), marselPic: '', program: String(f.program || '').trim(), namaPaket: String(f.namaPaket).trim(),
       tagline: '', benefit: '', tanggal: '', tujuan: '', produkPic: f.produkPic || '', ...aturJadwalDaftar(f, {}),
       dibimbing: '', latsol: '', materi: '', tryout: '', drilling: '', liveClass: '', catatan: '',
@@ -1954,6 +1977,7 @@
     if (orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menghapus paket.');
     const i = data.packages.indexOf(p);
     if (i < 0) throw new Error('Paket tidak ditemukan.');
+    catatNomor(data, data.packages, 'PKG');
     data.packages.splice(i, 1);
     if (data.setoran) data.setoran = data.setoran.filter(s => s.paket !== p.id);
     for (const proj of data.projects) if (proj.paket === p.id) proj.paket = '';
@@ -1980,6 +2004,8 @@
     if (!p || data.projects.indexOf(p) < 0) throw new Error('Proyek tidak ditemukan.');
     const r = ringkasHapusProyek(data, p);
     const ids = new Set(data.tasks.filter(t => t.project === p.id).map(t => t.id));
+    catatNomor(data, data.projects, 'PRJ');
+    catatNomor(data, data.tasks, 'PRD');
     data.projects.splice(data.projects.indexOf(p), 1);
     for (let i = data.tasks.length - 1; i >= 0; i--) if (ids.has(data.tasks[i].id)) data.tasks.splice(i, 1);
     if (data.setoran) for (let i = data.setoran.length - 1; i >= 0; i--) if (ids.has(data.setoran[i].task)) data.setoran.splice(i, 1);
@@ -2028,6 +2054,7 @@
     }
     const r = ringkasHapusTask(data, ada);
     const idSemua = new Set(r.tasks.map(t => t.id));
+    catatNomor(data, data.tasks, 'PRD');
     for (let i = data.tasks.length - 1; i >= 0; i--) if (idSemua.has(data.tasks[i].id)) data.tasks.splice(i, 1);
     if (data.setoran) for (let i = data.setoran.length - 1; i >= 0; i--) if (idSemua.has(data.setoran[i].task)) data.setoran.splice(i, 1);
     for (const t of data.tasks) {
@@ -2129,7 +2156,7 @@
     if (!proj) {
       const judul = p.namaPaket || p.program || p.id;
       proj = {
-        id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ'), name: teks(f.name) || `Produksi ${judul}`, platform: platform || 'All Platform',
+        id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ', data), name: teks(f.name) || `Produksi ${judul}`, platform: platform || 'All Platform',
         stage: 'A', cycle: 1, decision: 'Build', goal: teks(f.goal) || `Memenuhi target rancangan paket ${p.id} · ${judul}.`,
         lead: '', arsip: false, paket: p.id, history: [],
       };
@@ -2978,7 +3005,7 @@
      Semua browser menerapkan perubahan itu apa adanya (terapkanUbah), tanpa menjalankan aturan
      lagi: perubahan organogram, Master, atau aturan di versi berikutnya tak bisa menggugurkan
      riwayat. Bentuk ini juga yang nanti dipindah ke MySQL (satu baris = satu baris tabel). */
-  const dataKosong = () => ({ projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], setoran: [], log: [] });
+  const dataKosong = () => ({ projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], setoran: [], nomor: [], log: [] });
   const cariDi = (daftar, id, nama) => {
     const x = (daftar || []).find(y => y.id === id);
     if (!x) throw new Error(`${nama} ${id || '(kosong)'} tidak ditemukan.`);
@@ -3055,7 +3082,7 @@
   }
   /* Koleksi data real. Link Saya dan Catatan Saya tetap pribadi di browser. DEPAN = data baru
      ditaruh di depan, sama dengan fungsi pembuatnya (unshift); selebihnya di belakang (push). */
-  const KOLEKSI_REAL = ['projects', 'tasks', 'packages', 'setoran', 'dashboards'];
+  const KOLEKSI_REAL = ['projects', 'tasks', 'packages', 'setoran', 'dashboards', 'nomor'];
   const DEPAN = new Set(['projects', 'tasks', 'packages']);
   /* Perubahan dari a ke b: baris yang baru atau berubah (pasang), yang hilang (hapus), dan
      log baru. Membandingkan per baris lewat JSON-nya. */
@@ -3114,7 +3141,7 @@
     ORANG_BAWAAN, DEV, PERAN_ORANG, TIM_LEAD, susunOrang, salahOrganogram, periksaOrang, aturOrang, nonaktif,
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
     selesai, aktif, indeks, depsBelum, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
-    anakTask, bolehBuatAnak, alasanTakBisaBagi, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
+    anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,

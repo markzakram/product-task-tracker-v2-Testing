@@ -1,5 +1,30 @@
 # Changelog — ProductTrack v2
 
+## 2.27.0 — Nomor tak dipakai ulang, tombol Ubah, seret langkah alur (2026-10-13)
+
+Revisi user.
+
+- **Elaborasi ulang sesudah hapus proyek.** Diuji ulang di data real (paket baru → elaborasi →
+  hapus proyek → elaborasi lagi): elaborasi ulangnya berjalan, tetapi proyek dan task barunya
+  memakai lagi nomor yang dihapus (PRJ-1, PRD-001…), sehingga riwayat, pesan Komunikasi, dan
+  tautan task lama menempel ke task baru. Kini **nomor ID tak dipakai ulang**: proyek, task, dan
+  paket baru melanjutkan nomor tertinggi yang pernah ada.
+  - Nomor tertinggi dicatat saat menghapus (`Inti.catatNomor`, dipakai `hapusProyek`,
+    `hapusTask`, `hapusPaket`) di koleksi baru `nomor` (tab `nomor` opsional, tabel
+    `v2_nomor`, 23 tabel); ikut data real seperti koleksi lain.
+- **Tombol Ubah (pensil) di semua tingkat task**: di kepala detail task (samping Salin tautan),
+  di samping setiap baris task utama dan task turunan di tab tim proyek, dan di daftar task
+  turunan di detail induknya. Sub-task tetap punya pensilnya sendiri. Yang boleh mengubah tak
+  berubah (`Inti.bolehUbahTask`).
+- **PIC task turunan**: kini bisa diganti ke Lead pembaginya atau staff timnya, juga untuk turunan
+  dari task yang dipegang staff (2.25.0); sebelumnya ditolak "PIC task turunan: <staff> sendiri
+  atau staff timnya" (`Inti.picTurunan`).
+- **Langkah alur kategori paket bisa diseret** lewat pegangan ≡ di form kategori (Master), dengan
+  penanda sisip di atas/bawah langkah tujuan; tombol naik ditemani tombol turun untuk keyboard dan
+  layar sentuh. Jendela kategori sedikit lebih lebar.
+- README dan Panduan menyebutnya. Tes baru di `test/hapus-task.test.js`; tes skema MySQL kini
+  23 tabel. 252 tes.
+
 ## 2.26.0 — Capaian bersama di alur kategori paket (2026-10-13)
 
 Permintaan user, sesudah Lead mendapat galat "capaian harus berurutan dan tiap capaian sekali"

@@ -1611,7 +1611,7 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 .mst-bobot .input { flex: 0 0 64px; width: 64px; }
 .mst-bobot .input[readonly] { background: var(--dasar); color: var(--redup); }
 .mst-langkah-daftar { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: langkah; }
-.mst-langkah { display: grid; grid-template-columns: 22px minmax(0, 1.5fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; counter-increment: langkah; }
+.mst-langkah { display: grid; grid-template-columns: 22px 24px minmax(0, 1.5fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; counter-increment: langkah; }
 .mst-langkah::before { content: counter(langkah); font-size: calc(12px * var(--skala-huruf)); font-weight: 700; color: var(--redup); text-align: center; }
 .mst-langkah .input { min-height: 40px; padding: 6px 8px; font-size: calc(13.5px * var(--skala-huruf)); }
 .mst-langkah-aksi { display: inline-flex; }
@@ -1619,9 +1619,10 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 .mst-langkah-tambah { align-self: flex-start; }
 @media (max-width: 899px) {
   .mst-kategori { grid-template-columns: minmax(0, 1fr); }
-  .mst-langkah { grid-template-columns: 22px minmax(0, 1fr) auto; padding-bottom: 6px; border-bottom: 1px solid var(--garis-halus); }
-  .mst-langkah [name="l-capaian"] { grid-column: 2; grid-row: 2; }
-  .mst-langkah-aksi { grid-column: 3; grid-row: 1 / span 2; flex-direction: column; }
+  .mst-langkah { grid-template-columns: 22px 24px minmax(0, 1fr) auto; padding-bottom: 6px; border-bottom: 1px solid var(--garis-halus); }
+  .mst-pegangan { grid-column: 2; grid-row: 1 / span 2; }
+  .mst-langkah [name="l-capaian"] { grid-column: 3; grid-row: 2; }
+  .mst-langkah-aksi { grid-column: 4; grid-row: 1 / span 2; flex-direction: column; }
   .mst-tabel th:nth-child(4), .mst-tabel td:nth-child(4) { display: none; }
 }
 @container (min-width: 560px) {
@@ -2007,3 +2008,12 @@ html[data-latar] { --redup: var(--redup-latar); --samar: var(--samar-latar); }
 /* Mode uji Dev (2.25.0): spanduk biru, beda dari kuning "Lihat sebagai". */
 .spanduk-uji { background: var(--biru-muda); border-top-color: var(--biru-garis); color: var(--biru-tua); }
 .spanduk-uji .tombol { border-color: var(--biru-garis); color: var(--biru-tua); }
+
+/* Seret langkah alur kategori (2.27.0). */
+.modal-panel:has(.form-mst-kat) { max-width: 680px; }
+.mst-pegangan { display: inline-flex; align-items: center; justify-content: center; align-self: stretch; color: var(--redup); cursor: grab; border-radius: 6px; }
+.mst-pegangan:hover { background: var(--abu); color: var(--tinta-2); }
+.mst-pegangan:active { cursor: grabbing; }
+.mst-langkah.diseret { opacity: 0.45; }
+.mst-langkah.sisip-atas { box-shadow: 0 -3px 0 0 var(--biru); }
+.mst-langkah.sisip-bawah { box-shadow: 0 3px 0 0 var(--biru); }

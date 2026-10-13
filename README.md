@@ -100,6 +100,10 @@ dengan satu penyederhanaan: tetap empat status.
 - **Yang mengatur urutan:** Lead tim pemilik task, atau Manager. Tombolnya ada di samping
   setiap task di tab tim dan di detail task, yang juga menampilkan semua yang ditunggu task itu
   beserta jenisnya.
+- **Ubah task (2.27.0).** Tombol pensil ada di kepala detail task, di samping setiap baris
+  task (task utama dan task turunan) di tab tim proyek, dan di daftar task turunan di detail
+  induknya; yang boleh sama dengan sebelumnya (`Inti.bolehUbahTask`). PIC task turunan bisa
+  diganti ke Lead pembaginya atau staff timnya, juga bila induknya dipegang staff.
 - **Sub-task** bisa ditambah, diubah (judul, PIC, dan **tautan opsional**), dan dihapus oleh PIC
   task, Lead-nya, atau Manager; PIC sub-task boleh mencentangnya. Tautan (2.24.0) dirapikan
   seperti tautan bukti (`https://` ditambahkan sendiri), hanya http(s), paling panjang 2000
@@ -134,7 +138,12 @@ dengan satu penyederhanaan: tetap empat status.
   Riwayat Aktivitas (dengan catatan "Proyek dihapus beserta … task") dan pesan Komunikasi tetap
   tersimpan. Untuk proyek yang sudah selesai, **arsipkan saja** (tautan di jendela yang sama):
   semuanya tetap ada dan bisa diaktifkan lagi. Aturannya `Inti.hapusProyek`; di data real
-  perubahannya hanya daftar baris yang dihapus.
+  perubahannya hanya daftar baris yang dihapus. Paketnya bisa langsung dielaborasi ulang.
+- **Nomor ID tak dipakai ulang (2.27.0).** Proyek, task, dan paket baru melanjutkan nomor
+  tertinggi yang pernah ada, juga sesudah ada yang dihapus (sebelumnya elaborasi ulang sesudah
+  hapus proyek memakai lagi PRJ-… dan PRD-… yang dihapus, sehingga riwayat dan pesan Komunikasi
+  task lama menempel ke task baru). Nomor tertinggi dicatat saat menghapus di koleksi `nomor`
+  (tab `nomor`, tabel `v2_nomor`, ikut data real).
 - **Hapus task (2.23.0).** Di tab tim proyek, tombol **Pilih task untuk dihapus** memunculkan
   kotak centang di tiap task:
   - centang satu per satu (klik barisnya juga mencentang), **Pilih semua di <fase>**, atau
@@ -594,7 +603,8 @@ profil) hanya tampil dan berlaku di mode Dev (0.14.1).
     `pindahSub`; aturannya `Inti.pindahSub`.
 - **Kategori paket**: tambah kategori, susun **alur langkah** dan tanda capaiannya (konten →
   input → QC → tayang, tak boleh mundur; tayang wajib; sejak 2.26.0 satu capaian boleh di
-  beberapa langkah), urutkan, nonaktifkan. Nama kategori tetap, karena item
+  beberapa langkah), urutkan, nonaktifkan. Sejak 2.27.0 langkahnya diurutkan dengan
+  **diseret** lewat pegangan ≡, atau tombol naik/turun. Nama kategori tetap, karena item
   paket merujuk ke nama itu.
 - **Platform & satuan**: tambah, urutkan, nonaktifkan.
 - **Label & bobot**: label prioritas, nama tim, serta nama dan bobot capaian (naik berurutan,
@@ -1064,7 +1074,7 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
    Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 22 tabel berawalan `v2_` di skema
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 23 tabel berawalan `v2_` di skema
    `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
    salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
    dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru

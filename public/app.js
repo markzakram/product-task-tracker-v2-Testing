@@ -953,6 +953,7 @@
         links: daftar(p.links),
       })),
       setoran: daftar(d.setoran).map(x => ({ ...x, jumlah: Number(x.jumlah) || 0, tahap: x.tahap || '', batch: x.batch || '' })),
+      nomor: daftar(d.nomor).map(x => ({ id: String(x.id || ''), n: Number(x.n) || 0 })),
       dashboards: daftar(d.dashboards),
       links: daftar(d.links).map(l => ({ ...l, favorit: !!l.favorit })),
       notes: daftar(d.notes).map(n => ({ ...n, pin: !!n.pin, warna: I.WARNA_CATATAN.includes(n.warna) ? n.warna : '', createdAt: angka(n.createdAt), updatedAt: angka(n.updatedAt) })),
@@ -1892,7 +1893,11 @@
     const staf = [...I.timDari(S.me), S.me];
     const beres = anak.filter(I.selesai).length;
     return `<section><p class="subjudul">Task turunan ${anak.length ? `· ${beres}/${anak.length} selesai` : ''}${tanya('lead-antrean', 'membagi task ke staff')}</p>
-      ${anak.length ? `<div class="grup daftar-anak">${anak.map(x => barisTask(x, x.tertahan ? I.alasanTunggu(x, perId) : '', 'di-induk')).join('')}</div>` : ''}
+      ${anak.length ? `<div class="grup daftar-anak">${anak.map(x => {
+        // Tiap task turunan bisa langsung diubah dari sini (2.27.0).
+        const row = barisTask(x, x.tertahan ? I.alasanTunggu(x, perId) : '', 'di-induk');
+        return I.bolehUbahTask(x, S.me) ? `<div class="baris-aksi">${row}${tombolUbahTask(x)}</div>` : row;
+      }).join('')}</div>` : ''}
       ${bisa ? `<form class="baris-form form-anak" data-form="anak" data-id="${id}">
           <label class="sr" for="anak-${id}">Judul task turunan</label>
           <input class="input" id="anak-${id}" name="judul" placeholder="Bagian pekerjaannya, mis. Soal paket 1–2" required maxlength="200" autocomplete="off">
@@ -1921,6 +1926,9 @@
     </form>`;
   }
 
+  /* Tombol pensil "Ubah task" (2.27.0): di kepala detail task, di baris tab tim, dan di daftar
+     task turunan. */
+  const tombolUbahTask = t => `<button type="button" class="ikon-tombol" data-aksi="ubah-task" data-id="${esc(t.id)}" title="Ubah ${esc(t.id)}" aria-label="Ubah task ${esc(t.id)} · ${esc(t.title)}">${ikon('sunting', 16)}</button>`;
   function detailHtml(t, diLaci) {
     const me = S.me;
     const perId = perIdKini();
@@ -1952,6 +1960,7 @@
       </div>
       <div class="detail-tombol">
         <button type="button" class="ikon-tombol" data-aksi="salin-tautan" data-alamat="#/task/${esc(t.id)}" title="Salin tautan task ini" aria-label="Salin tautan task">${ikon('tautan', 18)}</button>
+        ${bisaUbah ? `<button type="button" class="ikon-tombol" data-aksi="ubah-task" data-id="${esc(t.id)}" title="Ubah task ini" aria-label="Ubah task ${esc(t.id)}">${ikon('sunting', 18)}</button>` : ''}
         ${I.bolehHapusTask(t, me, perId) ? `<button type="button" class="ikon-tombol bahaya" data-aksi="hapus-task" data-id="${esc(t.id)}" title="Hapus task ini" aria-label="Hapus task ${esc(t.id)}">${ikon('hapus', 18)}</button>` : ''}
         ${diLaci ? `<button type="button" class="ikon-tombol" data-aksi="tutup-detail" aria-label="Tutup">${ikon('tutup', 20)}</button>` : ''}
       </div></div>
@@ -2664,7 +2673,7 @@
           const alasan = !I.aktif(x.t) || tungguFase(x.t) ? '' : I.alasanTunggu(x.t, perId);
           if (pt) return barisPilih(x.t, alasan, x.anak);
           const row = barisTask(x.t, alasan, x.anak ? 'anak' : '');
-          const urut = x.anak ? '' : tombolUrut(x.t);
+          const urut = (x.anak ? '' : tombolUrut(x.t)) + (I.bolehUbahTask(x.t, S.me) ? tombolUbahTask(x.t) : '');
           return urut ? `<div class="baris-aksi">${row}${urut}</div>` : row;
         }).join('');
         const bolehFase = pt ? isi.filter(t => bisaHapus.includes(t) && !ikutInduk(t)) : [];
@@ -6620,10 +6629,12 @@
   }
   function barisLangkah(l = '') {
     const [kode = '', cap = ''] = String(l).split(':');
+    // Pegangan seret (2.27.0): langkah diurutkan dengan diseret; tombol naik/turun untuk keyboard dan layar sentuh.
     return `<li class="mst-langkah" data-langkah>
+      <span class="mst-pegangan" draggable="true" title="Seret untuk memindah langkah" aria-hidden="true">${ikon('menu', 16)}</span>
       <select class="input" name="l-kode" aria-label="Sub-stage langkah">${opsiLangkah(kode)}</select>
       <select class="input" name="l-capaian" aria-label="Capaian langkah">${opsiHtml([['', 'Tanpa capaian'], ...I.CAPAIAN.map(c => [c.kode, `${c.nama} · ${Math.round(c.bobot * 100)}%`])], cap)}</select>
-      <span class="mst-langkah-aksi"><button type="button" class="ikon-tombol" data-aksi="mst-langkah-naik" aria-label="Naikkan langkah">${ikon('naik', 16)}</button><button type="button" class="ikon-tombol" data-aksi="mst-langkah-hapus" aria-label="Hapus langkah">${ikon('hapus', 16)}</button></span>
+      <span class="mst-langkah-aksi"><button type="button" class="ikon-tombol" data-aksi="mst-langkah-naik" aria-label="Naikkan langkah">${ikon('naik', 16)}</button><button type="button" class="ikon-tombol" data-aksi="mst-langkah-turun" aria-label="Turunkan langkah">${ikon('turun', 16)}</button><button type="button" class="ikon-tombol" data-aksi="mst-langkah-hapus" aria-label="Hapus langkah">${ikon('hapus', 16)}</button></span>
     </li>`;
   }
   function formMasterKategori(k) {
@@ -7046,7 +7057,7 @@
   function pilihanPicUbah(t, kode) {
     const perId = perIdKini();
     const induk = t.induk ? perId.get(t.induk) : null;
-    if (induk) return [...new Set([...I.timDari(induk.pic), induk.pic, t.pic])];
+    if (induk) return [...new Set([...I.picTurunan(induk), t.pic])];
     if (I.anakTask(perId, t.id).length) return [t.pic];
     const daftar = pilihanPic(kode, t.pic);
     return I.orang(t.pic).peran === 'lead' ? daftar.filter(id => I.orang(id).peran !== 'staff') : daftar;
@@ -7276,7 +7287,7 @@
     return `<form data-form="modal" data-task="ubah" data-id="${esc(t.id)}" data-pic-lama="${esc(t.pic)}" novalidate>
       <h2>Ubah task</h2>
       <p class="hint">${t.project ? 'Proyek ' + esc(asal(t)) : (lepas ? 'Lepas' : 'Rutin') + ' · ' + esc(t.kategori || 'Umum')} · ${esc(t.id)}</p>
-      ${induk ? `<p class="hint">Task turunan dari ${esc(induk.id)} · ${esc(potong(induk.title, 70))}: PIC-nya ${esc(I.orang(induk.pic).pendek)} sendiri atau staff timnya${tahap ? `, tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>`
+      ${induk ? `<p class="hint">Task turunan dari ${esc(induk.id)} · ${esc(potong(induk.title, 70))}: PIC-nya ${esc(I.orang(I.picTurunan(induk)[0]).pendek)} sendiri atau staff timnya${tahap ? `, tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>`
         : dibagi ? `<p class="hint">Task ini sudah dibagi ke task turunan: PIC-nya tetap${tahap ? ` dan tahapnya tetap ${esc(I.namaTahap(tahap))}` : ''}.</p>` : ''}
       <label class="isian">Judul task <input name="title" required maxlength="200" value="${esc(t.title)}"></label>
       <label class="isian">Sub-stage <select name="sub" data-sub>${opsiSub(jenis, t.sub, false, tahap)}</select></label>
@@ -7875,6 +7886,11 @@
       case 'mst-langkah-naik': {
         const li = el.closest('[data-langkah]');
         if (li.previousElementSibling) li.parentNode.insertBefore(li, li.previousElementSibling);
+        break;
+      }
+      case 'mst-langkah-turun': {
+        const li = el.closest('[data-langkah]');
+        if (li.nextElementSibling) li.parentNode.insertBefore(li.nextElementSibling, li);
         break;
       }
       case 'mst-langkah-hapus': {
@@ -8622,6 +8638,7 @@
      ke kartu folder lain di Link Saya. */
   let seretLink = null;
   let seretPaket = null;
+  let seretLangkah = null;
   document.addEventListener('dblclick', e => {
     const el = e.target.closest && e.target.closest('[data-sunting-judul]');
     if (!el || e.target.closest('.sunting-judul')) return;
@@ -8635,6 +8652,16 @@
   /* Kartu Rancangan Paket diseret ke depan atau belakang kartu lain (sisi kiri/kanan kartu tujuan). */
   const sisiSeret = (e, kartu) => { const r = kartu.getBoundingClientRect(); return e.clientX > r.left + r.width / 2; };
   document.addEventListener('dragstart', e => {
+    // Langkah alur kategori (Master, 2.27.0): diseret lewat pegangannya.
+    const pg = e.target.closest && e.target.closest('.mst-pegangan');
+    if (pg) {
+      seretLangkah = pg.closest('[data-langkah]');
+      seretLangkah.classList.add('diseret');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', 'langkah');
+      e.dataTransfer.setDragImage(seretLangkah, 16, 20);
+      return;
+    }
     const kp = e.target.closest && e.target.closest('.kartu-paket[draggable="true"]');
     if (kp) {
       seretPaket = kp.dataset.paket;
@@ -8660,6 +8687,9 @@
     e.dataTransfer.setData('text/plain', k.dataset.id);
   });
   document.addEventListener('dragend', () => {
+    if (seretLangkah) seretLangkah.classList.remove('diseret');
+    seretLangkah = null;
+    document.querySelectorAll('.sisip-atas, .sisip-bawah').forEach(x => x.classList.remove('sisip-atas', 'sisip-bawah'));
     S.seret = null;
     seretLink = null;
     seretPaket = null;
@@ -8676,8 +8706,25 @@
     return f;
   };
   const adaBerkas = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files'));
+  /* Sisip di atas atau bawah langkah tujuan (separuh atas/bawah barisnya). */
+  const langkahTujuan = e => {
+    const li = e.target.closest && e.target.closest('[data-langkah]');
+    return li && seretLangkah && li !== seretLangkah && li.parentNode === seretLangkah.parentNode ? li : null;
+  };
+  const sisiBawah = (e, li) => { const r = li.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
   document.addEventListener('dragover', e => {
     if (S.modal && S.modal.jenis === 'foto' && adaBerkas(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; return; }
+    if (seretLangkah) {
+      const li = langkahTujuan(e);
+      document.querySelectorAll('.sisip-atas, .sisip-bawah').forEach(x => x !== li && x.classList.remove('sisip-atas', 'sisip-bawah'));
+      if (!li) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const bawah = sisiBawah(e, li);
+      li.classList.toggle('sisip-bawah', bawah);
+      li.classList.toggle('sisip-atas', !bawah);
+      return;
+    }
     if (seretPaket) {
       const k = e.target.closest && e.target.closest('.kartu-paket[data-paket]');
       document.querySelectorAll('.sisip-kiri, .sisip-kanan').forEach(x => x !== k && x.classList.remove('sisip-kiri', 'sisip-kanan'));
@@ -8706,6 +8753,14 @@
   });
   document.addEventListener('drop', e => {
     if (S.modal && S.modal.jenis === 'foto' && adaBerkas(e)) { e.preventDefault(); return mulaiPotong(e.dataTransfer.files[0]); }
+    if (seretLangkah) {
+      const li = langkahTujuan(e);
+      if (!li) return;
+      e.preventDefault();
+      li.parentNode.insertBefore(seretLangkah, sisiBawah(e, li) ? li.nextElementSibling : li);
+      li.classList.remove('sisip-atas', 'sisip-bawah');
+      return;
+    }
     if (seretPaket) {
       const k = e.target.closest && e.target.closest('.kartu-paket[data-paket]');
       if (!k || k.dataset.paket === seretPaket) return;

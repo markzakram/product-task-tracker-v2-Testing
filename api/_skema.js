@@ -35,13 +35,16 @@ const TAB = {
   links: ['id', 'user', 'folder', 'title', 'url'],
   notes: ['id', 'user', 'folder', 'title', 'body', 'updatedAt'],
   setoran: ['id', 'paket', 'item', 'task', 'jumlah', 'tahap', 'batch', 'catatan'],
+  /* Nomor ID tertinggi yang pernah dipakai per awalan (PRD, PRJ, PKG), dicatat saat ada yang
+     dihapus, supaya nomornya tak dipakai ulang (2.27.0). */
+  nomor: ['id', 'n'],
   log: ['id', 'type', 'task', 'detail', 'by', 'at'],
 };
 /* Tab yang baru ada sejak versi tertentu. Spreadsheet yang diimpor sebelum itu tetap
    terbaca: tab ini dianggap kosong, bukan galat. Begitu juga sebaliknya — versi lama
    mengabaikan tab dan kolom yang tak dikenalnya — jadi impor ulang tak memutus versi
    yang sedang live. */
-const TAB_OPSIONAL = new Set(['setoran']);
+const TAB_OPSIONAL = new Set(['setoran', 'nomor']);
 /* Tab bentuk lama. Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
 const USANG = ['gate_log', 'backlog', 'bookmarks'];
 
@@ -77,7 +80,7 @@ const TAB_PIN = 'pin';
 const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
 
 const DAFTAR = new Set(['support', 'deps', 'tunggu']);
-const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah']);
+const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah', 'n']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at']);
 const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror', 'lepasFase']);
 
@@ -259,7 +262,7 @@ function urai(data) {
     for (const it of items) isi.package_items.push({ ...it, paket: p.id });
     for (const l of links) isi.package_links.push({ ...l, paket: p.id });
   }
-  for (const k of ['dashboards', 'links', 'notes', 'setoran', 'log']) for (const x of data[k] || []) isi[k].push(x);
+  for (const k of ['dashboards', 'links', 'notes', 'setoran', 'nomor', 'log']) for (const x of data[k] || []) isi[k].push(x);
   return Object.fromEntries(Object.entries(isi).map(([t, daftar]) => [t, [TAB[t], ...daftar.map(o => keBaris(t, o))]]));
 }
 
@@ -293,6 +296,7 @@ function rakit(tabs) {
     links: tabs.links || [],
     notes: tabs.notes || [],
     setoran: tabs.setoran || [],
+    nomor: tabs.nomor || [],
     log: tabs.log || [],
   };
 }

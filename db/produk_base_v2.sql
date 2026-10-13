@@ -353,6 +353,15 @@ CREATE TABLE IF NOT EXISTS `v2_setoran` (
   CONSTRAINT `fk_v2_setoran_task` FOREIGN KEY (`task`) REFERENCES `v2_tasks` (`id`) ON DELETE SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
+-- Nomor ID tertinggi yang pernah dipakai per awalan (PRD, PRJ, PKG), dicatat saat ada yang
+-- dihapus, supaya nomornya tak dipakai ulang (2.27.0).
+CREATE TABLE IF NOT EXISTS `v2_nomor` (
+  `id`         VARCHAR(10)  NOT NULL,
+  `n`          INT          NOT NULL DEFAULT 0,
+  `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
 
 -- =============================================================================
 --  RUANG SAYA & TAUTAN TIM
@@ -437,7 +446,7 @@ CREATE TABLE IF NOT EXISTS `v2_obrolan` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Periksa: harus 22 tabel berawalan v2_ dan penanda app = producttrack-v2.
+-- Periksa: harus 23 tabel berawalan v2_ dan penanda app = producttrack-v2.
 SELECT COUNT(*) AS tabel_v2
   FROM information_schema.TABLES
  WHERE TABLE_SCHEMA = 'produk_base' AND TABLE_NAME LIKE 'v2\_%';

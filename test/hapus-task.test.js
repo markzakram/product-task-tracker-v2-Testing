@@ -119,3 +119,38 @@ test('agen AI tak boleh menghapus task', () => {
   assert.equal(I.AKSI_AGEN.includes('hapusTask'), false);
   assert.equal(I.AKSI_AGEN.includes('hapusProyek'), false);
 });
+
+test('nomor ID tak dipakai ulang sesudah dihapus (2.27.0): proyek, task, dan paket; tercatat di data real', () => {
+  const { d, project, tasks } = siapkan();
+  const terakhir = Math.max(...d.tasks.map(t => Number(t.id.slice(4))));
+  const sebelum = JSON.parse(JSON.stringify(d));
+  const h = I.jalankanPerintah(d, { aksi: 'hapusProyek', isi: { proyek: project.id }, oleh: 'nynda', at: WAKTU + 1, hari: HARI });
+  assert.equal(h.ok, true, h.galat);
+  assert.deepEqual(d.nomor.map(x => [x.id, x.n]).sort(), [['PRD', terakhir], ['PRJ', Number(project.id.slice(4))]]);
+  assert.deepEqual(I.bedaData(sebelum, d).nomor.pasang.map(x => x.id).sort(), ['PRD', 'PRJ'], 'nomor ikut tersimpan di data real');
+  // Elaborasi ulang: proyek dan task baru melanjutkan nomornya, bukan mengisi ulang yang dihapus.
+  const ulang = I.elaborasiPaket(d, d.packages[0], { items: ['ITM-A'] }, 'nynda', WAKTU + 2, HARI);
+  assert.notEqual(ulang.project.id, project.id);
+  assert.ok(ulang.tasks.every(t => Number(t.id.slice(4)) > terakhir), 'task baru di atas nomor tertinggi lama');
+  assert.ok(!ulang.tasks.some(t => tasks.some(x => x.id === t.id)));
+  // Hapus task: nomornya tetap tercatat.
+  const akhir = ulang.tasks[ulang.tasks.length - 1];
+  I.hapusTask(d, [akhir.id], 'nynda', WAKTU + 3);
+  assert.ok(Number(I.taskBaru(d, { title: 'Rekap', sub: 'R1', pic: 'ali' }, 'ali', WAKTU + 4, HARI).id.slice(4)) > Number(akhir.id.slice(4)));
+  // Hapus paket.
+  const pkg = I.paketBaru(d, { namaPaket: 'Uji' }, 'nynda', WAKTU + 5);
+  I.hapusPaket(d, pkg, 'nynda', WAKTU + 6);
+  assert.notEqual(I.paketBaru(d, { namaPaket: 'Uji lagi' }, 'nynda', WAKTU + 7).id, pkg.id);
+});
+
+test('PIC task turunan (2.27.0): pembaginya Lead tim walau induknya dipegang staff', () => {
+  const d = { tasks: [], projects: [], log: [], dashboards: [], links: [], notes: [], setoran: [], packages: [] };
+  const proj = I.proyekBaru(d, { name: 'Uji' }, 'nynda', WAKTU);
+  const d5 = I.taskBaru(d, { title: 'D5 desain', project: proj.id, sub: 'D5', pic: 'kiki' }, 'alya', WAKTU, HARI);
+  assert.deepEqual(I.picTurunan(d5).sort(), ['alya', 'bilar', 'kiki'].sort());
+  const anak = I.taskAnak(d, d5, { title: 'Wireframe', pic: 'bilar' }, 'alya', WAKTU + 1, HARI);
+  I.ubahTask(d, anak, { pic: 'kiki' }, 'alya', WAKTU + 2);
+  assert.equal(anak.pic, 'kiki', 'dulu ditolak: "PIC task turunan: Kiki sendiri atau staff timnya"');
+  I.ubahTask(d, anak, { pic: 'alya' }, 'alya', WAKTU + 3);
+  assert.throws(() => I.ubahTask(d, anak, { pic: 'uma' }, 'alya', WAKTU + 4), /di luar tim Anda|PIC task turunan/, 'staff tim lain tetap ditolak');
+});
