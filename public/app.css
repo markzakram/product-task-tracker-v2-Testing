@@ -238,19 +238,33 @@ svg { flex: 0 0 auto; }
 .nav-item:hover { background: var(--dasar); }
 .nav-item[aria-current="page"] { background: var(--biru-muda); color: var(--biru-tua); font-weight: 600; }
 .samping-kaki { flex-shrink: 0; padding: 12px; border-top: 1px solid var(--garis); }
+/* Kaki sidebar: foto, nama, dan jabatan saja (2.20.0). Ganti profil, tema, dan keluar ada di
+   menu akun kanan atas. */
 .kotak-profil { display: flex; flex-direction: column; gap: 10px; padding: 10px; border-radius: 12px; background: var(--dasar); }
 .kotak-profil-atas { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .kotak-profil-atas > span:last-child { min-width: 0; }
 .kotak-profil-atas strong { display: block; font-size: 14px; }
 .kotak-profil-atas small { display: block; font-size: 12px; color: var(--redup); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kotak-profil-aksi { display: flex; align-items: center; gap: 4px; }
-.kotak-profil-aksi .tombol { flex: 1; background: var(--muka); white-space: nowrap; padding: 0 10px; }
-.kotak-profil-aksi .ikon-tombol { width: 38px; height: 38px; }
-/* Sakelar tema (2.20.0): ikuti sistem, terang, gelap. */
-.pilih-tema { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--redup); }
-.segmen.segmen-tema { padding: 3px; gap: 2px; background: var(--abu); }
-.segmen-tema button { width: 34px; min-height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-.segmen-tema button[aria-pressed="true"] { color: var(--biru); }
+/* Menu akun di kanan atas, di samping lonceng (2.20.0): seperti di media sosial. */
+.akun { position: relative; }
+.tombol-akun { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; }
+.tombol-akun .avatar { width: 34px; height: 34px; font-size: 12px; transition: box-shadow 0.15s ease; }
+.tombol-akun:hover .avatar, .tombol-akun[aria-expanded="true"] .avatar { box-shadow: 0 0 0 2px var(--muka), 0 0 0 4px var(--biru-garis); }
+.panel-akun { position: absolute; top: calc(100% + 8px); right: 0; z-index: 45; width: min(300px, calc(100vw - 24px)); padding: 6px; background: var(--muka); border: 1px solid var(--garis); border-radius: 16px; box-shadow: 0 16px 40px rgba(16, 24, 40, 0.18); }
+.akun-kepala { display: flex; align-items: center; gap: 12px; padding: 10px 10px 12px; }
+.akun-kepala > span { min-width: 0; }
+.akun-kepala strong { display: block; font-size: 15px; }
+.akun-kepala small { display: block; font-size: 12px; color: var(--redup); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.akun-grup { display: flex; flex-direction: column; padding: 6px 0; border-top: 1px solid var(--garis); }
+.akun-butir { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; font-size: 14px; font-weight: 500; color: var(--tinta); text-align: left; }
+.akun-butir:hover { background: var(--dasar); }
+.akun-butir svg { color: var(--redup); }
+.akun-butir.bahaya, .akun-butir.bahaya svg { color: var(--merah); }
+.akun-tema { gap: 8px; padding: 10px; }
+.akun-label { font-size: 12px; font-weight: 600; color: var(--redup); }
+.segmen.segmen-tema { display: flex; padding: 3px; gap: 2px; }
+.segmen-tema button { flex: 1; min-height: 34px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; }
+.segmen-tema button[aria-pressed="true"] svg { color: var(--biru); }
 .samping-catatan { margin: 8px 2px 0; font-size: 11px; color: var(--samar); }
 .kotak-data { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .kotak-data .samping-catatan { margin: 0 2px; }
@@ -1518,6 +1532,9 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
   .panel-saring > .tombol { justify-self: start; }
   .panel-saring select { width: 100%; max-width: none; }
   .panel-notif { position: fixed; top: 60px; left: 12px; right: 12px; width: auto; }
+  .panel-akun { position: fixed; top: 60px; right: 12px; }
+  .tombol-akun { width: 40px; height: 40px; }
+  .tombol-akun .avatar { width: 30px; height: 30px; font-size: 11px; }
   .modal-panel.panel-palet { margin-top: 8px; }
   .foto-awal { flex-direction: column; text-align: center; }
   .dev-grid { grid-template-columns: minmax(0, 1fr); }

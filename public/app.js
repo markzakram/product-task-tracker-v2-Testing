@@ -172,6 +172,7 @@
     pemanduKecil: false,
     palet: { q: '', pilih: 0 },
     notif: { buka: false, sebelum: 0 },
+    akun: { buka: false },
     /* Foto profil dari tab foto spreadsheet v2: isi = { orang: { gambar, diperbarui } }, sejak =
        waktu foto terbaru yang dimiliki (tarikan berikutnya hanya yang berubah). */
     foto: Object.assign({ sejak: 0, isi: {} }, ambil('foto', {}), { ditarik: 0, menarik: false }),
@@ -1252,14 +1253,6 @@
       <div class="samping-kaki">
         <div class="kotak-profil">
           <div class="kotak-profil-atas">${S.me === I.DEV ? avatar(S.me, 'besar') : `<button type="button" class="ganti-foto" data-aksi="foto-profil" title="Ganti foto profil" aria-label="Ganti foto profil">${avatar(S.me, 'besar')}<span class="ganti-foto-tanda">${ikon('kamera', 12)}</span></button>`}<span><strong>${esc(o.nama)}</strong><small>${S.me === I.DEV ? `Akun teknis${S.devSampai ? ` · sampai ${esc(jamDev())}` : ''}` : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
-          <div class="kotak-profil-aksi">
-            <button type="button" class="tombol kecil" data-aksi="ganti-profil">${ikon('orang', 16)} Ganti profil</button>
-            ${S.me === I.DEV ? `<button type="button" class="ikon-tombol" data-aksi="dev-keluar" title="Keluar mode Dev" aria-label="Keluar mode Dev">${ikon('keluar')}</button>`
-    : `<button type="button" class="ikon-tombol" data-aksi="keluar" title="Keluar" aria-label="Keluar">${ikon('keluar')}</button>`}
-          </div>
-          <div class="pilih-tema"><span id="label-tema">Tema</span>
-            <div class="segmen segmen-tema" role="group" aria-labelledby="label-tema">${TEMA.map(([k, l, ik]) => `<button type="button" data-aksi="tema" data-nilai="${k}" aria-pressed="${pilihanTema() === k}" title="${l}" aria-label="${l}">${ikon(ik, 16)}</button>`).join('')}</div>
-          </div>
         </div>
         <div class="kotak-data ${S.mode === 'real' ? 'data-real' : ''}">
           <p class="samping-catatan" id="status-data">${esc(teksStatusData())}</p>
@@ -1282,12 +1275,40 @@
       ${S.dev && (S.me === I.DEV || S.pratinjau) ? `<button type="button" class="chip-dev" data-aksi="${S.pratinjau ? 'pratinjau-akhiri' : 'ke'}" data-view="dev" title="${S.pratinjau ? 'Kembali jadi Dev' : 'Panel Dev'}">${ikon('kode', 14)} MODE DEV</button>` : ''}
       <button type="button" class="cari" data-aksi="palet">${ikon('cari', 16)}<span>Cari task, proyek, paket, atau halaman…</span><kbd>${PINTASAN}</kbd></button>
       <button type="button" class="ikon-tombol cari-hp" data-aksi="palet" aria-label="Cari atau lompat">${ikon('cari', 20)}</button>
+      ${I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama tombol-tambah" data-aksi="tambah-task">${ikon('tambah', 16)} Tambah task</button>` : ''}
       <div class="notif">
         <button type="button" class="ikon-tombol tombol-notif" data-aksi="notif" aria-expanded="${S.notif.buka}" aria-label="Notifikasi${baru ? `, ${baru} baru` : ''}">${ikon('lonceng', 20)}${baru ? `<span class="lencana">${baru > 9 ? '9+' : baru}</span>` : ''}</button>
         ${S.notif.buka ? panelNotif() : ''}
       </div>
-      ${I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama tombol-tambah" data-aksi="tambah-task">${ikon('tambah', 16)} Tambah task</button>` : ''}
+      <div class="akun">
+        <button type="button" class="tombol-akun" data-aksi="akun" aria-expanded="${S.akun.buka}" aria-label="Akun ${esc(I.orang(S.me).pendek)}: foto, ganti profil, tema, keluar">${avatar(S.me, 'kecil')}</button>
+        ${S.akun.buka ? panelAkun() : ''}
+      </div>
     </div>${spandukPratinjau()}`;
+  }
+  /* Menu akun di kanan atas (2.20.0, seperti di media sosial): siapa yang sedang masuk, ganti
+     foto, ganti profil, tema, dan keluar. Kaki sidebar cukup foto, nama, dan jabatan. */
+  function panelAkun() {
+    const o = I.orang(S.me);
+    const dev = S.me === I.DEV;
+    const tema = pilihanTema();
+    const butir = (aksi, ik, label, kelas = '') => `<button type="button" class="akun-butir ${kelas}" data-aksi="${aksi}">${ikon(ik, 18)}<span>${label}</span></button>`;
+    return `<div class="panel-akun" aria-label="Akun">
+      <div class="akun-kepala">${avatar(S.me, 'besar')}<span><strong>${esc(o.nama)}</strong><small>${dev ? 'Akun teknis' : `${esc(I.PERAN[o.peran])} · ${esc(o.jabatan)}`}</small></span></div>
+      <div class="akun-grup">
+        ${dev ? '' : butir('foto-profil', 'kamera', 'Ganti foto profil')}
+        ${butir('ganti-profil', 'orang', 'Ganti profil')}
+      </div>
+      <div class="akun-grup akun-tema"><span class="akun-label" id="label-tema">Tema</span>
+        <div class="segmen segmen-tema" role="group" aria-labelledby="label-tema">${TEMA.map(([k, l, ik]) => `<button type="button" data-aksi="tema" data-nilai="${k}" aria-pressed="${tema === k}" title="${l}">${ikon(ik, 16)}<span>${k === 'sistem' ? 'Sistem' : l}</span></button>`).join('')}</div>
+      </div>
+      <div class="akun-grup">${dev ? butir('dev-keluar', 'keluar', 'Keluar mode Dev', 'bahaya') : butir('keluar', 'keluar', 'Keluar', 'bahaya')}</div>
+    </div>`;
+  }
+  function bukaTutupAkun(buka = !S.akun.buka) {
+    S.akun.buka = buka;
+    if (buka) S.notif.buka = false;
+    renderKepala();
   }
 
   function renderNavBawah(lencana) {
@@ -1414,6 +1435,7 @@
     S.view = view;
     S.navBuka = false;
     S.notif.buka = false;
+    S.akun.buka = false;
     S.pilih = view === 'hari' ? S.pilih : null;
     if (view === 'proyek') S.proyek = null;
     if (view === 'paket') Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
@@ -1510,6 +1532,7 @@
   /* Membuka lonceng menandai semuanya dibaca; yang tadinya baru tetap disorot selama panel terbuka. */
   function bukaTutupNotif(buka = !S.notif.buka) {
     S.notif.buka = buka;
+    if (buka) S.akun.buka = false;
     if (buka) { S.notif.sebelum = notifDibaca(); simpan('notif_' + S.me, Date.now()); }
     renderKepala();
   }
@@ -6988,6 +7011,8 @@
     // Klik yang menyusul tekan-tahan logo (masuk mode Dev) tak ikut membuka beranda.
     if (logoDitahan && e.target.closest('.merek')) { e.preventDefault(); logoDitahan = false; return; }
     if (S.notif.buka && !e.target.closest('.notif')) bukaTutupNotif(false);
+    // Menu akun tertutup saat klik di luarnya atau memilih isinya (kecuali tema: hasilnya langsung terlihat).
+    if (S.akun.buka && (!e.target.closest('.akun') || (e.target.closest('.panel-akun [data-aksi]') && !e.target.closest('[data-aksi="tema"]')))) bukaTutupAkun(false);
     if (sebutAktif && !e.target.closest('.km-sebut-pilih, .km-isian')) tutupSebutan();
     for (const m of $$('details.menu-lagi[open]')) if (!m.contains(e.target) || e.target.closest('.menu-lagi-isi [data-aksi]')) m.open = false;
     const tautanLink = e.target.closest('a[data-link]');
@@ -7026,6 +7051,7 @@
       case 'palet': bukaPalet(); break;
       case 'palet-jalan': jalankanPalet(Number(d.i)); break;
       case 'notif': bukaTutupNotif(); break;
+      case 'akun': bukaTutupAkun(); break;
       case 'notif-buka':
         S.notif.buka = false;
         if (d.pesan && d.ruang) bukaRuang(d.ruang, d.pesan);
@@ -7803,6 +7829,7 @@
       if (menu) { menu.open = false; return menu.querySelector('summary').focus(); }
       if (!$('#modal').hidden) return tutupModal();
       if (S.notif.buka) return bukaTutupNotif(false);
+      if (S.akun.buka) { bukaTutupAkun(false); const b = $('.tombol-akun'); return b && b.focus(); }
       if (S.pilih && !$('#laci').hidden) { S.pilih = null; return render(); }
       if (S.navBuka) { S.navBuka = false; return render(); }
     }

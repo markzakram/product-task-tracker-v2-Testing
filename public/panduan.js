@@ -50,8 +50,8 @@
       langkah: [
         'Setelah PIN, pilih profil Anda sendiri. Tampilan menyesuaikan peran: Staff dan Lead mulai di **Hari Ini**, Manager di **Proyek**.',
         'Profil **bergembok** memakai **PIN pribadi**: masukkan PIN-nya saat memilih profil itu. PIN-nya dipasang lewat mode Dev, jadi orang lain tak bisa menulis pesan atau mengganti foto atas nama Anda.',
-        'Untuk melihat sisi peran lain, tekan **Ganti profil** di kaki sidebar.',
-        'Pasang **foto profil**: klik foto atau inisial Anda di kaki sidebar (di ponsel: **Menu**), pilih foto, geser dan perbesar di bingkai bulat, lalu **Simpan foto**. Fotonya terlihat semua orang.',
+        'Untuk melihat sisi peran lain, klik foto Anda di kanan atas (di samping lonceng), lalu **Ganti profil**.',
+        'Pasang **foto profil**: klik foto atau inisial Anda di kaki sidebar, atau buka menu foto di kanan atas lalu **Ganti foto profil**. Pilih foto, geser dan perbesar di bingkai bulat, lalu **Simpan foto**. Fotonya terlihat semua orang.',
         'Tombol **Coba sekarang** di panduan ini pindah ke profil yang cocok dengan sendirinya. Kotak **langkah panduan** di pojok bawah menemani selama Anda mencoba.',
       ],
     },
@@ -64,7 +64,7 @@
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
         '**Manajer** (hanya Manager): **Riwayat Aktivitas** dan **Master**, tempat daftar pilihan bersama diatur.',
-        '**Tema** di kaki sidebar (di ponsel: Menu): **Ikuti sistem**, **Terang**, atau **Gelap**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
+        '**Tema**: klik foto Anda di kanan atas (di samping lonceng), lalu pilih **Sistem**, **Terang**, atau **Gelap**. Di menu yang sama ada **Ganti profil** dan **Keluar**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
       ],
     },
     {

@@ -1,5 +1,23 @@
 # Changelog — ProductTrack v2
 
+## 2.20.1 — Menu akun di kanan atas: ganti profil, tema, dan keluar (2026-10-13)
+
+Masukan user (dengan tangkapan layar kaki sidebar 2.20.0): sakelar tema di bawah sidebar kurang
+bagus. Sidebar cukup nama, foto, dan posisi; ganti tema dan ganti profil sebaiknya di samping
+tombol notifikasi, seperti di media sosial.
+
+- **Menu akun di kanan atas**, di samping lonceng (bilah atas ponsel juga).
+  - Klik foto sendiri untuk melihat siapa yang sedang masuk (nama, peran, jabatan).
+  - Isinya: Ganti foto profil, Ganti profil, Tema (Sistem · Terang · Gelap), dan Keluar (atau
+    Keluar mode Dev).
+  - Tertutup saat klik di luar, memilih isinya, atau Esc (fokus kembali ke tombol foto).
+    Memilih tema membiarkannya terbuka supaya hasilnya langsung terlihat.
+  - Membuka menu akun menutup panel notifikasi, dan sebaliknya.
+- **Urutan bilah atas** kini Tambah task · lonceng · foto, seperti pola media sosial.
+- **Kaki sidebar** tinggal foto, nama, dan jabatan; foto di sana tetap bisa diklik untuk ganti
+  foto. Tombol Ganti profil, Keluar, dan sakelar tema di sana dibuang.
+- Panduan (Peta menu, ganti profil, foto profil) dan README menyebut letak baru.
+
 ## 2.20.0 — Mode gelap, dan posisi gulir yang bertahan saat klik (2026-10-13)
 
 Permintaan user: "buatkan juga untuk darkmodenya karena belum ada", dan "ketika kadang saya scroll

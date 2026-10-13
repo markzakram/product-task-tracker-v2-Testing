@@ -318,8 +318,9 @@ diuji di `test/obrolan.test.js` dan `test/rpc.test.js`.
 Sejak 0.12.0 setiap orang bisa memasang foto sendiri; foto itu menggantikan inisial di semua
 avatar (pemilih profil, sidebar, Komunikasi, detail task, kartu, laporan) untuk semua orang.
 
-- **Memasang.** Klik foto atau inisial sendiri di kaki sidebar (di ponsel: Menu), atau cari
-  "Foto profil" di pencarian cepat. Pilih berkas, seret ke jendela itu, atau tempel (Ctrl+V).
+- **Memasang.** Klik foto atau inisial sendiri di kaki sidebar, pilih **Ganti foto profil** di
+  menu akun kanan atas, atau cari "Foto profil" di pencarian cepat. Pilih berkas, seret ke
+  jendela itu, atau tempel (Ctrl+V).
 - **Memotong.** Foto tampil di bingkai bulat: seret untuk menggeser, perbesar dengan penggeser,
   roda tetikus, atau cubit dua jari (papan tombol: panah, + dan −, Enter menyimpan).
 - **Ukuran.** Potongan diperkecil di browser menjadi JPEG persegi 192 px (sekitar 10–20 KB),
@@ -380,7 +381,7 @@ PIC dan tak muncul di laporan, dashboard, atau @sebut; hak lihatnya setara Manag
   - **Moderasi**: hapus pesan siapa pun (tampil "Pesan dihapus oleh Dev"; isi aslinya tetap di
     tab `obrolan`) dan foto profil siapa pun. Di Komunikasi, Dev membaca dan memoderasi langsung
     dari gelembung pesan, tapi tidak menulis.
-- **Keluar**: tombol **Keluar mode Dev** di Panel Dev atau kaki sidebar.
+- **Keluar**: tombol **Keluar mode Dev** di Panel Dev atau menu akun kanan atas.
 
 Server: aksi `masukDev`, `keluarDev`, `sistem`, `simpanOrang`, dan peristiwa obrolan
 `moderasi`; tiga yang terakhir khusus sesi Dev (403 untuk sesi biasa). Aturannya di
@@ -565,9 +566,12 @@ Diuji di `test/master.test.js` dan `test/rpc.test.js`.
   `notifikasi()` di `public/inti.js`, tidak disimpan terpisah. Tanda sudah dibaca disimpan per
   profil di browser itu.
 
-### Mode gelap dan posisi gulir (2.20.0)
+### Menu akun, mode gelap, dan posisi gulir (2.20)
 
-- **Tema** dipilih di kaki sidebar (di ponsel lewat Menu) atau lewat Ctrl+K, lalu ketik "tema":
+- **Menu akun di kanan atas**, di samping lonceng, seperti di media sosial. Klik foto sendiri
+  untuk melihat siapa yang sedang masuk, lalu Ganti foto profil, Ganti profil, Tema, dan
+  Keluar. Kaki sidebar kini hanya foto, nama, dan jabatan (permintaan user).
+- **Tema** dipilih di menu akun atau lewat Ctrl+K, lalu ketik "tema":
   - **Ikuti sistem** (bawaan) mengikuti pengaturan perangkat, juga saat perangkat berganti tema
     selagi aplikasi terbuka;
   - **Terang** dan **Gelap** menetapkan tema sendiri.
