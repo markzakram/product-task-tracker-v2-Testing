@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#FFFFFF">
+  <!-- Tema (2.20.0): dipasang sebelum CSS dimuat supaya halaman tak berkedip terang dulu.
+       Pilihan per browser (pt2_tema: sistem, terang, gelap); app.js mengurus sisanya. -->
+  <script>
+    (function () {
+      var p = 'sistem';
+      try { p = JSON.parse(localStorage.getItem('pt2_tema')) || 'sistem'; } catch (e) { /* diblokir atau rusak */ }
+      var gelap = p === 'gelap' || (p !== 'terang' && !!window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-tema', gelap ? 'gelap' : 'terang');
+      if (gelap) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#171C23');
+    })();
+  </script>
   <title>ProductTrack v2</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/logo/icon-32.png">
   <link rel="apple-touch-icon" href="/logo/icon-192.png">
@@ -12,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- ?v= = versi package.json (dijaga tes berkas): browser atau proxy tak bisa mencampur berkas lama dan baru. -->
-  <link rel="stylesheet" href="/app.css?v=2.19.0">
+  <link rel="stylesheet" href="/app.css?v=2.20.0">
 </head>
 <body>
 
@@ -71,8 +82,8 @@
 
   <div id="toast" class="toast-wadah" aria-live="polite"></div>
 
-  <script src="/inti.js?v=2.19.0"></script>
-  <script src="/panduan.js?v=2.19.0"></script>
-  <script src="/app.js?v=2.19.0"></script>
+  <script src="/inti.js?v=2.20.0"></script>
+  <script src="/panduan.js?v=2.20.0"></script>
+  <script src="/app.js?v=2.20.0"></script>
 </body>
 </html>

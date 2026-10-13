@@ -565,6 +565,31 @@ Diuji di `test/master.test.js` dan `test/rpc.test.js`.
   `notifikasi()` di `public/inti.js`, tidak disimpan terpisah. Tanda sudah dibaca disimpan per
   profil di browser itu.
 
+### Mode gelap dan posisi gulir (2.20.0)
+
+- **Tema** dipilih di kaki sidebar (di ponsel lewat Menu) atau lewat Ctrl+K, lalu ketik "tema":
+  - **Ikuti sistem** (bawaan) mengikuti pengaturan perangkat, juga saat perangkat berganti tema
+    selagi aplikasi terbuka;
+  - **Terang** dan **Gelap** menetapkan tema sendiri.
+
+  Pilihannya per browser (`pt2_tema`), tidak ikut profil. Skrip kecil di `<head>`
+  `public/index.html` memasang `data-tema` sebelum CSS dimuat, jadi halaman tak sempat berkedip
+  terang.
+- **Semua warna lewat token** di `:root` `public/app.css`, dan blok `:root[data-tema="gelap"]`
+  hanya mengganti token itu. Isi pekat bertulisan putih (tombol utama, chip kode, lencana,
+  batang timeline) memakai token `--isi-*` yang tetap cukup gelap untuk teks putih di kedua
+  tema. `test/tema.test.js` menjaga dua hal: setiap token warna punya nilai gelap, dan tak ada
+  warna baru yang tertulis langsung di luar token.
+- **Posisi gulir bertahan.** Hampir setiap klik menggambar ulang halaman (`render()`). Sejak
+  2.20.0, selama halamannya sama, yang berikut dikembalikan:
+  - posisi gulir halaman dan wadah bergulir: menu sidebar, laci detail task, daftar utas,
+    tabel, kanban, dan timeline;
+  - bagian `<details>` yang dibuka atau ditutup sendiri, mis. fase di tab tim proyek.
+
+  Pindah halaman tetap mulai dari atas. Panel obrolan tetap di pesan lama yang sedang dibaca;
+  ia turun ke pesan terbaru hanya untuk utas baru, sesudah mengirim pesan, atau kalau memang
+  sudah di bawah.
+
 ### Panduan di dalam aplikasi
 
 Menu **Panduan** menjelaskan alurnya per peran (Staff, Lead, Manager), ditambah konsep dan

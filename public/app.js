@@ -47,6 +47,29 @@
   const simpan = (k, v) => { try { localStorage.setItem(AWALAN + k, JSON.stringify(v)); } catch (e) { /* penuh atau diblokir: tetap jalan */ } };
   const hapus = k => { try { localStorage.removeItem(AWALAN + k); } catch (e) { /* abaikan */ } };
 
+  /* ---------- Tema terang / gelap (2.20.0) ----------
+     Pilihan per browser: 'sistem' (bawaan, ikut pengaturan perangkat), 'terang', atau 'gelap'.
+     Skrip kecil di index.html sudah memasang data-tema sebelum CSS dimuat; di sini pilihan baru
+     dan perubahan tema perangkat selagi aplikasi terbuka. Warnanya semua di token app.css. */
+  const TEMA = [['sistem', 'Ikuti sistem', 'layar'], ['terang', 'Terang', 'matahari'], ['gelap', 'Gelap', 'bulan']];
+  const temaSistem = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  const pilihanTema = () => { const p = ambil('tema', 'sistem'); return TEMA.some(([k]) => k === p) ? p : 'sistem'; };
+  function pasangTema(pilihan = pilihanTema()) {
+    const gelap = pilihan === 'gelap' || (pilihan === 'sistem' && !!temaSistem && temaSistem.matches);
+    document.documentElement.dataset.tema = gelap ? 'gelap' : 'terang';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = gelap ? '#171C23' : '#FFFFFF';
+  }
+  function gantiTema(pilihan) {
+    if (!TEMA.some(([k]) => k === pilihan)) return;
+    simpan('tema', pilihan);
+    pasangTema(pilihan);
+  }
+  if (temaSistem && temaSistem.addEventListener) temaSistem.addEventListener('change', () => { if (pilihanTema() === 'sistem') pasangTema(); });
+  // Cadangan bila peramban tak mengirim 'change': dicek lagi saat tab kembali aktif dan di render().
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pasangTema(); });
+  pasangTema();
+
   /* ---------- Halaman di sidebar ---------- */
 
   const HALAMAN = [
@@ -438,6 +461,8 @@
 
   const JALUR_IKON = {
     matahari: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+    bulan: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+    layar: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
     kolom: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
     lapis: '<path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
     grafik: '<path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-8"/>',
@@ -1232,6 +1257,9 @@
             ${S.me === I.DEV ? `<button type="button" class="ikon-tombol" data-aksi="dev-keluar" title="Keluar mode Dev" aria-label="Keluar mode Dev">${ikon('keluar')}</button>`
     : `<button type="button" class="ikon-tombol" data-aksi="keluar" title="Keluar" aria-label="Keluar">${ikon('keluar')}</button>`}
           </div>
+          <div class="pilih-tema"><span id="label-tema">Tema</span>
+            <div class="segmen segmen-tema" role="group" aria-labelledby="label-tema">${TEMA.map(([k, l, ik]) => `<button type="button" data-aksi="tema" data-nilai="${k}" aria-pressed="${pilihanTema() === k}" title="${l}" aria-label="${l}">${ikon(ik, 16)}</button>`).join('')}</div>
+          </div>
         </div>
         <div class="kotak-data ${S.mode === 'real' ? 'data-real' : ''}">
           <p class="samping-catatan" id="status-data">${esc(teksStatusData())}</p>
@@ -1282,8 +1310,78 @@
      supaya kotaknya tidak kehilangan fokus. */
   const HASIL = { task: () => hasilTask(), paket: () => hasilPaket(), komunikasi: () => hasilKomunikasi(), link: () => hasilLink(), catatan: () => daftarCatatan(), riwayat: () => hasilRiwayat() };
 
+  /* ---------- Gulir dan bagian terbuka bertahan saat digambar ulang (2.20.0) ----------
+     render() mengganti isi sidebar, halaman, dan laci detail. Tanpa ini, klik tombol di halaman
+     yang sudah digulir melempar ke atas: <details> yang dibuka sendiri tertutup lagi (halaman
+     memendek), dan wadah bergulir (menu sidebar, daftar utas, tabel, kanban, timeline, laci)
+     kembali ke awal. Selama halamannya sama, posisinya dikembalikan. Pindah halaman tetap
+     mulai dari atas: pemanggilnya (pindahHalaman, bukaProyek, …) menggulir sendiri sesudahnya.
+     <details> hanya dikembalikan kalau orang mengubahnya sendiri; yang dibuka aturan halaman
+     (mis. fase yang sedang berjalan) tetap mengikuti aturannya. */
+  const IDENTITAS_GAMBAR = {
+    '#samping': () => 'samping',
+    '#isi': () => [S.view, S.proyek || '', S.pkt.pilih || '', S.task.tampilan || ''].join('|'),
+    '#laci-panel': () => S.pilih || '',
+  };
+  // Kunci unsur yang sama di gambar lama dan baru: id-nya, atau tag + kelas pertama + urutan.
+  const kunciUnsur = (el, hitung) => {
+    if (el.id) return '#' + el.id;
+    const k = el.tagName + '.' + (el.classList[0] || '');
+    const n = hitung.get(k) || 0;
+    hitung.set(k, n + 1);
+    return k + ':' + n;
+  };
+  function catatGulir() {
+    const foto = { x: window.scrollX, y: window.scrollY, akar: {}, pesan: {} };
+    for (const sel of Object.keys(IDENTITAS_GAMBAR)) {
+      const akar = $(sel);
+      if (!akar) continue;
+      const gulir = {};
+      const buka = {};
+      const hitung = new Map();
+      if (akar.scrollTop || akar.scrollLeft) gulir['.'] = [akar.scrollTop, akar.scrollLeft];
+      for (const el of akar.querySelectorAll('*')) {
+        const k = kunciUnsur(el, hitung);
+        if (el.scrollTop || el.scrollLeft) gulir[k] = [el.scrollTop, el.scrollLeft];
+        if (el.tagName === 'DETAILS' && !el.classList.contains('menu-lagi') && (el.dataset.awal === undefined || el.dataset.awal !== (el.open ? '1' : '0'))) buka[k] = el.open;
+      }
+      foto.akar[sel] = { id: IDENTITAS_GAMBAR[sel](), gulir, buka };
+    }
+    for (const wadah of ['kom', 'detail']) {
+      const kotak = $('#pesan-' + wadah);
+      if (kotak) foto.pesan[wadah] = { ruang: kotak.dataset.ruang, atas: kotak.scrollTop, bawah: kotak.scrollHeight - kotak.scrollTop - kotak.clientHeight < 80 };
+    }
+    return foto;
+  }
+  function pulihkanGulir(foto) {
+    const pasang = [];
+    for (const [sel, lama] of Object.entries(foto.akar)) {
+      const akar = $(sel);
+      if (!akar) continue;
+      const sama = lama.id === IDENTITAS_GAMBAR[sel]();
+      const hitung = new Map();
+      for (const el of akar.querySelectorAll('*')) {
+        const k = kunciUnsur(el, hitung);
+        if (el.tagName !== 'DETAILS' && !(sama && lama.gulir[k])) continue;
+        if (el.tagName === 'DETAILS') {
+          el.dataset.awal = el.open ? '1' : '0';
+          if (sama && k in lama.buka) el.open = lama.buka[k];
+        }
+        // Panel pesan diatur gulirPesan (pesan baru, lompat ke pesan).
+        if (sama && lama.gulir[k] && !/^#pesan-/.test(k)) pasang.push([el, lama.gulir[k]]);
+      }
+      if (sama && lama.gulir['.']) pasang.push([akar, lama.gulir['.']]);
+    }
+    // Sesudah semua <details> kembali, baru tinggi halaman benar untuk posisi gulirnya.
+    for (const [el, [atas, kiri]] of pasang) { el.scrollTop = atas; el.scrollLeft = kiri; }
+    const isi = foto.akar['#isi'];
+    if (isi && isi.id === IDENTITAS_GAMBAR['#isi']()) window.scrollTo(foto.x, foto.y);
+  }
+
   function render() {
     if (!halamanBoleh(S.view)) S.view = halamanAwal();
+    pasangTema();
+    const foto = catatGulir();
     tandaiRuangTerbuka();
     tutupSebutan();
     const lencana = lencanaNav();
@@ -1292,9 +1390,10 @@
     renderNavBawah(lencana);
     $('#isi').innerHTML = GAMBAR[S.view]();
     renderLaci();
+    pulihkanGulir(foto);
     renderPemandu();
-    gulirPesan('kom');
-    gulirPesan('detail');
+    gulirPesan('kom', foto);
+    gulirPesan('detail', foto);
     for (const ta of $$('.km-isian')) if (ta.value) tumbuhkan(ta);
     const h = HALAMAN.find(x => x.id === S.view);
     document.title = (h ? h.judul : 'ProductTrack') + ' · ProductTrack v2';
@@ -1446,6 +1545,7 @@
       ['lonceng', 'Buka notifikasi', () => bukaTutupNotif(true)],
       ['orang', 'Ganti profil', () => tampilProfil()],
       ['kamera', 'Foto profil', () => bukaFoto()],
+      ...TEMA.filter(([k]) => k !== pilihanTema()).map(([k, l, ik]) => [ik, `Tema: ${l.toLowerCase()}`, () => { gantiTema(k); render(); }]),
       ['buku', 'Buka Panduan', () => pindahHalaman('panduan')],
       S.mode !== 'real' && ['ulang', 'Reset data contoh', () => resetData()],
     ].filter(Boolean);
@@ -3118,13 +3218,21 @@
     if (!hp()) { const ta = $('#tulis-kom'); if (ta) ta.focus({ preventScroll: true }); }
   }
   /* Setelah digambar: ke pesan yang dituju, ke batas "Pesan baru", atau ke paling bawah. */
-  function gulirPesan(wadah) {
+  /* foto = posisi sebelum digambar ulang (render): yang sedang membaca pesan lama di utas yang
+     sama tetap di tempatnya; utas baru, pesan sendiri yang baru dikirim, atau yang sudah di
+     bawah turun ke pesan terbaru. */
+  function gulirPesan(wadah, foto = null) {
     const kotak = $('#pesan-' + wadah);
     if (!kotak) return;
     const lompat = wadah === 'kom' ? S.kom.lompat : '';
     if (wadah === 'kom') S.kom.lompat = '';
     const tujuan = !lompat ? null : lompat === 'baru' ? $('.km-batas-baru', kotak) : document.getElementById(`psn-${wadah}-${lompat}`);
-    if (!tujuan) { kotak.scrollTop = kotak.scrollHeight; return; }
+    if (!tujuan) {
+      const lama = foto && foto.pesan[wadah];
+      const tetap = lama && lama.ruang === kotak.dataset.ruang && !lama.bawah && !(wadah === 'kom' && S.kom.keBawah);
+      kotak.scrollTop = tetap ? lama.atas : kotak.scrollHeight;
+      return;
+    }
     kotak.scrollTop = Math.max(0, tujuan.offsetTop - 48);
     if (tujuan.classList.contains('km-psn')) sorotPesan(tujuan);
   }
@@ -6974,6 +7082,7 @@
       case 'foto-hapus':
         if (confirm('Hapus foto profil Anda? Avatar kembali ke inisial, untuk semua orang.')) kirimFoto('');
         break;
+      case 'tema': gantiTema(d.nilai); render(); break;
       case 'ganti-profil':
         if (!bolehTinggalkanPaket()) return;
         S.navBuka = false;

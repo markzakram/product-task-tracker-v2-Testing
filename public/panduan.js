@@ -64,6 +64,7 @@
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
         '**Manajer** (hanya Manager): **Riwayat Aktivitas** dan **Master**, tempat daftar pilihan bersama diatur.',
+        '**Tema** di kaki sidebar (di ponsel: Menu): **Ikuti sistem**, **Terang**, atau **Gelap**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
       ],
     },
     {

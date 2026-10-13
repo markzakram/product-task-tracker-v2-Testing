@@ -1,5 +1,40 @@
 # Changelog — ProductTrack v2
 
+## 2.20.0 — Mode gelap, dan posisi gulir yang bertahan saat klik (2026-10-13)
+
+Permintaan user: "buatkan juga untuk darkmodenya karena belum ada", dan "ketika kadang saya scroll
+dan klik button malah kembali lagi keatas scrollnya, saya ingin lebih stay dengan hasil scroll".
+
+- **Mode gelap.**
+  - Sakelar **Tema** di kaki sidebar (Ikuti sistem · Terang · Gelap), juga lewat Ctrl+K.
+  - Bawaannya ikut perangkat. Pilihan disimpan per browser (`pt2_tema`).
+  - Skrip kecil di `<head>` index.html memasang `data-tema` sebelum CSS dimuat, jadi halaman tak
+    berkedip terang. `meta theme-color` ikut berganti.
+  - Tema dicek lagi saat tab kembali aktif, untuk peramban yang tak memberi tahu pergantian tema
+    perangkat.
+- **Warna jadi token.**
+  - ±150 warna yang tertulis langsung di app.css kini lewat token. Ada token baru untuk garis
+    halus, latar sekunder, amber, ungu paket, nama merek, dan isi pekat `--isi-*` bertulisan
+    putih.
+  - Tinta tipis (garis kode, tabel catatan, kutipan) memakai `color-mix` dari `--tinta`, jadi
+    ikut terang di mode gelap.
+  - Nilai terangnya sama dengan warna sebelumnya: tema terang tidak berubah.
+  - Blok `:root[data-tema="gelap"]` mengganti token. Warna catatan, ikon folder, dan tepi avatar
+    punya versi gelapnya sendiri.
+  - Diperiksa dengan pemeriksa kontras di 16 halaman: tak ada teks di bawah 3,5:1.
+- **Posisi gulir bertahan saat halaman digambar ulang.**
+  - Sebelumnya `render()` mengganti isi sidebar, halaman, dan laci detail. Bagian `<details>`
+    yang dibuka sendiri tertutup lagi, sehingga halaman memendek dan gulir terlempar ke atas.
+    Wadah bergulir juga kembali ke awal: menu sidebar, laci detail, daftar utas, tabel, kanban,
+    dan timeline.
+  - Kini posisi gulir dan bagian yang dibuka atau ditutup sendiri dikembalikan selama halamannya
+    sama (`catatGulir`, `pulihkanGulir`).
+  - Bagian yang dibuka aturan halaman (mis. fase yang sedang berjalan) tetap mengikuti aturannya.
+    Pindah halaman tetap mulai dari atas.
+  - Panel obrolan tak lagi dipaksa turun ke pesan terbaru saat Anda membaca pesan lama di utas
+    yang sama.
+- Panduan "Peta menu" menyebut sakelar tema. Tes baru `test/tema.test.js`. 230 tes.
+
 ## 2.19.0 — ADDIE per tim: tab DAE · RAD · LNA · CLO, urutan tunggu diatur Lead (2026-10-13)
 
 Permintaan user: tab proyek bukan lagi satu ADDIE, melainkan per tim, dan tiap tim punya
