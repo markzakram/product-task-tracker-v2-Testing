@@ -1766,11 +1766,18 @@
       const b = per.get(kunci);
       b.setoran.push(k);
       b.jumlah = Math.max(b.jumlah, Number(k.jumlah) || 0);
-      const tahap = tahapSetoran(k.tahap);
       if (!k.selesai) b.tertunda = true;
-      else if (!b.capai || BOBOT[tahap] > BOBOT[b.capai]) b.capai = tahap;
     }
     return [...per.values()].map(b => {
+      // Capaian bersama (2.26.0): satu capaian boleh dipasang di beberapa langkah alur (mis. QC
+      // E4–E7), dan baru tercapai setelah semua langkah bertanda itu selesai. Batch dinilai dari
+      // capaian tertinggi yang semua langkahnya sudah selesai.
+      const beres = new Map();
+      for (const k of b.setoran) {
+        const tahap = tahapSetoran(k.tahap);
+        beres.set(tahap, beres.get(tahap) !== false && !!k.selesai);
+      }
+      for (const [tahap, ok] of beres) if (ok && (!b.capai || BOBOT[tahap] > BOBOT[b.capai])) b.capai = tahap;
       b.setoran.sort((x, y) => BOBOT[tahapSetoran(x.tahap)] - BOBOT[tahapSetoran(y.tahap)]);
       b.berikut = b.setoran.find(k => !k.selesai) || null;
       return b;
@@ -2146,7 +2153,9 @@
           priority: 'Normal', platform: platform || proj.platform, deps: sebelumnya ? [sebelumnya] : [],
           detail: [`Langkah ${i + 1} dari ${langkah.length}: ${sub.kode} · ${sub.nama}.`,
             `Target paket ${p.id} · ${it.kategori}${it.grup ? ' / ' + it.grup : ''} · ${it.nama}: ${fmtJumlah(jumlah)} ${satuan}.`,
-            l.capaian ? `Saat langkah ini disetujui, batch ini menjadi "${namaCapaian(l.capaian)}" di progres paket.` : '',
+            !l.capaian ? '' : langkah.filter(x => x.capaian === l.capaian).length > 1
+              ? `Batch ini menjadi "${namaCapaian(l.capaian)}" di progres paket setelah semua langkah bertanda itu disetujui: ${langkah.filter(x => x.capaian === l.capaian).map(x => x.kode).join(', ')}.`
+              : `Saat langkah ini disetujui, batch ini menjadi "${namaCapaian(l.capaian)}" di progres paket.`,
             it.catatan].filter(Boolean).join('\n'),
         }, me, waktu, hariIni);
         if (!idBatch) idBatch = 'B-' + t.id;
@@ -2755,9 +2764,15 @@
       const ganda = unik('Kategori', x => x.label);
       if (ganda) return ganda;
       for (const k of daftar) {
-        const tanda = k.alur.map(l => l.split(':')[1]).filter(Boolean);
+        const bertanda = k.alur.filter(l => l.split(':')[1]);
+        const tanda = bertanda.map(l => l.split(':')[1]);
         const urut = tanda.map(t => KODE_CAPAIAN.indexOf(t));
-        if (urut.some((u, i) => i && u <= urut[i - 1])) return `Alur ${k.label}: capaian harus berurutan (${KODE_CAPAIAN.join(' → ')}) dan tiap capaian sekali.`;
+        // Sejak 2.26.0 satu capaian boleh di beberapa langkah (tercapai setelah semuanya selesai);
+        // yang tak boleh: mundur, mis. Konten siap sesudah Ter-input.
+        const mundur = urut.findIndex((u, i) => i && u < urut[i - 1]);
+        if (mundur > 0) {
+          return `Alur ${k.label}: capaian tak boleh mundur (${CAPAIAN.map(c => c.nama).join(' → ')}): ${namaCapaian(tanda[mundur])} di ${bertanda[mundur].split(":")[0]} dipasang sesudah ${namaCapaian(tanda[mundur - 1])} di ${bertanda[mundur - 1].split(":")[0]}.`;
+        }
         if (!tanda.includes('tayang')) return `Alur ${k.label}: tandai langkah terakhirnya "tayang" (100%).`;
         for (const l of k.alur) {
           const kode = l.split(':')[0];

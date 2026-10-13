@@ -1,5 +1,22 @@
 # Changelog — ProductTrack v2
 
+## 2.26.0 — Capaian bersama di alur kategori paket (2026-10-13)
+
+Permintaan user, sesudah Lead mendapat galat "capaian harus berurutan dan tiap capaian sekali"
+saat menandai semua langkah QC Latsol (E4–E7) sebagai Lolos QC.
+
+- **Satu capaian boleh dipasang di beberapa langkah** alur kategori paket, mis. Konten siap di DV1
+  dan E1, atau Lolos QC di E4, E5, E6, dan E7 yang dikerjakan bersamaan.
+- **Tercapai setelah semuanya selesai**: batch baru naik ke capaian itu setelah semua langkah
+  bertanda itu disetujui (`Inti.batchSetoran`); sebelumnya langkah pertama yang selesai sudah
+  menaikkannya. Batch tetap dinilai dari capaian tertinggi yang lengkap.
+- **Tetap ditolak: capaian mundur**, mis. Konten siap sesudah Ter-input. Pesannya kini menyebut
+  langkahnya: "Konten siap di I1 dipasang sesudah Ter-input di DV8". Tayang tetap wajib ada.
+- Keterangan task hasil elaborasi menyebut semua langkah dalam satu capaian ("… setelah semua
+  langkah bertanda itu disetujui: E4, E5, E6, E7"). Tayang (I4) tetap menunggu semua QC tim LNA.
+- Teks bantuan di form kategori (Master), README (Rancangan paket, Master), dan Panduan
+  (Mengatur Master) menyebutnya. Tes baru di `test/setoran.test.js`. 250 tes.
+
 ## 2.25.0 — Pindah kode sub-stage, mode uji Dev, task turunan, form paket (2026-10-13)
 
 Lima revisi user.

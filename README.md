@@ -189,7 +189,9 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
    **terpenuhi** saat batch-nya tayang. Bobot itu bawaan dari usulan PRD; sejak 0.14.0 nama dan
    bobotnya diatur Manager di halaman **Master** (tayang tetap 100%). Sejak 2.19.0 tayang (I4)
    menunggu QC lagi, jadi batch dengan alur bawaan naik ter-input (60%) → lolos QC (85%) →
-   tayang (100%).
+   tayang (100%). Sejak 2.26.0 satu capaian boleh dipasang di **beberapa langkah** (mis. Lolos
+   QC di E4–E7 yang dikerjakan bersamaan): capaian itu baru tercapai setelah semua langkah
+   bertanda itu disetujui. Urutan capaiannya tetap tak boleh mundur.
 4. Progres **dihitung, bukan dipicu**: tak ada yang ditulis saat task selesai. Task yang dibuka
    kembali otomatis menurunkan progresnya lagi.
 
@@ -591,7 +593,8 @@ profil) hanya tampil dan berlaku di mode Dev (0.14.1).
     memakai kode lama. Server menulis barisnya berurutan (kode baru, alur, kode lama) lewat aksi
     `pindahSub`; aturannya `Inti.pindahSub`.
 - **Kategori paket**: tambah kategori, susun **alur langkah** dan tanda capaiannya (konten →
-  input → QC → tayang; tayang wajib), urutkan, nonaktifkan. Nama kategori tetap, karena item
+  input → QC → tayang, tak boleh mundur; tayang wajib; sejak 2.26.0 satu capaian boleh di
+  beberapa langkah), urutkan, nonaktifkan. Nama kategori tetap, karena item
   paket merujuk ke nama itu.
 - **Platform & satuan**: tambah, urutkan, nonaktifkan.
 - **Label & bobot**: label prioritas, nama tim, serta nama dan bobot capaian (naik berurutan,

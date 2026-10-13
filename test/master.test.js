@@ -31,7 +31,7 @@ test('periksaMaster: isian dibersihkan; yang merusak ditolak dengan alasan yang 
     ['platform', { baru: true, kunci: 'asn' }, /sudah ada/],
     ['platform', { kunci: 'Mars', aktif: false }, /tidak ditemukan/],
     ['kategori', { baru: true, label: 'Coba', alur: ['DV1', 'E1:konten'] }, /tayang/],
-    ['kategori', { baru: true, label: 'Coba', alur: ['DV1:input', 'E1:konten', 'I4:tayang'] }, /berurutan/],
+    ['kategori', { baru: true, label: 'Coba', alur: ['DV1:input', 'E1:konten', 'I4:tayang'] }, /Konten siap di E1 dipasang sesudah Ter-input di DV1/],
     ['kategori', { baru: true, label: 'Coba', alur: ['R1', 'I4:tayang'] }, /bukan sub-stage ADDIE/],
     ['kategori', { baru: true, label: 'Latsol', alur: ['DV1', 'I4:tayang'] }, /ganda/],
     ['capaian', { kunci: 'konten', nama: 'Konten siap', bobot: 70 }, /naik berurutan/],

@@ -240,3 +240,32 @@ test('hapus proyek (2.22.0): hanya Manager; task, turunan, dan setorannya ikut h
   assert.equal(d.log[0].detail, 'Proyek dihapus beserta 9 task dan 4 setoran paket');
   assert.match(I.jalankanPerintah(d, { aksi: 'hapusProyek', isi: { proyek: project.id }, oleh: 'nynda', at: WAKTU + 2, hari: HARI }).galat, /tidak ditemukan/);
 });
+
+test('capaian bersama (2.26.0): satu capaian di beberapa langkah, tercapai setelah semuanya selesai; mundur tetap ditolak', () => {
+  // Alur Latsol seperti yang disusun user: Konten siap di DV1 & E1, Lolos QC di E4–E7.
+  const alur = 'DV1:konten, E1:konten, DV8:input, I1, E4:qc, E5:qc, E6:qc, E7:qc, I4:tayang';
+  const kat = I.periksaMaster('kategori', { kunci: 'latsol', alur }, []);
+  assert.throws(() => I.periksaMaster('kategori', { kunci: 'latsol', alur: alur.replace('I1,', 'I1:konten,') }, []), /Konten siap di I1 dipasang sesudah Ter-input di DV8/);
+  I.aturMaster([kat]);
+  try {
+    const d = data();
+    const { tasks } = elaborasi(d, { items: ['ITM-A'] });
+    assert.deepEqual(d.setoran.map(s => [tasks.find(t => t.id === s.task).sub, s.tahap]),
+      [['DV1', 'konten'], ['E1', 'konten'], ['DV8', 'input'], ['E4', 'qc'], ['E5', 'qc'], ['E6', 'qc'], ['E7', 'qc'], ['I4', 'tayang']]);
+    const e5 = tasks.find(t => t.sub === 'E5');
+    assert.match(e5.detail, /Lolos QC output" di progres paket setelah semua langkah bertanda itu disetujui: E4, E5, E6, E7/);
+    assert.match(tasks.find(t => t.sub === 'DV8').detail, /Saat langkah ini disetujui, batch ini menjadi "Ter-input"/);
+
+    // Progres: tiap capaian baru terhitung setelah semua langkah bertanda itu selesai.
+    const k = (sub, selesai) => ({ ...d.setoran.find(s => tasks.find(t => t.id === s.task).sub === sub), selesai, hilang: false });
+    const capai = selesai => I.batchSetoran(['DV1', 'E1', 'DV8', 'E4', 'E5', 'E6', 'E7', 'I4'].map(s => k(s, selesai.includes(s))))[0].capai;
+    assert.equal(capai(['DV1']), '', 'Konten siap belum: E1 belum selesai');
+    assert.equal(capai(['DV1', 'E1']), 'konten');
+    assert.equal(capai(['DV1', 'E1', 'DV8', 'E4', 'E5', 'E6']), 'input', 'Lolos QC belum: E7 belum selesai');
+    assert.equal(capai(['DV1', 'E1', 'DV8', 'E4', 'E5', 'E6', 'E7']), 'qc');
+    assert.equal(capai(['DV1', 'DV8']), 'input', 'capaian lebih tinggi yang lengkap tetap terhitung, seperti sebelumnya');
+    // I4 tayang tetap menunggu semua QC LNA (fase Evaluation) lewat urutan alur.
+    const i4 = tasks.find(t => t.sub === 'I4');
+    assert.deepEqual(['E4', 'E5', 'E6', 'E7'].every(s => i4.tunggu.includes(tasks.find(t => t.sub === s).id)), true);
+  } finally { I.aturMaster([]); }
+});

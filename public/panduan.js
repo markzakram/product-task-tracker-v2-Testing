@@ -307,7 +307,7 @@
         'Yang sudah dipakai data tidak dihapus, hanya **dinonaktifkan**: tak ditawarkan lagi, tapi task dan paket lamanya tetap terbaca. Panah atas-bawah mengatur urutan platform, satuan, dan kategori.',
         '**Hapus sub-stage**: tombol tempat sampah di baris sub-stage. Hanya yang belum dipakai task mana pun dan tak ada di alur paket; kalau sudah dipakai, jendelanya menawarkan **Nonaktifkan**. Kode yang dihapus tak dipakai ulang dan bisa **dipulihkan** dari bagian **Sudah dihapus**. E12 tak bisa dihapus karena menutup siklus.',
         '**Pindahkan ke kode lain** (tombol panah di baris sub-stage): kalau hanya kegiatannya yang ingin dipindah, mis. dari E10 ke I9. Nama, tim, dan review pindah ke kode baru, alur paket ikut; kode lama dihapus kalau belum dipakai task, selain itu dinonaktifkan.',
-        '**Kategori paket**: susun alur langkahnya dan tandai capaiannya berurutan (konten, input, QC, tayang). Kategori baru langsung muncul di form rancangan paket dan di salinan sheet Marsel.',
+        '**Kategori paket**: susun alur langkahnya dan tandai capaiannya berurutan (konten, input, QC, tayang; tak boleh mundur). Satu capaian boleh dipasang di beberapa langkah, mis. semua langkah QC: progresnya naik setelah semua langkah itu selesai. Langkah lain biarkan Tanpa capaian. Kategori baru langsung muncul di form rancangan paket dan di salinan sheet Marsel.',
 
         'Perubahan tersimpan di spreadsheet v2 dan berlaku bagi semua orang saat aplikasi dimuat ulang.',
       ],

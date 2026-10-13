@@ -6635,7 +6635,7 @@
       <div class="isian"><span>Alur langkah</span>
         <ol class="mst-langkah-daftar">${alur.map(barisLangkah).join('')}</ol>
         <button type="button" class="tombol kecil mst-langkah-tambah" data-aksi="mst-langkah-tambah">${ikon('tambah', 14)} Tambah langkah</button>
-        <small>Urut dari atas. Capaian menandai langkah yang menaikkan progres paket: urutannya ${I.CAPAIAN.map(c => esc(c.nama)).join(' → ')}, masing-masing sekali, dan langkah ${esc(I.namaCapaian('tayang'))} wajib ada.</small></div>
+        <small>Urut dari atas. Capaian menandai langkah yang menaikkan progres paket, urutannya ${I.CAPAIAN.map(c => esc(c.nama)).join(' → ')} (tak boleh mundur), dan langkah ${esc(I.namaCapaian('tayang'))} wajib ada. Satu capaian boleh dipasang di beberapa langkah, mis. semua langkah QC: progres baru naik setelah semua langkah bertanda itu selesai. Langkah lain biarkan Tanpa capaian.</small></div>
       ${k ? `<label class="dev-cek"><input type="checkbox" name="aktif" ${k.aktif ? 'checked' : ''}> Aktif — ditawarkan untuk item paket baru</label>` : ''}
       ${kakiModal(k ? 'Simpan' : 'Tambah')}
     </form>`;
