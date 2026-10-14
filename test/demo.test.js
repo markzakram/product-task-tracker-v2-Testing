@@ -105,3 +105,17 @@ test('skenario contoh PAPI Kostick (2.29.1, 2.30.0): proyek tanpa paket, serah-t
   assert.ok(I.notifikasi(d, 'ali').some(n => n.jenis === 'siap' && n.task === sub('DV7').id), 'notifikasi siap untuk Ali');
   assert.ok(I.depsBelum(sub('I5'), kini).some(x => x.id === sub('DV7').id), 'uji coba menunggu prototype (fase DAE)');
 });
+
+test('skenario contoh Inisiatif (2.31.0): empat inisiatif DAE, pembaruannya task rutin tanpa tinjauan', () => {
+  const d = data();
+  const r = tambahDemo(d, SEKARANG);
+  assert.equal(r.inisiatif, 4);
+  assert.deepEqual(d.inisiatif.map(x => x.nama).sort(), ['AI Generate Soal', 'Dashboard internal', 'Product Knowledge', 'ProductTrack v2']);
+  assert.ok(d.inisiatif.every(x => x.tim === 'SI' && x.pic === 'ali' && x.status === 'aktif'));
+  const v2 = d.inisiatif.find(x => x.nama === 'ProductTrack v2');
+  const r2 = I.ringkasInisiatif(d, v2, HARI);
+  assert.equal(r2.buka.length >= 1 && r2.beres.length >= 1, true, 'ada pembaruan berjalan dan riwayat');
+  assert.ok(r2.tasks.every(t => !t.project && t.lane === 'rutin' && !I.peninjau(t)), 'task rutin, tanpa tinjauan');
+  assert.ok(r2.beres.every(t => t.status === 'Selesai'));
+});
+

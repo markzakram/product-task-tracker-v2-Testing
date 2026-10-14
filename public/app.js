@@ -31,6 +31,10 @@
        angka. Isian yang diketik orang (judul, nama, kode) tetap; frasa tetap di dalamnya ikut tr(). */
     // Izin per peran (tolakIzin): "Hanya Lead atau Manager yang membuat paket."
     [/^Hanya ((?:Staff|Lead|Manager|mode Dev)(?:, (?:Staff|Lead|Manager|mode Dev))*(?:,? atau (?:Staff|Lead|Manager|mode Dev))?) yang ([a-z][A-Za-z ]*)\.$/, m => tr('Hanya {peran} yang {aksi}.', { peran: m[1].split(' atau ').join(' ' + tr('atau') + ' ').replace('mode Dev', tr('mode Dev')), aksi: tr(m[2]) })],
+    // Inisiatif (2.31.0).
+    [/^PIC inisiatif adalah anggota tim (.+)\.$/, m => tr('PIC inisiatif adalah anggota tim {tim}.', { tim: m[1] })],
+    [/^Inisiatif (.+) sudah selesai\. Aktifkan lagi dulu untuk menambah pembaruan\.$/, m => tr('Inisiatif {nama} sudah selesai. Aktifkan lagi dulu untuk menambah pembaruan.', { nama: m[1] })],
+    [/^Inisiatif ini punya (\d+) task\. Tandai Selesai saja supaya riwayat pembaruannya tetap\.$/, m => tr('Inisiatif ini punya {n} task. Tandai Selesai saja supaya riwayat pembaruannya tetap.', { n: m[1] })],
     // Laporan: "Selesai Sen, 12 Okt" (· lewat tenggat). Teks Indonesianya tetap dipakai barisTask untuk warnanya.
     [/^Selesai ((?:\S+,? )?\d{1,2} \S+)( · lewat tenggat)?$/, m => tr('Selesai {tanggal}', { tanggal: m[1] }) + (m[2] ? ' · ' + tr('lewat tenggat') : '')],
     [/^Tak ada peran yang boleh (.+) \(diatur di Panel Dev → Izin\)\.$/, m => tr('Tak ada peran yang boleh {aksi} (diatur di Panel Dev → Izin).', { aksi: tr(m[1]) })],
@@ -200,6 +204,7 @@
     { grup: 'Ringkasan', id: 'laporan', judul: 'Laporan', ikon: 'laporan', izin: 'halaman.laporan' },
     { grup: 'Pekerjaan', id: 'paket', judul: 'Rancangan Paket', ikon: 'kotak' },
     { grup: 'Pekerjaan', id: 'proyek', judul: 'Proyek', ikon: 'lapis' },
+    { grup: 'Pekerjaan', id: 'inisiatif', judul: 'Inisiatif', ikon: 'aktivitas', boleh: () => I.bolehLihatInisiatif(S.me) },
     { grup: 'Pekerjaan', id: 'task', judul: 'Task', ikon: 'tugas' },
     { grup: 'Pekerjaan', id: 'komunikasi', judul: 'Komunikasi', ikon: 'obrolan' },
     { grup: 'Ruang Saya', id: 'agenda', judul: 'Kalender Saya', ikon: 'kalender' },
@@ -235,6 +240,7 @@
     const h = HALAMAN.find(x => x.id === id);
     if (!h) return false;
     if (h.dev) return modeDev();
+    if (h.boleh) return h.boleh();
     // Sejak 2.29.0 mengikuti izin per peran (Panel Dev → Izin).
     return !h.izin || I.izin(S.me, h.izin);
   }
@@ -292,6 +298,8 @@
     /* Pesan bersama dari tab obrolan spreadsheet v2 (lihat tarikObrolan). */
     obr: { peristiwa: [], sejak: 0, versi: 0, diperbarui: 0, galat: '', gagal: 0, menarik: false },
     pkt: { q: '', platform: [], dari: '', sampai: '', atur: false, pilih: null, sunting: false, kotor: false },
+    /* Inisiatif (2.31.0): yang dibuka dan saringan status. */
+    ini: { pilih: null, status: 'aktif' },
     /* penuh = kartu folder yang sedang menampilkan semua link-nya (selama sesi ini). */
     lnk: { q: '', penuh: new Set() },
     /* pilih = catatan yang terbuka di editor: id, '__baru' (belum tersimpan), atau null.
@@ -780,7 +788,8 @@
   /* Labelnya dari Master (bawaan: Penting, Mendesak). */
   const chipPenting = t => (['Urgent', 'High'].includes(t.priority) ? `<span class="chip-penting">${esc(I.labelPrioritas(t.priority))}</span>` : '');
   const proyekDari = id => S.data.projects.find(p => p.id === id);
-  const asal = t => (t.project ? (proyekDari(t.project) || { name: t.project }).name : t.kategori || tr('Rutin'));
+  const inisiatifDari = id => (id ? (S.data.inisiatif || []).find(x => x.id === id) || null : null);
+  const asal = t => (t.project ? (proyekDari(t.project) || { name: t.project }).name : (inisiatifDari(t.inisiatif) || {}).nama || t.kategori || tr('Rutin'));
   function ringkasSub(t) {
     if (!t.subtasks.length) return '';
     return tr('{a}/{b} ceklis', { a: t.subtasks.filter(s => s.done).length, b: t.subtasks.length });
@@ -1081,8 +1090,9 @@
       tasks: daftar(d.tasks).map(t => ({
         ...t, sub: t.sub || '', support: daftar(t.support), deps: daftar(t.deps), subtasks: daftar(t.subtasks), comments: daftar(t.comments),
         tinjauan: daftar(t.tinjauan), evidence: daftar(t.evidence), output: t.output || '', selesaiAt: Number(t.selesaiAt) || 0,
-        induk: t.induk || '', tunggu: daftar(t.tunggu), lepasFase: !!t.lepasFase,
+        induk: t.induk || '', tunggu: daftar(t.tunggu), lepasFase: !!t.lepasFase, inisiatif: t.inisiatif || '',
       })),
+      inisiatif: daftar(d.inisiatif).map(x => ({ ...x, status: x.status || 'aktif', links: daftar(x.links) })),
       packages: daftar(d.packages).map(p => ({
         ...p, namaPaket: p.namaPaket || p.name || '', mirror: !!p.mirror,
         items: daftar(p.items).map(i => ({ ...i, target: angka(i.target), awal: angka(i.awal), satuan: i.satuan || 'Paket' })),
@@ -1395,6 +1405,7 @@
     if (S.view === 'task') b.push(S.task.tampilan);
     if (S.view === 'proyek' && S.proyek) b.push(S.proyek);
     if (S.view === 'paket' && S.pkt.pilih) b.push(S.pkt.pilih);
+    if (S.view === 'inisiatif' && S.ini.pilih) b.push(S.ini.pilih);
     if (S.view === 'komunikasi' && S.kom.pilih) b.push(alamatRuang(S.kom.pilih));
     if (S.view === 'catatan' && S.ctt.pilih && S.ctt.pilih !== '__baru') b.push(S.ctt.pilih);
     if (S.pilih && S.view !== 'komunikasi') b.push(S.pilih);
@@ -1413,6 +1424,7 @@
     Object.assign(S, { view: hal, pilih: null });
     if (hal === 'proyek') S.proyek = null;
     if (hal === 'paket') Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
+    if (hal === 'inisiatif') S.ini.pilih = null;
     if (hal === 'komunikasi') S.kom.pilih = null;
     if (hal === 'catatan') S.ctt.pilih = null;
     for (const x of sisa) {
@@ -1430,6 +1442,7 @@
       else if (hal === 'task' && ID_TAMPILAN.includes(x)) S.task.tampilan = x;
       else if (hal === 'proyek' && /^PRJ-/.test(x)) { if (ada(S.data.projects, x)) S.proyek = x; }
       else if (hal === 'paket' && /^PKG-/.test(x)) { if (ada(S.data.packages, x)) S.pkt.pilih = x; }
+      else if (hal === 'inisiatif' && /^INI-/.test(x)) { if (ada(S.data.inisiatif || [], x)) S.ini.pilih = x; }
       else if (hal === 'catatan') { const n = catatanSaya().find(c => c.id === x); if (n) pilihAwal(n); }
     }
     return { ok: true, hilang, ditolak };
@@ -1579,11 +1592,11 @@
     /* Tombol tambah task hanya di halaman task; di Komunikasi ia menutupi kotak tulis. */
     $('#fab').hidden = !I.bolehBuatTask(S.me) || !HALAMAN_TASK.includes(S.view);
   }
-  const HALAMAN_TASK = ['hari', 'dashboard', 'task', 'proyek'];
+  const HALAMAN_TASK = ['hari', 'dashboard', 'task', 'proyek', 'inisiatif'];
 
   const GAMBAR = {
     hari: () => viewHari(), dashboard: () => viewDashboard(), laporan: () => viewLaporan(), task: () => viewTask(),
-    proyek: () => viewProyek(), paket: () => viewPaket(), komunikasi: () => viewKomunikasi(),
+    proyek: () => viewProyek(), paket: () => viewPaket(), inisiatif: () => viewInisiatif(), komunikasi: () => viewKomunikasi(),
     link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(), panduan: () => viewPanduan(), agenda: () => viewAgenda(),
     master: () => viewMaster(), dev: () => viewDev(),
   };
@@ -2402,7 +2415,7 @@
 
     return `<div class="detail">
       <div class="detail-atas"><div>
-        <p class="detail-asal">${p ? `<button type="button" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button>` : `${jenis === 'lepas' ? tr('Lepas') : tr('Rutin')} · ${esc(t.kategori || tr('Umum'))}`} · ${esc(t.id)}</p>
+        <p class="detail-asal">${p ? `<button type="button" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button>` : inisiatifDari(t.inisiatif) ? `${tr('Inisiatif§satu')} · <button type="button" data-aksi="buka-inisiatif" data-id="${esc(t.inisiatif)}">${esc(inisiatifDari(t.inisiatif).nama)}</button>` : `${jenis === 'lepas' ? tr('Lepas') : tr('Rutin')} · ${esc(t.kategori || tr('Umum'))}`} · ${esc(t.id)}</p>
         <h2>${esc(t.title)}</h2>
         ${induk ? `<p class="detail-induk">↳ ${tr('Task turunan dari')} <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
         <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : `<span class="pill lb-menunggu">${tr('Belum ber-sub-stage')}</span>`}${tim ? ` · ${tr('Tim {tim}', { tim: esc(I.labelTim(tim.kode)) })}` : ''}${s && s.reviewManager ? ' · ' + tr('direview Manager') : ''}${tanya('konsep-kode', tr('sub-stage dan tim'))}</p>
@@ -2410,6 +2423,7 @@
         <div class="detail-orang">${avatar(t.pic)} ${tr('PIC')} ${nama(t.pic)}${statusHtml(t.pic)}
           ${t.support.length ? ` · ${tr('bantuan')} ${t.support.map(nama).join(', ')}` : ''}
           · ${tinjau ? tr('ditinjau {nama}', { nama: nama(tinjau) }) : jenis === 'proyek' ? tr('tanpa tinjauan') : tr('tanpa tinjauan (di luar proyek)')}</div>
+        ${pilihInisiatifTask(t, bisaSub)}
       </div>
       <div class="detail-tombol">
         <button type="button" class="ikon-tombol" data-aksi="salin-tautan" data-alamat="#/task/${esc(t.id)}" title="${tr('Salin tautan task ini')}" aria-label="${tr('Salin tautan task ini')}">${ikon('tautan', 18)}</button>
@@ -3209,6 +3223,107 @@
             <li>${teksRiwayat(x)} <small>· ${esc(relatif(x.at))}</small></li>`).join('')}</ul></section>` : ''}
         </div>
       </div>`;
+  }
+
+  /* ---------- Inisiatif (2.31.0, permintaan user) ----------
+     Pekerjaan berkelanjutan di luar rancangan paket dan siklus ADDIE (mis. ProductTrack v2,
+     Product Knowledge), sementara khusus tim DAE dan Manager. Dideklarasikan sekali; tiap
+     pembaruannya task biasa di jalur rutin (tanpa tinjauan) yang menempel ke inisiatif itu. */
+  const STATUS_INI = () => I.STATUS_INISIATIF.map(([k, l]) => [k, tr(l)]);
+  const pillInisiatif = st => `<span class="pill ini-${esc(st)}">${esc(tr((I.STATUS_INISIATIF.find(([k]) => k === st) || [st, st])[1]))}</span>`;
+  function viewInisiatif() {
+    const x = inisiatifDari(S.ini.pilih);
+    if (x) return viewInisiatifDetail(x);
+    const h = hariIni();
+    const semua = S.data.inisiatif || [];
+    // Yang paling baru diperbarui di atas.
+    const tampil = semua.filter(y => S.ini.status === 'semua' || y.status === S.ini.status)
+      .map(y => [y, I.ringkasInisiatif(S.data, y, h).terakhir]).sort((a, b) => b[1] - a[1]).map(([y]) => y);
+    const hitung = st => semua.filter(y => y.status === st).length;
+    const kartu = y => {
+      const r = I.ringkasInisiatif(S.data, y, h);
+      return `<button type="button" class="kartu-polos ini-kartu" data-aksi="buka-inisiatif" data-id="${esc(y.id)}">
+        <span class="ini-kartu-atas"><strong>${esc(y.nama)}</strong>${pillInisiatif(y.status)}</span>
+        <small>${esc(y.id)} · ${chipTim(y.tim)} · ${tr('PIC {nama}', { nama: nama(y.pic) })}</small>
+        ${y.tujuan ? `<span class="ini-tujuan">${esc(potong(y.tujuan, 160))}</span>` : ''}
+        <span class="ini-angka">${tr('{a} terbuka · {b} telat · {c} selesai 30 hari', { a: r.buka.length, b: r.telat, c: r.selesai30 })}</span>
+        <small>${tr('Terakhir diperbarui {waktu}', { waktu: esc(relatif(r.terakhir)) })}</small>
+      </button>`;
+    };
+    return `<div class="judul-halaman"><div><h1>${tr('Inisiatif')}</h1>
+        <p>${tr('Pekerjaan berkelanjutan di luar rancangan paket. Tiap pembaruannya menjadi task biasa: masuk Hari Ini, beban, Laporan, dan hitungan telat, tanpa tinjauan.')}</p></div>
+        <div class="segmen" role="group" aria-label="${tr('Status inisiatif')}">${[...STATUS_INI(), ['semua', tr('Semua')]].map(([k, l]) => `<button type="button" data-aksi="ini-status" data-nilai="${k}" aria-pressed="${S.ini.status === k}">${esc(l)}${k === 'semua' ? '' : ` (${hitung(k)})`}</button>`).join('')}</div>
+        ${I.bolehKelolaInisiatif(S.me) ? `<button type="button" class="tombol utama" data-aksi="inisiatif-baru">${ikon('tambah', 16)} ${tr('Inisiatif baru')}</button>` : ''}
+      </div>
+      ${tampil.length ? `<div class="ini-grid">${tampil.map(kartu).join('')}</div>`
+        : `<div class="kosong-isi">${semua.length ? tr('Tak ada inisiatif dengan status ini.') : tr('Belum ada inisiatif. Deklarasikan pekerjaan berkelanjutan tim Anda, mis. ProductTrack v2 atau Product Knowledge, lalu catat tiap pembaruannya sebagai task.')}</div>`}`;
+  }
+  function viewInisiatifDetail(x) {
+    const h = hariIni();
+    const r = I.ringkasInisiatif(S.data, x, h);
+    const kelola = I.bolehKelolaInisiatif(S.me, x);
+    const tautan = (x.links || []).filter(l => tautanAman(l.url));
+    const riwayat = r.beres.slice(0, 40);
+    return `<div class="baris-kembali"><button type="button" class="kembali" data-aksi="tutup-inisiatif">${ikon('kiri', 18)} ${tr('Semua inisiatif')}</button>
+        <button type="button" class="tombol kecil" data-aksi="salin-tautan" data-alamat="#/inisiatif/${esc(x.id)}">${ikon('tautan', 16)} ${tr('Salin tautan')}</button></div>
+      <div class="kepala-proyek kartu-polos" style="margin-top:8px">
+        <div><p class="detail-asal">${esc(x.id)} · ${chipTim(x.tim)} · ${tr('PIC {nama}', { nama: nama(x.pic) })} · ${pillInisiatif(x.status)}</p>
+          <h1 class="judul-besar">${esc(x.nama)}</h1>
+          ${x.tujuan ? `<p class="teks-panjang" style="margin-top:8px">${teksBertaut(x.tujuan)}</p>` : ''}
+          ${tautan.length ? `<p class="ini-tautan">${tautan.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${ikon('luar', 14)} ${esc(l.label)}</a>`).join('')}</p>` : ''}
+          <p class="hint" style="margin-top:8px">${tr('{a} terbuka · {b} telat · {c} selesai 30 hari · terakhir diperbarui {waktu}', { a: r.buka.length, b: r.telat, c: r.selesai30, waktu: esc(relatif(r.terakhir)) })}</p></div>
+        <div class="detail-aksi">
+          ${x.status !== 'selesai' && I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama" data-aksi="inisiatif-pembaruan" data-id="${esc(x.id)}">${ikon('tambah', 16)} ${tr('Tambah pembaruan')}</button>` : ''}
+          ${kelola ? `<button type="button" class="tombol" data-aksi="inisiatif-ubah" data-id="${esc(x.id)}">${ikon('sunting', 16)} ${tr('Ubah')}</button>` : ''}
+          ${kelola && !r.tasks.length ? `<button type="button" class="tombol bahaya" data-aksi="inisiatif-hapus" data-id="${esc(x.id)}">${ikon('hapus', 16)} ${tr('Hapus')}</button>` : ''}
+        </div>
+      </div>
+      <section class="kartu-polos samping-tumpuk" style="margin-top:12px"><p class="subjudul">${tr('Sedang berjalan')} ${r.buka.length ? `<span class="lencana">${r.buka.length}</span>` : ''}</p>
+        ${r.buka.length ? `<div class="grup">${susunHirarki(r.buka).map(y => barisTask(y.t, '', y.anak ? 'anak' : '')).join('')}</div>`
+          : `<p class="hint">${tr('Tak ada pembaruan yang sedang berjalan.')}</p>`}</section>
+      <section class="kartu-polos samping-tumpuk" style="margin-top:12px"><p class="subjudul">${tr('Riwayat pembaruan')}</p>
+        ${riwayat.length ? `<ul class="ini-riwayat">${riwayat.map(t => `<li><span class="ini-tgl">${esc(fmtTanggalPendek(I.isoHari(t.selesaiAt)))}</span>
+            <button type="button" class="tautan-kecil" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(t.id)} · ${esc(potong(t.title, 90))}</button>
+            ${t.output ? `<small>${esc(potong(t.output, 160))}</small>` : ''}</li>`).join('')}</ul>${r.beres.length > riwayat.length ? `<p class="hint">${tr('dan {n} pembaruan lebih lama.', { n: r.beres.length - riwayat.length })}</p>` : ''}`
+          : `<p class="hint">${tr('Belum ada pembaruan yang selesai.')}</p>`}</section>`;
+  }
+  /* Tautan inisiatif ditulis satu per baris: "Judul | https://…" atau alamatnya saja. */
+  const tautanDariTeks = s => String(s || '').split('\n').map(b => b.trim()).filter(Boolean).map(b => {
+    const i = b.lastIndexOf('|');
+    return i >= 0 ? { label: b.slice(0, i).trim(), url: b.slice(i + 1).trim() } : { label: '', url: b };
+  });
+  const teksTautan = links => (links || []).map(l => `${l.label} | ${l.url}`).join('\n');
+  function formInisiatif(x) {
+    const tim = x ? x.tim : (I.timOrang(S.me) && I.TIM_INISIATIF.includes(I.timOrang(S.me).kode) ? I.timOrang(S.me).kode : I.TIM_INISIATIF[0]);
+    const lead = (I.TIM[tim] || {}).lead;
+    const anggota = lead ? [lead, ...I.timDari(lead)] : [];
+    return `<form data-form="modal" novalidate>
+      <h2>${x ? tr('Ubah inisiatif') : tr('Inisiatif baru')}</h2>
+      <p class="hint">${tr('Pekerjaan berkelanjutan tim {tim} di luar rancangan paket. Tiap pembaruannya nanti ditambahkan sebagai task.', { tim: esc(I.labelTim(tim)) })}</p>
+      <label class="isian">${tr('Nama inisiatif')} <input name="nama" required maxlength="120" placeholder="${tr('mis. ProductTrack v2')}" value="${esc(x ? x.nama : '')}"></label>
+      <label class="isian">${tr('Tujuan')} <textarea name="tujuan" maxlength="2000" placeholder="${tr('Untuk apa, dan seperti apa hasilnya?')}">${esc(x ? x.tujuan || '' : '')}</textarea></label>
+      <div class="dua-isian">
+        <label class="isian">${tr('PIC')} <select name="pic">${opsiHtml(anggota.map(id => [id, I.orang(id).pendek]), x ? x.pic : (anggota.includes(S.me) ? S.me : lead))}</select></label>
+        ${x ? `<label class="isian">${tr('Status')} <select name="status">${opsiHtml(STATUS_INI(), x.status)}</select></label>` : '<span></span>'}
+      </div>
+      <label class="isian">${tr('Tautan (opsional)')} <textarea name="links" rows="3" placeholder="${tr('Satu per baris: Judul | https://…')}">${esc(x ? teksTautan(x.links) : '')}</textarea></label>
+      ${kakiModal(x ? tr('Simpan') : tr('Deklarasikan'))}
+    </form>`;
+  }
+  /* Pilihan inisiatif di form Tambah task (jalur rutin). */
+  function opsiInisiatifForm(terpilih, jalur) {
+    if (!I.bolehLihatInisiatif(S.me)) return '';
+    const daftar = (S.data.inisiatif || []).filter(x => x.status !== 'selesai');
+    if (!daftar.length) return '';
+    return `<label class="isian" data-bagian="rutin" ${jalur === 'rutin' ? '' : 'hidden'}>${tr('Inisiatif§satu')} <select name="inisiatif">${opsiHtml([['', tr('— bukan pembaruan inisiatif —')], ...daftar.map(x => [x.id, x.nama])], terpilih || '')}</select>
+        <small>${tr('Pembaruan inisiatif boleh tanpa jenis rutin.')}</small></label>`;
+  }
+  /* Pilihan inisiatif di detail task di luar proyek. */
+  function pilihInisiatifTask(t, boleh) {
+    if (t.project || !boleh || !I.bolehLihatInisiatif(S.me)) return '';
+    const daftar = (S.data.inisiatif || []).filter(x => x.status !== 'selesai' || x.id === t.inisiatif);
+    if (!daftar.length) return '';
+    return `<label class="label-kecil tautkan ini-pilih">${tr('Inisiatif§satu')} <select data-aksi="tempel-inisiatif" data-id="${esc(t.id)}">${opsiHtml([['', tr('— tidak ada —')], ...daftar.map(x => [x.id, x.nama])], t.inisiatif || '')}</select></label>`;
   }
 
   /* ---------- Rancangan Paket ---------- */
@@ -7675,7 +7790,7 @@
     const staff = I.orang(S.me).peran === 'staff';
     const lead = I.orang(S.me).peran === 'lead';
     return `<form data-form="modal" data-task="baru" novalidate>
-      <h2>${tr('Tambah task')}${tim ? ' ' + esc(I.singkatTim(tim)) : ''}${tahap ? ' · ' + esc(I.namaTahap(tahap)) : ''}</h2>
+      <h2>${preset.inisiatif && inisiatifDari(preset.inisiatif) ? `${tr('Tambah pembaruan')} · ${esc(inisiatifDari(preset.inisiatif).nama)}` : tr('Tambah task')}${tim ? ' ' + esc(I.singkatTim(tim)) : ''}${tahap ? ' · ' + esc(I.namaTahap(tahap)) : ''}</h2>
       <label class="isian">${tr('Judul task')} <input name="title" required maxlength="200" placeholder="${tr('mis. QC output paket TO 3')}" value="${esc(preset.judul || '')}"></label>
       ${tahap ? `<p class="hint">${tim ? tr('Task proyek tim <strong>{tim}</strong> di fase <strong>{tahap}</strong>: sub-stage yang tersedia hanya milik tim dan fase ini.', { tim: esc(I.labelTim(tim)), tahap: esc(I.namaTahap(tahap)) }) : tr('Task proyek di fase <strong>{tahap}</strong>: sub-stage yang tersedia hanya milik fase ini.', { tahap: esc(I.namaTahap(tahap)) })}</p>` : `<div class="isian"><span>${tr('Jalur')}</span>
         <div class="segmen" role="group" aria-label="${tr('Jalur')}">
@@ -7691,6 +7806,7 @@
         <label class="isian">${tr('Sub-stage')} <select name="subProyek" data-sub>${opsiSub('proyek', subProyek, true, tahap, tim)}</select></label>
       </div>
       <label class="isian" data-bagian="rutin" ${jalur === 'rutin' ? '' : 'hidden'}>${tr('Jenis rutin')} <select name="subRutin" data-sub>${opsiSub('rutin', subRutin, true)}</select></label>
+      ${opsiInisiatifForm(preset.inisiatif, jalur)}
       <p class="hint" data-hint-sub>${esc(hintSub(kode))}</p>
       <div class="dua-isian">
         <label class="isian">${tr('PIC')} <select name="pic" data-otomatis="1">${opsiPic(pilihanPic(kode), picBawaan(kode), kode)}</select></label>
@@ -8061,10 +8177,12 @@
       switch (m.jenis) {
         case 'tambah': {
           const proyek = f.jalur === 'proyek';
-          if (!(proyek ? f.subProyek : f.subRutin)) throw new Error(proyek ? tr('Pilih sub-stage dulu.') : tr('Pilih jenis rutin dulu.'));
+          // Pembaruan inisiatif (2.31.0) boleh tanpa jenis rutin.
+          if (!(proyek ? f.subProyek : f.subRutin || f.inisiatif)) throw new Error(proyek ? tr('Pilih sub-stage dulu.') : tr('Pilih jenis rutin dulu.'));
           const t = ubahData('taskBaru', { f: {
             title: f.title, project: proyek ? f.project : '', sub: proyek ? f.subProyek : f.subRutin,
             pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, induk: proyek ? f.induk || '' : '',
+            inisiatif: proyek ? '' : f.inisiatif || '',
           } });
           // Dibuat dari baris catatan: nomor task-nya ditempel di ujung baris itu.
           const asal = m.catatan && S.data.notes.find(x => x.id === m.catatan && x.user === S.me);
@@ -8072,6 +8190,7 @@
           tutupModal();
           if (!asal) S.pilih = t.id;
           return selesaiUbah((t.induk ? tr('{id} · {sub} ditambahkan untuk {nama} sebagai task turunan {induk}.', { id: t.id, sub: t.sub, nama: I.orang(t.pic).pendek, induk: t.induk })
+            : t.inisiatif ? tr('{id} ditambahkan untuk {nama} sebagai pembaruan {inisiatif}.', { id: t.id, nama: I.orang(t.pic).pendek, inisiatif: (inisiatifDari(t.inisiatif) || {}).nama || t.inisiatif })
             : tr('{id} · {sub} ditambahkan untuk {nama}.', { id: t.id, sub: t.sub, nama: I.orang(t.pic).pendek })) + (asal ? ' ' + tr('Nomornya ditempel di baris catatan.') : ''));
         }
         case 'ubah': {
@@ -8136,6 +8255,18 @@
           simpan('halaman', 'proyek');
           return selesaiUbah((ada ? tr('{n} task untuk {m} target ditambahkan ke {id}.', { n: tasks.length, m: items.length, id: project.id }) : tr('{n} task untuk {m} target dibuat di {id}.', { n: tasks.length, m: items.length, id: project.id }))
             + ' ' + tr('Langkahnya menunggu di antrean Lead tim pemiliknya dan dikerjakan per tahap ADDIE; progres {paket} naik per capaian.', { paket: judulPaket(p) }));
+        }
+        case 'inisiatif-baru': {
+          const x = ubahData('inisiatifBaru', { f: { nama: f.nama, tujuan: f.tujuan, pic: f.pic, links: tautanDariTeks(f.links) } });
+          tutupModal();
+          Object.assign(S, { view: 'inisiatif' });
+          S.ini.pilih = x.id;
+          return selesaiUbah(tr('Inisiatif {nama} dideklarasikan. Tambahkan pembaruan pertamanya.', { nama: x.nama }));
+        }
+        case 'inisiatif-ubah': {
+          const x = ubahData('ubahInisiatif', { inisiatif: m.id, f: { nama: f.nama, tujuan: f.tujuan, pic: f.pic, status: f.status, links: tautanDariTeks(f.links) } });
+          tutupModal();
+          return selesaiUbah(tr('Inisiatif {nama} disimpan.', { nama: x.nama }));
         }
         case 'duplikat-paket': {
           const p = ubahData('duplikatPaket', { paket: m.id, f: { namaPaket: f.namaPaket, bawaAwal: !!f.bawaAwal } });
@@ -8591,6 +8722,25 @@
       case 'lap-salin': salinLaporan(); break;
       case 'buka-proyek': bukaProyek(d.id); break;
       case 'tutup-proyek': S.proyek = null; S.tahapBuka = null; render(); break;
+      case 'buka-inisiatif': Object.assign(S, { view: 'inisiatif', pilih: null, navBuka: false }); S.ini.pilih = d.id; render(); window.scrollTo(0, 0); break;
+      case 'tutup-inisiatif': S.ini.pilih = null; render(); break;
+      case 'ini-status': S.ini.status = d.nilai; render(); break;
+      case 'inisiatif-baru': bukaModal({ jenis: 'inisiatif-baru' }, formInisiatif(null)); break;
+      case 'inisiatif-ubah': { const x = inisiatifDari(d.id); if (x) bukaModal({ jenis: 'inisiatif-ubah', id: x.id }, formInisiatif(x)); break; }
+      case 'inisiatif-pembaruan': {
+        const x = inisiatifDari(d.id);
+        if (!x) break;
+        if (!I.bolehBuatTask(S.me)) return toast(tr('Pilih profil dulu.'), true);
+        bukaModal({ jenis: 'tambah' }, formTask(null, { jalur: 'rutin', inisiatif: x.id }));
+        segarkanFormTask($('#modal-panel form'));
+        break;
+      }
+      case 'inisiatif-hapus': {
+        const x = inisiatifDari(d.id);
+        if (!x || !confirm(tr('Hapus inisiatif {nama}? Hanya bisa bila belum punya task.', { nama: x.nama }))) break;
+        try { ubahData('hapusInisiatif', { inisiatif: x.id }); S.ini.pilih = null; selesaiUbah(tr('Inisiatif {nama} dihapus.', { nama: x.nama })); } catch (err) { toast(err.message, true); }
+        break;
+      }
       case 'tahap-proyek': lihatTahap(d.id, d.tahap, d.tim); break;
       case 'tab-proyek': Object.assign(S, { tabProyek: { proyek: d.id, tab: d.tab }, tahapBuka: null, pilihTask: null }); render(); break;
       /* Pilih banyak task untuk dihapus (2.23.0) */
@@ -8981,6 +9131,11 @@
     } else if (el.dataset.aksi === 'tautkan-paket') {
       const proj = proyekDari(el.dataset.id);
       try { ubahData('tautkanPaket', { proyek: proj.id, paket: el.value }); selesaiUbah(el.value ? tr('Proyek ditautkan ke rancangan paket.') : tr('Tautan paket dilepas.')); } catch (err) { toast(err.message, true); render(); }
+    } else if (el.dataset.aksi === 'tempel-inisiatif') {
+      try {
+        const t = ubahData('tempelInisiatif', { task: el.dataset.id, inisiatif: el.value });
+        selesaiUbah(t.inisiatif ? tr('Task ditempel ke inisiatif {nama}.', { nama: (inisiatifDari(t.inisiatif) || {}).nama || t.inisiatif }) : tr('Task dilepas dari inisiatif.'));
+      } catch (err) { toast(err.message, true); render(); }
     } else if (el.dataset.aksi === 'keputusan') {
       const p = proyekDari(el.dataset.id);
       try { ubahData('setKeputusan', { proyek: p.id, keputusan: el.value }); selesaiUbah(el.value === 'Hold' ? tr('Proyek ditahan.') : tr('Keputusan proyek: {keputusan}.', { keputusan: el.value })); } catch (err) { toast(err.message, true); render(); }

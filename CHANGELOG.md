@@ -28,6 +28,26 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.31.0 — Inisiatif: pekerjaan berkelanjutan tim DAE (2026-10-14)
+
+Permintaan user: pekerjaan Data & AI Engineer yang terus berjalan di luar rancangan paket
+(ProductTrack v2, Product Knowledge, dan lain-lain) dideklarasikan sekali, dan tiap
+pembaruannya masuk sebagai task.
+
+- **Halaman Inisiatif** (grup Pekerjaan): kartu per inisiatif (status, PIC, tujuan, terbuka /
+  telat / selesai 30 hari, terakhir diperbarui) dan detailnya (pembaruan yang berjalan dan
+  **Riwayat pembaruan**). Sementara khusus tim DAE dan Manager; izin `inisiatif.kelola` (Lead,
+  Manager) di Panel Dev → Izin.
+- **Pembaruan = task biasa** lewat **Tambah pembaruan**: jalur rutin, boleh tanpa jenis rutin,
+  **tanpa tinjauan**, tak terkena fase ADDIE, tetap terhitung di Hari Ini, beban, Dashboard,
+  Laporan, dan telat. Task lama di luar proyek bisa ditempel atau dilepas dari detail task-nya.
+- Inisiatif yang sudah punya task tak bisa dihapus (tandai Selesai); nomor INI-… tak dipakai
+  ulang.
+- Data: tab `inisiatif`, `inisiatif_links`, kolom `tasks.inisiatif`; koleksi data real
+  `inisiatif`; MySQL `v2_inisiatif`, `v2_inisiatif_links`, `v2_tasks.inisiatif` (27 tabel).
+- Data contoh: empat inisiatif Ali, dengan task lama v1-nya ditempel menurut judul.
+- Tes baru di `test/inti.test.js`, `test/demo.test.js`, `test/sheets.test.js`. 278 tes.
+
 ## 2.30.0 — Duplikat paket & proyek, yang diajukan tak lagi menahan, proyek tim disorot, sampul di pemilih profil (2026-10-13)
 
 Empat permintaan user.

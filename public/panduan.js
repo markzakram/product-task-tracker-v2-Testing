@@ -344,6 +344,7 @@
     ['Tampilan pribadi', 'Warna aksen, latar (wallpaper), sampul profil, kepadatan, ukuran huruf, dan halaman awal milik satu profil. Diatur lewat foto Anda di kanan atas → Sesuaikan tampilan, dan ikut ke perangkat mana pun.'],
     ['Status', 'Emoji dan teks singkat (mis. 🏖️ Cuti) di samping nama dan foto Anda, terlihat semua orang, dan hilang sendiri sesudah waktunya.'],
     ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu dan dipasang lewat mode Dev. Berbeda dari PIN aplikasi yang dipakai bersama.'],
+    ['Inisiatif', 'Pekerjaan berkelanjutan di luar rancangan paket (mis. ProductTrack v2), sementara khusus tim DAE dan Manager. Dideklarasikan sekali; tiap pembaruannya task biasa tanpa tinjauan yang tetap terhitung di Hari Ini, beban, dan Laporan.'],
     ['Izin', 'Daftar apa yang boleh dilakukan Manager, Lead, dan Staff, mis. membuat proyek, menghapus paket, atau membuka Laporan. Diatur mode Dev di Panel Dev → Izin dengan centang per peran; yang mengikuti struktur tim dan alur tinjauan tetap.'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];

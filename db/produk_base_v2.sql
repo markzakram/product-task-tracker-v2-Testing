@@ -230,10 +230,46 @@ CREATE TABLE IF NOT EXISTS `v2_project_history` (
 
 
 -- =============================================================================
+--  INISIATIF (2.31.0)
+-- =============================================================================
+
+-- Pekerjaan berkelanjutan di luar rancangan paket dan siklus ADDIE (mis. ProductTrack v2).
+-- Tiap pembaruannya task biasa di jalur rutin yang menaut lewat v2_tasks.inisiatif.
+CREATE TABLE IF NOT EXISTS `v2_inisiatif` (
+  `id`         VARCHAR(64)  NOT NULL,
+  `nama`       VARCHAR(200) NOT NULL DEFAULT '',
+  `tujuan`     TEXT         NULL,
+  `tim`        VARCHAR(10)  NOT NULL DEFAULT '',
+  `pic`        VARCHAR(64)  NOT NULL DEFAULT '',
+  `status`     VARCHAR(20)  NOT NULL DEFAULT 'aktif',
+  `createdBy`  VARCHAR(64)  NOT NULL DEFAULT '',
+  `createdAt`  DATETIME(3)  NULL,
+  `updatedBy`  VARCHAR(64)  NOT NULL DEFAULT '',
+  `updatedAt`  DATETIME(3)  NULL,
+  `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_inisiatif_tim` (`tim`, `status`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `v2_inisiatif_links` (
+  `id`         VARCHAR(64)   NOT NULL,
+  `inisiatif`  VARCHAR(64)   NOT NULL,
+  `urutan`     DOUBLE        NOT NULL DEFAULT 0,
+  `label`      VARCHAR(300)  NOT NULL DEFAULT '',
+  `url`        VARCHAR(2048) NOT NULL DEFAULT '',
+  `_diubah`    DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_link_inisiatif` (`inisiatif`, `urutan`),
+  CONSTRAINT `fk_v2_link_inisiatif` FOREIGN KEY (`inisiatif`) REFERENCES `v2_inisiatif` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- =============================================================================
 --  TASK
 -- =============================================================================
 
 -- project NULL = jalur rutin (di aplikasi ''). induk = task anak (satu tingkat).
+-- inisiatif NULL = bukan pembaruan inisiatif (di aplikasi ''), 2.31.0.
 -- support, deps, dan tunggu adalah larik ID; disimpan JSON karena aplikasi memakainya utuh.
 -- tunggu + lepasFase (2.19.0) = urutan yang diatur Lead tim di tab timnya di halaman proyek.
 CREATE TABLE IF NOT EXISTS `v2_tasks` (
@@ -265,15 +301,18 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   `updatedAt`      DATETIME(3)  NULL,
   `selesaiAt`      DATETIME(3)  NULL,
   `induk`          VARCHAR(64)  NULL,
+  `inisiatif`      VARCHAR(64)  NULL,
   `_diubah`        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_task_proyek` (`project`, `cycle`, `stage`),
   KEY `ix_task_pic` (`pic`, `status`),
   KEY `ix_task_status_due` (`status`, `due`),
   KEY `ix_task_induk` (`induk`),
+  KEY `ix_task_inisiatif` (`inisiatif`),
   KEY `ix_task_diubah` (`_diubah`),
   CONSTRAINT `fk_v2_task_proyek` FOREIGN KEY (`project`) REFERENCES `v2_projects` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_v2_task_induk` FOREIGN KEY (`induk`) REFERENCES `v2_tasks` (`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_v2_task_induk` FOREIGN KEY (`induk`) REFERENCES `v2_tasks` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_v2_task_inisiatif` FOREIGN KEY (`inisiatif`) REFERENCES `v2_inisiatif` (`id`) ON DELETE SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `v2_subtasks` (

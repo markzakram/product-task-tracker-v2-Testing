@@ -37,7 +37,7 @@ setiap orang memilih profilnya sendiri; sejak 0.14.0 profil bisa dikunci dengan 
 | Grup | Halaman |
 |---|---|
 | Ringkasan | Hari Ini · Dashboard · Laporan (bawaan: Lead & Manager) |
-| Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Task · Komunikasi |
+| Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Inisiatif (DAE & Manager) · Task · Komunikasi |
 | Ruang Saya | Kalender Saya · Link Saya (termasuk Tautan tim) · Catatan Saya |
 | Manajer | Riwayat Aktivitas (bawaan: Manager) · Master (bawaan: Lead & Manager) |
 | Bantuan | Panduan |
@@ -715,6 +715,7 @@ Paket, Task, Pengaturan, Halaman, Ruang Saya) dengan kolom Manager, Lead, dan St
   | Mengelola Tautan tim | Manager |
   | Membuka Laporan | Lead, Manager |
   | Membuka Riwayat Aktivitas | Manager |
+  | Mengelola Inisiatif (sementara hanya tim DAE) | Lead, Manager |
 
 - **Tetap** (tampil abu-abu, tak bisa dicentang): yang ditentukan struktur tim dan alur
   tinjauan, mis. siapa Lead tim pemilik sebuah sub-stage, siapa peninjau task, task yang boleh
@@ -734,6 +735,39 @@ Paket, Task, Pengaturan, Halaman, Ruang Saya) dengan kolom Manager, Lead, dan St
 - Katalognya `Inti.IZIN` (`kunci`, `grup`, `label`, `aksi` untuk pesan penolakan, `peran`
   bawaan, `tetap`); pemeriksaannya `Inti.izin(me, kunci)` dan `Inti.izinPeran(kunci)`. Diuji di
   `test/master.test.js` dan `test/rpc.test.js`.
+
+### Inisiatif (2.31.0)
+
+Permintaan user: pekerjaan tim DAE (Data & AI Engineer) yang berjalan terus di luar rancangan
+paket, seperti membangun ProductTrack v2, Product Knowledge, atau AI generate soal, perlu
+dideklarasikan sekali, dan setiap pembaruannya tetap masuk sebagai task biasa. Proyek ADDIE
+terlalu berat untuk itu (fase, gerbang Manager, dan E12 per siklus), jadi Inisiatif menjadi wadah
+yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara khusus tim DAE**
+(dan Manager).
+
+- **Halaman Inisiatif** (grup Pekerjaan, di bawah Proyek): kartu tiap inisiatif dengan status
+  (Aktif, Ditunda, Selesai), PIC, tujuan, jumlah pembaruan terbuka, telat, dan selesai 30 hari,
+  serta kapan terakhir diperbarui; urutannya yang terbaru diperbarui di atas. Hanya tampil untuk
+  anggota tim DAE, Manager, dan Dev; alamatnya `#/inisiatif/INI-001`.
+- **Deklarasi**: nama, tujuan, PIC (anggota tim DAE), dan tautan (satu per baris, "Judul |
+  https://…"). Yang boleh: Lead DAE dan Manager, lewat izin `inisiatif.kelola` (Panel Dev →
+  Izin). Inisiatif yang sudah punya task tak bisa dihapus; tandai **Selesai** supaya riwayatnya
+  tetap, dan inisiatif yang selesai tak menerima pembaruan baru.
+- **Pembaruan = task biasa**: tombol **Tambah pembaruan** membuka form Tambah task di jalur rutin
+  dengan inisiatifnya terpilih (boleh tanpa jenis rutin). Task-nya tanpa tinjauan (PIC langsung
+  menandai selesai), tak terkena fase atau gerbang ADDIE, dan tetap terhitung di Hari Ini, beban,
+  Dashboard, Laporan, dan telat. Form Tambah task biasa juga punya pilihan **Inisiatif** di jalur
+  rutin.
+- **Detail inisiatif**: pembaruan yang sedang berjalan, dan **Riwayat pembaruan** (yang selesai,
+  terbaru di atas, dengan output-nya) seperti changelog.
+- **Task lama** di luar proyek bisa ditempel ke inisiatif (atau dilepas) dari pilihan
+  **Inisiatif** di detail task-nya. Task proyek tak bisa ditempel.
+- **Data**: tab `inisiatif` dan `inisiatif_links` (opsional; spreadsheet lama tetap terbaca) dan
+  kolom `inisiatif` di tab `tasks`; koleksi `inisiatif` ikut data real; tabel `v2_inisiatif`,
+  `v2_inisiatif_links`, dan kolom `v2_tasks.inisiatif` di MySQL (kini 27 tabel). Aturannya
+  `Inti.inisiatifBaru`, `ubahInisiatif`, `hapusInisiatif`, `tempelInisiatif`,
+  `ringkasInisiatif`; tim yang memakainya `Inti.TIM_INISIATIF` (`['SI']`). Diuji di
+  `test/inti.test.js`, `test/demo.test.js`, dan `test/sheets.test.js`.
 
 ### Alamat, pencarian cepat, dan notifikasi
 
@@ -1145,6 +1179,9 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
   - Keadaannya: D2 masih dikerjakan Andika (output sudah terisi). Ajukan D2 sebagai Andika, dan
     Ali langsung mendapat notifikasi bahwa DV7 siap dikerjakan, selagi Manager meninjau D2
     (2.30.0).
+- **Inisiatif tim DAE** (2.31.0): ProductTrack v2, Product Knowledge, AI Generate Soal, dan
+  Dashboard internal, PIC Ali. Task lama v1 Ali di luar proyek ditempel ke inisiatifnya menurut
+  judul; ProductTrack v2 juga punya satu pembaruan yang selesai dan satu yang sedang berjalan.
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
 
 Bentuk tab hanya bertambah (kolom `paket` di `projects`; tab `setoran`, sejak 0.6.0 dengan kolom
@@ -1242,7 +1279,7 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
    Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 25 tabel berawalan `v2_` di skema
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 27 tabel berawalan `v2_` di skema
    `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
    salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
    dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru

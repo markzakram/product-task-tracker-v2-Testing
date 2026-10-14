@@ -7,6 +7,7 @@
    Larik bersarang dipecah ke tab sendiri dengan kolom induknya:
      task  → subtasks, comments, tinjauan, evidence   (kolom `task`)
      paket → package_items, package_links             (kolom `paket`)
+     inisiatif → inisiatif_links                       (kolom `inisiatif`, 2.31.0)
    Setoran (task → target paket) berdiri sendiri di tab `setoran`, karena ia menaut
    dua induk sekaligus.
    Larik sederhana (support, deps) ditulis dipisah koma dalam satu sel.
@@ -21,7 +22,7 @@ const TAB = {
   projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket'],
   tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
     'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'tunggu', 'lepasFase', 'notes', 'assignedBy',
-    'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk'],
+    'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk', 'inisiatif'],
   subtasks: ['id', 'task', 'title', 'pic', 'due', 'done', 'link'],
   comments: ['id', 'task', 'author', 'text', 'at'],
   tinjauan: ['id', 'task', 'by', 'action', 'note', 'at'],
@@ -31,6 +32,9 @@ const TAB = {
     'updatedBy', 'updatedAt'],
   package_items: ['id', 'paket', 'urutan', 'kategori', 'grup', 'nama', 'target', 'satuan', 'awal', 'catatan'],
   package_links: ['id', 'paket', 'urutan', 'label', 'url'],
+  /* Inisiatif (2.31.0): pekerjaan berkelanjutan di luar paket & ADDIE; task-nya menaut lewat kolom tasks.inisiatif. */
+  inisiatif: ['id', 'nama', 'tujuan', 'tim', 'pic', 'status', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt'],
+  inisiatif_links: ['id', 'inisiatif', 'urutan', 'label', 'url'],
   dashboards: ['id', 'title', 'deskripsi', 'icon', 'url'],
   links: ['id', 'user', 'folder', 'title', 'url'],
   notes: ['id', 'user', 'folder', 'title', 'body', 'updatedAt'],
@@ -44,7 +48,7 @@ const TAB = {
    terbaca: tab ini dianggap kosong, bukan galat. Begitu juga sebaliknya — versi lama
    mengabaikan tab dan kolom yang tak dikenalnya — jadi impor ulang tak memutus versi
    yang sedang live. */
-const TAB_OPSIONAL = new Set(['setoran', 'nomor']);
+const TAB_OPSIONAL = new Set(['setoran', 'nomor', 'inisiatif', 'inisiatif_links']);
 /* Tab bentuk lama. Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
 const USANG = ['gate_log', 'backlog', 'bookmarks'];
 
@@ -285,6 +289,11 @@ function urai(data) {
     for (const it of items) isi.package_items.push({ ...it, paket: p.id });
     for (const l of links) isi.package_links.push({ ...l, paket: p.id });
   }
+  for (const x of data.inisiatif || []) {
+    const { links = [], ...inti } = x;
+    isi.inisiatif.push(inti);
+    for (const l of links) isi.inisiatif_links.push({ ...l, inisiatif: x.id });
+  }
   for (const k of ['dashboards', 'links', 'notes', 'setoran', 'nomor', 'log']) for (const x of data[k] || []) isi[k].push(x);
   return Object.fromEntries(Object.entries(isi).map(([t, daftar]) => [t, [TAB[t], ...daftar.map(o => keBaris(t, o))]]));
 }
@@ -304,6 +313,7 @@ function rakit(tabs) {
   const sub = kelompok(tabs.subtasks, 'task'), kom = kelompok(tabs.comments, 'task');
   const tj = kelompok(tabs.tinjauan, 'task'), ev = kelompok(tabs.evidence, 'task');
   const item = kelompok(tabs.package_items, 'paket'), tautan = kelompok(tabs.package_links, 'paket');
+  const tautanIni = kelompok(tabs.inisiatif_links, 'inisiatif');
   const urut = daftar => daftar.sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
   return {
     projects: (tabs.projects || []).map(p => ({ ...p, history: [] })),
@@ -315,6 +325,7 @@ function rakit(tabs) {
       evidence: ev.get(t.id) || [],
     })),
     packages: (tabs.packages || []).map(p => ({ ...p, items: urut(item.get(p.id) || []), links: urut(tautan.get(p.id) || []) })),
+    inisiatif: (tabs.inisiatif || []).map(x => ({ ...x, links: urut(tautanIni.get(x.id) || []) })),
     dashboards: tabs.dashboards || [],
     links: tabs.links || [],
     notes: tabs.notes || [],

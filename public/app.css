@@ -556,6 +556,25 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .daftar-proyek { display: flex; flex-direction: column; gap: 8px; }
 .baris-proyek { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; width: 100%; padding: 14px 16px; text-align: left; background: var(--muka); border: 1px solid var(--garis); border-radius: 14px; }
 .baris-proyek:hover { border-color: var(--biru-garis); }
+/* Inisiatif (2.31.0). */
+.ini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ini-kartu { display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%; color: inherit; font: inherit; cursor: pointer; }
+.ini-kartu:hover { border-color: var(--biru-garis); }
+.ini-kartu-atas { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.ini-kartu-atas strong { font-size: calc(15px * var(--skala-huruf)); }
+.ini-kartu small { font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+.ini-tujuan { font-size: calc(13px * var(--skala-huruf)); color: var(--tinta); }
+.ini-angka { font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
+.pill.ini-aktif { background: var(--hijau-muda); color: var(--hijau); }
+.pill.ini-ditunda { background: var(--kuning-muda); color: var(--kuning); }
+.pill.ini-selesai { background: var(--biru-muda); color: var(--biru-tua); }
+.ini-tautan { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: calc(13px * var(--skala-huruf)); }
+.ini-tautan a { display: inline-flex; align-items: center; gap: 4px; }
+.ini-riwayat { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ini-riwayat li { display: grid; grid-template-columns: 76px 1fr; gap: 2px 10px; align-items: baseline; }
+.ini-riwayat li small { grid-column: 2; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+.ini-tgl { font-size: calc(12px * var(--skala-huruf)); color: var(--redup); font-variant-numeric: tabular-nums; }
+.ini-pilih { margin-top: 8px; }
 /* Proyek yang melibatkan tim saya (2.30.0). */
 .baris-proyek.tim-saya { border-color: var(--biru-garis); box-shadow: inset 4px 0 0 var(--biru); }
 .chip-tim.tim-saya { outline: 2px solid var(--biru); outline-offset: 1px; }

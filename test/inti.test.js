@@ -918,3 +918,51 @@ test('sudah diajukan = sudah dikumpulkan (2.30.0): tak dihitung telat; tepat wak
   assert.equal(I.waktuKumpul(r), WAKTU);
 });
 
+test('inisiatif (2.31.0): dideklarasikan tim DAE atau Manager; pembaruannya task rutin tanpa tinjauan yang terhitung', () => {
+  const d = data([]);
+  assert.equal(I.bolehLihatInisiatif('ali'), true);
+  assert.equal(I.bolehLihatInisiatif('nynda'), true);
+  assert.equal(I.bolehLihatInisiatif('alya'), false, 'sementara khusus DAE');
+  assert.throws(() => I.inisiatifBaru(d, { nama: 'Coba' }, 'alya', WAKTU), /khusus tim DAE dan Manager/);
+  assert.throws(() => I.inisiatifBaru(d, { nama: 'Coba' }, 'kiki', WAKTU), /Hanya Lead atau Manager yang mengelola inisiatif/);
+  assert.throws(() => I.inisiatifBaru(d, { nama: 'X' }, 'ali', WAKTU), /2–120/);
+  const x = I.inisiatifBaru(d, { nama: ' ProductTrack v2 ', tujuan: 'Task tracker ADDIE', links: [{ label: 'Repo', url: 'gitlab.cerehub.id/x' }] }, 'ali', WAKTU);
+  assert.deepEqual([x.id, x.nama, x.tim, x.pic, x.status, x.links[0].url], ['INI-001', 'ProductTrack v2', 'SI', 'ali', 'aktif', 'https://gitlab.cerehub.id/x']);
+  assert.equal(I.inisiatifBaru(d, { nama: 'Product Knowledge', pic: 'ali' }, 'nynda', WAKTU + 1).id, 'INI-002', 'Manager juga boleh');
+  assert.throws(() => I.inisiatifBaru(d, { nama: 'Salah PIC', pic: 'kiki' }, 'nynda', WAKTU), /anggota tim DAE/);
+  // Pembaruan = task rutin: tanpa jenis rutin pun boleh, tanpa tinjauan, kategori = nama inisiatif.
+  const t = I.taskBaru(d, { title: 'Rilis fitur Inisiatif', pic: 'ali', due: '2026-10-05', inisiatif: x.id }, 'ali', WAKTU, HARI);
+  assert.deepEqual([t.inisiatif, t.lane, t.project, t.kategori, I.peninjau(t)], [x.id, 'rutin', '', 'ProductTrack v2', null]);
+  assert.equal(I.telat(t, HARI), true, 'terhitung telat seperti task lain');
+  assert.equal(I.laporan(d, HARI).perOrang.find(o => o.id === 'ali').aktif, 1, 'terhitung di beban');
+  assert.ok(I.aksiUntuk(t, 'ali', I.indeks(d)).some(a => a.kunci === 'mulai'));
+  I.terapkanAksi(d, t, 'mulai', 'ali', WAKTU + 2);
+  I.terapkanAksi(d, t, 'selesai', 'ali', WAKTU + 3);
+  assert.equal(t.status, 'Selesai', 'langsung selesai, tanpa diajukan');
+  const r = I.ringkasInisiatif(d, x, HARI);
+  assert.deepEqual([r.buka.length, r.beres.length, r.selesai30], [0, 1, 1]);
+  // Task proyek tak ditempel; task lama di luar proyek bisa ditempel dan dilepas.
+  assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'DV6', pic: 'ali', inisiatif: x.id }, 'nynda', WAKTU, HARI), /Proyek tidak ditemukan|Task proyek tak ditempel/);
+  const lama = task({ pic: 'ali', sub: '', kategori: 'Data & Intelligence', title: 'Membangun ProductTrack V2' });
+  d.tasks.push(lama);
+  I.tempelInisiatif(d, lama, x.id, 'ali', WAKTU + 4);
+  assert.deepEqual([lama.inisiatif, lama.kategori], [x.id, 'ProductTrack v2']);
+  assert.throws(() => I.tempelInisiatif(d, lama, x.id, 'kiki', WAKTU), /Hanya PIC, Lead-nya, atau Manager/);
+  I.tempelInisiatif(d, lama, '', 'ali', WAKTU + 5);
+  assert.equal(lama.inisiatif, '');
+  // Ubah: nama ikut ke kategori task-nya; selesai = tak menerima pembaruan baru.
+  I.ubahInisiatif(d, x, { nama: 'ProductTrack', status: 'selesai' }, 'ali', WAKTU + 6);
+  assert.equal(t.kategori, 'ProductTrack');
+  assert.throws(() => I.taskBaru(d, { title: 'y', pic: 'ali', inisiatif: x.id }, 'ali', WAKTU, HARI), /sudah selesai/);
+  // Hapus: hanya yang belum punya task.
+  assert.throws(() => I.hapusInisiatif(d, x, 'ali', WAKTU), /punya 1 task/);
+  I.hapusInisiatif(d, d.inisiatif.find(y => y.id === 'INI-002'), 'ali', WAKTU + 7);
+  assert.equal(I.inisiatifBaru(d, { nama: 'Baru lagi' }, 'ali', WAKTU + 8).id, 'INI-003', 'nomor tak dipakai ulang');
+  // Lewat perintah data real juga (koleksi inisiatif ikut).
+  assert.ok(I.KOLEKSI_REAL.includes('inisiatif'));
+  const kosong = I.dataKosong();
+  const r2 = I.jalankanPerintah(kosong, { aksi: 'inisiatifBaru', isi: { f: { nama: 'Lewat perintah' } }, oleh: 'ali', at: WAKTU, hari: HARI });
+  assert.ok(r2.ok, r2.galat);
+  assert.equal(I.bedaData(I.dataKosong(), kosong).inisiatif.pasang.length, 1);
+});
+

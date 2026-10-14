@@ -30,6 +30,10 @@
    lalu membuat prototype yang menunggu rancangan RAD (serah-terima lewat Atur urutan tunggu).
    Rancangan RAD masih dikerjakan: begitu Andika mengajukannya, prototype Ali terbuka (2.30.0:
    yang diajukan tak lagi menahan), sementara Manager meninjau rancangannya.
+   Ditambah empat Inisiatif tim DAE (2.31.0): pekerjaan berkelanjutan Ali di luar paket
+   (ProductTrack v2, Product Knowledge, AI Generate Soal, Dashboard internal). Task lama v1 Ali
+   di luar proyek ditempel ke inisiatifnya menurut judul, ditambah satu pembaruan yang selesai
+   dan satu yang sedang berjalan di ProductTrack v2.
    Ditambah beberapa Catatan Saya dan Link Saya contoh (folder "Contoh") memakai tautan
    Dashboard Lain dan tautan paket yang memang sudah ada di data contoh.
 
@@ -300,6 +304,35 @@ function skenarioPapi(data, sekarang) {
   return { project: proj, tasks: [a1, a2, a6, d2, d4, dv1, dv7, i5, e1, e8, e12] };
 }
 
+/* Inisiatif tim DAE (2.31.0). [nama, tujuan, pola judul task lama Ali yang ditempel]. */
+const INISIATIF_CONTOH = [
+  ['ProductTrack v2', 'Task tracker Divisi Produk berbasis siklus ADDIE per tim: proyek, rancangan paket, Hari Ini, Komunikasi, dan agen AI.', /producttrack/i],
+  ['Product Knowledge', 'Basis pengetahuan produk untuk tim: isi paket, fitur, dan jawaban pertanyaan yang sering muncul.', /produk knowledge|product knowledge/i],
+  ['AI Generate Soal', 'Produksi soal dengan AI dari prompt tim akademik dan hasil scraping.', /\bai\b.*soal|generate soal/i],
+  ['Dashboard internal', 'Dashboard pemantauan divisi: task management, guru freelance, dan jadwal momentum.', /dashboard/i],
+];
+function inisiatifContoh(data, sekarang) {
+  if (!Inti.ORANG.some(o => o.id === 'ali')) return [];
+  const awal = sekarang - 20 * HARI;
+  const hari = w => Inti.isoHari(w);
+  const daftar = INISIATIF_CONTOH.map(([nama, tujuan], i) => Inti.inisiatifBaru(data, { nama, tujuan, pic: 'ali' }, 'ali', awal + i * JAM));
+  // Task lama Ali di luar proyek → inisiatif yang cocok dengan judulnya.
+  for (const t of data.tasks) {
+    if (t.pic !== 'ali' || t.project) continue;
+    const i = INISIATIF_CONTOH.findIndex(([, , pola]) => pola.test(t.title));
+    if (i >= 0) Inti.tempelInisiatif(data, t, daftar[i].id, 'ali', awal + 2 * JAM);
+  }
+  // ProductTrack v2: satu pembaruan selesai (riwayat) dan satu yang sedang berjalan.
+  const v2 = daftar[0].id;
+  const beres = Inti.taskBaru(data, { title: 'Rilis 2.30.0: duplikat paket & proyek', pic: 'ali', due: hari(sekarang - 2 * HARI), inisiatif: v2 }, 'ali', sekarang - 4 * HARI, hari(sekarang - 4 * HARI));
+  Inti.terapkanAksi(data, beres, 'mulai', 'ali', sekarang - 4 * HARI + JAM);
+  Inti.isiOutput(data, beres, 'Duplikat rancangan paket dan proyek dirilis (tag v2.30.0)', 'ali', sekarang - 2 * HARI - 4 * JAM);
+  Inti.terapkanAksi(data, beres, 'selesai', 'ali', sekarang - 2 * HARI - 3 * JAM);
+  const jalan = Inti.taskBaru(data, { title: 'Halaman Inisiatif untuk tim DAE', pic: 'ali', due: hari(sekarang + 3 * HARI), inisiatif: v2 }, 'ali', sekarang - HARI, hari(sekarang - HARI));
+  Inti.terapkanAksi(data, jalan, 'mulai', 'ali', sekarang - 20 * JAM);
+  return daftar;
+}
+
 /* Catatan Saya & Link Saya contoh, di folder "Contoh". Link-nya hanya tautan yang sudah ada
    di data contoh (Dashboard Lain dan tautan paket), bukan Link Saya pribadi dari v1. */
 function ruangSayaContoh(data, sekarang) {
@@ -339,6 +372,7 @@ function tambahDemo(data, sekarang = Date.now()) {
   const utbk = data.packages.find(x => x.id === 'PKG-006');
   if (utbk && !utbk.items.length) beriTarget(utbk, TARGET_CONTOH['PKG-006'], sekarang - 2 * HARI);
   const ruang = ruangSayaContoh(data, sekarang);
+  const inisiatif = inisiatifContoh(data, sekarang);
   Inti.segarkanTahap(data);
   // Langkah alur di atas dicatat dengan waktu lampau; riwayat harus tetap terbaru di atas.
   data.log.sort((a, b) => b.at - a.at);
@@ -348,6 +382,7 @@ function tambahDemo(data, sekarang = Date.now()) {
     proyek: proyek.map(x => `${x.project.id} ${x.project.name} (${x.semua.length} task, ${x.semua.filter(t => t.induk).length} di antaranya task turunan)`),
     task: proyek.reduce((n, x) => n + x.semua.length, 0),
     setoran: data.setoran.length,
+    inisiatif: inisiatif.length,
     ...ruang,
   };
 }

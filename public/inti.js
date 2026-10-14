@@ -69,6 +69,7 @@
     { kunci: 'tautanTim.kelola', grup: 'Pengaturan', label: 'Mengelola Tautan tim', aksi: 'mengelola tautan tim', peran: ['manager'] },
     { kunci: 'halaman.laporan', grup: 'Halaman', label: 'Membuka Laporan', aksi: 'membuka Laporan', peran: ['manager', 'lead'] },
     { kunci: 'halaman.riwayat', grup: 'Halaman', label: 'Membuka Riwayat Aktivitas', aksi: 'membuka Riwayat Aktivitas', peran: ['manager'] },
+    { kunci: 'inisiatif.kelola', grup: 'Inisiatif', label: 'Mendeklarasikan, mengubah, dan menghapus inisiatif timnya (sementara hanya tim DAE)', aksi: 'mengelola inisiatif', peran: ['manager', 'lead'] },
     // Tetap: mengikuti struktur tim dan alur tinjauan.
     { kunci: 'task.buat', grup: 'Task', label: 'Menambah task (staff: untuk dirinya sendiri)', peran: ['manager', 'lead', 'staff'], tetap: true },
     { kunci: 'task.ubah', grup: 'Task', label: 'Mengubah task: Manager semua, Lead task timnya, staff yang ia buat sendiri', peran: ['manager', 'lead', 'staff'], tetap: true },
@@ -771,19 +772,20 @@
     }
     if (!picSah(me, f.pic, f.sub)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
     const pInduk = teks(f.induk) ? data.tasks.find(x => x.id === teks(f.induk)) || null : null;
+    const ini = inisiatifUntukTask(data, f.inisiatif, p, me);
     if (teks(f.induk)) {
       const salah = salahInduk(pInduk, me, { pic: f.pic, project: p ? p.id : '', cycle: p ? p.cycle || 1 : 1, stage: p ? s.tahap : '' });
       if (salah) throw new Error(salah);
     }
     const t = {
       id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
-      project: p ? p.id : '', lane: p ? 'proyek' : 'rutin', kategori: p ? '' : (s ? s.nama : f.kategori || 'Umum'),
+      project: p ? p.id : '', lane: p ? 'proyek' : 'rutin', kategori: p ? '' : (s ? s.nama : ini ? ini.nama : f.kategori || 'Umum'),
       title: String(f.title).trim(), platform: f.platform || (p ? p.platform : 'All Platform'),
       stage: p ? s.tahap : '', sub: s ? s.kode : '', detail: String(f.detail || '').trim(),
       pic: f.pic, support: (f.support || []).filter(x => x !== f.pic), priority: f.priority || 'Normal',
       start: hariIni, due: f.due || '', status: 'Antre', tertahan: false, alasanTertahan: '',
       output: String(f.output || '').trim(), deps: (f.deps || []).slice(), tunggu: [], lepasFase: false,
-      notes: '', assignedBy: me, cycle: p ? p.cycle || 1 : 1, induk: pInduk ? pInduk.id : '',
+      notes: '', assignedBy: me, cycle: p ? p.cycle || 1 : 1, induk: pInduk ? pInduk.id : '', inisiatif: ini ? ini.id : '',
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
       subtasks: [], comments: [], tinjauan: [], evidence: [],
     };
@@ -804,7 +806,7 @@
     if (salah) throw new Error(salah);
     return taskBaru(data, {
       title: f.title, project: induk.project, sub: induk.sub, pic: f.pic, due: f.due, priority: f.priority || induk.priority,
-      platform: induk.platform, detail: f.detail, kategori: induk.kategori, induk: induk.id,
+      platform: induk.platform, detail: f.detail, kategori: induk.kategori, induk: induk.id, inisiatif: induk.inisiatif || '',
     }, me, waktu, hariIni);
   }
 
@@ -2151,6 +2153,116 @@
     catatLog(data, 'delete', `${p.id} · ${p.namaPaket}`, 'Rancangan paket dihapus', me, waktu);
   }
 
+  /* ---------- Inisiatif (2.31.0, permintaan user) ----------
+     Pekerjaan berkelanjutan di luar rancangan paket dan siklus ADDIE (mis. ProductTrack v2,
+     Product Knowledge): dideklarasikan sekali, lalu setiap pembaruannya menjadi task biasa di
+     jalur rutin yang menempel ke inisiatif itu (t.inisiatif). Task-nya tanpa tinjauan (seperti
+     rutin) dan tetap terhitung di Hari Ini, beban, Dashboard, Laporan, dan telat; tak terkena
+     fase atau gerbang ADDIE. Sementara ini khusus tim DAE (TIM_INISIATIF) dan Manager. */
+  const TIM_INISIATIF = ['SI'];
+  const STATUS_INISIATIF = [['aktif', 'Aktif'], ['ditunda', 'Ditunda'], ['selesai', 'Selesai']];
+  const timInisiatif = me => { const t = timOrang(me); return t && TIM_INISIATIF.includes(t.kode) ? t.kode : ''; };
+  const bolehLihatInisiatif = me => me === DEV || orang(me).peran === 'manager' || !!timInisiatif(me);
+  function bolehKelolaInisiatif(me, x) {
+    if (!izin(me, 'inisiatif.kelola')) return false;
+    if (me === DEV || orang(me).peran === 'manager') return true;
+    const tim = timInisiatif(me);
+    return !!tim && (!x || x.tim === tim);
+  }
+  function tolakInisiatif(me) {
+    if (!izin(me, 'inisiatif.kelola')) return tolakIzin('inisiatif.kelola');
+    return new Error(`Inisiatif sementara khusus tim ${TIM_INISIATIF.map(singkatTim).join(', ')} dan Manager.`);
+  }
+  const cariInisiatif = (data, id) => (data.inisiatif || []).find(x => x.id === id) || null;
+  const anggotaTimKode = kode => { const lead = (TIM[kode] || {}).lead; return lead ? [lead, ...timDari(lead)] : []; };
+  function tautanInisiatif(daftar, waktu) {
+    return (Array.isArray(daftar) ? daftar : []).filter(l => l && (teks(l.url) || teks(l.label))).slice(0, 20).map((l, i) => {
+      const url = tautanRapi(l.url);
+      if (!url) throw new Error(`Tautan "${teks(l.label) || teks(l.url)}" bukan alamat web (http/https).`);
+      return { id: teks(l.id) || `il${waktu}-${i}`, urutan: i + 1, label: teks(l.label).slice(0, 200) || judulTautan(url), url };
+    });
+  }
+  function isiInisiatif(f, lama) {
+    const nama = teks(f.nama === undefined ? lama.nama : f.nama);
+    if (nama.length < 2 || nama.length > 120) throw new Error('Nama inisiatif wajib diisi (2–120 karakter).');
+    const tujuan = teks(f.tujuan === undefined ? lama.tujuan : f.tujuan);
+    if (tujuan.length > 2000) throw new Error('Tujuan inisiatif paling panjang 2000 karakter.');
+    const status = f.status === undefined ? lama.status || 'aktif' : teks(f.status);
+    if (!STATUS_INISIATIF.some(([k]) => k === status)) throw new Error('Status inisiatif tidak dikenal.');
+    return { nama, tujuan, status };
+  }
+  function inisiatifBaru(data, f, me, waktu) {
+    if (!bolehKelolaInisiatif(me)) throw tolakInisiatif(me);
+    const tim = timInisiatif(me) || (TIM_INISIATIF.includes(teks(f.tim)) ? teks(f.tim) : TIM_INISIATIF[0]);
+    const pic = teks(f.pic) || (TIM[tim] || {}).lead || me;
+    if (!anggotaTimKode(tim).includes(pic)) throw new Error(`PIC inisiatif adalah anggota tim ${singkatTim(tim)}.`);
+    const daftar = data.inisiatif || (data.inisiatif = []);
+    const x = {
+      id: 'INI-' + String(nomorBerikut(daftar, 'INI', data)).padStart(3, '0'), ...isiInisiatif(f, {}), tim, pic,
+      links: tautanInisiatif(f.links, waktu), createdBy: me, createdAt: waktu, updatedBy: me, updatedAt: waktu,
+    };
+    daftar.unshift(x);
+    catatLog(data, 'create', `${x.id} · ${x.nama}`, 'Inisiatif dideklarasikan', me, waktu);
+    return x;
+  }
+  function ubahInisiatif(data, x, f, me, waktu) {
+    if (!bolehKelolaInisiatif(me, x)) throw tolakInisiatif(me);
+    const isi = isiInisiatif(f, x);
+    const pic = f.pic === undefined ? x.pic : teks(f.pic);
+    if (!anggotaTimKode(x.tim).includes(pic)) throw new Error(`PIC inisiatif adalah anggota tim ${singkatTim(x.tim)}.`);
+    const ubah = [];
+    if (isi.nama !== x.nama) ubah.push(`nama ${x.nama} → ${isi.nama}`);
+    if (isi.status !== x.status) ubah.push(`status ${x.status} → ${isi.status}`);
+    if (pic !== x.pic) ubah.push('PIC ' + orang(pic).pendek);
+    // Nama inisiatif juga tampil sebagai kategori task-nya (jalur rutin tanpa kode).
+    if (isi.nama !== x.nama) for (const t of data.tasks) if (t.inisiatif === x.id && !t.sub) t.kategori = isi.nama;
+    Object.assign(x, isi, { pic, updatedBy: me, updatedAt: waktu, ...(f.links === undefined ? {} : { links: tautanInisiatif(f.links, waktu) }) });
+    catatLog(data, 'update', `${x.id} · ${x.nama}`, ubah.length ? 'Inisiatif diubah: ' + ubah.join(', ') : 'Inisiatif diubah', me, waktu);
+    return x;
+  }
+  /* Yang sudah punya task tak dihapus (riwayat pembaruannya hilang): tandai Selesai saja. */
+  function hapusInisiatif(data, x, me, waktu) {
+    if (!bolehKelolaInisiatif(me, x)) throw tolakInisiatif(me);
+    const n = data.tasks.filter(t => t.inisiatif === x.id).length;
+    if (n) throw new Error(`Inisiatif ini punya ${n} task. Tandai Selesai saja supaya riwayat pembaruannya tetap.`);
+    catatNomor(data, data.inisiatif, 'INI');
+    data.inisiatif.splice(data.inisiatif.indexOf(x), 1);
+    catatLog(data, 'delete', `${x.id} · ${x.nama}`, 'Inisiatif dihapus', me, waktu);
+  }
+  /* Inisiatif untuk task baru/ditempel: hanya task di luar proyek, inisiatif yang belum selesai. */
+  function inisiatifUntukTask(data, id, proyek, me) {
+    if (!teks(id)) return null;
+    const x = cariInisiatif(data, teks(id));
+    if (!x) throw new Error('Inisiatif tidak ditemukan.');
+    if (proyek) throw new Error('Task proyek tak ditempel ke inisiatif: pembaruan inisiatif berada di luar proyek.');
+    if (!bolehLihatInisiatif(me)) throw tolakInisiatif(me);
+    if (x.status === 'selesai') throw new Error(`Inisiatif ${x.nama} sudah selesai. Aktifkan lagi dulu untuk menambah pembaruan.`);
+    return x;
+  }
+  /* Menempel task lama (di luar proyek) ke inisiatif, atau melepasnya (id kosong). */
+  function tempelInisiatif(data, t, id, me, waktu) {
+    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang menempelkan task ke inisiatif.');
+    const x = inisiatifUntukTask(data, id, t.project, me);
+    const lama = cariInisiatif(data, t.inisiatif);
+    t.inisiatif = x ? x.id : '';
+    if (x && !t.sub) t.kategori = x.nama;
+    t.updatedAt = waktu;
+    catatLog(data, 'update', `${t.id} · ${t.title}`, x ? `Ditempel ke inisiatif ${x.id} · ${x.nama}` : `Dilepas dari inisiatif ${lama ? lama.nama : ''}`.trim(), me, waktu);
+    return t;
+  }
+  /* Ringkasan satu inisiatif: task terbuka, riwayat pembaruan yang selesai (terbaru di atas). */
+  function ringkasInisiatif(data, x, hariIni) {
+    const tasks = data.tasks.filter(t => t.inisiatif === x.id);
+    const buka = tasks.filter(aktif);
+    const beres = tasks.filter(selesai).sort((a, b) => b.selesaiAt - a.selesaiAt);
+    const batas = tambahHari(hariIni, -29);
+    return {
+      tasks, buka, beres, telat: buka.filter(t => telat(t, hariIni)).length,
+      selesai30: beres.filter(t => isoHari(t.selesaiAt) >= batas).length,
+      terakhir: Math.max(x.updatedAt || 0, ...tasks.map(t => Math.max(t.updatedAt || 0, t.selesaiAt || 0))),
+    };
+  }
+
   /* ---------- Duplikat rancangan paket dan proyek (2.30.0, permintaan user) ----------
      Untuk pekerjaan yang berulang. Paket: isi produk, target, catatan per kategori, dan
      tautannya disalin dengan ID baru; jadwal pendaftaran dikosongkan, tak dibagikan ke Lintas
@@ -3250,7 +3362,7 @@
      Semua browser menerapkan perubahan itu apa adanya (terapkanUbah), tanpa menjalankan aturan
      lagi: perubahan organogram, Master, atau aturan di versi berikutnya tak bisa menggugurkan
      riwayat. Bentuk ini juga yang nanti dipindah ke MySQL (satu baris = satu baris tabel). */
-  const dataKosong = () => ({ projects: [], tasks: [], packages: [], dashboards: [], links: [], notes: [], setoran: [], nomor: [], log: [] });
+  const dataKosong = () => ({ projects: [], tasks: [], packages: [], inisiatif: [], dashboards: [], links: [], notes: [], setoran: [], nomor: [], log: [] });
   const cariDi = (daftar, id, nama) => {
     const x = (daftar || []).find(y => y.id === id);
     if (!x) throw new Error(`${nama} ${id || '(kosong)'} tidak ditemukan.`);
@@ -3281,6 +3393,10 @@
     tautkanPaket: (d, x, me, w) => tautkanPaket(d, proyekX(d, x), x.paket || '', me, w),
     paketBaru: (d, x, me, w) => paketBaru(d, x.f || {}, me, w),
     duplikatPaket: (d, x, me, w) => duplikatPaket(d, paketX(d, x), x.f || {}, me, w),
+    inisiatifBaru: (d, x, me, w) => inisiatifBaru(d, x.f || {}, me, w),
+    ubahInisiatif: (d, x, me, w) => ubahInisiatif(d, cariDi(d.inisiatif, x.inisiatif, 'Inisiatif'), x.f || {}, me, w),
+    hapusInisiatif: (d, x, me, w) => hapusInisiatif(d, cariDi(d.inisiatif, x.inisiatif, 'Inisiatif'), me, w),
+    tempelInisiatif: (d, x, me, w) => tempelInisiatif(d, tugas(d, x), x.inisiatif || '', me, w),
     duplikatProyek: (d, x, me, w, h) => duplikatProyek(d, proyekX(d, x), x.f || {}, me, w, h),
     simpanPaket: (d, x, me, w) => simpanPaket(d, paketX(d, x), x.f || {}, me, w),
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
@@ -3330,8 +3446,8 @@
   }
   /* Koleksi data real. Link Saya dan Catatan Saya tetap pribadi di browser. DEPAN = data baru
      ditaruh di depan, sama dengan fungsi pembuatnya (unshift); selebihnya di belakang (push). */
-  const KOLEKSI_REAL = ['projects', 'tasks', 'packages', 'setoran', 'dashboards', 'nomor'];
-  const DEPAN = new Set(['projects', 'tasks', 'packages']);
+  const KOLEKSI_REAL = ['projects', 'tasks', 'packages', 'inisiatif', 'setoran', 'dashboards', 'nomor'];
+  const DEPAN = new Set(['projects', 'tasks', 'packages', 'inisiatif']);
   /* Perubahan dari a ke b: baris yang baru atau berubah (pasang), yang hilang (hapus), dan
      log baru. Membandingkan per baris lewat JSON-nya. */
   function bedaData(a, b) {
@@ -3388,7 +3504,8 @@
     JENIS_MASTER, PLATFORM, PRIORITAS, KATEGORI_SEMUA, aturMaster, periksaMaster, susunMaster, salahMaster, daftarMaster, labelPrioritas,
     ORANG_BAWAAN, DEV, PERAN_ORANG, TIM_LEAD, susunOrang, salahOrganogram, periksaOrang, aturOrang, nonaktif,
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
-    selesai, aktif, indeks, depsBelum, duplikatPaket, duplikatProyek, waktuKumpul, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
+    selesai, aktif, indeks, depsBelum, duplikatPaket, duplikatProyek, waktuKumpul,
+    TIM_INISIATIF, STATUS_INISIATIF, bolehLihatInisiatif, bolehKelolaInisiatif, cariInisiatif, inisiatifBaru, ubahInisiatif, hapusInisiatif, tempelInisiatif, ringkasInisiatif, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
     anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
