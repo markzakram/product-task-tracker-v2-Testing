@@ -887,6 +887,38 @@ perangkat mana pun). Dibuka lewat foto sendiri di kanan atas → **Sesuaikan tam
   - Pilihan terakhir disalin ke `pt2_tampilan_awal`, yang dipasang `<head>` index.html sebelum
     CSS supaya tak berkedip warna bawaan.
 
+### Detail task tertata (2.32.0)
+
+Permintaan user: detail task terasa ramai ("banyaknya ini itu tapi memang tetap perlu"). Isinya
+tetap, susunannya mengikuti "apa yang perlu dilakukan sekarang":
+
+- **Kepala ringkas**: asal (proyek atau inisiatif) sebaris dengan tombol ikon (salin tautan,
+  ubah, hapus, tutup), lalu judul, sub-stage dan tim, status dan tenggat, serta PIC dan
+  peninjau, semuanya selebar laci.
+- **Kartu "Langkah berikutnya"**: apa yang perlu dilakukan dan kenapa, sekali saja (dulu
+  banner, daftar Menunggu, dan teks di bawah tombol mengulang alasan yang sama). Isinya menurut
+  keadaan: menunggu (dengan tombol **Lihat yang ditunggu** dan **Atur urutan tunggu**), siap
+  dimulai, sedang dikerjakan (syarat yang kurang), **Revisi** (siapa yang mengembalikan dan
+  catatannya), siap diajukan, sedang ditinjau (untuk peninjau: periksa lalu setujui atau
+  kembalikan), tertahan, atau selesai.
+- **Tiga tab**: **Kerjakan**, **Diskusi** (dengan jumlah pesan), dan **Riwayat** (fase tim, yang
+  ditunggu, riwayat tinjauan, aktivitas). Tab kembali ke Kerjakan setiap ganti task.
+- **Bagian lipat di Kerjakan** dengan status di judulnya: **Hasil kerja** (output dan tautan;
+  "belum diisi" bertanda kuning bila syarat), **Ceklis pengerjaan** ("2/5"), **Task turunan**
+  ("0/1 selesai"), dan **Setoran ke rancangan paket**. Yang perlu dikerjakan sekarang terbuka
+  sendiri (Hasil kerja sesudah dimulai, ceklis yang berisi saat dikerjakan atau ditinjau, task
+  turunan yang ada isinya); buka-tutup yang diubah orang bertahan selama task-nya sama.
+- **Syarat ajukan** menjadi bilah kemajuan ("Syarat ajukan 3/4") dengan yang masih kurang di
+  bawahnya, hanya saat task dikerjakan.
+- **Yang ditunggu** di tab Riwayat: yang masih berjalan di atas, yang sudah beres dilipat
+  ("3 sudah beres").
+- **Yang tak berlaku disembunyikan**: setoran hanya untuk task yang sudah menyetor, task proyek
+  yang tertaut paket, atau task di luar proyek (bukan pembaruan inisiatif); task turunan di
+  luar proyek hanya bila ada isinya atau bisa dibagi; penjelasan panjang pindah ke tombol "?".
+- **Bilah aksi** (Mulai, Ajukan, Setujui, Kembalikan, Tandai tertahan, …) di bawah detail, dan
+  menempel di bawah laci saat digulir; alasan tombol yang nonaktif ada di kartu langkah dan di
+  keterangan tombolnya.
+
 ### Menu akun, mode gelap, dan posisi gulir (2.20)
 
 - **Menu akun di kanan atas**, di samping lonceng, seperti di media sosial. Klik foto sendiri

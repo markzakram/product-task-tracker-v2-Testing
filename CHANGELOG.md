@@ -28,6 +28,27 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.32.0 — Detail task tertata (2026-10-14)
+
+Permintaan user: detail task lebih rapi tanpa membuang isinya. Dua tahap sekaligus.
+
+- **Kartu "Langkah berikutnya"** menggantikan banner kuning, teks di bawah tombol, dan
+  pengulangan alasan menunggu: satu kalimat menurut keadaan task (menunggu, siap dimulai,
+  dikerjakan, revisi dengan catatan peninjau, siap diajukan, ditinjau, tertahan, selesai).
+- **Tab Kerjakan, Diskusi (jumlah pesan), Riwayat.** Fase tim, yang ditunggu, riwayat tinjauan,
+  dan aktivitas pindah ke Riwayat.
+- **Bagian lipat** di Kerjakan dengan status di judulnya (Hasil kerja, Ceklis pengerjaan, Task
+  turunan, Setoran); yang relevan terbuka sendiri. Output dan tautan hasil kerja digabung.
+- **Syarat ajukan** menjadi bilah kemajuan dengan daftar yang masih kurang, hanya saat dikerjakan.
+- **Yang ditunggu**: yang sudah beres dilipat.
+- **Yang tak berlaku disembunyikan**: setoran di proyek tanpa paket dan di pembaruan inisiatif;
+  task turunan kosong di luar proyek; paragraf penjelasan pindah ke tombol "?".
+- **Bilah aksi** di bawah, menempel di bawah laci; tombol teks "Ubah" yang dobel dihapus (ikon
+  pensil di kepala tetap).
+- **Kepala ringkas**: tombol ikon sebaris dengan asal task, judul selebar laci (dulu terlipat di
+  ponsel).
+- Ringkasan impor data contoh kini menyebut jumlah inisiatif DAE.
+
 ## 2.31.0 — Inisiatif: pekerjaan berkelanjutan tim DAE (2026-10-14)
 
 Permintaan user: pekerjaan Data & AI Engineer yang terus berjalan di luar rancangan paket

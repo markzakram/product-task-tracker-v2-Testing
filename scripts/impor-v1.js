@@ -92,6 +92,7 @@ async function main() {
     baris('task hasil elaborasi', c.task);
     baris('setoran ke paket', c.setoran);
     baris('catatan & link contoh', c.catatan + c.link, 'folder "Contoh"');
+    baris('inisiatif DAE', c.inisiatif || 0, 'pekerjaan berkelanjutan Ali (2.31.0)');
   }
 
   if (kering) {

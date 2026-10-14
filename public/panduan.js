@@ -157,10 +157,10 @@
     {
       id: 'staff-ajukan', peran: 'staff', judul: 'Mengerjakan task proyek sampai diajukan', tujuan: 'Menyelesaikan satu langkah proyek lalu mengirimnya ke peninjau.', ilustrasi: 'syarat', coba: true,
       langkah: [
-        'Buka task-nya. Kalau masih Antre, tekan **Mulai kerjakan**.',
-        'Di **Output**, tulis hasil kerja (mis. "40 soal lolos QC"), lalu tekan **Simpan**.',
+        'Buka task-nya. Kartu **Langkah berikutnya** di atas memberi tahu apa yang perlu dilakukan sekarang. Kalau masih Antre, tekan **Mulai kerjakan** di bilah bawah.',
+        'Di tab **Kerjakan**, buka **Hasil kerja** lalu tulis output-nya (mis. "40 soal lolos QC"), lalu tekan **Simpan**.',
         'Kalau ada, tempel tautan hasil kerja (Drive, Sheets, SIADU, …) lalu tekan **Tambah tautan**. Tautan ini opsional.',
-        'Centang semua **ceklis pengerjaan**, kalau ada. Daftar **Syarat ajukan** berubah hijau satu per satu.',
+        'Centang semua **ceklis pengerjaan**, kalau ada. Bilah **Syarat ajukan** di atasnya terisi satu per satu, dan yang masih kurang tertulis di bawahnya.',
         'Butir ceklis boleh punya **tautan** (opsional), mis. dokumen atau folder kerjanya: isi kolom **Tautan** saat menambah atau mengubah butir ceklis, lalu buka dari ikon di sampingnya.',
         'Setelah lengkap, tombol **Ajukan tinjau ke …** aktif. Tekan, dan task pindah ke Ditinjau.',
       ],
@@ -169,7 +169,7 @@
       id: 'staff-revisi', peran: 'staff', judul: 'Task dikembalikan (Revisi)', tujuan: 'Memperbaiki task yang belum disetujui.', ilustrasi: 'revisi', coba: true,
       langkah: [
         'Task yang dikembalikan kembali ke Dikerjakan dengan label **Revisi**.',
-        'Baca alasannya di **Riwayat tinjauan** dan **Diskusi** pada detail task.',
+        'Alasannya tampil di kartu **Langkah berikutnya**; riwayat lengkapnya di tab **Riwayat**, dan percakapannya di tab **Diskusi**.',
         'Perbaiki hasilnya, perbarui output atau tautannya bila perlu, lalu **Ajukan** lagi.',
       ],
     },
@@ -224,7 +224,7 @@
       id: 'lead-tinjau', peran: 'lead', judul: 'Meninjau hasil kerja', tujuan: 'Menyetujui atau mengembalikan task yang diajukan.', ilustrasi: 'tinjau', coba: true,
       langkah: [
         'Task yang menunggu Anda ada di **Perlu Anda tinjau** (Hari Ini) dan **Menunggu tinjauan Anda** (Proyek).',
-        'Buka task-nya, lalu periksa **Output**, ceklis, dan diskusinya.',
+        'Buka task-nya: di tab **Kerjakan**, **Hasil kerja** dan ceklisnya sudah terbuka untuk diperiksa; percakapannya di tab **Diskusi**.',
         'Tekan **Setujui** kalau sudah benar. Kalau langkah itu bercapaian, progres paketnya ikut naik.',
         'Kalau belum, tekan **Kembalikan** dan tulis yang perlu diperbaiki. Task kembali ke PIC dengan label Revisi.',
       ],

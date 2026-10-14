@@ -361,8 +361,10 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 
 .detail { display: flex; flex-direction: column; gap: 18px; background: var(--muka); border: 1px solid var(--garis); border-radius: 16px; padding: 22px; }
 .laci .detail { border: 0; border-radius: 0; padding: 22px 24px 40px; }
-.detail-atas { display: flex; align-items: flex-start; gap: 8px; }
-.detail-atas > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+/* 2.32.0: kepala satu kolom; tombol ikon sebaris dengan asal, jadi judul selebar laci. */
+.detail-atas { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.detail-baris1 { display: flex; align-items: flex-start; gap: 8px; }
+.detail-baris1 .detail-asal { flex: 1; min-width: 0; padding-top: 8px; }
 .detail-asal { margin: 0; font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
 .detail-asal button { border: 0; background: transparent; padding: 0; color: var(--biru); font-weight: 600; font-size: calc(13px * var(--skala-huruf)); text-decoration: underline; text-underline-offset: 2px; }
 .detail h2 { margin: 0; font-size: calc(21px * var(--skala-huruf)); line-height: 1.3; font-weight: 700; }
@@ -370,6 +372,34 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .detail-orang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: calc(13px * var(--skala-huruf)); color: var(--tinta-2); }
 .detail section { display: flex; flex-direction: column; gap: 8px; }
 .detail-aksi { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Detail task tertata (2.32.0): kartu langkah, tab, bagian lipat, bilah aksi tetap. */
+.kartu-langkah { display: flex; flex-direction: column; gap: 4px; }
+.kartu-langkah p { margin: 0; line-height: 1.5; }
+.kartu-langkah-judul { font-size: calc(12px * var(--skala-huruf)); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.kartu-langkah-tombol { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.detail-tab { display: flex; width: 100%; }
+.detail-tab button { flex: 1; }
+.detail-panel { display: flex; flex-direction: column; gap: 10px; }
+.detail-panel[hidden] { display: none; }
+.detail-keterangan { display: flex; flex-direction: column; gap: 4px; }
+.lipat { border: 1px solid var(--garis); border-radius: 12px; background: var(--muka); }
+.lipat > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; cursor: pointer; list-style: none; font-weight: 600; font-size: calc(14px * var(--skala-huruf)); }
+.lipat > summary::-webkit-details-marker { display: none; }
+.lipat > summary svg { flex-shrink: 0; color: var(--redup); transition: transform 0.15s; }
+.lipat[open] > summary svg { transform: rotate(180deg); }
+.lipat-judul { flex: 1; min-width: 0; }
+.lipat-ket { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+.lipat-ket.kurang { color: var(--kuning); font-weight: 600; }
+.lipat-isi { display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px; }
+.lipat-kecil > summary { cursor: pointer; font-size: calc(13px * var(--skala-huruf)); color: var(--redup); padding: 4px 0; }
+.syarat-ringkas { display: flex; flex-direction: column; gap: 6px; }
+.syarat-kepala { display: flex; align-items: center; gap: 6px; margin: 0; font-size: calc(13px * var(--skala-huruf)); font-weight: 600; color: var(--tinta-2); }
+.syarat-ringkas .batang { flex: none; height: 6px; }
+.syarat-ringkas .batang.penuh > span { background: var(--hijau); }
+.syarat.ringkas li { min-height: 24px; font-size: calc(13px * var(--skala-huruf)); }
+.detail-bilah { padding-top: 12px; border-top: 1px solid var(--garis); }
+.detail-bilah .detail-aksi > .tombol, .detail-bilah .detail-aksi > .tombol.utama { flex: 1 1 140px; }
+.laci .detail-bilah { position: sticky; bottom: 0; z-index: 3; margin: 0 -24px -40px; padding: 12px 24px 16px; background: var(--muka); }
 .detail-aksi .tombol.utama { flex: 1 1 200px; }
 .detail-aksi.tanpa-regang .tombol.utama { flex: 0 0 auto; }
 .hint { margin: 0; font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
@@ -1389,7 +1419,7 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 .detail-tombol { display: inline-flex; flex-shrink: 0; }
 /* 2.21.0: aturan .detail-atas > div (flex: 1) ikut mengenai kolom tombol, sehingga judul hanya
    mendapat separuh lebar. Tombolnya cukup selebar isinya, berjajar di kanan atas. */
-.detail-atas > .detail-tombol { flex: none; flex-direction: row; align-items: center; gap: 2px; }
+.detail-baris1 > .detail-tombol { flex: none; flex-direction: row; align-items: center; gap: 2px; margin: -4px -6px 0 0; }
 
 /* ---------- Riwayat Aktivitas ---------- */
 
