@@ -63,7 +63,7 @@ test('syarat ajukan (PRD): output, ceklis pengerjaan, dependency, tidak tertahan
   const d = data([dulu, t]);
   const ajukan = () => I.aksiUntuk(t, 'uma', I.indeks(d)).find(a => a.kunci === 'ajukan');
   assert.equal(ajukan().nonaktif, true);
-  assert.equal(ajukan().alasan, 'Lengkapi dulu: output terisi, semua ceklis pengerjaan selesai, task yang ditunggu sudah selesai');
+  assert.equal(ajukan().alasan, 'Lengkapi dulu: output terisi, semua ceklis pengerjaan selesai, task yang ditunggu sudah diajukan atau selesai');
   I.isiOutput(d, t, '20 soal TIU + pembahasan', 'uma', WAKTU);
   t.subtasks[0].done = true;
   dulu.status = 'Selesai';
@@ -397,7 +397,7 @@ test('ADDIE per tim: fase tiap tim berurutan; tim lain hanya menunggu gerbang Ma
   assert.equal(I.alasanTunggu(i1, perId()), `Menunggu fase Development LNA selesai: ${dv8.id} "DV8 uji" (LNA · Alya)`);
   assert.equal(I.tungguSingkat(i1, perId()), 'Menunggu fase Development LNA');
   const ajukan = I.aksiUntuk(siap({ id: 'PRD-900', project: 'PRJ-1', stage: 'I', sub: 'I4', pic: 'kiki', status: 'Dikerjakan' }), 'kiki', perId()).find(a => a.kunci === 'ajukan');
-  assert.equal(ajukan.alasan, 'Lengkapi dulu: task yang ditunggu sudah selesai');
+  assert.equal(ajukan.alasan, 'Lengkapi dulu: task yang ditunggu sudah diajukan atau selesai');
 
   // Siklus lain tak ditunggu; task rutin tetap memakai deps-nya.
   const siklus2 = task({ id: 'PRD-901', lane: 'proyek', project: 'PRJ-1', stage: 'V', sub: 'DV1', pic: 'uma', cycle: 2 });
@@ -805,3 +805,116 @@ test('PIC task turunan boleh dipindah dari Lead ke staff timnya (2.29.0)', () =>
   assert.equal(I.peninjau(anak), 'alya', 'turunan yang dipegang staff ditinjau Lead-nya');
   assert.throws(() => I.ubahTask(d, induk, { pic: 'bilar' }, 'alya', WAKTU + 3), /tak diserahkan ke staff|sudah dibagi/, 'task Lead yang bukan turunan tetap tak diserahkan');
 });
+
+test('yang diajukan tak lagi menahan (2.30.0): langkah berikutnya jalan sejajar selagi ditinjau; E12 tetap menunggu', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const baru = (sub, pic, me = 'nynda') => I.taskBaru(d, { title: sub + ' uji', project: 'PRJ-1', sub, pic }, me, WAKTU, HARI);
+  const a1 = baru('A1', 'nynda');
+  Object.assign(a1, { status: 'Selesai', selesaiAt: WAKTU + 1 });
+  const d2 = baru('D2', 'andika');
+  const dv7 = baru('DV7', 'ali');
+  const dv1 = baru('DV1', 'andika');
+  const e12 = baru('E12', 'nynda');
+  I.aturTunggu(d, dv7, { tunggu: [d2.id] }, 'ali', WAKTU + 2);
+  const perId = () => I.indeks(d);
+  const tunggu = t => I.depsBelum(t, perId()).map(x => x.id);
+  assert.deepEqual([tunggu(dv7), tunggu(dv1)], [[d2.id], [d2.id]], 'serah-terima dan fase menunggu D2');
+  // Andika mengajukan D2 ke Manager: DV7 (tim lain) dan DV1 (fase berikutnya) langsung bisa mulai.
+  I.terapkanAksi(d, d2, 'mulai', 'andika', WAKTU + 3);
+  Object.assign(d2, { output: 'Blueprint' });
+  I.terapkanAksi(d, d2, 'ajukan', 'andika', WAKTU + 4);
+  assert.equal(d2.status, 'Ditinjau');
+  assert.deepEqual([tunggu(dv7), tunggu(dv1)], [[], []]);
+  assert.equal(I.labelKeadaan(dv7, perId()), 'Siap');
+  assert.ok(I.syaratAjukan(dv7, perId()).find(s => s.kunci === 'deps').ok);
+  const siap = I.notifikasi(d, 'ali').find(x => x.jenis === 'siap' && x.task === dv7.id);
+  assert.equal(siap && siap.at, WAKTU + 4, 'Ali diberi tahu saat D2 diajukan');
+  assert.ok(tunggu(e12).includes(d2.id), 'E12 tetap menunggu D2 disetujui');
+  I.terapkanAksi(d, dv7, 'mulai', 'ali', WAKTU + 5);
+  // Manager mengembalikan D2: DV7 tetap berjalan, tetapi terbaca terhambat lagi.
+  I.terapkanAksi(d, d2, 'kembalikan', 'nynda', WAKTU + 6, 'Norma skor belum lengkap');
+  assert.equal(dv7.status, 'Dikerjakan');
+  assert.deepEqual(tunggu(dv7), [d2.id]);
+  assert.ok(I.terhambat(dv7, perId()));
+});
+
+test('duplikat rancangan paket (2.30.0): isi dan target ikut dengan ID baru; jadwal, bagikan, dan setoran tidak', () => {
+  const d = data([]);
+  const p = I.paketBaru(d, { namaPaket: 'TO CPNS 2026', platform: 'ASN' }, 'alya', WAKTU);
+  I.simpanPaket(d, p, { namaPaket: 'TO CPNS 2026', mirror: true, daftarBuka: '2026-11-01', daftarTutup: '2026-11-30', latsol: 'Catatan latsol',
+    items: [{ kategori: 'Tryout', nama: 'TO SKD', target: 10, satuan: 'Paket', awal: 3 }], links: [{ label: 'Brief', url: 'https://contoh.id/brief' }] }, 'alya', WAKTU + 1);
+  d.setoran.push({ id: 'st1', paket: p.id, item: p.items[0].id, task: 'PRD-001', jumlah: 2 });
+  const b = I.duplikatPaket(d, p, {}, 'alya', WAKTU + 2);
+  assert.notEqual(b.id, p.id);
+  assert.equal(d.packages[0], b);
+  assert.equal(b.namaPaket, 'TO CPNS 2026 (salinan)');
+  assert.deepEqual([b.mirror, b.daftarBuka, b.daftarTutup, b.latsol, b.platform], [false, '', '', 'Catatan latsol', p.platform]);
+  assert.deepEqual(b.items.map(i => [i.nama, i.target, i.awal]), [['TO SKD', 10, 0]], '"sudah ada" kembali 0');
+  assert.notEqual(b.items[0].id, p.items[0].id);
+  assert.deepEqual(b.links.map(l => l.url), ['https://contoh.id/brief']);
+  assert.equal(d.setoran.filter(s => s.paket === b.id).length, 0, 'setoran tak ikut');
+  assert.equal(I.duplikatPaket(d, p, { namaPaket: 'TO CPNS 2027', bawaAwal: true }, 'nynda', WAKTU + 3).items[0].awal, 3);
+  assert.throws(() => I.duplikatPaket(d, p, {}, 'kiki', WAKTU), /Hanya Lead atau Manager yang membuat paket/);
+});
+
+test('duplikat proyek (2.30.0): task siklus aktif jadi rencana baru — turunan, urutan tunggu, ceklis, tenggat digeser', () => {
+  const d = data([], [proyek({ lead: '', cycle: 1 })]);
+  const asal = d.projects[0];
+  const baru = (sub, pic, due) => I.taskBaru(d, { title: sub + ' uji', project: 'PRJ-1', sub, pic, due }, 'nynda', WAKTU, HARI);
+  const a1 = baru('A1', 'nynda', '2026-10-08');
+  const d2 = baru('D2', 'andika', '2026-10-12');
+  const dv7 = baru('DV7', 'ali', '2026-10-20');
+  I.aturTunggu(d, dv7, { tunggu: [d2.id] }, 'ali', WAKTU + 1);
+  const anak = I.taskAnak(d, d2, { title: 'Bagian blueprint', pic: 'uma' }, 'andika', WAKTU + 2, HARI);
+  I.tambahSubtask(d, d2, { title: 'Cek norma', link: 'contoh.id/norma' }, 'andika', WAKTU + 3);
+  Object.assign(a1, { status: 'Selesai', selesaiAt: WAKTU + 4, output: 'Intake' });
+  d2.subtasks[0].done = true;
+  d.setoran.push({ id: 'st1', paket: 'PKG-001', item: 'x', task: d2.id, jumlah: 1 });
+  const { project, tasks } = I.duplikatProyek(d, asal, { name: 'Paket Uji 2027' }, 'nynda', WAKTU + 10 * 864e5, '2026-10-17');
+  assert.deepEqual([project.name, project.paket, project.cycle, tasks.length], ['Paket Uji 2027', '', 1, 4]);
+  const per = sub => tasks.find(t => t.sub === sub && !t.induk);
+  assert.ok(tasks.every(t => t.status === 'Antre' && !t.selesaiAt), 'semua mulai lagi dari antre (gerbang A1 baru belum lewat)');
+  assert.ok(tasks.every(t => !t.output && !t.evidence.length && !t.tinjauan.length && !t.comments.length && t.project === project.id));
+  assert.equal(per('DV7').tunggu[0], per('D2').id, 'urutan tunggu menunjuk task baru');
+  const anakBaru = tasks.find(t => t.induk);
+  assert.deepEqual([anakBaru.induk, anakBaru.pic, anakBaru.title], [per('D2').id, 'uma', anak.title]);
+  assert.deepEqual(per('D2').subtasks.map(s => [s.title, s.done, s.link, s.pic]), [['Cek norma', false, 'https://contoh.id/norma', 'andika']]);
+  assert.deepEqual([per('A1').due, per('D2').due, per('DV7').due], ['2026-10-18', '2026-10-22', '2026-10-30'], 'tenggat digeser, jaraknya sama');
+  assert.equal((d.setoran || []).filter(s => tasks.some(t => t.id === s.task)).length, 0, 'setoran tak ikut');
+  const kosong = I.duplikatProyek(d, asal, { tasks: false }, 'nynda', WAKTU + 11 * 864e5, '2026-10-18');
+  assert.deepEqual([kosong.project.name, kosong.tasks.length], ['Paket Uji (salinan)', 0]);
+  const tanpaTenggat = I.duplikatProyek(d, asal, { tenggat: 'kosong' }, 'nynda', WAKTU + 12 * 864e5, '2026-10-18');
+  assert.ok(tanpaTenggat.tasks.every(t => t.due === ''));
+  assert.throws(() => I.duplikatProyek(d, asal, {}, 'alya', WAKTU), /Hanya Manager yang membuat proyek/);
+  // Lewat perintah data real juga.
+  const r = I.jalankanPerintah(d, { aksi: 'duplikatProyek', isi: { proyek: 'PRJ-1', f: { name: 'Lewat perintah' } }, oleh: 'nynda', at: WAKTU + 13 * 864e5, hari: '2026-10-20' });
+  assert.ok(r.ok, r.galat);
+  assert.deepEqual(I.ringkasHasil(r.hasil).tasks.length, 4);
+});
+
+test('sudah diajukan = sudah dikumpulkan (2.30.0): tak dihitung telat; tepat waktu dinilai dari saat diajukan', () => {
+  const lewat = '2026-10-05';
+  const t = siap({ project: 'PRJ-1', stage: 'V', sub: 'DV8', pic: 'kiki', status: 'Dikerjakan', due: lewat });
+  const d = data([t], [proyek()]);
+  assert.equal(I.telat(t, HARI), true, 'masih dikerjakan sesudah tenggat: telat');
+  // Diajukan sebelum tenggat, disetujui sesudahnya.
+  I.terapkanAksi(d, t, 'ajukan', 'kiki', Date.UTC(2026, 9, 4, 3));
+  assert.equal(t.status, 'Ditinjau');
+  assert.equal(I.telat(t, HARI), false, 'sudah diajukan: tak telat walau tinjauannya lewat tenggat');
+  assert.equal(I.laporan(d, HARI).perOrang.find(o => o.id === 'kiki').telat, 0);
+  assert.ok(!(I.pekerjaanSaya(d, 'kiki', HARI).grup.find(g => g.kunci === 'telat') || { isi: [] }).isi.length);
+  I.terapkanAksi(d, t, 'setujui', 'alya', WAKTU);
+  assert.equal(I.waktuKumpul(t), Date.UTC(2026, 9, 4, 3));
+  const lp = I.laporanPeriode(d, ['kiki'], '2026-10-01', HARI, HARI);
+  assert.deepEqual([lp.baris[0].selesai.length, lp.baris[0].tepat], [1, 1], 'tepat waktu: dikumpulkan sebelum tenggat');
+  // Dikembalikan: terbaca telat lagi.
+  const u = siap({ project: 'PRJ-1', stage: 'V', sub: 'DV8', pic: 'kiki', status: 'Dikerjakan', due: lewat });
+  d.tasks.push(u);
+  I.terapkanAksi(d, u, 'ajukan', 'kiki', WAKTU - 1000);
+  I.terapkanAksi(d, u, 'kembalikan', 'alya', WAKTU, 'Revisi kunci');
+  assert.equal(I.telat(u, HARI), true);
+  // Tanpa tinjauan (rutin): dinilai dari saat ditandai selesai.
+  const r = task({ status: 'Selesai', selesaiAt: WAKTU, due: lewat });
+  assert.equal(I.waktuKumpul(r), WAKTU);
+});
+

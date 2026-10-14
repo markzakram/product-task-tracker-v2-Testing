@@ -95,6 +95,21 @@ dengan satu penyederhanaan: tetap empat status.
   - **tutup** — **E12** menunggu semua task lain di siklusnya, supaya siklus tak tertutup
     selagi masih ada pekerjaan.
 
+  **Yang sudah diajukan tak lagi menahan (2.30.0, permintaan user).** Task yang ditunggu
+  dianggap cukup begitu PIC-nya mengajukannya (status Ditinjau), bukan baru saat disetujui:
+  langkah berikutnya, di tim sendiri maupun tim lain, bisa mulai sejajar selagi Lead atau Manager
+  meninjau. PIC task berikutnya diberi tahu saat itu juga. Kalau peninjau mengembalikannya, task
+  berikutnya yang sudah berjalan tetap berjalan tetapi terbaca terhambat lagi. Pengecualiannya
+  **E12**: tetap menunggu semua task lain benar-benar disetujui. Di detail task, bagian
+  **Menunggu** menandai yang sedang ditinjau ("diajukan, sedang ditinjau …"). Aturannya
+  `Inti.masihMenahan` dan `Inti.tungguBelum`.
+
+  **Yang sudah diajukan sudah dikumpulkan (2.30.0, permintaan user).** Task berstatus Ditinjau
+  tak dihitung telat lagi (Hari Ini, Dashboard, Laporan, kanban, timeline, kalender, dan agen),
+  walau tinjauannya lewat tenggat; kalau dikembalikan, ia terbaca telat lagi. Di Laporan, **tepat
+  waktu** dinilai dari saat diajukan terakhir sebelum disetujui, bukan saat disetujui
+  (`Inti.telat`, `Inti.waktuKumpul`).
+
   Tim yang berbeda tak saling menunggu di luar itu. Task turunan mengikuti induknya, dan task rutin
   tetap menunggu task di `deps`-nya. Urutan yang membuat task saling menunggu ditolak saat
   disimpan, juga saat sub-stage atau PIC diubah. Task yang diatur menunggu task setim di fase
@@ -124,10 +139,10 @@ dengan satu penyederhanaan: tetap empat status.
   (`subtasks`, kolom `link` di tab `subtasks` dan tabel `v2_subtasks`); agen AI mengisinya lewat
   `tambah_subtask`.
 - **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, semua ceklis pengerjaan
-  selesai, semua task turunan selesai (kalau ada), task yang ditunggu selesai, dan tidak
-  tertahan. Sejak 2.28.0 (permintaan user) bagian **Output** di detail task berisi output saja;
-  **tautan hasil kerja opsional** dan tak lagi menjadi syarat. Daftar periksanya tampil di detail
-  task.
+  selesai, semua task turunan selesai (kalau ada), task yang ditunggu sudah diajukan atau selesai
+  (2.30.0), dan tidak tertahan. Sejak 2.28.0 (permintaan user) bagian **Output** di detail task
+  berisi output saja; **tautan hasil kerja opsional** dan tak lagi menjadi syarat. Daftar
+  periksanya tampil di detail task.
 - **Tinjauan:** task staff oleh Lead-nya (termasuk task turunan), task Lead oleh Manager, sub-stage
   bertanda Manager oleh Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
 - **Tab bawaan (2.23.0).** Setiap kali proyek dibuka, halaman proyek langsung terbuka di tab
@@ -135,6 +150,10 @@ dengan satu penyederhanaan: tetap empat status.
   yang dipilih bertahan selama proyek itu terbuka.
 - **Proyek tanpa Lead tetap.** Yang tampil adalah tim yang punya task di siklus ini beserta
   fasenya, mis. **RAD V**, **CLO ✓**.
+- **Proyek tim saya disorot (2.30.0, permintaan user).** Di daftar Proyek, proyek yang punya
+  task tim Lead atau staff yang sedang masuk diberi garis biru di tepi kiri, chip timnya diberi
+  bingkai, dan judul halaman menyebut jumlahnya ("8 melibatkan tim RAD"). Manager tak disorot,
+  karena terlibat di semua proyek.
 - **Fase tim dihitung, bukan diputuskan:** fase task terbuka tim itu yang paling awal. Jalur
   **A D V I E** tiap tim (di Ringkasan, tab tim, dan detail task) bisa diklik untuk membuka task
   fase itu di tab timnya. Tahap proyek (fase paling awal di antara semua task terbukanya) tetap
@@ -157,6 +176,14 @@ dengan satu penyederhanaan: tetap empat status.
 - **Ubah proyek (2.28.0, Manager).** Tombol **Ubah proyek** di halaman proyek mengganti nama,
   platform, dan tujuan proyek yang sudah dibuat; ID, siklus, tahap, dan task-nya tetap
   (`Inti.ubahProyek`, aksi data `ubahProyek`). Riwayat Aktivitas mencatat apa yang diubah.
+- **Duplikat proyek (2.30.0, permintaan user; izin `proyek.buat`).** Untuk proyek yang berulang.
+  Tombol **Duplikat proyek** membuat proyek baru di siklus 1 dengan platform dan tujuan yang
+  sama, tanpa tautan paket. Bila dipilih, task siklus aktifnya ikut sebagai rencana baru: judul,
+  sub-stage, PIC, prioritas, keterangan, ceklis (belum dicentang), task turunan, dan urutan
+  tunggu (menunjuk task barunya). Status, output, bukti, tinjauan, komentar, dan setoran tidak;
+  semua task mulai dari Antre. Tenggat digeser ke hari ini dengan jarak yang sama dari awal
+  proyek asalnya, atau dikosongkan. PIC yang sudah nonaktif diganti Lead tim pemilik
+  sub-stage-nya (`Inti.duplikatProyek`, aksi data `duplikatProyek`).
 - **Nomor ID tak dipakai ulang (2.27.0).** Proyek, task, dan paket baru melanjutkan nomor
   tertinggi yang pernah ada, juga sesudah ada yang dihapus (sebelumnya elaborasi ulang sesudah
   hapus proyek memakai lagi PRJ-… dan PRD-… yang dihapus, sehingga riwayat dan pesan Komunikasi
@@ -242,7 +269,11 @@ Halaman pendukung, setara v1:
   sheet Master Marsel; kategori dari Master ikut jadi kolom). Kategori yang dinonaktifkan tetap
   tampil di paket yang masih berisi item kategori itu. Lead & Manager membuat paket; PIC Produk
   dari data v1 boleh menyunting paketnya; membagikan ke Lintas Divisi hanya Lead/Manager;
-  menghapus hanya Manager. Sejak 2.18.0:
+  menghapus hanya Manager. **Duplikat (2.30.0, permintaan user; izin `paket.buat`)** membuat
+  rancangan baru dari paket ini: isi produk, target, catatan per kategori, dan tautan disalin
+  dengan ID baru; jadwal pendaftaran dikosongkan, tak dibagikan ke Lintas Divisi, dan angka
+  "sudah ada" kembali 0 kecuali dipilih ikut. Setoran dan proyek yang tertaut tidak ikut
+  (`Inti.duplikatPaket`, aksi data `duplikatPaket`). Sejak 2.18.0:
   - **Platform boleh lebih dari satu.** Di form, platform dicentang. Isiannya tetap satu
     kolom teks dipisah koma ("ASN, BUMN"), jadi data lama dan sheet Marsel tak berubah.
     Saringan Platform di daftar juga bisa memilih beberapa platform: paket tampil bila salah
@@ -798,7 +829,10 @@ perangkat mana pun). Dibuka lewat foto sendiri di kanan atas → **Sesuaikan tam
     lebih tegas menjaga keterbacaan. Diuji dengan gambar terburuk (hitam, putih, merah, biru,
     hijau, kuning, sian) pada 60%: semua teks di atas latar ≥ 4,5:1 di 8 halaman, kedua tema.
 - **Sampul profil**: gambar 3:1 yang dipotong dan diperkecil di perangkat (≤ `SAMPUL_MAKS`
-  karakter). Tampil di menu akun seperti media sosial, dan bisa jadi latar.
+  karakter). Tampil di menu akun seperti media sosial, dan bisa jadi latar. Sejak 2.30.0
+  (permintaan user) juga di **pemilih profil**: tiap kartu profil bersampul di atasnya, dengan
+  avatar menumpang di tepinya; profil tanpa sampul memakai pita warna aksennya. Sampul orang lain
+  diambil (`muatSampul`) hanya bila berubah dan disimpan di memori saja, tak di localStorage.
 - **Kepadatan** Nyaman/Ringkas (Ringkas hanya di layar lebar) dan **ukuran huruf**
   Kecil/Sedang/Besar. Semua `font-size` di app.css memakai `--skala-huruf`, jadi hanya huruf
   yang membesar; kotak dan sasaran sentuh tetap.
@@ -1108,8 +1142,9 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
   - Ali memasang **DV7 Pembuatan prototype** menunggu **D2** milik RAD lewat **Atur urutan
     tunggu**. Sesudahnya I5 uji coba terbatas dan E8 QC sistem penilaian (DAE), DV1 produksi
     butir dan E1 QC butir (RAD), lalu E12 oleh Manager.
-  - Keadaannya: D2 sudah diajukan dan menunggu tinjauan Manager. Setujui D2 sebagai Nynda, dan
-    Ali langsung mendapat notifikasi bahwa DV7 siap dikerjakan.
+  - Keadaannya: D2 masih dikerjakan Andika (output sudah terisi). Ajukan D2 sebagai Andika, dan
+    Ali langsung mendapat notifikasi bahwa DV7 siap dikerjakan, selagi Manager meninjau D2
+    (2.30.0).
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
 
 Bentuk tab hanya bertambah (kolom `paket` di `projects`; tab `setoran`, sejak 0.6.0 dengan kolom

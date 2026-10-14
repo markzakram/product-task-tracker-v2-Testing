@@ -1945,6 +1945,25 @@
 
     /* ----- Kunci berkonteks (2.29.0) ----- */
     'Proyek§satu': 'Project',
+    /* ----- Duplikat, tak menahan, tim saya (2.29.0) ----- */
+    'diajukan, sedang ditinjau {nama}': 'submitted, in review by {nama}',
+    '{n} masih menahan': '{n} still holding it up',
+    'tak ada yang menahan': 'nothing holds it up',
+    '{n} melibatkan tim {tim}': '{n} involve team {tim}',
+    'Duplikat proyek': 'Duplicate project',
+    'Duplikat': 'Duplicate',
+    'Duplikat rancangan paket': 'Duplicate package plan',
+    'Isi produk, target, catatan per kategori, dan tautannya disalin ke rancangan baru. Jadwal pendaftaran, berbagi ke Lintas Divisi, setoran, dan proyek yang tertaut tidak ikut.': 'Product contents, targets, notes per category, and links are copied into a new plan. The registration schedule, Cross-Division sharing, contributions, and linked projects are not.',
+    '{nama} (salinan)': '{nama} (copy)',
+    'Bawa angka "Sudah ada" dari paket asal (bawaannya 0)': 'Carry over the "Existing" counts from the original package (default 0)',
+    'Proyek baru di siklus 1 dengan platform dan tujuan yang sama, tanpa tautan paket.': 'A new project in cycle 1 with the same platform and goal, without a package link.',
+    'Salin {n} task siklus ini sebagai rencana baru': 'Copy this cycle\'s {n} tasks as a new plan',
+    'Judul, sub-stage, PIC, prioritas, keterangan, ceklis (belum dicentang), task turunan, dan urutan tunggu ikut. Status, output, bukti, tinjauan, komentar, dan setoran tidak; semua task mulai dari Antre.': 'Titles, sub-stages, owners, priorities, descriptions, checklists (unticked), derived tasks, and waiting order are copied. Status, output, evidence, reviews, comments, and contributions are not; every task starts as Queued.',
+    'Geser mulai hari ini, jaraknya sama': 'Shift to start today, same spacing',
+    '{nama} dibuat dari duplikat.': '{nama} was created as a duplicate.',
+    '{nama} dibuat dari duplikat dengan {n} task.': '{nama} was created as a duplicate with {n} tasks.',
+    'Task yang ditunggu sudah diajukan atau selesai': 'Tasks it waits for are submitted or done',
+    'Sudah diajukan, tak dihitung telat': 'Already submitted, not counted as late',
   };
 
   let kini = 'id';

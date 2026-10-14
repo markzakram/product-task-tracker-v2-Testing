@@ -28,7 +28,8 @@
    Ditambah satu proyek TANPA paket (2.29.1): "Tes Psikologi PAPI Kostick", dua tim. RAD
    (Andika) meriset dan merancang instrumennya; DAE (Ali) merancang sistem penilaian sejajar,
    lalu membuat prototype yang menunggu rancangan RAD (serah-terima lewat Atur urutan tunggu).
-   Rancangan RAD sedang ditinjau Manager: begitu disetujui, prototype Ali terbuka.
+   Rancangan RAD masih dikerjakan: begitu Andika mengajukannya, prototype Ali terbuka (2.30.0:
+   yang diajukan tak lagi menahan), sementara Manager meninjau rancangannya.
    Ditambah beberapa Catatan Saya dan Link Saya contoh (folder "Contoh") memakai tautan
    Dashboard Lain dan tautan paket yang memang sudah ada di data contoh.
 
@@ -259,8 +260,9 @@ function skenarioOjk(data, sekarang) {
 /* Proyek lintas tim tanpa rancangan paket (2.29.1): PAPI Kostick. Analysis: intake & target oleh
    Manager (gerbang) dan riset RAD (sebagian dibagi ke Uma). Design sejajar: blueprint instrumen
    oleh Andika (RAD) dan rancangan sistem penilaian oleh Ali (DAE, tanpa staff). Ali memasang
-   prototype DV7 menunggu blueprint D2 RAD. Keadaannya kini: D2 sudah diajukan dan menunggu
-   tinjauan Manager, jadi DV7 (dan produksi butir RAD) masih menunggu. */
+   prototype DV7 menunggu blueprint D2 RAD. Keadaannya kini: D2 masih dikerjakan Andika (output
+   sudah terisi), jadi DV7 (dan produksi butir RAD) masih menunggu. Begitu D2 diajukan, keduanya
+   bisa mulai sejajar selagi Manager meninjau D2 (2.30.0). */
 function skenarioPapi(data, sekarang) {
   const awal = sekarang - 12 * HARI;
   const hari = w => Inti.isoHari(w);
@@ -292,8 +294,9 @@ function skenarioPapi(data, sekarang) {
   setujui(data, d4, awal + 7 * HARI);
   // Serah-terima: Ali (Lead DAE) memasang prototype menunggu blueprint RAD.
   Inti.aturTunggu(data, dv7, { tunggu: [d2.id] }, 'ali', awal + 7 * HARI + 2 * JAM);
-  kerjakan(data, d2, awal + 4.2 * HARI, sekarang - 5 * JAM);
-  komentar(data, d2, 'ali', 'Begitu blueprint ini disetujui, prototype DV7 langsung saya mulai. Mohon sertakan norma skor per aspek.', sekarang - 3 * JAM);
+  kerjakan(data, d2, awal + 4.2 * HARI);
+  Inti.isiOutput(data, d2, 'Blueprint 90 pasang pernyataan, 20 aspek, dan norma skor per aspek', 'andika', sekarang - 5 * JAM);
+  komentar(data, d2, 'ali', 'Begitu blueprint ini diajukan, prototype DV7 langsung saya mulai. Mohon sertakan norma skor per aspek.', sekarang - 3 * JAM);
   return { project: proj, tasks: [a1, a2, a6, d2, d4, dv1, dv7, i5, e1, e8, e12] };
 }
 

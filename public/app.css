@@ -238,7 +238,16 @@ svg { flex: 0 0 auto; }
 .pilih-profil { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
 .pilih-profil button { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px; border: 1px solid var(--garis); border-radius: 12px; background: var(--muka); text-align: left; }
 .pilih-profil button:hover { border-color: var(--langit); background: var(--biru-muda); }
-.pilih-profil span span { display: block; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+/* Kartu profil bersampul (2.30.0): sampul di atas, avatar menumpang di tepinya. Tanpa sampul,
+   pita berwarna aksen orang itu. */
+.pilih-profil button.kartu-profil { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; padding: 0; overflow: hidden; }
+.profil-sampul { display: block; height: 52px; background-color: color-mix(in srgb, var(--warna-profil, var(--biru)) 28%, var(--muka)); background-position: center; background-size: cover; background-repeat: no-repeat; }
+.profil-baris { display: flex; align-items: flex-end; gap: 10px; padding: 0 12px 10px; margin-top: -20px; }
+.profil-baris .avatar { flex-shrink: 0; box-shadow: 0 0 0 3px var(--muka); }
+.pilih-profil button.kartu-profil:hover .profil-baris .avatar { box-shadow: 0 0 0 3px var(--biru-muda); }
+.profil-teks { min-width: 0; padding-top: 24px; }
+.profil-teks span { display: block; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+.profil-baris .profil-gembok { align-self: center; margin-top: 20px; }
 
 /* ---------- Kerangka aplikasi: sidebar kiri seperti v1 ---------- */
 
@@ -547,6 +556,9 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .daftar-proyek { display: flex; flex-direction: column; gap: 8px; }
 .baris-proyek { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; width: 100%; padding: 14px 16px; text-align: left; background: var(--muka); border: 1px solid var(--garis); border-radius: 14px; }
 .baris-proyek:hover { border-color: var(--biru-garis); }
+/* Proyek yang melibatkan tim saya (2.30.0). */
+.baris-proyek.tim-saya { border-color: var(--biru-garis); box-shadow: inset 4px 0 0 var(--biru); }
+.chip-tim.tim-saya { outline: 2px solid var(--biru); outline-offset: 1px; }
 .baris-proyek-nama { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .baris-proyek-nama strong { font-size: calc(15px * var(--skala-huruf)); }
 .baris-proyek-nama small { font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
@@ -1569,7 +1581,7 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
 /* ---------- PIN profil & Master (0.14.0) ---------- */
 
 .profil-gembok { display: inline-flex; flex-shrink: 0; margin-left: auto; color: var(--redup); }
-.pilih-profil button > span:nth-child(2) { min-width: 0; }
+.pilih-profil .profil-teks { min-width: 0; }
 .pin-profil-kepala { display: flex; align-items: center; gap: 12px; }
 .pin-profil-kepala h2 { margin: 0; font-size: calc(18px * var(--skala-huruf)); color: var(--navy); }
 .pin-profil-kepala .hint { margin-top: 2px; }

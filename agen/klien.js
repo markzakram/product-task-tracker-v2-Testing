@@ -103,7 +103,8 @@ function judulRuang(data, ruang, susunan = null) {
 
 /* Satu baris ringkas untuk sebuah task. */
 function barisTask(t, k, catatan = '') {
-  const tenggat = t.due ? ` · tenggat ${tglPendek(t.due)}${t.due < k.hari ? ` (telat ${selisihHari(t.due, k.hari)} hari)` : ''}` : '';
+  // Yang sudah diajukan tak dihitung telat (2.30.0), sama dengan I.telat.
+  const tenggat = t.due ? ` · tenggat ${tglPendek(t.due)}${I.telat(t, k.hari) ? ` (telat ${selisihHari(t.due, k.hari)} hari)` : ''}` : '';
   const label = I.labelKeadaan(t, k.perId);
   return `${t.id}${t.sub ? ' · ' + t.sub : ''} · ${potong(t.title, 80)} — ${t.status}${label ? ', ' + label : ''}${tenggat}${catatan ? ` · ${catatan}` : ''}`;
 }

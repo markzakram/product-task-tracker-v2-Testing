@@ -28,6 +28,32 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.30.0 — Duplikat paket & proyek, yang diajukan tak lagi menahan, proyek tim disorot, sampul di pemilih profil (2026-10-13)
+
+Empat permintaan user.
+
+- **Duplikat rancangan paket** (tombol **Duplikat** di detail paket, izin `paket.buat`): isi produk,
+  target, catatan kategori, dan tautan disalin dengan ID baru; jadwal pendaftaran kosong, tak
+  dibagikan, "sudah ada" kembali 0 (atau ikut, bila dipilih); setoran dan proyek tak ikut.
+- **Duplikat proyek** (tombol **Duplikat proyek**, izin `proyek.buat`): proyek baru di siklus 1,
+  tanpa tautan paket, ditambah (bila dipilih) task siklus aktifnya sebagai rencana baru — task
+  turunan, ceklis, dan urutan tunggu ikut; status, output, bukti, tinjauan, komentar, dan setoran
+  tidak. Tenggat digeser ke hari ini dengan jarak yang sama, atau dikosongkan.
+- **Yang sudah diajukan tak lagi menahan**: task yang ditunggu (urutan tunggu antartim, fase tim,
+  gerbang) dianggap cukup begitu diajukan untuk ditinjau, jadi langkah berikutnya bisa mulai
+  sejajar selagi Lead atau Manager meninjau; PIC-nya diberi tahu saat itu. E12 tetap menunggu
+  semua task disetujui. Syarat ajukan menjadi "task yang ditunggu sudah diajukan atau selesai".
+  Yang sudah diajukan juga sudah dikumpulkan: tak dihitung telat (di semua tampilan dan agen),
+  dan tepat waktu di Laporan dinilai dari saat diajukan, bukan saat disetujui.
+  Skenario contoh PAPI Kostick menyesuaikan: blueprint RAD masih dikerjakan, dan begitu
+  diajukan, prototype DAE terbuka.
+- **Proyek tim saya disorot** di daftar Proyek (garis tepi, chip tim berbingkai, jumlahnya di
+  judul) untuk Lead dan staff.
+- **Sampul di pemilih profil**: kartu profil bersampul; tanpa sampul, pita warna aksen. Sampul
+  orang lain disimpan di memori saja.
+- Tes baru di `test/inti.test.js` (aturan diajukan, tak dihitung telat, duplikat paket, duplikat
+  proyek). 276 tes.
+
 ## 2.29.1 — Data contoh: proyek lintas tim PAPI Kostick (2026-10-13)
 
 Permintaan user: contoh proyek yang dikerjakan dua tim, dari riset dan rancangan RAD (Andika) ke

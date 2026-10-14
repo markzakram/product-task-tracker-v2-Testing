@@ -407,8 +407,16 @@
     }
     return out;
   }
+  /* Yang ditunggu masih menahan? Sejak 2.30.0 (permintaan user) task yang sudah diajukan dan
+     sedang ditinjau tak lagi menahan: langkah berikutnya, juga di tim lain, boleh berjalan sejajar
+     selagi Lead atau Manager meninjaunya. E12 tetap menunggu semua task lain benar-benar selesai
+     (disetujui), supaya siklus tak tertutup sebelum tinjauannya beres. */
+  const masihMenahan = x => aktif(x.t) && (x.jenis === 'tutup' || x.t.status !== 'Ditinjau');
+  const tungguBelum = (t, perId) => ditunggu(t, perId).filter(masihMenahan);
+  /* Kapan task terakhir diajukan (0 bila tak sedang ditinjau). */
+  const waktuDiajukan = t => (t.status === 'Ditinjau' ? Math.max(0, ...(t.tinjauan || []).filter(r => r.action === 'Diajukan').map(r => r.at || 0)) : 0);
   function depsBelum(t, perId) {
-    return ditunggu(t, perId).map(x => x.t).filter(aktif);
+    return tungguBelum(t, perId).map(x => x.t);
   }
   /* Jalur saling menunggu yang kembali ke task ini (mis. urutan yang diatur tak sengaja
      memutar), atau null. Task turunan diwakili induknya. */
@@ -435,7 +443,17 @@
      yang dihitung sebagai masalah. Menunggu urutan proses itu wajar, bukan masalah. */
   const terhambat = (t, perId) => aktif(t) && (!!t.tertahan || depsBelum(t, perId).length > 0);
   const ditandaiTertahan = t => aktif(t) && !!t.tertahan;
-  const telat = (t, hariIni) => aktif(t) && !!t.due && t.due < hariIni;
+  /* Sejak 2.30.0 (permintaan user) task yang sudah diajukan (Ditinjau) sudah dikumpulkan: tak
+     lagi dihitung telat walau tinjauannya lewat tenggat. Kalau dikembalikan, ia terbaca telat lagi. */
+  const telat = (t, hariIni) => aktif(t) && t.status !== 'Ditinjau' && !!t.due && t.due < hariIni;
+  /* Kapan hasil kerjanya dikumpulkan: saat diajukan terakhir sebelum disetujui (yang ditinjau),
+     atau saat ditandai selesai (yang tanpa tinjauan). 0 bila belum. */
+  function waktuKumpul(t) {
+    if (t.status === 'Ditinjau') return waktuDiajukan(t);
+    if (!selesai(t)) return 0;
+    const aju = (t.tinjauan || []).filter(r => r.action === 'Diajukan' && (r.at || 0) <= (t.selesaiAt || Infinity)).map(r => r.at || 0);
+    return aju.length ? Math.max(...aju) : t.selesaiAt || 0;
+  }
 
   /* Siapa yang meninjau task ini sebelum selesai. null = tanpa tinjauan.
      Task rutin tak perlu ditinjau; yang terlanjur Ditinjau (bawaan "Review PM"
@@ -542,7 +560,7 @@
   /* Alasan task belum bisa jalan, dalam kalimat untuk layar. */
   function alasanTunggu(t, perId) {
     if (t.tertahan) return 'Tertahan: ' + (t.alasanTertahan || 'tanpa alasan');
-    const d = ditunggu(t, perId).filter(x => aktif(x.t));
+    const d = tungguBelum(t, perId);
     if (d.length && tungguTahap(t)) {
       const sebut = x => `${x.id} "${potong(x.title, 40)}" (${singkatTim(timJalur(x, perId))} · ${orang(x.pic).pendek})`;
       const jenis = ['atur', 'gerbang', 'fase', 'tutup'].find(j => d.some(x => x.jenis === j));
@@ -563,7 +581,7 @@
   }
   /* Versi singkat untuk kartu kanban: "Menunggu RAD · PRD-12", "Menunggu fase Design LNA", … */
   function tungguSingkat(t, perId) {
-    const d = ditunggu(t, perId).filter(x => aktif(x.t));
+    const d = tungguBelum(t, perId);
     if (!d.length) return '';
     if (!tungguTahap(t)) return 'Menunggu ' + d[0].t.id;
     const x = ['atur', 'gerbang', 'fase', 'tutup'].map(j => d.find(y => y.jenis === j)).find(Boolean);
@@ -582,7 +600,7 @@
       { kunci: 'output', label: 'Output terisi', ok: !!String(t.output || '').trim() },
       { kunci: 'sub', label: 'Semua ceklis pengerjaan selesai', ok: (t.subtasks || []).every(s => s.done) },
       ...(anak.length ? [{ kunci: 'anak', label: `Semua task turunan selesai (${anak.filter(selesai).length}/${anak.length})`, ok: anak.every(selesai) }] : []),
-      { kunci: 'deps', label: 'Task yang ditunggu sudah selesai', ok: depsBelum(t, perId).length === 0 },
+      { kunci: 'deps', label: 'Task yang ditunggu sudah diajukan atau selesai', ok: depsBelum(t, perId).length === 0 },
       { kunci: 'tahan', label: 'Tidak sedang tertahan', ok: !t.tertahan },
     ];
   }
@@ -1272,7 +1290,8 @@
   }
 
   /* Selesai & baru dihitung DALAM periode; aktif, terlambat, dan tertahan adalah
-     keadaan HARI INI. Tepat waktu = selesai pada atau sebelum tenggatnya. */
+     keadaan HARI INI. Tepat waktu = dikumpulkan (diajukan, sejak 2.30.0) pada atau sebelum
+     tenggatnya, walau disetujuinya sesudah tenggat. */
   function laporanPeriode(data, ids, dari, sampai, hariIni) {
     const dalam = ms => { const h = isoHari(ms); return !!h && h >= dari && h <= sampai; };
     const daftar = ids || ORANG.map(o => o.id);
@@ -1283,7 +1302,7 @@
         id,
         aktif: milik.filter(aktif).length,
         selesai: beres,
-        tepat: beres.filter(t => !t.due || isoHari(t.selesaiAt) <= t.due).length,
+        tepat: beres.filter(t => !t.due || isoHari(waktuKumpul(t)) <= t.due).length,
         baru: milik.filter(t => dalam(t.createdAt)).length,
         telat: milik.filter(t => telat(t, hariIni) && !t.tertahan).sort((a, b) => a.due.localeCompare(b.due)),
         tertahan: milik.filter(ditandaiTertahan),
@@ -1737,10 +1756,11 @@
     const tambah = (jenis, t, at, oleh, isi = '', ai = false) => { if (at) out.push({ id: `${jenis}-${t.id}-${at}`, jenis, task: t.id, at, oleh, teks: isi, ...(ai ? { ai: true } : {}) }); };
     for (const t of data.tasks) {
       if (t.pic === me && t.status === 'Antre' && tungguTahap(t)) {
-        // Yang ditunggunya baru tuntas: task ini siap dimulai (kecuali sudah siap sejak dibuat).
-        const sebelum = ditunggu(t, perId).map(x => x.t);
-        const at = Math.max(0, ...sebelum.map(x => x.selesaiAt || 0));
-        if (sebelum.length && sebelum.every(selesai) && at > (t.createdAt || 0)) tambah('siap', t, at, '');
+        // Yang ditunggunya baru tuntas (atau, sejak 2.30.0, diajukan): task ini siap dimulai
+        // (kecuali sudah siap sejak dibuat).
+        const sebelum = ditunggu(t, perId);
+        const at = Math.max(0, ...sebelum.map(x => x.t.selesaiAt || waktuDiajukan(x.t)));
+        if (sebelum.length && !sebelum.some(masihMenahan) && at > (t.createdAt || 0)) tambah('siap', t, at, '');
       } else if (t.pic === me && t.status === 'Antre' && (t.deps || []).length) {
         const dep = t.deps.map(id => perId.get(id)).filter(Boolean);
         if (dep.length && dep.every(selesai)) tambah('siap', t, Math.max(...dep.map(d => d.selesaiAt || 0)), '');
@@ -2129,6 +2149,71 @@
     if (data.setoran) data.setoran = data.setoran.filter(s => s.paket !== p.id);
     for (const proj of data.projects) if (proj.paket === p.id) proj.paket = '';
     catatLog(data, 'delete', `${p.id} · ${p.namaPaket}`, 'Rancangan paket dihapus', me, waktu);
+  }
+
+  /* ---------- Duplikat rancangan paket dan proyek (2.30.0, permintaan user) ----------
+     Untuk pekerjaan yang berulang. Paket: isi produk, target, catatan per kategori, dan
+     tautannya disalin dengan ID baru; jadwal pendaftaran dikosongkan, tak dibagikan ke Lintas
+     Divisi, dan angka "sudah ada" kembali 0 kecuali dipilih ikut. Setoran dan proyek yang
+     tertaut tak ikut. */
+  function duplikatPaket(data, p, f, me, waktu) {
+    wajibIzin(me, 'paket.buat');
+    const namaPaket = teks(f.namaPaket) || `${p.namaPaket || p.id} (salinan)`;
+    const salin = JSON.parse(JSON.stringify(p));
+    const baru = {
+      ...salin,
+      id: 'PKG-' + String(nomorBerikut(data.packages, 'PKG', data)).padStart(3, '0'),
+      namaPaket, mirror: false, daftarBuka: '', daftarTutup: '', updatedBy: me, updatedAt: waktu,
+      items: (salin.items || []).map((it, i) => ({ ...it, id: `i${waktu}-${i}`, urutan: i + 1, awal: f.bawaAwal ? angkaPositif(it.awal) : 0 })),
+      links: (salin.links || []).map((l, i) => ({ ...l, id: `pl${waktu}-${i}`, urutan: i + 1 })),
+    };
+    if ('arsip' in baru) baru.arsip = false;
+    data.packages.unshift(baru);
+    catatLog(data, 'create', `${baru.id} · ${baru.namaPaket}`, `Rancangan paket diduplikat dari ${p.id}`, me, waktu);
+    return baru;
+  }
+  /* Proyek: nama, platform, dan tujuan, ditambah (bila dipilih) task siklus aktifnya sebagai
+     rencana baru di siklus 1 — judul, sub-stage, PIC, prioritas, keterangan, ceklis (belum
+     dicentang), task turunan, dan urutan tunggu ikut; status, output, bukti, tinjauan, komentar,
+     dan setoran tidak. Tenggat digeser ke hari ini dengan jarak yang sama dari awal proyek
+     asalnya, atau dikosongkan. PIC yang sudah nonaktif diganti Lead tim pemilik sub-stage-nya.
+     Proyek baru tak tertaut ke paket. */
+  function duplikatProyek(data, p, f, me, waktu, hariIni) {
+    wajibIzin(me, 'proyek.buat');
+    const baru = proyekBaru(data, { name: teks(f.name) || `${p.name} (salinan)`, platform: p.platform, goal: p.goal }, me, waktu);
+    const tasks = [];
+    if (f.tasks !== false) {
+      const asal = tugasSiklus(data, p);
+      const dasar = asal.map(t => t.start || isoHari(t.createdAt)).filter(Boolean).sort()[0] || hariIni;
+      const peta = new Map();
+      // Yang paling lama lebih dulu, lalu ditaruh di depan: urutannya sama dengan proyek asalnya.
+      for (const t of asal.slice().reverse()) {
+        const pic = ORANG_PER_ID.has(t.pic) ? t.pic : leadSub(t.sub) || MANAGER;
+        const x = {
+          id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
+          project: baru.id, lane: 'proyek', kategori: '', title: t.title, platform: t.platform || baru.platform,
+          stage: t.stage, sub: t.sub, detail: t.detail || '', pic, support: [], priority: t.priority || 'Normal',
+          start: hariIni, due: t.due && f.tenggat !== 'kosong' ? tambahHari(hariIni, selisihHari(dasar, t.due)) : '',
+          status: 'Antre', tertahan: false, alasanTertahan: '', output: '', deps: [], tunggu: [], lepasFase: !!t.lepasFase,
+          notes: '', assignedBy: me, cycle: 1, induk: '', createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
+          subtasks: (t.subtasks || []).map((s, i) => ({ id: `s${waktu}-${tasks.length}-${i}`, title: s.title, pic, due: '', done: false, link: s.link || '' })),
+          comments: [], tinjauan: [], evidence: [],
+        };
+        data.tasks.unshift(x);
+        peta.set(t.id, x);
+        tasks.push(x);
+      }
+      for (const t of asal) {
+        const x = peta.get(t.id);
+        if (t.induk && peta.has(t.induk)) x.induk = peta.get(t.induk).id;
+        x.tunggu = (t.tunggu || []).filter(id => peta.has(id)).map(id => peta.get(id).id);
+      }
+      // Induk yang sudah punya turunan dan tak menunggu apa pun berjalan, seperti saat dibagi.
+      const perId = indeks(data);
+      for (const x of tasks) if (!x.induk && anakTask(perId, x.id).length && !depsBelum(x, perId).length) x.status = 'Dikerjakan';
+    }
+    catatLog(data, 'update', `${baru.id} · ${baru.name}`, `Diduplikat dari ${p.id} · ${p.name}${tasks.length ? ` (${tasks.length} task)` : ''}`, me, waktu);
+    return { project: baru, tasks };
   }
 
   /* Hapus proyek (2.22.0, permintaan user). Hanya Manager, yang juga membuat proyek. Ikut
@@ -3195,6 +3280,8 @@
     setArsip: (d, x, me, w) => setArsip(d, proyekX(d, x), !!x.arsip, me, w),
     tautkanPaket: (d, x, me, w) => tautkanPaket(d, proyekX(d, x), x.paket || '', me, w),
     paketBaru: (d, x, me, w) => paketBaru(d, x.f || {}, me, w),
+    duplikatPaket: (d, x, me, w) => duplikatPaket(d, paketX(d, x), x.f || {}, me, w),
+    duplikatProyek: (d, x, me, w, h) => duplikatProyek(d, proyekX(d, x), x.f || {}, me, w, h),
     simpanPaket: (d, x, me, w) => simpanPaket(d, paketX(d, x), x.f || {}, me, w),
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
     aturTunggu: (d, x, me, w) => aturTunggu(d, tugas(d, x), x, me, w),
@@ -3301,7 +3388,7 @@
     JENIS_MASTER, PLATFORM, PRIORITAS, KATEGORI_SEMUA, aturMaster, periksaMaster, susunMaster, salahMaster, daftarMaster, labelPrioritas,
     ORANG_BAWAAN, DEV, PERAN_ORANG, TIM_LEAD, susunOrang, salahOrganogram, periksaOrang, aturOrang, nonaktif,
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
-    selesai, aktif, indeks, depsBelum, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
+    selesai, aktif, indeks, depsBelum, duplikatPaket, duplikatProyek, waktuKumpul, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
     anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
@@ -3327,7 +3414,7 @@
     KODE_AI, AKSI_AGEN, PESAN_AGEN, PERAN_IZIN, IZIN, izin, izinPeran,
     ULANG_AGENDA, PENGINGAT_AGENDA, periksaAgenda, adaPadaTanggal, kejadianAgenda, waktuPengingat, periksaEmail,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
-    SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
+    SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, tungguBelum, masihMenahan, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
     bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, ubahProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, pindahSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
   };
 }));
