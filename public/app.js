@@ -690,6 +690,7 @@
     tebal: '<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>',
     miring: '<path d="M19 4h-9"/><path d="M14 20H5"/><path d="M15 4 9 20"/>',
     daftarTitik: '<path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/>',
+    cabang: '<path d="M6 9h6M4 5h4M6 5v11a1 1 0 0 0 1 1h5"/><rect x="12" y="7" width="8" height="4" rx="1"/><rect x="12" y="15" width="8" height="4" rx="1"/>',
     centangKotak: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
     mata: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
     bintang: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
@@ -2271,8 +2272,9 @@
      (status), yang perlu dikerjakan sekarang terbuka sendiri, dan buka-tutup yang diubah orang
      bertahan selama task-nya sama (catatGulir, lewat id-nya). Isi tiap bagian: null kalau tak
      berlaku untuk task ini. */
-  const lipat = (id, judul, ket, isi, buka, kelasKet = '') => `<details class="lipat" id="${esc(id)}" ${buka ? 'open' : ''}>
-      <summary><span class="lipat-judul">${judul}</span><span class="lipat-ket ${kelasKet}">${ket}</span>${ikon('bawah', 16)}</summary>
+  const lipat = ({ id, ikonNama, judul, sub = '', ket, isi, buka, kurang }) => `<details class="lipat" id="${esc(id)}" ${buka ? 'open' : ''}>
+      <summary><span class="lipat-ikon">${ikon(ikonNama, 18)}</span><span class="lipat-judul">${judul}${sub ? `<small>${sub}</small>` : ''}</span>
+        <span class="lipat-ket ${kurang ? 'kurang' : ''}">${ket}</span><span class="lipat-panah">${ikon('bawah', 16)}</span></summary>
       <div class="lipat-isi">${isi}</div></details>`;
 
   /* Setoran task ini ke rancangan paket. Lead/Manager task ini bisa menambah atau menghapus.
@@ -2331,8 +2333,7 @@
     const kurang = syarat.filter(x => !x.ok);
     const judul = tr('Syarat ajukan {a}/{b}', { a: ok, b: syarat.length });
     return `<div class="syarat-ringkas">
-      <p class="syarat-kepala"><span>${judul}</span>${tanya('staff-ajukan', tr('mengajukan task'))}</p>
-      <span class="batang ${kurang.length ? '' : 'penuh'}" role="img" aria-label="${judul}"><span style="width:${Math.round(ok / syarat.length * 100)}%"></span></span>
+      <p class="syarat-kepala"><span>${judul}</span><span class="batang ${kurang.length ? '' : 'penuh'}" role="img" aria-label="${judul}"><span style="width:${Math.round(ok / syarat.length * 100)}%"></span></span>${tanya('staff-ajukan', tr('mengajukan task'))}</p>
       ${kurang.length ? `<ul class="syarat ringkas">${kurang.map(x => `<li class="kurang">${ikon('bulat', 14)}<span>${esc(trPola(x.label))}</span></li>`).join('')}</ul>` : ''}
     </div>`;
   }
@@ -2407,7 +2408,7 @@
     if (!n && !bisaSub) return null;
     const done = t.subtasks.filter(x => x.done).length;
     return {
-      ket: n ? `${done}/${n}` : tr('belum ada'), kurang: n > 0 && done < n && t.lane === 'proyek' && t.status === 'Dikerjakan',
+      ket: n ? `${done}/${n}` : tr('{n} butir', { n: 0 }), kurang: n > 0 && done < n && t.lane === 'proyek' && t.status === 'Dikerjakan',
       html: `${n ? `<div class="ceklis">${t.subtasks.map(x => {
           if (bisaSub && S.ubahSub && S.ubahSub.task === t.id && S.ubahSub.sub === x.id) return formUbahSub(t, x);
           return `<div class="ceklis-baris"><label class="${x.done ? 'beres' : ''}"><input type="checkbox" data-aksi="centang-sub" data-id="${esc(t.id)}" data-sub="${esc(x.id)}" ${x.done ? 'checked' : ''} ${bisaSub ? '' : 'disabled'}>
@@ -2446,6 +2447,8 @@
   /* Tombol pensil "Ubah task" (2.27.0): di kepala detail task, di baris tab tim, dan di daftar
      task turunan. */
   const tombolUbahTask = t => `<button type="button" class="ikon-tombol" data-aksi="ubah-task" data-id="${esc(t.id)}" title="${esc(tr('Ubah task {id}', { id: t.id }))}" aria-label="${esc(tr('Ubah task {id}', { id: t.id }))} · ${esc(t.title)}">${ikon('sunting', 16)}</button>`;
+  /* Bagian lipat berurutan dalam satu daftar bergaris. */
+  const daftarLipat = bagian => { const isi = bagian.filter(Boolean); return isi.length ? `<div class="lipat-daftar">${isi.join('')}</div>` : ''; };
   /* Tab detail task (2.32.0): Kerjakan, Diskusi, Riwayat. Kembali ke Kerjakan tiap ganti task. */
   const tabDetail = t => (S.detailTab && S.detailTab.id === t.id ? S.detailTab.tab : 'kerjakan');
   /* Kartu "Langkah berikutnya" (2.32.0): apa yang perlu dilakukan sekarang dan kenapa, sekali saja
@@ -2460,7 +2463,7 @@
       isi = t.selesaiAt ? tr('Selesai {waktu}.', { waktu: esc(relatif(t.selesaiAt)) }) : '';
     } else if (t.tertahan) {
       kelas = 'merah'; judul = tr('Tertahan');
-      isi = esc(t.alasanTertahan || tr('tanpa alasan'));
+      isi = tr('Tertahan: {alasan}', { alasan: esc(t.alasanTertahan || tr('tanpa alasan')) });
     } else if (t.status === 'Ditinjau') {
       judul = tr('Sedang ditinjau');
       isi = tinjau === S.me ? tr('Periksa hasil kerjanya di tab Kerjakan, lalu setujui atau kembalikan.') : tr('Diajukan, menunggu tinjauan {nama}.', { nama: nama(tinjau || I.MANAGER) });
@@ -2485,7 +2488,7 @@
       isi = tinjau ? tr('Semua syarat terpenuhi. Ajukan ke {nama} untuk ditinjau.', { nama: nama(tinjau) }) : tr('Tandai selesai bila sudah beres.');
     }
     return `<div class="banner ${kelas} kartu-langkah" role="status">
-      <p class="kartu-langkah-judul">${tr('Langkah berikutnya')} · ${judul}</p>
+      <p class="kartu-langkah-judul">${tr('Langkah berikutnya')}<span class="sr"> · ${judul}</span></p>
       ${isi ? `<p>${isi}</p>` : ''}
       ${tombol ? `<div class="kartu-langkah-tombol">${tombol}</div>` : ''}
     </div>`;
@@ -2518,10 +2521,12 @@
     const kerjakan = [
       t.detail || t.notes ? `<div class="detail-keterangan"><p class="label-kecil">${tr('Keterangan')}</p>${t.detail ? `<p class="teks-panjang">${teksBertaut(t.detail)}</p>` : ''}${t.notes ? `<p class="teks-panjang">${teksBertaut(t.notes)}</p>` : ''}</div>` : '',
       syaratRingkas(t, perId),
-      hasil ? lipat(`dt-hasil-${t.id}`, tr('Hasil kerja'), hasil.ket, hasil.html, t.status !== 'Antre', hasil.kurang ? 'kurang' : '') : '',
-      ceklis ? lipat(`dt-ceklis-${t.id}`, tr('Ceklis pengerjaan'), ceklis.ket, ceklis.html, (kerja || t.status === 'Ditinjau') && t.subtasks.length > 0, ceklis.kurang ? 'kurang' : '') : '',
-      anak ? lipat(`dt-anak-${t.id}`, tr('Task turunan'), anak.ket, anak.html, anak.buka) : '',
-      setor ? lipat(`dt-setor-${t.id}`, tr('Setoran ke rancangan paket'), setor.ket, setor.html, false) : '',
+      daftarLipat([
+        hasil && lipat({ id: `dt-hasil-${t.id}`, ikonNama: 'laporan', judul: tr('Hasil kerja'), sub: tr('Output dan tautan'), ket: hasil.ket, isi: hasil.html, buka: t.status !== 'Antre', kurang: hasil.kurang }),
+        ceklis && lipat({ id: `dt-ceklis-${t.id}`, ikonNama: 'centangKotak', judul: tr('Ceklis pengerjaan'), ket: ceklis.ket, isi: ceklis.html, buka: (kerja || t.status === 'Ditinjau') && t.subtasks.length > 0, kurang: ceklis.kurang }),
+        anak && lipat({ id: `dt-anak-${t.id}`, ikonNama: 'cabang', judul: tr('Task turunan'), ket: anak.ket, isi: anak.html, buka: anak.buka }),
+        setor && lipat({ id: `dt-setor-${t.id}`, ikonNama: 'kotak', judul: tr('Setoran ke paket'), ket: setor.ket, isi: setor.html, buka: false }),
+      ]),
     ].join('');
     // Tab Riwayat: fase tim, yang ditunggu, tinjauan, dan aktivitas.
     const riwayat = [
@@ -2531,7 +2536,7 @@
         <li><strong>${esc(tr(r.action))}</strong> ${tr('oleh')} ${nama(r.by)}${tandaAi(r.ai)} <small>· ${esc(relatif(r.at))}</small>${r.note ? `<br>${esc(r.note)}` : ''}</li>`).join('')}</ul></section>` : '',
       log.length ? `<section><p class="subjudul">${tr('Aktivitas')}</p><ul class="riwayat">${log.map(l => `<li>${nama(l.by)}${tandaAi(l.ai)}: ${esc(l.detail)} <small>· ${esc(relatif(l.at))}</small></li>`).join('')}</ul></section>` : '',
     ].join('');
-    const tabs = [['kerjakan', tr('Kerjakan')], ['diskusi', nPesan ? tr('Diskusi ({n})', { n: nPesan }) : tr('Diskusi')], ['riwayat', tr('Riwayat')]];
+    const tabs = [['kerjakan', tr('Kerjakan')], ['diskusi', tr('Diskusi ({n})', { n: nPesan })], ['riwayat', tr('Riwayat')]];
     const tombolAksi = (a, kelas) => `<button type="button" class="tombol ${kelas}" data-aksi="aksi-task" data-kunci="${a.kunci}" data-id="${esc(t.id)}" ${a.nonaktif ? 'disabled' : ''} ${a.alasan ? `title="${esc(trPola(a.alasan))}"` : ''}>${esc(labelAksi(a))}</button>`;
 
     return `<div class="detail">
@@ -2557,7 +2562,7 @@
 
       ${kartuLangkah(t, perId, aksi, tunggu)}
 
-      <div class="segmen detail-tab" role="tablist" aria-label="${tr('Bagian detail task')}">${tabs.map(([k, l]) => `<button type="button" role="tab" data-aksi="detail-tab" data-id="${esc(t.id)}" data-nilai="${k}" aria-selected="${tab === k}" aria-pressed="${tab === k}">${l}</button>`).join('')}</div>
+      <div class="tab-garis detail-tab" role="tablist" aria-label="${tr('Bagian detail task')}">${tabs.map(([k, l]) => `<button type="button" role="tab" data-aksi="detail-tab" data-id="${esc(t.id)}" data-nilai="${k}" aria-selected="${tab === k}">${l}</button>`).join('')}</div>
       <div class="detail-panel" ${tab === 'kerjakan' ? '' : 'hidden'}>${kerjakan || `<p class="hint">${tr('Tak ada isian untuk task ini.')}</p>`}</div>
       <div class="detail-panel" ${tab === 'diskusi' ? '' : 'hidden'}>${diskusiDetail(t)}</div>
       <div class="detail-panel" ${tab === 'riwayat' ? '' : 'hidden'}>${riwayat || `<p class="hint">${tr('Belum ada riwayat.')}</p>`}</div>

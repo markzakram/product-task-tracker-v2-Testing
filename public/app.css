@@ -375,26 +375,36 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 /* Detail task tertata (2.32.0): kartu langkah, tab, bagian lipat, bilah aksi tetap. */
 .kartu-langkah { display: flex; flex-direction: column; gap: 4px; }
 .kartu-langkah p { margin: 0; line-height: 1.5; }
-.kartu-langkah-judul { font-size: calc(12px * var(--skala-huruf)); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.kartu-langkah-judul { font-size: calc(13px * var(--skala-huruf)); font-weight: 600; }
+.kartu-langkah > p:not(.kartu-langkah-judul) { font-size: calc(15px * var(--skala-huruf)); }
 .kartu-langkah-tombol { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.detail-tab { display: flex; width: 100%; }
-.detail-tab button { flex: 1; }
+/* Tab bergaris bawah (2.32.0). */
+.tab-garis { display: flex; gap: 4px; border-bottom: 1px solid var(--garis); }
+.tab-garis button { min-height: 40px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; font-size: calc(14px * var(--skala-huruf)); font-weight: 600; color: var(--redup); cursor: pointer; }
+.tab-garis button:hover { color: var(--tinta); }
+.tab-garis button[aria-selected="true"] { color: var(--tinta); border-bottom-color: var(--tinta); }
 .detail-panel { display: flex; flex-direction: column; gap: 10px; }
 .detail-panel[hidden] { display: none; }
 .detail-keterangan { display: flex; flex-direction: column; gap: 4px; }
-.lipat { border: 1px solid var(--garis); border-radius: 12px; background: var(--muka); }
-.lipat > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; cursor: pointer; list-style: none; font-weight: 600; font-size: calc(14px * var(--skala-huruf)); }
+/* Bagian lipat: baris berikon bergaris pemisah, seperti daftar (2.32.0). */
+.lipat-daftar { display: flex; flex-direction: column; }
+.lipat + .lipat { border-top: 1px solid var(--garis); }
+.lipat > summary { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 2px; cursor: pointer; list-style: none; font-weight: 600; font-size: calc(15px * var(--skala-huruf)); }
 .lipat > summary::-webkit-details-marker { display: none; }
-.lipat > summary svg { flex-shrink: 0; color: var(--redup); transition: transform 0.15s; }
-.lipat[open] > summary svg { transform: rotate(180deg); }
-.lipat-judul { flex: 1; min-width: 0; }
+.lipat > summary:hover .lipat-judul { color: var(--biru); }
+.lipat-ikon { display: inline-flex; flex-shrink: 0; color: var(--tinta-2); }
+.lipat-panah { display: inline-flex; flex-shrink: 0; color: var(--redup); transition: transform 0.15s; }
+.lipat[open] .lipat-panah { transform: rotate(180deg); }
+.lipat-judul { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lipat-judul small { font-weight: 400; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
 .lipat-ket { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
 .lipat-ket.kurang { color: var(--kuning); font-weight: 600; }
-.lipat-isi { display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px; }
+.lipat-isi { display: flex; flex-direction: column; gap: 10px; padding: 0 2px 14px 32px; }
 .lipat-kecil > summary { cursor: pointer; font-size: calc(13px * var(--skala-huruf)); color: var(--redup); padding: 4px 0; }
 .syarat-ringkas { display: flex; flex-direction: column; gap: 6px; }
-.syarat-kepala { display: flex; align-items: center; gap: 6px; margin: 0; font-size: calc(13px * var(--skala-huruf)); font-weight: 600; color: var(--tinta-2); }
-.syarat-ringkas .batang { flex: none; height: 6px; }
+.syarat-kepala { display: flex; align-items: center; gap: 10px; margin: 0; font-size: calc(13px * var(--skala-huruf)); font-weight: 600; color: var(--tinta-2); }
+.syarat-kepala > span:first-child { flex-shrink: 0; }
+.syarat-ringkas .batang { flex: 1; height: 6px; }
 .syarat-ringkas .batang.penuh > span { background: var(--hijau); }
 .syarat.ringkas li { min-height: 24px; font-size: calc(13px * var(--skala-huruf)); }
 .detail-bilah { padding-top: 12px; border-top: 1px solid var(--garis); }

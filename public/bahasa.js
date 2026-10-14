@@ -2046,6 +2046,10 @@
     'Tak ada isian untuk task ini.': 'Nothing to fill in for this task.',
     'Belum ada riwayat.': 'No history yet.',
     '{n} sudah beres': '{n} already done',
+    /* ----- Detail task: baris berikon (2.29.0) ----- */
+    '{n} butir': '{n} items',
+    'Output dan tautan': 'Output and links',
+    'Setoran ke paket': 'Package contributions',
   };
 
   let kini = 'id';

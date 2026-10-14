@@ -28,6 +28,19 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.32.1 — Detail task: tab bergaris bawah dan bagian berikon (2026-10-14)
+
+Permintaan user: detail task mengikuti rancangan yang disetujui.
+
+- **Kerjakan, Diskusi, Riwayat menjadi tab bergaris bawah** (bukan tombol segmen); Diskusi selalu
+  dengan jumlah pesannya.
+- **Bagian lipat menjadi baris berikon** bergaris pemisah: Hasil kerja (ikon dokumen, keterangan
+  "Output dan tautan"), Ceklis pengerjaan (ikon daftar centang; "0 butir" bila kosong), Task
+  turunan (ikon cabang baru), Setoran ke paket (ikon kotak); status di kanan, isinya menjorok
+  sejajar judul.
+- Label **Langkah berikutnya** huruf biasa; task tertahan diawali "Tertahan: …".
+- **Syarat ajukan** sebaris dengan bilah kemajuannya.
+
 ## 2.32.0 — Detail task tertata (2026-10-14)
 
 Permintaan user: detail task lebih rapi tanpa membuang isinya. Dua tahap sekaligus.

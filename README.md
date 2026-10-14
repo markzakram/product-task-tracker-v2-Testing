@@ -901,9 +901,11 @@ tetap, susunannya mengikuti "apa yang perlu dilakukan sekarang":
   dimulai, sedang dikerjakan (syarat yang kurang), **Revisi** (siapa yang mengembalikan dan
   catatannya), siap diajukan, sedang ditinjau (untuk peninjau: periksa lalu setujui atau
   kembalikan), tertahan, atau selesai.
-- **Tiga tab**: **Kerjakan**, **Diskusi** (dengan jumlah pesan), dan **Riwayat** (fase tim, yang
-  ditunggu, riwayat tinjauan, aktivitas). Tab kembali ke Kerjakan setiap ganti task.
-- **Bagian lipat di Kerjakan** dengan status di judulnya: **Hasil kerja** (output dan tautan;
+- **Tiga tab bergaris bawah**: **Kerjakan**, **Diskusi** (dengan jumlah pesan), dan **Riwayat**
+  (fase tim, yang ditunggu, riwayat tinjauan, aktivitas). Tab kembali ke Kerjakan setiap ganti
+  task.
+- **Bagian lipat di Kerjakan**, berupa baris berikon bergaris pemisah dengan status di kanan:
+  **Hasil kerja** (ikon dokumen; output dan tautan;
   "belum diisi" bertanda kuning bila syarat), **Ceklis pengerjaan** ("2/5"), **Task turunan**
   ("0/1 selesai"), dan **Setoran ke rancangan paket**. Yang perlu dikerjakan sekarang terbuka
   sendiri (Hasil kerja sesudah dimulai, ceklis yang berisi saat dikerjakan atau ditinjau, task
