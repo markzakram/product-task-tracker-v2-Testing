@@ -411,9 +411,11 @@
   }
   /* Yang ditunggu masih menahan? Sejak 2.30.0 (permintaan user) task yang sudah diajukan dan
      sedang ditinjau tak lagi menahan: langkah berikutnya, juga di tim lain, boleh berjalan sejajar
-     selagi Lead atau Manager meninjaunya. E12 tetap menunggu semua task lain benar-benar selesai
-     (disetujui), supaya siklus tak tertutup sebelum tinjauannya beres. */
-  const masihMenahan = x => aktif(x.t) && (x.jenis === 'tutup' || x.t.status !== 'Ditinjau');
+     selagi Lead atau Manager meninjaunya. Sejak 2.34.2 (permintaan user) begitu pula task yang
+     ditandai tertahan: hambatannya tak ikut menghentikan langkah berikutnya. E12 tetap menunggu
+     semua task lain benar-benar selesai (disetujui), supaya siklus tak tertutup sebelum
+     tinjauannya beres. */
+  const masihMenahan = x => aktif(x.t) && (x.jenis === 'tutup' || (x.t.status !== 'Ditinjau' && !x.t.tertahan));
   const tungguBelum = (t, perId) => ditunggu(t, perId).filter(masihMenahan);
   /* Kapan task terakhir diajukan (0 bila tak sedang ditinjau). */
   const waktuDiajukan = t => (t.status === 'Ditinjau' ? Math.max(0, ...(t.tinjauan || []).filter(r => r.action === 'Diajukan').map(r => r.at || 0)) : 0);
@@ -602,7 +604,7 @@
       { kunci: 'output', label: 'Output terisi', ok: !!String(t.output || '').trim() },
       { kunci: 'sub', label: 'Semua ceklis pengerjaan selesai', ok: (t.subtasks || []).every(s => s.done) },
       ...(anak.length ? [{ kunci: 'anak', label: `Semua task turunan selesai (${anak.filter(selesai).length}/${anak.length})`, ok: anak.every(selesai) }] : []),
-      { kunci: 'deps', label: 'Task yang ditunggu sudah diajukan atau selesai', ok: depsBelum(t, perId).length === 0 },
+      { kunci: 'deps', label: 'Task yang ditunggu sudah diajukan, tertahan, atau selesai', ok: depsBelum(t, perId).length === 0 },
       { kunci: 'tahan', label: 'Tidak sedang tertahan', ok: !t.tertahan },
     ];
   }
@@ -1755,17 +1757,29 @@
        tanya     pesan yang menunggu jawaban saya
      Terbaru di atas. Penanda dibaca/belum disimpan di app.js, per profil.
      susunan = hasil susunObrolan (komentar data contoh + pesan bersama); tanpanya, komentar data saja. */
+  /* Kapan tiap task terakhir ditandai tertahan, dibaca dari Riwayat Aktivitas (terbaru dulu). */
+  function waktuTertahan(data) {
+    const peta = new Map();
+    for (const l of data.log || []) {
+      if (!String(l.detail || '').startsWith(DESKRIPSI.tahan)) continue;
+      const id = String(l.task || '').split(' · ')[0];
+      if (id && !peta.has(id)) peta.set(id, l.at || 0);
+    }
+    return peta;
+  }
   function notifikasi(data, me, batas = 60, susunan = null) {
     const perId = indeks(data);
     const pendek = orang(me).pendek.toLowerCase();
     const out = [];
+    let tahan = null;
+    const sejakTertahan = x => (x.tertahan ? (tahan || (tahan = waktuTertahan(data))).get(x.id) || 0 : 0);
     const tambah = (jenis, t, at, oleh, isi = '', ai = false) => { if (at) out.push({ id: `${jenis}-${t.id}-${at}`, jenis, task: t.id, at, oleh, teks: isi, ...(ai ? { ai: true } : {}) }); };
     for (const t of data.tasks) {
       if (t.pic === me && t.status === 'Antre' && tungguTahap(t)) {
-        // Yang ditunggunya baru tuntas (atau, sejak 2.30.0, diajukan): task ini siap dimulai
-        // (kecuali sudah siap sejak dibuat).
+        // Yang ditunggunya baru tuntas (atau, sejak 2.30.0, diajukan; sejak 2.34.2, ditandai
+        // tertahan): task ini siap dimulai (kecuali sudah siap sejak dibuat).
         const sebelum = ditunggu(t, perId);
-        const at = Math.max(0, ...sebelum.map(x => x.t.selesaiAt || waktuDiajukan(x.t)));
+        const at = Math.max(0, ...sebelum.map(x => x.t.selesaiAt || waktuDiajukan(x.t) || sejakTertahan(x.t)));
         if (sebelum.length && !sebelum.some(masihMenahan) && at > (t.createdAt || 0)) tambah('siap', t, at, '');
       } else if (t.pic === me && t.status === 'Antre' && (t.deps || []).length) {
         const dep = t.deps.map(id => perId.get(id)).filter(Boolean);

@@ -122,6 +122,7 @@
       langkah: [
         'Setiap task berjalan lewat empat status: **Antre → Dikerjakan → Ditinjau → Selesai**.',
         'Label di sebelahnya dihitung sendiri: **Siap** (boleh dimulai), **Menunggu** (yang ditunggunya belum selesai: fase timnya, serah-terima dari tim lain, atau gerbang Manager), **Revisi** (dikembalikan peninjau), dan **Tertahan** (ada hambatan, disertai alasan).',
+        'Yang ditunggu dianggap cukup begitu **diajukan** untuk ditinjau atau **ditandai tertahan**: langkah berikutnya boleh mulai tanpa menunggu tinjauannya atau hambatannya beres. Task yang tertahan sendiri baru bisa lanjut setelah tandanya dilepas, dan **E12** tetap menunggu semua task disetujui.',
         'Task proyek baru **Selesai** setelah disetujui peninjau. Task rutin langsung ditandai selesai oleh PIC-nya.',
       ],
     },
@@ -342,8 +343,8 @@
     ['Tim pemilik', 'Tim yang memegang sebuah sub-stage: DAE, RAD, LNA, CLO, atau MG (Manager). Nama dan singkatannya diatur di Master.'],
     ['Antrean tim', 'Langkah proyek yang sudah bisa dimulai, di Hari Ini Lead tim pemiliknya (bertanda **Siap dibagi**): dikerjakan sendiri atau dibagi ke staff lewat task turunan.'],
     ['Task turunan', 'Bagian pekerjaan yang dibuat Lead di bawah task yang ia pegang, untuk staff timnya atau untuk dirinya sendiri (dulu disebut task anak). Tampil menjorok di bawah induknya; yang dipegang staff ditinjau Lead itu. Induknya baru bisa diajukan setelah semua turunannya selesai.'],
-    ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, ceklis, task turunan (kalau ada), task yang ditunggu sudah diajukan atau selesai, dan tidak tertahan.'],
-    ['Serah-terima', 'Task yang diatur menunggu task lain, juga dari tim lain. Begitu task yang ditunggu diajukan untuk ditinjau, task berikutnya sudah bisa mulai sejajar; E12 tetap menunggu semuanya disetujui.'],
+    ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, ceklis, task turunan (kalau ada), task yang ditunggu sudah diajukan, tertahan, atau selesai, dan tidak tertahan.'],
+    ['Serah-terima', 'Task yang diatur menunggu task lain, juga dari tim lain. Begitu task yang ditunggu diajukan untuk ditinjau atau ditandai tertahan, task berikutnya sudah bisa mulai sejajar; E12 tetap menunggu semuanya disetujui.'],
     ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task turunan), Manager untuk task Lead dan kode bertanda Manager.'],
     ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1). Di form Tambah task dipilih lewat **Task ini untuk apa?**, ditambah **Inisiatif** untuk pembaruan inisiatif.'],
     ['Fase', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation, dijalankan tiap tim di proyek. Task sefase dalam satu tim dikerjakan bersamaan; fase berikutnya menunggu fase sebelumnya tim itu selesai.'],

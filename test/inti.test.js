@@ -63,7 +63,7 @@ test('syarat ajukan (PRD): output, ceklis pengerjaan, dependency, tidak tertahan
   const d = data([dulu, t]);
   const ajukan = () => I.aksiUntuk(t, 'uma', I.indeks(d)).find(a => a.kunci === 'ajukan');
   assert.equal(ajukan().nonaktif, true);
-  assert.equal(ajukan().alasan, 'Lengkapi dulu: output terisi, semua ceklis pengerjaan selesai, task yang ditunggu sudah diajukan atau selesai');
+  assert.equal(ajukan().alasan, 'Lengkapi dulu: output terisi, semua ceklis pengerjaan selesai, task yang ditunggu sudah diajukan, tertahan, atau selesai');
   I.isiOutput(d, t, '20 soal TIU + pembahasan', 'uma', WAKTU);
   t.subtasks[0].done = true;
   dulu.status = 'Selesai';
@@ -397,7 +397,7 @@ test('ADDIE per tim: fase tiap tim berurutan; tim lain hanya menunggu gerbang Ma
   assert.equal(I.alasanTunggu(i1, perId()), `Menunggu fase Development LNA selesai: ${dv8.id} "DV8 uji" (LNA · Alya)`);
   assert.equal(I.tungguSingkat(i1, perId()), 'Menunggu fase Development LNA');
   const ajukan = I.aksiUntuk(siap({ id: 'PRD-900', project: 'PRJ-1', stage: 'I', sub: 'I4', pic: 'kiki', status: 'Dikerjakan' }), 'kiki', perId()).find(a => a.kunci === 'ajukan');
-  assert.equal(ajukan.alasan, 'Lengkapi dulu: task yang ditunggu sudah diajukan atau selesai');
+  assert.equal(ajukan.alasan, 'Lengkapi dulu: task yang ditunggu sudah diajukan, tertahan, atau selesai');
 
   // Siklus lain tak ditunggu; task rutin tetap memakai deps-nya.
   const siklus2 = task({ id: 'PRD-901', lane: 'proyek', project: 'PRJ-1', stage: 'V', sub: 'DV1', pic: 'uma', cycle: 2 });
@@ -974,4 +974,36 @@ test('singkatTahap: fase ditulis singkat di chip tim, V tak tertukar dengan D (2
   for (const t of I.TAHAP) assert.ok(I.namaTahap(t.id).startsWith(I.singkatTahap(t.id)), t.id);
   assert.equal(I.singkatTahap('X'), 'X', 'kode tak dikenal apa adanya');
   assert.equal(I.singkatTahap(''), '');
+});
+
+test('yang ditandai tertahan juga tak menahan (2.34.2): langkah berikutnya tetap jalan, seperti yang ditinjau; E12 tetap menunggu', () => {
+  const d = data([], [proyek({ lead: '' })]);
+  const baru = (sub, pic) => I.taskBaru(d, { title: sub + ' uji', project: 'PRJ-1', sub, pic }, 'nynda', WAKTU, HARI);
+  const a1 = baru('A1', 'nynda');
+  Object.assign(a1, { status: 'Selesai', selesaiAt: WAKTU + 1 });
+  const d2 = baru('D2', 'andika');
+  const dv7 = baru('DV7', 'ali');
+  const dv1 = baru('DV1', 'andika');
+  const e12 = baru('E12', 'nynda');
+  I.aturTunggu(d, dv7, { tunggu: [d2.id] }, 'ali', WAKTU + 2);
+  const perId = () => I.indeks(d);
+  const tunggu = t => I.depsBelum(t, perId()).map(x => x.id);
+  assert.deepEqual([tunggu(dv7), tunggu(dv1)], [[d2.id], [d2.id]]);
+  // D2 tertahan (menunggu akses): DV7 (tim lain) dan DV1 (fase berikutnya) tetap bisa mulai.
+  I.terapkanAksi(d, d2, 'tahan', 'andika', WAKTU + 4, 'Menunggu akses SIADU');
+  assert.deepEqual([tunggu(dv7), tunggu(dv1)], [[], []]);
+  assert.deepEqual([I.labelKeadaan(dv7, perId()), I.labelKeadaan(d2, perId())], ['Siap', 'Tertahan']);
+  assert.ok(I.syaratAjukan(dv7, perId()).find(s => s.kunci === 'deps').ok);
+  const siap = I.notifikasi(d, 'ali').find(x => x.jenis === 'siap' && x.task === dv7.id);
+  assert.equal(siap && siap.at, WAKTU + 4, 'Ali diberi tahu saat D2 ditandai tertahan');
+  assert.ok(tunggu(e12).includes(d2.id), 'E12 tetap menunggu D2 disetujui');
+  // D2 sendiri tetap tertahan sampai tandanya dilepas.
+  assert.equal(I.aksiUntuk(d2, 'andika', perId()).find(a => a.kunci === 'mulai').alasan, 'Lepas tanda tertahan dulu');
+  I.terapkanAksi(d, dv7, 'mulai', 'ali', WAKTU + 5);
+  // Tanda tertahan dilepas sebelum D2 diajukan: DV7 tetap berjalan, tetapi terbaca terhambat lagi.
+  I.terapkanAksi(d, d2, 'lanjutkan', 'andika', WAKTU + 6);
+  assert.equal(dv7.status, 'Dikerjakan');
+  assert.deepEqual(tunggu(dv7), [d2.id]);
+  assert.ok(I.terhambat(dv7, perId()));
+  assert.equal(I.labelKeadaan(dv1, perId()), 'Menunggu');
 });

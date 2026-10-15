@@ -105,6 +105,14 @@ dengan satu penyederhanaan: tetap empat status.
   **Menunggu** menandai yang sedang ditinjau ("diajukan, sedang ditinjau …"). Aturannya
   `Inti.masihMenahan` dan `Inti.tungguBelum`.
 
+  **Yang ditandai tertahan juga tak menahan (2.34.2, permintaan user).** Sistemnya sama dengan
+  yang sedang ditinjau: begitu task yang ditunggu ditandai tertahan, langkah berikutnya boleh
+  mulai dan diajukan, dan PIC-nya diberi tahu saat itu (waktunya dibaca dari Riwayat
+  Aktivitas). Task yang tertahan sendiri tetap tak bisa dimulai atau diajukan sampai tandanya
+  dilepas; begitu dilepas sebelum diajukan, langkah berikutnya yang sudah berjalan tetap
+  berjalan tetapi terbaca terhambat lagi. **E12** tetap menunggu semua task disetujui. Bagian
+  **Menunggu** menandainya "tertahan, tak menahan task ini".
+
   **Yang sudah diajukan sudah dikumpulkan (2.30.0, permintaan user).** Task berstatus Ditinjau
   tak dihitung telat lagi (Hari Ini, Dashboard, Laporan, kanban, timeline, kalender, dan agen),
   walau tinjauannya lewat tenggat; kalau dikembalikan, ia terbaca telat lagi. Di Laporan, **tepat
@@ -140,8 +148,8 @@ dengan satu penyederhanaan: tetap empat status.
   (`subtasks`, kolom `link` di tab `subtasks` dan tabel `v2_subtasks`); agen AI mengisinya lewat
   `tambah_subtask`.
 - **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, semua ceklis pengerjaan
-  selesai, semua task turunan selesai (kalau ada), task yang ditunggu sudah diajukan atau selesai
-  (2.30.0), dan tidak tertahan. Sejak 2.28.0 (permintaan user) bagian **Output** di detail task
+  selesai, semua task turunan selesai (kalau ada), task yang ditunggu sudah diajukan, tertahan
+  (2.34.2), atau selesai (2.30.0), dan tidak tertahan. Sejak 2.28.0 (permintaan user) bagian **Output** di detail task
   berisi output saja; **tautan hasil kerja opsional** dan tak lagi menjadi syarat. Daftar
   periksanya tampil di detail task.
 - **Tinjauan:** task staff oleh Lead-nya (termasuk task turunan), task Lead oleh Manager, sub-stage

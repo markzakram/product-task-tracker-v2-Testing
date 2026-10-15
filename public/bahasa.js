@@ -1953,7 +1953,6 @@
     'Geser mulai hari ini, jaraknya sama': 'Shift to start today, same spacing',
     '{nama} dibuat dari duplikat.': '{nama} was created as a duplicate.',
     '{nama} dibuat dari duplikat dengan {n} task.': '{nama} was created as a duplicate with {n} tasks.',
-    'Task yang ditunggu sudah diajukan atau selesai': 'Tasks it waits for are submitted or done',
     'Sudah diajukan, tak dihitung telat': 'Already submitted, not counted as late',
     /* ----- Inisiatif (2.29.0) ----- */
     'Inisiatif': 'Initiatives',
@@ -2278,6 +2277,9 @@
     'Pindahkan {n} catatan ke folder': 'Move {n} notes to a folder',
     'Folder tujuan': 'Destination folder',
     'Warna {n} catatan diganti.': 'Color changed for {n} notes.',
+    /* ----- Task tertahan tak menahan langkah berikutnya (2.34.2) ----- */
+    'Task yang ditunggu sudah diajukan, tertahan, atau selesai': 'Tasks it waits for are submitted, on hold, or done',
+    'tertahan, tak menahan task ini': 'on hold, not blocking this task',
   };
 
   let kini = 'id';

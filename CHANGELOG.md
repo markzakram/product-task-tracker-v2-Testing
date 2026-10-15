@@ -28,6 +28,22 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.34.2 — Task tertahan tak lagi menahan langkah berikutnya (2026-10-15)
+
+Permintaan user: task yang tertahan (hold) bisa lanjut ke task berikutnya, dengan sistem yang
+sama seperti yang sedang ditinjau.
+
+- **Yang ditandai tertahan tak lagi menahan**: task yang menunggunya (urutan tunggu antartim,
+  fase tim, gerbang Manager) boleh mulai dan diajukan, seperti saat task yang ditunggu sedang
+  ditinjau (2.30.0). PIC-nya diberi tahu ("siap dimulai") saat tanda tertahan dipasang.
+- Task yang tertahan sendiri tetap tak bisa dimulai atau diajukan sampai tandanya dilepas.
+  Kalau dilepas sebelum diajukan, langkah berikutnya yang sudah berjalan tetap berjalan tetapi
+  terbaca terhambat lagi. **E12** tetap menunggu semua task disetujui.
+- Syarat ajukan menjadi "Task yang ditunggu sudah diajukan, tertahan, atau selesai"; bagian
+  **Menunggu** di detail task menandai task tertahan dengan ikon jeda dan "tertahan, tak menahan
+  task ini" (sebelumnya semua yang tak menahan terbaca "diajukan, sedang ditinjau").
+- Tes baru di `test/inti.test.js`. 293 tes.
+
 ## 2.34.1 — Detail acara tak lagi menempel ke tepi jendela (2026-10-15)
 
 Permintaan user (dengan tangkapan layar): tampilan acara bersama yang sudah dibuat "sangat

@@ -56,7 +56,8 @@
       ? tr('Induknya {id} sudah selesai: buka kembali atau kembalikan induknya dulu.', { id: m[1] })
       : tr('Induknya {id} sedang ditinjau: buka kembali atau kembalikan induknya dulu.', { id: m[1] }))],
     // "Lengkapi dulu: output terisi, semua ceklis pengerjaan selesai": tiap syarat diterjemahkan sendiri.
-    [/^Lengkapi dulu: (.+)$/, m => tr('Lengkapi dulu: {daftar}', { daftar: m[1].split(', ').map(s => {
+    // Dipotong hanya di awal syarat berikutnya, karena satu syarat memuat koma ("diajukan, tertahan, atau selesai").
+    [/^Lengkapi dulu: (.+)$/, m => tr('Lengkapi dulu: {daftar}', { daftar: m[1].split(/, (?=output |semua |task yang |tidak sedang )/).map(s => {
       const e = trPola(s.charAt(0).toUpperCase() + s.slice(1));
       return e.charAt(0).toLowerCase() + e.slice(1);
     }).join(', ') })],
@@ -718,6 +719,7 @@
     atur: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
     naik: '<path d="M12 19V5M5 12l7-7 7 7"/>',
     turun: '<path d="M12 5v14M19 12l-7 7-7-7"/>',
+    jeda: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
     // Catatan 2.34.0: pegangan seret baris, coret, potong, gandakan, pilih semua.
     pegangan: '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>',
     coret: '<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><path d="M4 12h16"/>',
@@ -3169,14 +3171,17 @@
     const semua = I.ditunggu(t, perId);
     const boleh = I.bolehAturTunggu(t, S.me, perId) && !I.selesai(t);
     if (!semua.length && !boleh && !t.lepasFase) return '';
-    // Sejak 2.30.0 yang sudah diajukan (sedang ditinjau) tak lagi menahan, kecuali bagi E12.
+    // Sejak 2.30.0 yang sudah diajukan (sedang ditinjau) tak lagi menahan, dan sejak 2.34.2 juga
+    // yang ditandai tertahan; kecuali bagi E12.
     const belum = semua.filter(I.masihMenahan).length;
-    const diajukan = x => !I.masihMenahan(x) && !I.selesai(x.t);
+    const diajukan = x => !I.masihMenahan(x) && !I.selesai(x.t) && x.t.status === 'Ditinjau';
+    const tertahan = x => !I.masihMenahan(x) && !I.selesai(x.t) && !!x.t.tertahan && x.t.status !== 'Ditinjau';
     const buka = semua.filter(x => !I.selesai(x.t)).sort((a, b) => I.masihMenahan(b) - I.masihMenahan(a));
     const beres = semua.filter(x => I.selesai(x.t));
-    const baris = x => `<li class="${I.masihMenahan(x) ? '' : 'beres'}">${ikon(I.selesai(x.t) ? 'centang' : diajukan(x) ? 'mata' : 'bulat', 14)}
+    const baris = x => `<li class="${I.masihMenahan(x) ? '' : 'beres'}">${ikon(I.selesai(x.t) ? 'centang' : diajukan(x) ? 'mata' : tertahan(x) ? 'jeda' : 'bulat', 14)}
       <button type="button" class="tautan-kecil" data-aksi="buka-task" data-id="${esc(x.t.id)}">${esc(x.t.id)} · ${esc(potong(x.t.title, 70))}</button>
-      <small>${chipTim(I.timJalur(x.t, perId))} ${esc(jenisTunggu(x.jenis))} · ${nama(x.t.pic)}${diajukan(x) ? ' · ' + tr('diajukan, sedang ditinjau {nama}', { nama: nama(I.peninjau(x.t) || I.MANAGER) }) : ''}</small></li>`;
+      <small>${chipTim(I.timJalur(x.t, perId))} ${esc(jenisTunggu(x.jenis))} · ${nama(x.t.pic)}${diajukan(x) ? ' · ' + tr('diajukan, sedang ditinjau {nama}', { nama: nama(I.peninjau(x.t) || I.MANAGER) })
+        : tertahan(x) ? ' · ' + tr('tertahan, tak menahan task ini') : ''}</small></li>`;
     // Yang masih berjalan di atas; yang sudah beres dilipat (2.32.0).
     return `<section><p class="subjudul">${tr('Menunggu')} ${semua.length ? '· ' + (belum ? tr('{n} masih menahan', { n: belum }) : tr('tak ada yang menahan')) : ''}</p>
       ${buka.length ? `<ul class="daftar-tunggu">${buka.slice(0, 12).map(baris).join('')}</ul>${buka.length > 12 ? `<p class="hint">${tr('dan {n} task lain.', { n: buka.length - 12 })}</p>` : ''}` : ''}
