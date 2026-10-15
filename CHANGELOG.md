@@ -28,6 +28,17 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.34.1 — Detail acara tak lagi menempel ke tepi jendela (2026-10-15)
+
+Permintaan user (dengan tangkapan layar): tampilan acara bersama yang sudah dibuat "sangat
+mepet" dengan tepi jendelanya.
+
+- **Detail agenda dan acara** kini berjarak 22 px dari tepi jendela, sama dengan form lain.
+  Sebelumnya jarak tepi jendela hanya diberikan pada `<form>`, sedangkan detail acara bukan
+  form. Form notulen di dalamnya tetap sejajar dengan isi lain (tanpa jarak ganda).
+- Jendela **Ruang proyek** di Komunikasi (layar sempit) punya masalah yang sama; ikut
+  diperbaiki.
+
 ## 2.34.0 — Catatan Saya lebih interaktif: pilih semua, pindah baris, pilih banyak catatan (2026-10-15)
 
 Permintaan user: di Catatan Saya, Ctrl+A memilih semua lalu bisa dihapus, karena "masih kurang

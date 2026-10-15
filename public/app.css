@@ -1089,7 +1089,7 @@ button.chip-setoran:hover { text-decoration: underline; }
 .baris-subjudul { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .baris-subjudul .subjudul { margin: 0; }
 .diskusi-detail .km-tulis { padding: 0; border: 0; background: transparent; }
-.form-pilih-ruang { display: flex; flex-direction: column; gap: 10px; }
+.form-pilih-ruang { display: flex; flex-direction: column; gap: 10px; padding: 22px; }
 .form-pilih-ruang h2 { margin: 0; }
 .pilih-ruang-daftar { display: flex; flex-direction: column; gap: 2px; max-height: 60vh; overflow-y: auto; }
 .jn-sebut { background: var(--info-muda); color: var(--info-tua); }
@@ -2174,7 +2174,9 @@ button.chip-kait { padding-right: 10px; cursor: pointer; }
 button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua); }
 .chip-kait .ikon-tombol { width: 28px; height: 28px; min-width: 28px; min-height: 28px; }
 /* Detail acara: waktu & tempat, jawaban, peserta, notulen. */
-.detail-agenda { display: flex; flex-direction: column; gap: 14px; }
+.detail-agenda { display: flex; flex-direction: column; gap: 14px; padding: 22px; }
+/* Form notulen di dalam detail tak memakai padding form jendela (detailnya sudah berpadding). */
+.detail-agenda .acara-notulen { padding: 12px 0 0; }
 .detail-agenda h2, .detail-agenda .detail-asal { margin: 0; }
 .acara-info { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .acara-info li { display: flex; align-items: flex-start; gap: 8px; }

@@ -866,6 +866,9 @@ peserta, atau yang Terbuka.
   Hari Ini) dengan tombol **Hadir / Mungkin / Tidak hadir**. Pembuat mendapat notifikasi tiap
   jawaban, dan detail acara menampilkan rekapnya ("3 hadir · 1 mungkin · 1 belum menjawab").
   Acara yang ditolak tetap tampil tercoret dan tak diingatkan.
+- **Jendela detail** (agenda dan acara) berjarak tepi 22 px seperti form lain, juga saat
+  notulen ditulis di dalamnya (2.34.1; sebelumnya isinya menempel ke tepi jendela, karena jarak
+  tepi jendela hanya diberikan pada `<form>`).
 - **Pengingat per peserta**: bawaannya pilihan pembuat; tiap peserta bisa menggantinya di detail
   acara (**Pengingat saya**).
 - **Notifikasi**: diundang, jadwal diubah (tanggal/jam/pengulangan), jawaban peserta, ikut
