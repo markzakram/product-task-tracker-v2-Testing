@@ -2374,3 +2374,6 @@ button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua)
 @media (hover: none) {
   .ne-pegangan { opacity: .45; }
 }
+
+/* Konfirmasi Tarik dari tinjauan & Buka kembali (2.34.3). */
+.konfirmasi-task, .konfirmasi-task + .hint { margin: 0; }

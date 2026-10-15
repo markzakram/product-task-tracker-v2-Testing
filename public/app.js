@@ -9451,6 +9451,12 @@
           S.pilihTask = null;
           return selesaiUbah(h.setoran ? tr('{n} task dihapus; {s} setoran paket ikut hilang.', { n: h.task, s: h.setoran }) : tr('{n} task dihapus.', { n: h.task }));
         }
+        case 'konfirmasi-aksi': {
+          const t = S.data.tasks.find(x => x.id === m.id);
+          tutupModal();
+          if (t) jalankanAksi(t, m.kunci, true);
+          return;
+        }
         case 'catatan': {
           ubahData('terapkanAksi', { task: m.id, kunci: m.kunci, catatan: f.catatan });
           const t = S.data.tasks.find(x => x.id === m.id);
@@ -9568,9 +9574,34 @@
     return ' ' + (kunci === 'buka' ? tr('Capaiannya ditarik lagi dari progres paket: {isi}.', { isi: isi.join(', ') }) : tr('Progres paket naik: {isi}.', { isi: isi.join(', ') }));
   }
 
-  function jalankanAksi(t, kunci) {
+  /* Tarik dari tinjauan dan Buka kembali (2.34.3, permintaan user) dikonfirmasi dulu: mudah
+     terpencet (juga lewat seret di Kanban), dan membalik keadaan yang sudah diserahkan atau
+     disetujui. Fokus awalnya di Batal, supaya Enter yang tak sengaja tak menjalankannya. */
+  const AKSI_KONFIRMASI = ['tarik', 'buka'];
+  function formKonfirmasiAksi(t, kunci) {
+    const setoran = (S.data.setoran || []).some(x => x.task === t.id);
+    const [judul, ket, tombol] = kunci === 'tarik'
+      ? [tr('Tarik {id} dari tinjauan?', { id: t.id }),
+        tr('Task kembali ke Dikerjakan, {nama} tak lagi diminta meninjaunya, dan task yang menunggunya kembali menunggu sampai diajukan lagi.', { nama: I.orang(I.peninjau(t) || I.MANAGER).pendek }),
+        tr('Ya, tarik dari tinjauan')]
+      : [tr('Buka kembali {id}?', { id: t.id }),
+        tr('Task yang sudah selesai kembali ke Dikerjakan dan perlu diajukan atau ditandai selesai lagi.') + (setoran ? ' ' + tr('Capaiannya ditarik lagi dari progres paket.') : ''),
+        tr('Ya, buka kembali')];
+    return `<form data-form="modal" novalidate>
+      <h2>${esc(judul)}</h2>
+      <p class="konfirmasi-task"><b>${esc(t.title)}</b></p>
+      <p class="hint">${esc(ket)}</p>
+      ${kakiModal(tombol)}
+    </form>`;
+  }
+  function jalankanAksi(t, kunci, sudahYakin = false) {
     const a = I.aksiUntuk(t, S.me, I.indeks(S.data)).find(x => x.kunci === kunci);
     if (a && a.perluCatatan) return mintaCatatan(t, kunci);
+    if (a && !a.nonaktif && !sudahYakin && AKSI_KONFIRMASI.includes(kunci)) {
+      bukaModal({ jenis: 'konfirmasi-aksi', id: t.id, kunci, tanpaFokus: true }, formKonfirmasiAksi(t, kunci));
+      setTimeout(() => { const batal = $('#modal-panel [data-aksi="tutup-modal"]'); if (batal) batal.focus(); }, 30);
+      return;
+    }
     try {
       ubahData('terapkanAksi', { task: t.id, kunci });
       selesaiUbah(pesanAksi(kunci) + pesanSetoran(S.data.tasks.find(x => x.id === t.id) || t, kunci));

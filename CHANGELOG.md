@@ -28,6 +28,17 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.34.3 — Konfirmasi sebelum Tarik dari tinjauan dan Buka kembali (2026-10-15)
+
+Permintaan user (dengan tangkapan layar utas yang tak sengaja dibuka kembali): popup
+verifikasi bila task akan ditarik kembali.
+
+- **Tarik dari tinjauan** dan **Buka kembali** kini menanyakan dulu, dengan akibatnya: peninjau
+  tak lagi diminta meninjau dan task yang menunggunya kembali menunggu; atau task yang sudah
+  selesai kembali ke Dikerjakan (capaian paketnya ditarik lagi, bila ada).
+- Berlaku dari detail task, kepala utas Komunikasi, dan seret kartu di Kanban. Fokus awalnya di
+  **Batal**, jadi Enter yang tak sengaja tak menjalankannya.
+
 ## 2.34.2 — Task tertahan tak lagi menahan langkah berikutnya (2026-10-15)
 
 Permintaan user: task yang tertahan (hold) bisa lanjut ke task berikutnya, dengan sistem yang

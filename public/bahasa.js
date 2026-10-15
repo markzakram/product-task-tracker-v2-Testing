@@ -2280,6 +2280,14 @@
     /* ----- Task tertahan tak menahan langkah berikutnya (2.34.2) ----- */
     'Task yang ditunggu sudah diajukan, tertahan, atau selesai': 'Tasks it waits for are submitted, on hold, or done',
     'tertahan, tak menahan task ini': 'on hold, not blocking this task',
+    /* ----- Konfirmasi Tarik dari tinjauan & Buka kembali (2.34.3) ----- */
+    'Tarik {id} dari tinjauan?': 'Withdraw {id} from review?',
+    'Task kembali ke Dikerjakan, {nama} tak lagi diminta meninjaunya, dan task yang menunggunya kembali menunggu sampai diajukan lagi.': 'The task goes back to In progress, {nama} is no longer asked to review it, and tasks waiting for it wait again until it is resubmitted.',
+    'Ya, tarik dari tinjauan': 'Yes, withdraw from review',
+    'Buka kembali {id}?': 'Reopen {id}?',
+    'Task yang sudah selesai kembali ke Dikerjakan dan perlu diajukan atau ditandai selesai lagi.': 'The finished task goes back to In progress and must be submitted or marked done again.',
+    'Capaiannya ditarik lagi dari progres paket.': 'Its milestones are taken back out of the package progress.',
+    'Ya, buka kembali': 'Yes, reopen',
   };
 
   let kini = 'id';

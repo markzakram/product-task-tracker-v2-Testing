@@ -1022,6 +1022,12 @@ tetap, susunannya mengikuti "apa yang perlu dilakukan sekarang":
 - **Bilah aksi** (Mulai, Ajukan, Setujui, Kembalikan, Tandai tertahan, …) di bawah detail, dan
   menempel di bawah laci saat digulir; alasan tombol yang nonaktif ada di kartu langkah dan di
   keterangan tombolnya.
+- **Konfirmasi Tarik dari tinjauan dan Buka kembali (2.34.3, permintaan user).** Keduanya
+  membalik keadaan yang sudah diserahkan atau disetujui dan mudah terpencet, jadi jendela kecil
+  menanyakannya dulu: apa akibatnya (peninjau tak lagi diminta meninjau dan task yang menunggu
+  kembali menunggu; atau task selesai kembali dikerjakan, capaian paketnya ditarik). Berlaku
+  dari detail task, kepala utas Komunikasi, maupun seret di Kanban (satu pintu: `jalankanAksi`).
+  Fokus awalnya di **Batal**.
 
 ### Tampilan lebih jelas (2.33.0)
 
