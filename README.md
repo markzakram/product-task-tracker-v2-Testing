@@ -349,6 +349,19 @@ Halaman pendukung, setara v1:
     - Yang tersimpan tetap **teks biasa** (tabel sebagai `| a | b |`), jadi pencarian, unduhan
       .txt, riwayat versi, dan catatan lama tetap jalan. Aturannya `blokCatatan`/`teksBlok` di
       `public/inti.js`, diuji di `test/catatan-blok.test.js`.
+    - **Memilih dan memindah baris (2.34.0, permintaan user)**: **Ctrl+A** memilih semua baris
+      catatan (dulu hanya satu baris, karena tiap baris kotak ketik sendiri). Seret tetikus
+      melewati beberapa baris, Shift+klik, Shift+↑/↓ di tepi baris, atau ketuk pegangan **⋮⋮**
+      di kiri baris juga memilih baris utuh. Yang dipilih bisa dihapus (Delete/Backspace),
+      disalin atau dipotong sebagai teks catatan (Ctrl+C/Ctrl+X), digandakan (Ctrl+D), dipindah
+      (Alt+Shift+↑/↓, atau seret pegangannya ke garis biru, juga dengan sentuhan), dijorokkan
+      (Tab), atau dicentang (Ctrl+Enter); huruf yang diketik atau tempelan menggantikannya.
+      Selama ada pilihan, toolbar berisi Salin, Potong, Duplikat, Naik, Turun, Hapus, dan Batal;
+      Esc atau Batal kembali ke tempat kursor semula. Semuanya bisa diurungkan.
+    - Pintasan di baris yang sedang diketik (2.34.0): Ctrl+D, Alt+Shift+↑/↓, Ctrl+Enter,
+      **Ctrl+Shift+X** coret, dan **Ctrl+E** kode (tombol coret, kode, dan pilih semua juga di
+      toolbar). Di tampilan dua panel, toolbar kini menempel di bawah header saat halaman
+      digulir. Aturannya `pindahBlokKe`, `geserBlok`, dan `duplikatBlok` di `public/inti.js`.
   - **Jadikan task** dari blok yang sedang diketik (atau ikon di ujung blok): form Tambah task
     terisi judul dari blok itu. Sesudah task dibuat, "→ PRD-…" ditempel di ujung blok dan bisa
     diklik untuk membuka task-nya.
@@ -361,6 +374,15 @@ Halaman pendukung, setara v1:
   - Tetap **tersimpan sendiri** 0,7 detik setelah berhenti mengetik; Ctrl+S menyimpan seketika.
     Bisa disematkan, diunduh sebagai .txt, dan dihapus. Catatan tanpa judul memakai baris
     pertamanya. Di ponsel daftar dulu, lalu editor penuh.
+  - **Pilih banyak catatan (2.34.0)**: tombol **Pilih** (atau Ctrl+A bila tak ada catatan yang
+    terbuka) memunculkan kotak centang; Shift+klik memilih satu rentang, Esc keluar. Bilahnya:
+    Pilih semua, Pindah ke folder, warna, dan Hapus. Catatan juga bisa **diseret** (tetikus)
+    ke folder lain, atau ke **Disematkan** untuk menyematkannya (dari Disematkan ke folder:
+    sematannya lepas).
+  - **Hapus bisa diurungkan (2.34.0)**: tanpa jendela konfirmasi; pesan sesudahnya punya tombol
+    **Urungkan** selama 10 detik (juga Ctrl+Z di luar editor), dan catatan beserta riwayat
+    versinya kembali ke tempat semula. Aturannya `hapusCatatan`, `pulihkanCatatan`, dan
+    `pindahFolderCatatan`, diuji di `test/catatan.test.js`.
 - **Komunikasi** (0.10.0, "kotak masuk kerja"): lihat bagian *Komunikasi bersama* di bawah.
 - **Laporan**: ringkasan berkala (minggu ini, minggu lalu, bulan ini, 30 hari) per orang, bisa
   disalin sebagai teks untuk chat atau email.

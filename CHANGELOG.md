@@ -28,6 +28,30 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.34.0 — Catatan Saya lebih interaktif: pilih semua, pindah baris, pilih banyak catatan (2026-10-15)
+
+Permintaan user: di Catatan Saya, Ctrl+A memilih semua lalu bisa dihapus, karena "masih kurang
+interaktif". Ditanya apa lagi yang kurang, user memilih semua usulan.
+
+- **Memilih baris di editor**: Ctrl+A memilih semua baris catatan (dulu hanya satu baris, karena
+  tiap baris kotak ketik sendiri). Juga seret tetikus melewati beberapa baris, Shift+klik,
+  Shift+↑/↓ di tepi baris, atau ketuk pegangan ⋮⋮. Yang dipilih bisa dihapus, disalin atau
+  dipotong (sebagai teks catatan), digandakan, dipindah, dijorokkan, atau dicentang; huruf yang
+  diketik menggantikannya dengan jenis baris yang sama, tempelan menggantikannya. Tindakannya
+  juga di toolbar (layar sentuh); Esc kembali ke tempat kursor semula; semuanya bisa diurungkan.
+- **Pindah baris**: seret pegangan ⋮⋮ di kiri baris ke tempat garis biru (juga sentuhan), atau
+  Alt+Shift+↑/↓; tombol naik/turun di toolbar saat ada pilihan.
+- **Pintasan baru**: Ctrl+D menggandakan baris, Ctrl+Enter mencentang checklist, Ctrl+Shift+X
+  mencoret, Ctrl+E menandai kode; tombol coret, kode, dan pilih semua di toolbar.
+- **Pilih banyak catatan**: tombol Pilih (atau Ctrl+A bila tak ada catatan terbuka), Shift+klik
+  untuk satu rentang, Esc keluar; hapus, pindah ke folder, atau beri warna sekaligus.
+- **Hapus bisa diurungkan**: tanpa konfirmasi; pesan "… dihapus · Urungkan" selama 10 detik
+  (atau Ctrl+Z), lalu catatan dan riwayat versinya kembali ke tempat semula.
+- **Seret catatan ke folder** lain (tetikus), atau ke Disematkan untuk menyematkannya.
+- Perbaikan: di tampilan dua panel, toolbar editor kini menempel di bawah header saat halaman
+  digulir (sebelumnya terkurung kartu editornya).
+- Tes baru di `test/catatan-blok.test.js` dan `test/catatan.test.js`. 292 tes.
+
 ## 2.33.0 — Kalender: acara bersama lintas tim; tampilan yang lebih jelas (2026-10-14)
 
 Dua permintaan user.

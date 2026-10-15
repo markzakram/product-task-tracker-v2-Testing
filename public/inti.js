@@ -3070,6 +3070,34 @@
     return n;
   }
 
+  /* Pilih banyak catatan (2.34.0). Pindah folder sekaligus: sematan dan waktu ubahnya tetap. */
+  function pindahFolderCatatan(data, me, ids, folder) {
+    const tujuan = folderSimpan(folder);
+    const daftar = [...new Set(ids || [])].map(id => milikSaya(data.notes, id, me));
+    for (const n of daftar) n.folder = tujuan;
+    return daftar.length;
+  }
+  /* Hapus beberapa catatan sekaligus (semuanya, atau tak satu pun bila ada yang bukan milik Anda).
+     Hasilnya jejak untuk Urungkan: [{ catatan, i }] urut posisi semula. */
+  function hapusCatatan(data, me, ids) {
+    const jejak = [...new Set(ids || [])].map(id => {
+      const catatan = milikSaya(data.notes, id, me);
+      return { catatan, i: data.notes.indexOf(catatan) };
+    }).sort((x, y) => x.i - y.i);
+    for (let k = jejak.length - 1; k >= 0; k--) data.notes.splice(jejak[k].i, 1);
+    return jejak;
+  }
+  /* Urungkan hapus: tiap catatan kembali ke posisinya; yang sudah ada lagi dilewati. */
+  function pulihkanCatatan(data, me, jejak) {
+    let n = 0;
+    for (const { catatan, i } of (jejak || []).slice().sort((x, y) => x.i - y.i)) {
+      if (!catatan || catatan.user !== me || data.notes.some(x => x.id === catatan.id)) continue;
+      data.notes.splice(Math.min(i, data.notes.length), 0, catatan);
+      n++;
+    }
+    return n;
+  }
+
   /* Checklist di isi catatan: baris "[ ] …" atau "[x] …", boleh diawali "- ". Isinya tetap
      teks biasa, jadi catatan lama dan unduhan .txt tetap terbaca. */
   const POLA_CENTANG = /^(\s*(?:[-*]\s+)?)\[( |x|X)\]( ?)/;
@@ -3209,6 +3237,30 @@
     return { teks: keluar.join('\n'), baris };
   }
   const teksBlok = blok => teksBlokDanBaris(blok).teks;
+
+  /* Memindah dan menggandakan baris editor catatan (2.34.0). sisip = indeks tempat baris a..b
+     ditaruh di larik semula (0..panjang); hasilnya indeks awal baris itu sesudah dipindah. */
+  function pindahBlokKe(blok, a, b, sisip) {
+    if (!Array.isArray(blok) || a < 0 || b >= blok.length || a > b) return a;
+    const s = Math.max(0, Math.min(blok.length, sisip));
+    if (s >= a && s <= b + 1) return a;
+    const potong = blok.splice(a, b - a + 1);
+    const ke = s > b ? s - potong.length : s;
+    blok.splice(ke, 0, ...potong);
+    return ke;
+  }
+  /* Naik (arah -1) atau turun (1) satu baris; -1 bila sudah di ujung. */
+  function geserBlok(blok, a, b, arah) {
+    if (arah < 0) return a > 0 ? pindahBlokKe(blok, a, b, a - 1) : -1;
+    return b < blok.length - 1 ? pindahBlokKe(blok, a, b, b + 2) : -1;
+  }
+  /* Salinan baris a..b (isi tabel ikut tersalin, bukan berbagi) tepat di bawahnya; hasilnya
+     indeks salinan pertama. */
+  function duplikatBlok(blok, a, b) {
+    const salinan = JSON.parse(JSON.stringify(blok.slice(a, b + 1)));
+    blok.splice(b + 1, 0, ...salinan);
+    return b + 1;
+  }
 
   function tandaiBarisTask(isi, n, idTask) {
     const baris = String(isi || '').split('\n');
@@ -3817,8 +3869,8 @@
     setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
     FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
-    WARNA_CATATAN, warnaiCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
-    JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar,
+    WARNA_CATATAN, warnaiCatatan, pindahFolderCatatan, hapusCatatan, pulihkanCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
+    JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar, pindahBlokKe, geserBlok, duplikatBlok,
     FOTO_MAKS, fotoSah, periksaFoto,
     AKSEN, AKSEN_BAWAAN, LATAR, KUAT_LATAR, PADAT, HURUF, HALAMAN_AWAL, BAHASA_TAMPILAN, STATUS_SIAP, EMOJI_STATUS, STATUS_TEKS_MAKS, SAMPUL_MAKS, sampulSah,
     tampilanBawaan, periksaTampilan, statusAktif, tokenAksen, kontras,

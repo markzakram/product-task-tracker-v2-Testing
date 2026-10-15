@@ -41,3 +41,30 @@ test('warna catatan: hanya pemiliknya, warna tak dikenal jadi tanpa warna', () =
   I.simpanCatatan(d, 'kiki', { title: 'Ide 3', body: 'isi', folder: '' }, n.id, 3);
   assert.equal(d.notes[0].warna, 'ungu', 'menyimpan isi tak menghapus warna');
 });
+
+test('pilih banyak catatan (2.34.0): pindah folder, hapus sekaligus, lalu Urungkan ke tempat semula', () => {
+  const d = data();
+  const [a, b, c] = ['A', 'B', 'C'].map((t, i) => I.simpanCatatan(d, 'kiki', { title: t, body: 'isi', folder: 'Rapat' }, '', i + 1));
+  const lain = I.simpanCatatan(d, 'alya', { title: 'Punya Alya', body: 'isi' }, '', 9);
+  I.sematkanCatatan(d, 'kiki', a.id, true);
+  // Pindah folder: sematan dan waktu ubah tetap; "Umum"/"General" = tanpa folder.
+  assert.equal(I.pindahFolderCatatan(d, 'kiki', [a.id, b.id, a.id], 'Ide'), 2);
+  assert.deepEqual([a.folder, b.folder, c.folder, a.pin, a.updatedAt], ['Ide', 'Ide', 'Rapat', true, 1]);
+  I.pindahFolderCatatan(d, 'kiki', [c.id], 'General');
+  assert.equal(c.folder, '');
+  assert.throws(() => I.pindahFolderCatatan(d, 'kiki', [b.id, lain.id], 'X'), /bukan milik/);
+  assert.equal(b.folder, 'Ide', 'ditolak utuh');
+  // Hapus sekaligus (urutan semula: lain, c, b, a) lalu pulihkan ke posisi yang sama.
+  const urut = () => d.notes.map(n => n.title).join(',');
+  const semula = urut();
+  assert.throws(() => I.hapusCatatan(d, 'kiki', [a.id, lain.id]), /bukan milik/);
+  assert.equal(urut(), semula, 'tak satu pun terhapus');
+  const jejak = I.hapusCatatan(d, 'kiki', [a.id, c.id]);
+  assert.deepEqual(jejak.map(x => x.catatan.title), ['C', 'A']);
+  assert.equal(urut(), 'Punya Alya,B');
+  assert.equal(I.pulihkanCatatan(d, 'alya', jejak), 0, 'hanya pemiliknya');
+  assert.equal(I.pulihkanCatatan(d, 'kiki', jejak), 2);
+  assert.equal(urut(), semula);
+  assert.equal(I.pulihkanCatatan(d, 'kiki', jejak), 0, 'yang sudah kembali tak digandakan');
+  assert.equal(d.notes.find(n => n.id === a.id).pin, true);
+});

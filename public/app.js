@@ -316,7 +316,7 @@
     /* pilih = catatan yang terbuka di editor: id, '__baru' (belum tersimpan), atau null.
        warna = saringan warna; folderBaru = folder catatan baru; versiSesi = catatan yang versi
        awal sesi ini sudah disimpan. */
-    ctt: { q: '', pilih: null, warna: '', folderBaru: '', versiSesi: '' },
+    ctt: { q: '', pilih: null, warna: '', folderBaru: '', versiSesi: '', banyak: null, jangkar: '', urungkan: null },
     rwy: { jenis: '', orang: '', q: '', batas: 100 },
     pnd: { tab: ambil('pnd_tab', 'mulai'), buka: '' },
     /* Panduan yang sedang dicoba: langkahnya tampil di kotak melayang (#pemandu). */
@@ -718,6 +718,12 @@
     atur: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
     naik: '<path d="M12 19V5M5 12l7-7 7 7"/>',
     turun: '<path d="M12 5v14M19 12l-7 7-7-7"/>',
+    // Catatan 2.34.0: pegangan seret baris, coret, potong, gandakan, pilih semua.
+    pegangan: '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>',
+    coret: '<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><path d="M4 12h16"/>',
+    potong: '<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>',
+    gandakan: '<rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/><path d="M15 12v6M12 15h6"/>',
+    pilihSemua: '<path d="M5 3a2 2 0 0 0-2 2"/><path d="M19 3a2 2 0 0 1 2 2"/><path d="M21 19a2 2 0 0 1-2 2"/><path d="M5 21a2 2 0 0 1-2-2"/><path d="M9 3h1M14 3h1M9 21h1M14 21h1M3 9v1M3 14v1M21 9v1M21 14v1"/>',
   };
   const ikon = (nama, ukuran = 18) => `<svg width="${ukuran}" height="${ukuran}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${JALUR_IKON[nama] || ''}</svg>`;
   /* Nama ikon Dashboard Lain berasal dari v1 (Material Icons). */
@@ -1164,11 +1170,13 @@
       document.removeEventListener('copy', bajak, true);
       if (ok) beres(); else toast(tr('Peramban menolak menyalin.'), true);
     };
+    // Hasilnya janji yang selesai sesudah penyalinan (juga cadangannya) beres.
     if (navigator.clipboard && window.ClipboardItem && html) {
-      navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([teks], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })]).then(beres, lama);
-    } else if (navigator.clipboard && !html) {
-      navigator.clipboard.writeText(teks).then(beres, lama);
-    } else lama();
+      return navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([teks], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })]).then(beres, lama);
+    }
+    if (navigator.clipboard && !html) return navigator.clipboard.writeText(teks).then(beres, lama);
+    lama();
+    return Promise.resolve();
   }
 
   /* ---------- Server ---------- */
@@ -1404,7 +1412,7 @@
     // Draf dan balasan milik profil sebelumnya tak ikut terkirim atas nama profil baru.
     Object.assign(S.kom, { pilih: null, balas: '', ubah: '', tanya: false, draf: {}, saring: 'semua', batasBaru: null });
     Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
-    Object.assign(S.ctt, { pilih: null, warna: '', folderBaru: '', versiSesi: '' });
+    Object.assign(S.ctt, { pilih: null, warna: '', folderBaru: '', versiSesi: '', banyak: null, jangkar: '', urungkan: null });
     S.lnk.penuh = new Set();
     S.notif.buka = false;
     S.akun.buka = false;
@@ -5498,9 +5506,10 @@
             <button type="button" data-aksi="ctt-tampil" data-nilai="panel" aria-pressed="${!kartu}" title="${tr('Dua panel')}" aria-label="${tr('Tampilan dua panel')}">${ikon('duaPanel', 18)}</button>
             <button type="button" data-aksi="ctt-tampil" data-nilai="kartu" aria-pressed="${kartu}" title="${tr('Kartu')}" aria-label="${tr('Tampilan kartu')}">${ikon('grid', 18)}</button>
           </div>
+          ${milik.length ? `<button type="button" class="tombol tombol-pilih-catatan" data-aksi="ctt-pilih-mode" aria-pressed="${!!S.ctt.banyak}" title="${tr('Pilih beberapa catatan untuk dihapus, dipindah, atau diberi warna sekaligus')}">${ikon('centangKotak', 16)}<span>${S.ctt.banyak ? tr('Selesai memilih') : tr('Pilih')}</span></button>` : ''}
           <button type="button" class="tombol tombol-templat" data-aksi="ctt-templat" title="${tr('Mulai dari templat')}">${ikon('templat', 16)}<span>${tr('Templat')}</span></button>
           <button type="button" class="tombol utama" data-aksi="catatan-baru">${ikon('tambah', 16)} ${tr('Catatan baru')}</button>
-        </div></div>`;
+        </div></div>${bilahPilihCatatan()}`;
     const alat = `<div class="catatan-alat">${kotakCari('catatan', S.ctt.q, 'Cari catatan…')}${saringWarnaHtml()}</div>`;
     if (kartu) return `${kepala}<div class="catatan-kartu-wadah">${alat}<div id="hasil" class="ctt-grup-daftar ctt-grid">${daftarCatatan()}</div></div>`;
     return `${kepala}<div class="catatan-dua ${n ? 'ada-editor' : ''}">
@@ -5537,7 +5546,7 @@
     return grup.map(g => {
       const tutup = !cari && ciut.has(g.kunci);
       const semat = g.kunci === SEMAT_CTT;
-      return `<section class="ctt-grup ${tutup ? 'ciut' : ''}">
+      return `<section class="ctt-grup ${tutup ? 'ciut' : ''}" data-tujuan="${esc(g.kunci)}">
           <header class="ctt-grup-kepala">
             <button type="button" class="ctt-grup-tombol" data-aksi="ctt-ciut" data-folder="${esc(g.kunci)}" aria-expanded="${!tutup}">
               ${ikon(tutup ? 'kanan' : 'bawah', 14)}${ikon(semat ? 'semat' : 'folder', 14)}<strong>${esc(g.judul)}</strong><small>${g.isi.length}</small>
@@ -5554,8 +5563,17 @@
     const c = I.hitungChecklist(n.body);
     return c.total ? `<span class="ctt-progres ${c.selesai === c.total ? 'beres' : ''}" title="${tr('{a} dari {b} butir selesai', { a: c.selesai, b: c.total })}">${ikon('centang', 12)} ${c.selesai}/${c.total}</span>` : '';
   };
+  /* Mode Pilih (2.34.0): mengetuk catatan mencentangnya. Di luar mode itu, catatan bisa diseret
+     (tetikus) ke folder lain atau ke Disematkan. */
+  function atributCatatan(n) {
+    if (S.ctt.banyak) return `data-aksi="ctt-centang" data-id="${esc(n.id)}" aria-pressed="${S.ctt.banyak.has(n.id)}"`;
+    return `data-aksi="catatan-pilih" data-id="${esc(n.id)}"${hp() ? '' : ` draggable="true" data-seret-catatan="${esc(n.id)}"`}`;
+  }
+  const kotakPilihCatatan = n => (S.ctt.banyak
+    ? `<span class="ctt-cek ctt-pilih-kotak ${S.ctt.banyak.has(n.id) ? 'sudah' : ''}" aria-hidden="true">${S.ctt.banyak.has(n.id) ? ikon('centang', 12) : ''}</span>` : '');
+  const kelasPilihCatatan = n => (S.ctt.banyak ? (S.ctt.banyak.has(n.id) ? 'tercentang' : '') : S.ctt.pilih === n.id ? 'dipilih' : '');
   function itemCatatan(n) {
-    return `<li><button type="button" class="catatan-item ${n.warna ? 'w-' + n.warna : ''} ${S.ctt.pilih === n.id ? 'dipilih' : ''}" data-aksi="catatan-pilih" data-id="${esc(n.id)}">
+    return `<li><button type="button" class="catatan-item ${n.warna ? 'w-' + n.warna : ''} ${kelasPilihCatatan(n)}" ${atributCatatan(n)}>${kotakPilihCatatan(n)}
         <span class="catatan-item-judul">${n.pin ? ikon('semat', 14) : ''}<strong>${esc(judulCatatan(n))}</strong>${progresChecklist(n)}</span>
         <span class="catatan-item-isi">${esc(cuplikCatatan(n)) || `<i>${tr('Tidak ada teks lain')}</i>`}</span>
         <small>${esc(relatif(n.updatedAt))}${n.folder ? ' · ' + esc(n.folder) : ''}</small>
@@ -5563,7 +5581,7 @@
   }
   /* Seperti Keep: catatan tanpa judul tampil isinya saja (baris pertamanya tak diulang sebagai judul). */
   function kartuCatatan(n) {
-    return `<button type="button" class="ctt-kartu ${n.warna ? 'w-' + n.warna : ''}" data-aksi="catatan-pilih" data-id="${esc(n.id)}" aria-label="${esc(judulCatatan(n))}">
+    return `<button type="button" class="ctt-kartu ${n.warna ? 'w-' + n.warna : ''} ${S.ctt.banyak && S.ctt.banyak.has(n.id) ? 'tercentang' : ''}" ${atributCatatan(n)} aria-label="${esc(judulCatatan(n))}">${kotakPilihCatatan(n)}
         ${n.title ? `<span class="ctt-kartu-judul">${n.pin ? ikon('semat', 14) : ''}<strong>${esc(n.title)}</strong></span>` : ''}
         <span class="ctt-kartu-isi">${renderIsiCatatan(n.body, 8) || `<i class="hint">${tr('Kosong')}</i>`}</span>
         <span class="ctt-kartu-kaki">${!n.title && n.pin ? ikon('semat', 12) : ''}${progresChecklist(n)}<small>${esc(relatif(n.updatedAt))}${n.folder ? ' · ' + esc(n.folder) : ''}</small></span>
@@ -5585,7 +5603,19 @@
     ['judul', 'judulH', 'Judul 1'], ['daftar', 'daftarTitik', 'Daftar titik'], ['nomor', 'daftarNomor', 'Daftar bernomor'],
     ['centang', 'centangKotak', 'Checklist'], ['tabel', 'tabel', 'Tabel'], ['garis', 'kurang', 'Garis pemisah'],
   ];
-  const ALAT_FORMAT = [['tebal', 'tebal', 'Tebal (Ctrl+B)'], ['miring', 'miring', 'Miring (Ctrl+I)'], ['tautan', 'tautan', 'Tautan']];
+  const ALAT_FORMAT = [['tebal', 'tebal', 'Tebal (Ctrl+B)'], ['miring', 'miring', 'Miring (Ctrl+I)'], ['coret', 'coret', 'Coret (Ctrl+Shift+X)'], ['kode', 'kode', 'Kode (Ctrl+E)'], ['tautan', 'tautan', 'Tautan']];
+  /* Baris yang dipilih (2.34.0): tindakannya menggantikan isi toolbar selama ada pilihan. */
+  const alatPilihBaris = () => `<span class="ctt-alat-pilih" role="group" aria-label="${tr('Baris yang dipilih')}">
+      <strong id="ne-pilih-jumlah" class="ne-pilih-jumlah" aria-live="polite"></strong>
+      <button type="button" class="tombol kecil" data-aksi="ne-pilih" data-op="salin" title="${tr('Salin')} (Ctrl+C)" aria-label="${tr('Salin')}">${ikon('salin', 14)}<span class="label">${tr('Salin')}</span></button>
+      <button type="button" class="tombol kecil" data-aksi="ne-pilih" data-op="potong" title="${tr('Potong')} (Ctrl+X)" aria-label="${tr('Potong')}">${ikon('potong', 14)}<span class="label">${tr('Potong')}</span></button>
+      <button type="button" class="tombol kecil" data-aksi="ne-pilih" data-op="duplikat" title="${tr('Duplikat')} (Ctrl+D)" aria-label="${tr('Duplikat')}">${ikon('gandakan', 14)}<span class="label">${tr('Duplikat')}</span></button>
+      <button type="button" class="ikon-tombol" data-aksi="ne-pilih" data-op="naik" title="${tr('Naikkan')} (Alt+Shift+↑)" aria-label="${tr('Naikkan')}">${ikon('naik', 16)}</button>
+      <button type="button" class="ikon-tombol" data-aksi="ne-pilih" data-op="turun" title="${tr('Turunkan')} (Alt+Shift+↓)" aria-label="${tr('Turunkan')}">${ikon('turun', 16)}</button>
+      <button type="button" class="tombol kecil bahaya" data-aksi="ne-pilih" data-op="hapus" title="${tr('Hapus')} (Delete)" aria-label="${tr('Hapus')}">${ikon('hapus', 14)}<span class="label">${tr('Hapus')}</span></button>
+      <span class="ctt-toolbar-pisah"></span>
+      <button type="button" class="tombol kecil" data-aksi="ne-pilih" data-op="batal" title="Esc">${tr('Batal')}</button>
+    </span>`;
   const hitungTeks = n => {
     const c = I.hitungChecklist(n.body);
     return tr('{n} karakter', { n: n.body.length }) + (c.total ? ' · ' + tr('{a} dari {b} butir selesai', { a: c.selesai, b: c.total }) : '');
@@ -5616,14 +5646,16 @@
           ${ALAT_BLOK.map(([j, ik, t]) => `<button type="button" class="ikon-tombol" data-aksi="ctt-format" data-jenis="${j}" title="${tr(t)}" aria-label="${tr(t)}">${ikon(ik, 16)}</button>`).join('')}
           <span class="ctt-toolbar-garis" aria-hidden="true"></span>
           ${ALAT_FORMAT.map(([j, ik, t]) => `<button type="button" class="ikon-tombol" data-aksi="ctt-format" data-jenis="${j}" title="${tr(t)}" aria-label="${tr(t)}">${ikon(ik, 16)}</button>`).join('')}
+          <button type="button" class="ikon-tombol" data-aksi="ne-pilih-semua" title="${tr('Pilih semua baris (Ctrl+A)')}" aria-label="${tr('Pilih semua baris')}">${ikon('pilihSemua', 16)}</button>
           <span class="ctt-toolbar-pisah"></span>
           <button type="button" class="tombol kecil" data-aksi="ctt-task" title="${tr('Jadikan task dari blok yang sedang diketik')}">${ikon('tugas', 14)} ${tr('Jadikan task')}</button>
+          ${alatPilihBaris()}
         </div>
-        <div class="ne ${kosongSemua() ? 'kosong' : ''}" data-ne>${htmlSemuaBlok()}</div>
+        <div class="ne ${kosongSemua() ? 'kosong' : ''}" data-ne tabindex="-1">${htmlSemuaBlok()}</div>
         <div class="ne-menu" id="ne-menu" role="listbox" aria-label="${tr('Pilih jenis blok')}" hidden></div>
         <textarea id="catatan-isi" hidden aria-hidden="true" tabindex="-1">${esc(n.body)}</textarea>
       </div>
-      <div class="editor-kaki"><span id="catatan-hitung">${hitungTeks(n)}</span><span>${tr('Ketik / untuk judul, checklist, atau tabel · Ctrl+S menyimpan seketika')}</span></div>
+      <div class="editor-kaki"><span id="catatan-hitung">${hitungTeks(n)}</span><span id="catatan-petunjuk">${tr('Ketik / untuk judul, checklist, atau tabel · Ctrl+S menyimpan seketika')}</span></div>
     </section>`;
   }
 
@@ -5676,7 +5708,7 @@
      "> ", "---"), tempel beberapa baris atau sel dari spreadsheet, dan urungkan (Ctrl+Z) diatur
      di sini. Perubahan struktur menggambar ulang semua blok lalu mengembalikan kursornya. */
 
-  const ED = { id: null, teks: '', blok: [], riwayat: [], ke: 0, tundaRiwayat: null, slash: null, fokus: null, kursorAkhir: null };
+  const ED = { id: null, teks: '', blok: [], riwayat: [], ke: 0, tundaRiwayat: null, slash: null, fokus: null, kursorAkhir: null, pilih: null };
   const MAKS_KOLOM = 20;
   const KOSONG_PH = 'Tulis sesuatu, atau ketik / untuk judul, checklist, tabel…';
   /* [jenis, label, ikon, kata kunci pencarian, keterangan] — urutan menu "/". */
@@ -5702,6 +5734,7 @@
     ED.blok = I.blokCatatan(n.body);
     ED.teks = n.body;
     ED.slash = null;
+    ED.pilih = null;
     if (!lanjut) Object.assign(ED, { riwayat: [{ teks: n.body, fokus: null }], ke: 0, fokus: null, kursorAkhir: null });
   }
   const kosongSemua = () => ED.blok.length === 1 && ED.blok[0].jenis === 'p' && !ED.blok[0].teks;
@@ -5721,8 +5754,10 @@
     const f = tampilTeks(teks);
     return `<div class="ne-teks${kelas}" contenteditable="true" spellcheck="true" data-tampil="${f !== esc(teks) ? 'format' : 'mentah'}" ${atribut}>${f}</div>`;
   }
+  /* Pegangan ⋮⋮ (2.34.0): seret untuk memindah baris, ketuk untuk memilihnya. */
+  const pegangan = () => `<button type="button" class="ne-pegangan" tabindex="-1" title="${tr('Seret untuk memindah · ketuk untuk memilih')}" aria-label="${tr('Pindah atau pilih baris ini')}">${ikon('pegangan', 16)}</button>`;
   function htmlBlok(b, i, baris, nomor, kosong) {
-    if (b.jenis === 'hr') return `<div class="ne-blok ne-hr" data-i="${i}" tabindex="0" role="separator" aria-label="${tr('Garis pemisah. Backspace untuk menghapus.')}"><hr></div>`;
+    if (b.jenis === 'hr') return `<div class="ne-blok ne-hr" data-i="${i}" tabindex="0" role="separator" aria-label="${tr('Garis pemisah. Backspace untuk menghapus.')}">${pegangan()}<hr></div>`;
     if (b.jenis === 'tabel') return htmlTabel(b, i);
     const judul = I.teksBarisCatatan(b.teks, 0);
     const task = ['p', 'li', 'ol', 'todo', 'kutip'].includes(b.jenis) && judul && !/→\s*PRD-\d+\s*$/.test(b.teks)
@@ -5732,7 +5767,7 @@
       : b.jenis === 'li' ? '<span class="ctt-titik ne-titik" aria-hidden="true"></span>'
         : b.jenis === 'ol' ? `<span class="ne-nomor" aria-hidden="true">${nomor}.</span>` : '';
     const ph = tr(kosong ? KOSONG_PH : PH_BLOK[b.jenis] || '');
-    return `<div class="ne-blok ne-${b.jenis}${b.jenis === 'todo' && b.cek ? ' sudah' : ''}" data-i="${i}" data-baris="${baris}"${b.tingkat ? ` style="--tingkat:${b.tingkat}"` : ''}>${depan}${kotakTeks(b.teks, `data-ph="${esc(ph)}" role="textbox" aria-label="${esc(tr(LABEL_BLOK[b.jenis] || 'Teks'))}"`)}${task}</div>`;
+    return `<div class="ne-blok ne-${b.jenis}${b.jenis === 'todo' && b.cek ? ' sudah' : ''}" data-i="${i}" data-baris="${baris}"${b.tingkat ? ` style="--tingkat:${b.tingkat}"` : ''}>${pegangan()}${depan}${kotakTeks(b.teks, `data-ph="${esc(ph)}" role="textbox" aria-label="${esc(tr(LABEL_BLOK[b.jenis] || 'Teks'))}"`)}${task}</div>`;
   }
   function htmlTabel(b, i) {
     const kolom = Math.max(1, ...b.sel.map(r => r.length));
@@ -5740,7 +5775,7 @@
       const t = r === 0 && b.kepala ? 'th' : 'td';
       return `<${t}>${kotakTeks(teks, `data-r="${r}" data-c="${c}" role="textbox" aria-label="${tr('Sel baris {r}, kolom {c}', { r: r + 1, c: c + 1 })}"`, ' ne-sel')}</${t}>`;
     };
-    return `<div class="ne-blok ne-tabel" data-i="${i}">
+    return `<div class="ne-blok ne-tabel" data-i="${i}">${pegangan()}
       <div class="ne-tabel-gulir"><table><tbody>${b.sel.map((r, ri) => `<tr>${Array.from({ length: kolom }, (_, ci) => sel(r[ci] || '', ri, ci)).join('')}</tr>`).join('')}</tbody></table></div>
       <div class="ne-tabel-alat" role="toolbar" aria-label="${tr('Atur tabel')}">
         <button type="button" class="tombol kecil" data-aksi="ne-tabel" data-op="baris" title="${tr('Tambah baris di bawah sel yang dipilih')}">${ikon('tambah', 14)} ${tr('Baris')}</button>
@@ -5859,10 +5894,12 @@
     if (!ED.blok.length) ED.blok.push({ jenis: 'p', teks: '' });
     akar.innerHTML = htmlSemuaBlok();
     selaraskan();
+    tandaiPilihan();
     if (fokus) fokusKe(fokus);
   }
   /* f = { i, r?, c?, offset?, sampai?, akhir?, x?, bawah? } */
   function fokusKe(f) {
+    lepasPilihan();
     const blok = elBlok(f.i);
     if (!blok) return;
     if (blok.classList.contains('ne-hr')) { blok.focus(); return; }
@@ -6154,6 +6191,8 @@
   /* --- Tombol (selain Enter/Backspace, yang lewat beforeinput) --- */
 
   function tombolEditor(e) {
+    // Ada baris yang dipilih (2.34.0): tombolnya diterima akar editor.
+    if (ED.pilih) return tombolPilihan(e);
     const el = e.target.closest('.ne-teks');
     const garis = e.target.closest('.ne-hr');
     const k = e.key;
@@ -6167,12 +6206,33 @@
       const t = String(k).toLowerCase();
       if (t === 'z') { e.preventDefault(); undoEditor(e.shiftKey ? 1 : -1); return true; }
       if (t === 'y') { e.preventDefault(); undoEditor(1); return true; }
+      const i = el ? posisiEl(el).i : garis ? Number(garis.dataset.i) : -1;
+      // Ctrl+A memilih semua baris catatan; Ctrl+D menggandakan baris ini (2.34.0).
+      if (t === 'a' && i >= 0) { e.preventDefault(); pilihBlok(0, ED.blok.length - 1); return true; }
+      if (t === 'd' && i >= 0) { e.preventDefault(); duplikatKursor(i); return true; }
+      // Ctrl+Enter mencentang atau membuka centang checklist.
+      if (k === 'Enter' && el) {
+        const cek = el.closest('.ne-blok').querySelector(':scope > .ne-cek');
+        if (!cek) return false;
+        e.preventDefault();
+        centangBlok(cek);
+        return true;
+      }
       if (el && (t === 'b' || t === 'i')) { e.preventDefault(); bungkusPilihan(t === 'b' ? '**' : '_'); return true; }
+      if (el && t === 'x' && e.shiftKey) { e.preventDefault(); bungkusPilihan('~~'); return true; }
+      if (el && t === 'e' && !e.shiftKey) { e.preventDefault(); bungkusPilihan('`'); return true; }
       if (el && t === 'u') { e.preventDefault(); return true; }
       return false;
     }
+    // Alt+Shift+↑/↓: baris ini naik atau turun (2.34.0).
+    if (e.altKey && e.shiftKey && (k === 'ArrowUp' || k === 'ArrowDown') && (el || garis)) {
+      e.preventDefault();
+      geserKursor(el ? posisiEl(el) : { i: Number(garis.dataset.i) }, el, k === 'ArrowUp' ? -1 : 1);
+      return true;
+    }
     if (garis) {
       const i = Number(garis.dataset.i);
+      if ((k === 'ArrowUp' || k === 'ArrowDown') && e.shiftKey) { e.preventDefault(); pilihBlok(i, i + (k === 'ArrowUp' ? -1 : 1)); return true; }
       if (k === 'Backspace' || k === 'Delete') { e.preventDefault(); hapusGaris(i, k === 'Backspace' ? -1 : 1); return true; }
       if (k === 'Enter') { e.preventDefault(); catatRiwayatSekarang(); ED.blok.splice(i + 1, 0, { jenis: 'p', teks: '' }); gambarBlok({ i: i + 1 }); return true; }
       if (k === 'ArrowUp' || k === 'ArrowLeft') { e.preventDefault(); pindahBlok(i, -1); return true; }
@@ -6187,6 +6247,15 @@
       if (p.r !== undefined) { e.preventDefault(); pindahSel(p, e.shiftKey ? -1 : 1, true); return true; }
       if (['li', 'ol', 'todo'].includes(b.jenis)) { e.preventDefault(); indentasi(p.i, e.shiftKey ? -1 : 1); return true; }
       return false;
+    }
+    // Shift+↑/↓ di tepi baris: lanjut memilih baris utuh (2.34.0).
+    if ((k === 'ArrowUp' || k === 'ArrowDown') && e.shiftKey && !e.altKey) {
+      const atas = k === 'ArrowUp';
+      const [a, z] = rentangKursor(el);
+      if (atas ? a > 0 : z < bacaTeks(el).length) return false;
+      e.preventDefault();
+      pilihBlok(p.i, p.i + (atas ? -1 : 1));
+      return true;
     }
     if ((k === 'ArrowUp' || k === 'ArrowDown') && !e.shiftKey && !e.altKey) {
       const atas = k === 'ArrowUp';
@@ -6203,6 +6272,195 @@
       if (k === 'ArrowRight' && a === bacaTeks(el).length) { e.preventDefault(); if (p.r !== undefined) pindahSel(p, 1, false); else pindahBlok(p.i, 1, null, false); return true; }
     }
     return false;
+  }
+
+  /* --- Memilih baris (2.34.0, permintaan user) ---
+     Ctrl+A, seret tetikus melewati beberapa baris, Shift+klik, Shift+↑/↓ di tepi baris, atau ketuk
+     pegangan ⋮⋮ memilih baris utuh. Selama ada pilihan, kursor teks dilepas dan tombol diterima
+     akar editor: Delete/Backspace menghapus, Ctrl+C/X menyalin/memotong (sebagai teks catatan),
+     Ctrl+D menggandakan, Alt+Shift+↑/↓ memindah, Tab menjorokkan butir daftar, Ctrl+Enter
+     mencentang, huruf atau tempelan menggantikan; Enter, Esc, dan panah kembali menulis.
+     Semuanya bisa diurungkan (Ctrl+Z). */
+  const rentangPilih = () => (ED.pilih ? [Math.min(ED.pilih.dari, ED.pilih.ke), Math.max(ED.pilih.dari, ED.pilih.ke)] : null);
+  const batasBlok = i => Math.max(0, Math.min(ED.blok.length - 1, i));
+  function tandaiPilihan() {
+    const akar = akarEditor();
+    if (!akar) return;
+    const r = rentangPilih();
+    for (const el of $$(':scope > .ne-blok', akar)) {
+      const i = Number(el.dataset.i);
+      el.classList.toggle('terpilih', !!r && i >= r[0] && i <= r[1]);
+    }
+    akar.classList.toggle('memilih', !!r);
+    const ed = akar.closest('.catatan-editor');
+    if (ed) ed.classList.toggle('memilih-blok', !!r);
+    const jumlah = $('#ne-pilih-jumlah');
+    if (jumlah) jumlah.textContent = r ? tr('{n} baris dipilih', { n: r[1] - r[0] + 1 }) : '';
+    const petunjuk = $('#catatan-petunjuk');
+    if (petunjuk) petunjuk.textContent = r ? tr('Delete menghapus · Ctrl+C menyalin · Alt+Shift+↑↓ memindah · Esc kembali menulis')
+      : tr('Ketik / untuk judul, checklist, atau tabel · Ctrl+S menyimpan seketika');
+  }
+  function gulirKeBlok(i) {
+    const el = elBlok(i);
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+  function pilihBlok(dari, ke = dari) {
+    const akar = akarEditor();
+    if (!akar || !ED.blok.length) return;
+    // Tempat kursor sebelum memilih: Esc dan Batal kembali ke sana.
+    const asal = ED.pilih ? ED.pilih.asal : kursorKini();
+    tutupMenuBlok();
+    ED.pilih = { dari: batasBlok(dari), ke: batasBlok(ke), asal };
+    if (document.activeElement !== akar) akar.focus({ preventScroll: true });
+    const sel = getSelection();
+    if (sel.rangeCount) sel.removeAllRanges();
+    tandaiPilihan();
+    gulirKeBlok(ED.pilih.ke);
+  }
+  function perluasPilihan(ke) {
+    if (!ED.pilih) return;
+    ED.pilih.ke = batasBlok(ke);
+    tandaiPilihan();
+    gulirKeBlok(ED.pilih.ke);
+  }
+  function lepasPilihan() {
+    if (!ED.pilih) return false;
+    ED.pilih = null;
+    tandaiPilihan();
+    return true;
+  }
+  /* Kembali menulis: 'asal' = tempat kursor sebelum memilih (bila masih ada), 'awal' = awal baris
+     pertama yang dipilih, lainnya = akhir baris terakhir. */
+  function keluarPilihan(ke) {
+    const r = rentangPilih();
+    if (!r) return;
+    const asal = ED.pilih.asal;
+    lepasPilihan();
+    if (ke === 'asal' && asal && ED.blok[asal.i]) return fokusKe(asal);
+    fokusKe(ke === 'awal' ? { i: r[0], offset: 0 } : { i: r[1], akhir: true, bawah: true });
+  }
+  function salinPilihan(potong) {
+    const r = rentangPilih();
+    if (!r) return;
+    const n = r[1] - r[0] + 1;
+    const selesai = salinKeKlip(I.teksBlok(ED.blok.slice(r[0], r[1] + 1)), '', potong ? tr('{n} baris dipotong.', { n }) : tr('{n} baris disalin.', { n }));
+    if (potong) return hapusPilihan();
+    // Cadangan salin (kotak teks sementara) memindah fokus: sesudahnya kembali ke editor.
+    selesai.then(() => { const akar = akarEditor(); if (ED.pilih && akar && document.activeElement !== akar) akar.focus({ preventScroll: true }); });
+  }
+  function hapusPilihan() {
+    const r = rentangPilih();
+    if (!r) return;
+    catatRiwayatSekarang();
+    ED.blok.splice(r[0], r[1] - r[0] + 1);
+    ED.pilih = null;
+    if (!ED.blok.length) ED.blok.push({ jenis: 'p', teks: '' });
+    gambarBlok(r[0] > 0 ? { i: r[0] - 1, akhir: true, bawah: true } : { i: 0 });
+  }
+  /* Huruf yang diketik saat ada pilihan: baris yang dipilih diganti satu baris berjenis sama dengan
+     baris pertamanya (butir tetap butir, judul tetap judul). Tempelan: paragraf kosong dulu, supaya
+     jenis barisnya mengikuti isi tempelan. */
+  function gantiPilihan(teks = '', ikutJenis = true) {
+    const r = rentangPilih();
+    if (!r) return null;
+    const pertama = ED.blok[r[0]];
+    const baru = ikutJenis && pertama && !['tabel', 'hr'].includes(pertama.jenis) ? { ...bentukBlok(pertama.jenis, pertama), teks } : { jenis: 'p', teks };
+    catatRiwayatSekarang();
+    ED.blok.splice(r[0], r[1] - r[0] + 1, baru);
+    ED.pilih = null;
+    gambarBlok({ i: r[0], offset: teks.length });
+    return elFokus();
+  }
+  function duplikatPilihan() {
+    const r = rentangPilih();
+    if (!r) return;
+    catatRiwayatSekarang();
+    const awal = I.duplikatBlok(ED.blok, r[0], r[1]);
+    ED.pilih = { dari: awal, ke: awal + r[1] - r[0], asal: null };
+    gambarBlok();
+    gulirKeBlok(ED.pilih.ke);
+  }
+  function duplikatKursor(i) {
+    const el = elFokus();
+    const p = el ? posisiEl(el) : { i };
+    const offset = el ? rentangKursor(el)[0] : 0;
+    catatRiwayatSekarang();
+    const j = I.duplikatBlok(ED.blok, i, i);
+    gambarBlok({ ...p, i: j, offset });
+  }
+  function geserPilihan(arah) {
+    const r = rentangPilih();
+    if (!r || (arah < 0 ? r[0] === 0 : r[1] === ED.blok.length - 1)) return;
+    catatRiwayatSekarang();
+    const geser = I.geserBlok(ED.blok, r[0], r[1], arah) - r[0];
+    ED.pilih = { dari: ED.pilih.dari + geser, ke: ED.pilih.ke + geser, asal: null };
+    gambarBlok();
+    gulirKeBlok(arah < 0 ? r[0] + geser : r[1] + geser);
+  }
+  function geserKursor(p, el, arah) {
+    if (arah < 0 ? p.i === 0 : p.i === ED.blok.length - 1) return;
+    const offset = el ? rentangKursor(el)[0] : 0;
+    catatRiwayatSekarang();
+    const j = I.geserBlok(ED.blok, p.i, p.i, arah);
+    gambarBlok({ ...p, i: j, offset });
+  }
+  function indenPilihan(d) {
+    const r = rentangPilih();
+    const daftar = r ? ED.blok.slice(r[0], r[1] + 1).filter(b => ['li', 'ol', 'todo'].includes(b.jenis)) : [];
+    if (!daftar.length) return;
+    catatRiwayatSekarang();
+    for (const b of daftar) b.tingkat = Math.max(0, Math.min(3, (b.tingkat || 0) + d));
+    gambarBlok();
+  }
+  /* Ctrl+Enter: semua checklist yang dipilih dicentang; bila sudah semua, centangnya dibuka. */
+  function centangPilihan() {
+    const r = rentangPilih();
+    const tugas = r ? ED.blok.slice(r[0], r[1] + 1).filter(b => b.jenis === 'todo') : [];
+    if (!tugas.length) return;
+    catatRiwayatSekarang();
+    const cek = tugas.some(b => !b.cek);
+    for (const b of tugas) b.cek = cek;
+    gambarBlok();
+  }
+  function opPilihan(op) {
+    if (op === 'salin' || op === 'potong') return salinPilihan(op === 'potong');
+    if (op === 'duplikat') return duplikatPilihan();
+    if (op === 'naik' || op === 'turun') return geserPilihan(op === 'naik' ? -1 : 1);
+    if (op === 'hapus') return hapusPilihan();
+    keluarPilihan('asal');
+  }
+  function tombolPilihan(e) {
+    const r = rentangPilih();
+    const k = e.key;
+    if (!r || e.isComposing || k === 'Process') return false;
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const t = String(k).toLowerCase();
+      if (t === 'a') { e.preventDefault(); pilihBlok(0, ED.blok.length - 1); return true; }
+      if (t === 'c' || t === 'x') { e.preventDefault(); salinPilihan(t === 'x'); return true; }
+      if (t === 'd') { e.preventDefault(); duplikatPilihan(); return true; }
+      if (k === 'Enter') { e.preventDefault(); centangPilihan(); return true; }
+      if (t === 'z' || t === 'y') { e.preventDefault(); lepasPilihan(); undoEditor(t === 'y' || e.shiftKey ? 1 : -1); return true; }
+      return false;   // Ctrl+V lewat peristiwa paste; Ctrl+S dan Ctrl+K tetap jalan
+    }
+    if (e.altKey && e.shiftKey && (k === 'ArrowUp' || k === 'ArrowDown')) { e.preventDefault(); geserPilihan(k === 'ArrowUp' ? -1 : 1); return true; }
+    if (e.altKey) return false;
+    switch (k) {
+      case 'Backspace': case 'Delete': e.preventDefault(); hapusPilihan(); return true;
+      case 'Escape': e.preventDefault(); keluarPilihan('asal'); return true;
+      case 'Enter': e.preventDefault(); keluarPilihan('akhir'); return true;
+      case 'Tab': e.preventDefault(); indenPilihan(e.shiftKey ? -1 : 1); return true;
+      case 'ArrowLeft': case 'ArrowRight': e.preventDefault(); keluarPilihan(k === 'ArrowLeft' ? 'awal' : 'akhir'); return true;
+      case 'ArrowUp': case 'ArrowDown': {
+        e.preventDefault();
+        const d = k === 'ArrowUp' ? -1 : 1;
+        if (e.shiftKey) perluasPilihan(ED.pilih.ke + d);
+        else pilihBlok(d < 0 ? r[0] - 1 : r[1] + 1);
+        return true;
+      }
+      default:
+        if (k.length === 1 && !e.ctrlKey && !e.metaKey) { e.preventDefault(); gantiPilihan(k); return true; }
+        return false;
+    }
   }
 
   /* --- Menu "/" --- */
@@ -6310,6 +6568,8 @@
   }
   function alatEditor(jenis) {
     if (jenis === 'tebal' || jenis === 'miring') return bungkusPilihan(jenis === 'tebal' ? '**' : '_');
+    if (jenis === 'coret') return bungkusPilihan('~~');
+    if (jenis === 'kode') return bungkusPilihan('`');
     if (jenis === 'tautan') return sisipTautan();
     const tujuan = { judul: 'h1', daftar: 'li', nomor: 'ol', centang: 'todo', tabel: 'tabel', garis: 'hr' }[jenis];
     if (!tujuan) return;
@@ -6333,7 +6593,7 @@
       baru = lama.slice(0, a - L) + lama.slice(a, z) + lama.slice(z + L);
       pa = a - L; pz = z - L;
     } else {
-      const isi = lama.slice(a, z) || (tanda === '**' ? 'teks tebal' : 'teks miring');
+      const isi = lama.slice(a, z) || { '**': tr('teks tebal'), _: tr('teks miring'), '~~': tr('teks dicoret'), '`': tr('kode') }[tanda];
       baru = lama.slice(0, a) + tanda + isi + tanda + lama.slice(z);
       pa = a + L; pz = a + L + isi.length;
     }
@@ -6525,6 +6785,116 @@
     if (posisi) { const el = document.getElementById(posisi[0]); if (el) { el.focus(); el.setSelectionRange(posisi[1], posisi[2]); } }
     else if (blok) fokusKe(blok);
     return n;
+  }
+
+  /* ----- Pilih banyak, hapus dengan Urungkan, seret ke folder (2.34.0, permintaan user) ----- */
+
+  /* Catatan yang tampil, urut seperti di layar (folder yang diciutkan tak ikut, kecuali saat mencari). */
+  function idCatatanTampil() {
+    const cari = !!S.ctt.q.trim();
+    const ciut = prefCatatan().ciut;
+    return kelompokCatatan().filter(g => cari || !ciut.has(g.kunci)).flatMap(g => g.isi.map(n => n.id));
+  }
+  function bilahPilihCatatan() {
+    const pilih = S.ctt.banyak;
+    if (!pilih) return '';
+    const tampil = idCatatanTampil();
+    const n = pilih.size;
+    const semua = tampil.length > 0 && tampil.every(id => pilih.has(id));
+    const mati = n ? '' : 'disabled';
+    return `<div class="bilah-pilih bilah-catatan" role="region" aria-label="${tr('Catatan yang dipilih')}">
+      <span class="bilah-pilih-angka" aria-live="polite">${n ? tr('<strong>{n}</strong> catatan dipilih', { n }) : tr('Ketuk catatan untuk memilihnya. Shift+klik memilih satu rentang.')}</span>
+      <span class="bilah-pilih-tombol">
+        <button type="button" class="tombol kecil" data-aksi="ctt-banyak-semua" data-nilai="${semua ? '' : '1'}" ${tampil.length ? '' : 'disabled'}>${semua ? tr('Kosongkan') : tr('Pilih semua ({n})', { n: tampil.length })}</button>
+        <button type="button" class="tombol kecil" data-aksi="ctt-banyak-pindah" ${mati}>${ikon('pindah', 16)} ${tr('Pindah ke folder')}</button>
+        <span class="ctt-warna" role="group" aria-label="${tr('Beri warna catatan yang dipilih')}">${WARNA_UI.map(([w, l]) => `<button type="button" class="ctt-warna-titik w-${w || 'polos'}" data-aksi="ctt-banyak-warna" data-warna="${w}" ${mati} title="${tr(l)}" aria-label="${tr('Warna: {warna}', { warna: tr(l) })}"></button>`).join('')}</span>
+        <button type="button" class="tombol kecil bahaya" data-aksi="ctt-banyak-hapus" ${mati}>${ikon('hapus', 16)} ${n ? tr('Hapus {n} catatan', { n }) : tr('Hapus')}</button>
+      </span>
+      <button type="button" class="tombol kecil bilah-selesai" data-aksi="ctt-pilih-mode">${tr('Selesai')}</button></div>`;
+  }
+  /* Ketuk = centang/lepas; Shift+klik = semua catatan di antara yang terakhir diketuk dan ini. */
+  function centangCatatan(id, rentang) {
+    const pilih = S.ctt.banyak;
+    if (!pilih) return;
+    const tampil = idCatatanTampil();
+    if (rentang && S.ctt.jangkar && tampil.includes(S.ctt.jangkar) && tampil.includes(id)) {
+      const [a, b] = [tampil.indexOf(S.ctt.jangkar), tampil.indexOf(id)].sort((x, y) => x - y);
+      for (const x of tampil.slice(a, b + 1)) pilih.add(x);
+    } else if (pilih.has(id)) pilih.delete(id);
+    else pilih.add(id);
+    S.ctt.jangkar = id;
+    render();
+    const el = $(`[data-aksi="ctt-centang"][data-id="${CSS.escape(id)}"]`);
+    if (el) el.focus({ preventScroll: true });
+  }
+  /* Pesan singkat bertombol, mis. "Catatan dihapus · Urungkan". Hasilnya fungsi penutup: true bila
+     pesannya baru ditutup sekarang (belum habis waktunya atau sudah ditekan). */
+  function toastAksi(pesan, label, jalan, lama = 10000, habis = null) {
+    const el = document.createElement('div');
+    el.className = 'toast beraksi';
+    const teks = document.createElement('span');
+    teks.textContent = pesan;
+    const tombol = document.createElement('button');
+    tombol.type = 'button';
+    tombol.className = 'toast-aksi';
+    tombol.textContent = label;
+    let tutup = false;
+    const selesai = () => {
+      if (tutup) return false;
+      tutup = true;
+      el.remove();
+      if (habis) habis();
+      return true;
+    };
+    tombol.addEventListener('click', () => { if (selesai()) jalan(); });
+    el.append(teks, tombol);
+    $('#toast').appendChild(el);
+    setTimeout(selesai, lama);
+    return selesai;
+  }
+  /* Hapus tanpa konfirmasi: catatan dan riwayat versinya disimpan dulu di memori, lalu kembali ke
+     tempatnya bila Urungkan (atau Ctrl+Z) ditekan selama pesannya tampil. */
+  function hapusCatatanUrungkan(ids) {
+    simpanCatatanTertunda();
+    const versiLama = semuaVersi();
+    let jejak;
+    try { jejak = I.hapusCatatan(S.data, S.me, ids); } catch (err) { return toast(err.message, true); }
+    if (!jejak.length) return;
+    const versi = {};
+    for (const { catatan } of jejak) {
+      if (versiLama[catatan.id]) versi[catatan.id] = versiLama[catatan.id];
+      hapusVersi(catatan.id);
+    }
+    if (jejak.some(x => x.catatan.id === S.ctt.pilih)) {
+      if (editorDiJendela()) { S.modal = null; tutupModal(); }
+      S.ctt.pilih = null;
+    }
+    selesaiUbah();
+    const satu = jejak.length === 1;
+    const pulihkan = () => {
+      I.pulihkanCatatan(S.data, S.me, jejak);
+      simpan('ctt_versi', Object.assign(semuaVersi(), versi));
+      selesaiUbah(satu ? tr('Catatan dikembalikan.') : tr('{n} catatan dikembalikan.', { n: jejak.length }));
+    };
+    const tutup = toastAksi(satu ? tr('Catatan "{judul}" dihapus.', { judul: potong(judulCatatan(jejak[0].catatan), 40) }) : tr('{n} catatan dihapus.', { n: jejak.length }),
+      tr('Urungkan'), pulihkan, 10000, () => { if (S.ctt.urungkan && S.ctt.urungkan.jalan === pulihkan) S.ctt.urungkan = null; });
+    S.ctt.urungkan = { jalan: pulihkan, tutup };
+  }
+  /* Diseret ke Disematkan = disematkan; ke folder lain = pindah ke sana (sematannya lepas, supaya
+     catatannya memang tampil di folder itu). */
+  function pindahkanCatatan(id, tujuan) {
+    const n = S.data.notes.find(x => x.id === id && x.user === S.me);
+    if (!n) return;
+    try {
+      if (tujuan === SEMAT_CTT) {
+        I.sematkanCatatan(S.data, S.me, id, true);
+        return selesaiUbah(tr('{judul} disematkan di atas daftar.', { judul: judulCatatan(n) }));
+      }
+      const folder = tujuan === I.FOLDER_UMUM ? '' : tujuan;
+      I.pindahFolderCatatan(S.data, S.me, [id], folder);
+      if (n.pin) I.sematkanCatatan(S.data, S.me, id, false);
+      selesaiUbah(tr('{judul} dipindah ke {folder}.', { judul: judulCatatan(n), folder: folder || tr(I.FOLDER_UMUM) }));
+    } catch (err) { toast(err.message, true); }
   }
 
   /* ----- Membuka dan membuat ----- */
@@ -9142,6 +9512,12 @@
           tutupModal();
           return selesaiUbah(tr('Dipindah ke {folder}.', { folder: f.nilai.trim() || I.FOLDER_UMUM }));
         }
+        case 'catatan-pindah': {
+          const n = I.pindahFolderCatatan(S.data, S.me, m.ids, f.nilai);
+          tutupModal();
+          S.ctt.banyak = null;
+          return selesaiUbah(tr('{n} catatan dipindah ke {folder}.', { n, folder: String(f.nilai || '').trim() || tr(I.FOLDER_UMUM) }));
+        }
         case 'folder-ganti': {
           const n = I.gantiNamaFolder(S.data[m.daftar], S.me, m.folder, f.nilai);
           pindahPrefFolder(m.daftar, m.folder, String(f.nilai || '').trim() || I.FOLDER_UMUM);
@@ -9899,7 +10275,33 @@
         break;
       }
       /* Catatan Saya */
-      case 'catatan-baru': catatanBaru(d.folder || ''); break;
+      case 'catatan-baru': S.ctt.banyak = null; catatanBaru(d.folder || ''); break;
+      case 'ctt-pilih-mode':
+        simpanCatatanTertunda();
+        S.ctt.banyak = S.ctt.banyak ? null : new Set();
+        S.ctt.jangkar = '';
+        render();
+        break;
+      case 'ctt-centang': centangCatatan(d.id, e.shiftKey); break;
+      case 'ctt-banyak-semua': S.ctt.banyak = new Set(d.nilai ? idCatatanTampil() : []); render(); break;
+      case 'ctt-banyak-pindah': {
+        const ids = [...(S.ctt.banyak || [])];
+        if (ids.length) bukaModal({ jenis: 'catatan-pindah', ids }, formIsian(tr('Pindahkan {n} catatan ke folder', { n: ids.length }), tr('Folder tujuan'), '', tr('Pindahkan'), folderSaya(catatanSaya())));
+        break;
+      }
+      case 'ctt-banyak-warna': {
+        const ids = [...(S.ctt.banyak || [])];
+        if (!ids.length) break;
+        try { ids.forEach(id => I.warnaiCatatan(S.data, S.me, id, d.warna)); selesaiUbah(tr('Warna {n} catatan diganti.', { n: ids.length })); } catch (err) { toast(err.message, true); }
+        break;
+      }
+      case 'ctt-banyak-hapus': {
+        const ids = [...(S.ctt.banyak || [])];
+        if (!ids.length) break;
+        S.ctt.banyak = null;
+        hapusCatatanUrungkan(ids);
+        break;
+      }
       case 'catatan-pilih':
         pilihCatatan(d.id);
         if (hp() && !modeKartu()) window.scrollTo(0, 0);
@@ -9951,6 +10353,8 @@
       case 'ne-tabel': opTabel(d.op, el); break;
       case 'ne-slash': pakaiMenuBlok(d.jenis); break;
       case 'ne-bawah': klikBawah(); break;
+      case 'ne-pilih-semua': pilihBlok(0, ED.blok.length - 1); break;
+      case 'ne-pilih': opPilihan(d.op); break;
       case 'ctt-task': jadikanTask(d.baris === undefined ? undefined : Number(d.baris)); break;
       case 'ctt-templat': S.ctt.folderBaru = ''; bukaModal({ jenis: 'templat' }, formTemplat()); break;
       case 'ctt-templat-pakai': pakaiTemplat(Number(d.i)); break;
@@ -9968,16 +10372,9 @@
         break;
       }
       case 'catatan-hapus': {
-        simpanCatatanTertunda();
+        // Tanpa konfirmasi (2.34.0): pesan sesudahnya punya tombol Urungkan.
         const n = catatanAktif();
-        if (!n || n.id === '__baru' || !confirm(tr('Hapus catatan "{judul}"? Ini tidak bisa dibatalkan; riwayat versinya ikut terhapus.', { judul: judulCatatan(n) }))) return;
-        try {
-          I.hapusMilik(S.data.notes, n.id, S.me);
-          hapusVersi(n.id);
-          if (editorDiJendela()) { S.modal = null; tutupModal(); }
-          S.ctt.pilih = null;
-          selesaiUbah(tr('Catatan dihapus.'));
-        } catch (err) { toast(err.message, true); }
+        if (n && n.id !== '__baru') hapusCatatanUrungkan([n.id]);
         break;
       }
       case 'folder-ganti':
@@ -10219,6 +10616,14 @@
   /* Di Link Saya, menempel alamat di mana saja (bukan di kotak isian) langsung menambah link. */
   document.addEventListener('paste', e => {
     // Editor catatan: hanya teks biasa (format dari halaman lain tak ikut); beberapa baris jadi blok.
+    // Ada baris yang dipilih (2.34.0): tempelan menggantikannya.
+    if (ED.pilih && akarEditor() && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable) {
+      e.preventDefault();
+      const teks = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+      const el = gantiPilihan('', false);
+      if (el && teks) tempelBlok(el, teks);
+      return;
+    }
     const blokTempel = e.target.closest && e.target.closest('.ne-teks');
     if (blokTempel) {
       e.preventDefault();
@@ -10243,6 +10648,8 @@
     const aplikasi = !$('#app').hidden && !!S.data;
     // Editor blok Catatan: panah, Tab, menu "/", format, dan urungkan (Enter/Backspace lewat beforeinput).
     if (e.target.closest && e.target.closest('.ne[data-ne]') && tombolEditor(e)) return;
+    // Baris catatan yang dipilih tetap menerima tombol walau fokusnya sempat lepas (2.34.0).
+    if (ED.pilih && akarEditor() && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable && tombolPilihan(e)) return;
     // Judul catatan: Enter atau panah bawah turun ke blok pertama.
     if (e.target.id === 'catatan-judul' && (e.key === 'Enter' || e.key === 'ArrowDown') && !e.isComposing) { e.preventDefault(); fokusKe({ i: 0 }); return; }
     // Rancangan Paket: nama yang sedang disunting (Enter simpan, Esc batal); Enter di kartu membukanya.
@@ -10281,6 +10688,27 @@
       if (S.modal && S.modal.jenis === 'palet') tutupModal(); else bukaPalet();
       return;
     }
+    // Catatan Saya (2.34.0): Ctrl+A memilih semua baris catatan yang terbuka, atau semua catatan di
+    // daftar (mode Pilih, atau bila tak ada catatan terbuka); Ctrl+Z mengurungkan hapus catatan
+    // selama pesannya masih tampil.
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && aplikasi && S.view === 'catatan' && (tombol === 'a' || (tombol === 'z' && !e.shiftKey))) {
+      const ketik = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
+      if (!ketik && tombol === 'z' && S.ctt.urungkan) {
+        e.preventDefault();
+        const u = S.ctt.urungkan;
+        if (u.tutup()) u.jalan();
+        return;
+      }
+      if (!ketik && tombol === 'a') {
+        if (!S.ctt.banyak && akarEditor() && (!S.modal || S.modal.jenis === 'editor-catatan')) { e.preventDefault(); pilihBlok(0, ED.blok.length - 1); return; }
+        if ($('#modal').hidden && catatanSaya().length) {
+          e.preventDefault();
+          Object.assign(S.ctt, { banyak: new Set(idCatatanTampil()), jangkar: '' });
+          render();
+          return;
+        }
+      }
+    }
     if ((e.ctrlKey || e.metaKey) && tombol === 's' && aplikasi && S.view === 'catatan' && $('[data-catatan]')) {
       e.preventDefault();
       clearTimeout(tundaCatatan);
@@ -10298,6 +10726,7 @@
       const menu = $('details.menu-lagi[open]');
       if (menu) { menu.open = false; return menu.querySelector('summary').focus(); }
       if (!$('#modal').hidden) return tutupModal();
+      if (S.view === 'catatan' && S.ctt.banyak) { S.ctt.banyak = null; return render(); }
       if (S.notif.buka) return bukaTutupNotif(false);
       if (S.akun.buka) { bukaTutupAkun(false); const b = $('.tombol-akun'); return b && b.focus(); }
       if (S.pilih && !$('#laci').hidden) { S.pilih = null; return render(); }
@@ -10313,6 +10742,17 @@
   document.addEventListener('mousedown', e => {
     if (!e.target.closest) return;
     if (e.target.closest('.ctt-toolbar button, .ne-tabel-alat button, .ne-menu button')) { e.preventDefault(); return; }
+    // Memilih baris (2.34.0): Shift+klik memperluas pilihan, klik lain melepasnya, dan menekan lalu
+    // menyeret melewati baris lain memilih baris utuh.
+    const blokKlik = e.button === 0 ? e.target.closest('.ne[data-ne] > .ne-blok') : null;
+    if (e.shiftKey && blokKlik) {
+      const i = Number(blokKlik.dataset.i);
+      if (ED.pilih) { e.preventDefault(); perluasPilihan(i); return; }
+      const f = elFokus();
+      if (f && posisiEl(f).i !== i) { e.preventDefault(); pilihBlok(posisiEl(f).i, i); return; }
+    }
+    lepasPilihan();
+    seretPilih = blokKlik && !e.target.closest('a, button') ? { i: Number(blokKlik.dataset.i), aktif: false } : null;
     const el = e.target.closest('.ne-teks');
     if (!el || el === document.activeElement) return;
     if (e.target.closest('a, button')) { e.preventDefault(); return; }
@@ -10341,10 +10781,117 @@
     }
   });
   document.addEventListener('drop', e => { if (e.target.closest && e.target.closest('.ne[data-ne]')) e.preventDefault(); });
+  /* Seret tetikus melewati baris lain: memilih baris utuh (2.34.0). */
+  let seretPilih = null;
+  function blokDiY(y) {
+    const akar = akarEditor();
+    const daftar = akar ? $$(':scope > .ne-blok', akar) : [];
+    if (!daftar.length) return -1;
+    for (const el of daftar) if (y < el.getBoundingClientRect().bottom) return Number(el.dataset.i);
+    return Number(daftar[daftar.length - 1].dataset.i);
+  }
+  document.addEventListener('mousemove', e => {
+    if (!seretPilih) return;
+    if (!(e.buttons & 1)) { seretPilih = null; return; }
+    const i = blokDiY(e.clientY);
+    if (i < 0) return;
+    if (!seretPilih.aktif) {
+      if (i === seretPilih.i) return;
+      seretPilih.aktif = true;
+      const akar = akarEditor();
+      if (akar) akar.classList.add('menyeret-pilih');
+    }
+    e.preventDefault();
+    if (!ED.pilih) pilihBlok(seretPilih.i, i);
+    else if (ED.pilih.ke !== i) perluasPilihan(i);
+    const sel = getSelection();
+    if (sel.rangeCount) sel.removeAllRanges();
+  });
+  document.addEventListener('mouseup', () => {
+    if (seretPilih && seretPilih.aktif) {
+      const akar = akarEditor();
+      if (akar) { akar.classList.remove('menyeret-pilih'); if (ED.pilih) akar.focus({ preventScroll: true }); }
+    }
+    seretPilih = null;
+  });
+  /* Pegangan ⋮⋮ (2.34.0): ketuk = pilih baris itu (Shift: perluas); seret = pindahkan baris itu,
+     atau semua baris terpilih bila pegangannya di dalam pilihan, ke tempat garis biru. Juga lewat
+     sentuhan (pegangannya touch-action: none). */
+  let seretBlok = null;
+  function sisipDiY(y) {
+    const daftar = $$(':scope > .ne-blok', akarEditor());
+    for (const el of daftar) { const k = el.getBoundingClientRect(); if (y < k.top + k.height / 2) return Number(el.dataset.i); }
+    return daftar.length;
+  }
+  function tandaiSisip(s) {
+    const akar = akarEditor();
+    if (!akar) return;
+    for (const el of $$('.sisip-atas, .sisip-bawah', akar)) el.classList.remove('sisip-atas', 'sisip-bawah');
+    if (s === null) return;
+    const akhir = s >= ED.blok.length;
+    const el = elBlok(akhir ? ED.blok.length - 1 : s);
+    if (el) el.classList.add(akhir ? 'sisip-bawah' : 'sisip-atas');
+  }
+  function gulirSaatSeret(y) {
+    const akar = akarEditor();
+    const isi = akar && akar.closest('.editor-isi');
+    const wadah = isi && isi.scrollHeight > isi.clientHeight && /auto|scroll/.test(getComputedStyle(isi).overflowY) ? isi : null;
+    const k = wadah ? wadah.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+    const d = y < k.top + 48 ? -14 : y > k.bottom - 48 ? 14 : 0;
+    if (!d) return;
+    if (wadah) wadah.scrollTop += d; else window.scrollBy(0, d);
+  }
+  document.addEventListener('pointerdown', e => {
+    const pg = e.target.closest && e.target.closest('.ne-pegangan');
+    if (!pg || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault();
+    seretBlok = { i: Number(pg.closest('.ne-blok').dataset.i), y: e.clientY, id: e.pointerId, aktif: false, sisip: null, shift: e.shiftKey };
+    try { pg.setPointerCapture(e.pointerId); } catch (err) { /* peramban lama: seret tetap jalan tanpa tangkapan */ }
+  });
+  document.addEventListener('pointermove', e => {
+    if (!seretBlok || e.pointerId !== seretBlok.id) return;
+    if (!seretBlok.aktif) {
+      if (Math.abs(e.clientY - seretBlok.y) < 6) return;
+      seretBlok.aktif = true;
+      const r = rentangPilih();
+      if (!r || seretBlok.i < r[0] || seretBlok.i > r[1]) pilihBlok(seretBlok.i);
+      const akar = akarEditor();
+      if (akar) akar.classList.add('menyeret-blok');
+    }
+    e.preventDefault();
+    const r = rentangPilih();
+    seretBlok.sisip = sisipDiY(e.clientY);
+    tandaiSisip(r && seretBlok.sisip >= r[0] && seretBlok.sisip <= r[1] + 1 ? null : seretBlok.sisip);
+    gulirSaatSeret(e.clientY);
+  });
+  function selesaiSeretBlok(e, batal) {
+    if (!seretBlok || e.pointerId !== seretBlok.id) return;
+    const s = seretBlok;
+    seretBlok = null;
+    const akar = akarEditor();
+    if (akar) akar.classList.remove('menyeret-blok');
+    tandaiSisip(null);
+    if (batal) return;
+    if (!s.aktif) {
+      if (s.shift && ED.pilih) perluasPilihan(s.i); else pilihBlok(s.i);
+      return;
+    }
+    const r = rentangPilih();
+    if (!r || s.sisip === null || (s.sisip >= r[0] && s.sisip <= r[1] + 1)) return;
+    catatRiwayatSekarang();
+    const awal = I.pindahBlokKe(ED.blok, r[0], r[1], s.sisip);
+    ED.pilih = { dari: awal, ke: awal + r[1] - r[0], asal: null };
+    gambarBlok();
+    if (akar && document.activeElement !== akar) akar.focus({ preventScroll: true });
+  }
+  document.addEventListener('pointerup', e => selesaiSeretBlok(e, false));
+  document.addEventListener('pointercancel', e => selesaiSeretBlok(e, true));
   // Blok yang sedang diketik menampilkan teks mentah; yang ditinggalkan kembali berformat.
   document.addEventListener('focusin', e => {
     const el = e.target;
+    if (el.classList && el.classList.contains('ne-hr')) { lepasPilihan(); return; }
     if (!el.classList || !el.classList.contains('ne-teks')) return;
+    lepasPilihan();
     keMentah(el);
     ED.fokus = posisiEl(el);
   });
@@ -10366,6 +10913,7 @@
   let seretLink = null;
   let seretPaket = null;
   let seretLangkah = null;
+  let seretCatatan = null;
   document.addEventListener('dblclick', e => {
     const el = e.target.closest && e.target.closest('[data-sunting-judul]');
     if (!el || e.target.closest('.sunting-judul')) return;
@@ -10379,6 +10927,15 @@
   /* Kartu Rancangan Paket diseret ke depan atau belakang kartu lain (sisi kiri/kanan kartu tujuan). */
   const sisiSeret = (e, kartu) => { const r = kartu.getBoundingClientRect(); return e.clientX > r.left + r.width / 2; };
   document.addEventListener('dragstart', e => {
+    // Catatan diseret ke folder lain atau ke Disematkan (2.34.0).
+    const ctt = e.target.closest && e.target.closest('[data-seret-catatan]');
+    if (ctt) {
+      seretCatatan = ctt.dataset.seretCatatan;
+      ctt.classList.add('diseret');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', judulCatatan(S.data.notes.find(n => n.id === seretCatatan) || { title: '', body: '' }));
+      return;
+    }
     // Langkah alur kategori (Master, 2.27.0): diseret lewat pegangannya.
     const pg = e.target.closest && e.target.closest('.mst-pegangan');
     if (pg) {
@@ -10420,9 +10977,10 @@
     S.seret = null;
     seretLink = null;
     seretPaket = null;
+    seretCatatan = null;
     document.querySelectorAll('.sisip-kiri, .sisip-kanan').forEach(x => x.classList.remove('sisip-kiri', 'sisip-kanan'));
     document.body.classList.remove('menyeret-link');
-    document.querySelectorAll('.diseret, .kolom.sasaran, .kartu-folder.tujuan').forEach(x => x.classList.remove('diseret', 'sasaran', 'tujuan'));
+    document.querySelectorAll('.diseret, .kolom.sasaran, .kartu-folder.tujuan, .ctt-grup.tujuan').forEach(x => x.classList.remove('diseret', 'sasaran', 'tujuan'));
   });
   // Folder tujuan link: semua kartu folder kecuali Tautan tim (dikelola Manager) dan folder asalnya.
   const folderTujuan = e => {
@@ -10431,6 +10989,14 @@
     if (!l || f.dataset.tujuan === TIM) return null;
     if (f.dataset.tujuan === FAVORIT ? l.favorit : (l.folder || I.FOLDER_UMUM) === f.dataset.tujuan) return null;
     return f;
+  };
+  // Grup tujuan catatan yang diseret: Disematkan (bila belum disematkan) atau folder lain.
+  const grupTujuanCatatan = e => {
+    const g = e.target.closest && e.target.closest('.ctt-grup[data-tujuan]');
+    const n = g && S.data.notes.find(x => x.id === seretCatatan);
+    if (!n) return null;
+    if (g.dataset.tujuan === SEMAT_CTT) return n.pin ? null : g;
+    return !n.pin && (String(n.folder || '').trim() || I.FOLDER_UMUM) === g.dataset.tujuan ? null : g;
   };
   const adaBerkas = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files'));
   /* Sisip di atas atau bawah langkah tujuan (separuh atas/bawah barisnya). */
@@ -10461,6 +11027,15 @@
       const kanan = sisiSeret(e, k);
       k.classList.toggle('sisip-kanan', kanan);
       k.classList.toggle('sisip-kiri', !kanan);
+      return;
+    }
+    if (seretCatatan) {
+      const g = grupTujuanCatatan(e);
+      document.querySelectorAll('.ctt-grup.tujuan').forEach(x => x !== g && x.classList.remove('tujuan'));
+      if (!g) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      g.classList.add('tujuan');
       return;
     }
     if (seretLink) {
@@ -10495,6 +11070,15 @@
       const id = seretPaket;
       seretPaket = null;
       pindahUrutanPaket(id, k.dataset.paket, sisiSeret(e, k));
+      return;
+    }
+    if (seretCatatan) {
+      const g = grupTujuanCatatan(e);
+      if (!g) return;
+      e.preventDefault();
+      const id = seretCatatan;
+      seretCatatan = null;
+      pindahkanCatatan(id, g.dataset.tujuan);
       return;
     }
     if (seretLink) {

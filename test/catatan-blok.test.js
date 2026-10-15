@@ -78,3 +78,32 @@ test('teksBarisCatatan: baris tabel jadi isi selnya; garis dan pemisah jadi koso
   assert.deepEqual([0, 1, 2, 3, 4, 5].map(n => I.teksBarisCatatan(isi, n)), ['Item · PIC', '', 'TO 3 · Kiki', '', 'catat ini', 'langkah']);
   assert.equal(I.hitungChecklist('[ ] a\n| [ ] bukan |\n[x] b').total, 2);
 });
+
+test('pindah & gandakan baris (2.34.0): rentang dipindah utuh, ujung ditolak, salinan tabel tak berbagi isi', () => {
+  const blok = () => I.blokCatatan('# Judul\n- satu\n- dua\n[ ] tugas\n---\n| a | b |\n| c | d |\npenutup');
+  const teks = b => I.teksBlok(b).split('\n');
+  // Seret "- satu" dan "- dua" ke paling bawah, lalu ke paling atas.
+  const b1 = blok();
+  assert.equal(I.pindahBlokKe(b1, 1, 2, b1.length), 5);
+  assert.deepEqual(teks(b1).slice(-3), ['penutup', '- satu', '- dua']);
+  assert.equal(I.pindahBlokKe(b1, 5, 6, 0), 0);
+  assert.deepEqual(teks(b1).slice(0, 3), ['- satu', '- dua', '# Judul']);
+  // Tempat yang sama (di dalam atau tepat di tepi rentang): tak berubah.
+  const b2 = blok();
+  const awal = I.teksBlok(b2);
+  for (const s of [1, 2, 3]) assert.equal(I.pindahBlokKe(b2, 1, 2, s), 1);
+  assert.equal(I.teksBlok(b2), awal);
+  // Naik/turun satu: -1 di ujung, tabel ikut sebagai satu baris.
+  const b3 = blok();
+  assert.equal(I.geserBlok(b3, 0, 0, -1), -1);
+  assert.equal(I.geserBlok(b3, b3.length - 1, b3.length - 1, 1), -1);
+  assert.equal(I.geserBlok(b3, 5, 5, -1), 4);
+  assert.equal(b3[4].jenis, 'tabel');
+  assert.equal(b3[5].jenis, 'hr');
+  // Gandakan: salinan tepat di bawah; isi tabel salinan berdiri sendiri.
+  const b4 = blok();
+  assert.equal(I.duplikatBlok(b4, 3, 5), 6);
+  assert.deepEqual(b4.slice(6, 9).map(b => b.jenis), ['todo', 'hr', 'tabel']);
+  b4[8].sel[0][0] = 'ubah';
+  assert.equal(b4[5].sel[0][0], 'a');
+});

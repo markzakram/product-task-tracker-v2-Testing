@@ -2309,3 +2309,66 @@ button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua)
   .baris-sekarang > .baris { flex-basis: 100%; }
   .pratinjau-baris { grid-template-columns: minmax(0, 1fr) 72px auto; }
 }
+
+/* ---------- Catatan Saya 2.34.0 (permintaan user): pilih & pindah baris, pilih banyak catatan ---------- */
+/* Ruang di kiri untuk pegangan ⋮⋮ tiap baris. */
+.editor-isi { padding-left: 34px; }
+.ne:focus { outline: none; }
+.ne-pegangan { position: absolute; left: calc(var(--tingkat, 0) * 26px - 22px); top: 2px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--samar); cursor: grab; opacity: 0; touch-action: none; transition: opacity .12s; }
+.ne-pegangan:hover { background: color-mix(in srgb, var(--tinta) 8%, transparent); color: var(--tinta-2); }
+.ne-blok:hover > .ne-pegangan, .ne-blok:focus-within > .ne-pegangan, .ne-blok.terpilih > .ne-pegangan { opacity: 1; }
+.ne-h1 > .ne-pegangan { top: 6px; }
+.ne-h2 > .ne-pegangan { top: 4px; }
+.ne-hr > .ne-pegangan { top: 7px; }
+.ne-tabel > .ne-pegangan { top: 6px; }
+.ne-blok.terpilih { background: color-mix(in srgb, var(--biru) 14%, transparent); }
+.ne.memilih .ne-teks { caret-color: transparent; }
+.ne.menyeret-pilih, .ne.menyeret-pilih * { user-select: none; }
+.ne.menyeret-blok .ne-blok.terpilih { opacity: .55; }
+.ne.menyeret-blok .ne-pegangan { cursor: grabbing; }
+.ne-blok.sisip-atas { box-shadow: 0 -2px 0 var(--biru); }
+.ne-blok.sisip-bawah { box-shadow: 0 2px 0 var(--biru); }
+/* Selama ada pilihan, toolbar berisi tindakan untuk baris yang dipilih. */
+.ctt-alat-pilih { display: none; }
+.catatan-editor.memilih-blok .ctt-toolbar > :not(.ctt-alat-pilih) { display: none; }
+.catatan-editor.memilih-blok .ctt-alat-pilih { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 4px; }
+.ctt-alat-pilih .tombol.kecil { min-height: 32px; padding: 0 10px; gap: 6px; }
+/* Dua panel: toolbar (dan tindakan baris terpilih) menempel di bawah header saat halaman digulir.
+   Kartu editornya clip, bukan hidden, supaya tak menjadi wadah gulir yang mengurung toolbar. */
+.catatan-dua .catatan-editor.kartu-polos.rapat { overflow: clip; }
+.catatan-dua .ctt-toolbar { top: calc(var(--tinggi-kepala, 65px) + 6px); }
+.ne-pilih-jumlah { margin: 0 6px; font-size: calc(13px * var(--skala-huruf)); color: var(--biru-tua); }
+/* Pilih banyak catatan di daftar. */
+.tombol-pilih-catatan[aria-pressed="true"] { border-color: var(--biru); background: var(--info-muda); color: var(--biru-tua); }
+.bilah-catatan { margin-top: 0; border-color: var(--info-garis); }
+/* Lebih banyak kontrol daripada bilah hapus task: di ponsel pun boleh turun baris. */
+.bilah-catatan .bilah-pilih-tombol { flex-wrap: wrap; align-items: center; }
+@media (max-width: 599px) {
+  /* Ponsel: jumlah dan Selesai sebaris, tombol selebar isinya, supaya bilah yang menempel tetap pendek. */
+  .bilah-catatan .bilah-pilih-tombol { order: 1; }
+  .bilah-catatan .bilah-pilih-tombol .tombol { flex: 0 1 auto; }
+}
+.bilah-catatan .ctt-warna-titik:disabled { opacity: .45; cursor: not-allowed; }
+.catatan-item, .ctt-kartu { position: relative; }
+.ctt-pilih-kotak { position: absolute; top: 10px; right: 10px; margin: 0; }
+.catatan-item[data-aksi="ctt-centang"] { padding-right: 38px; }
+.ctt-kartu[data-aksi="ctt-centang"] { padding-right: 40px; }
+.catatan-item.tercentang, .ctt-kartu.tercentang { box-shadow: inset 0 0 0 2px var(--biru); }
+/* Catatan diseret ke folder lain atau ke Disematkan. */
+.ctt-grup.tujuan { border-radius: 12px; background: var(--biru-muda); outline: 2px dashed var(--biru); outline-offset: 2px; }
+.catatan-item.diseret, .ctt-kartu.diseret { opacity: .5; }
+/* Pesan bertombol (Urungkan). */
+.toast.beraksi { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
+.toast-aksi { flex: none; margin-left: auto; padding: 4px 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.toast-aksi:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+@media (max-width: 899px) {
+  .editor-isi { padding-left: 28px; }
+  .ne-pegangan { left: calc(var(--tingkat, 0) * 18px - 21px); }
+}
+@media (max-width: 599px) {
+  .ctt-alat-pilih .label { display: none; }
+}
+/* Layar sentuh: pegangannya selalu tampak samar, supaya bisa diketuk. */
+@media (hover: none) {
+  .ne-pegangan { opacity: .45; }
+}
