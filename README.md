@@ -69,8 +69,9 @@ dengan satu penyederhanaan: tetap empat status.
 - **Task turunan (0.15.0).** Lead memberi task ke timnya sendiri, atau ke Lead tim pemilik
   sub-stage-nya (mis. Andika memberi DV8 Input ke Alya). Task yang dipegang Lead **tidak
   diserahkan ke staff**: langkah yang sudah bisa dimulai masuk **Antrean tim** di Hari Ini Lead
-  itu, dan ia membaginya dengan membuat **task turunan** untuk staff timnya, dari bagian Task
-  turunan di detail task atau dari kolom **Task induk** di form Tambah task. Task turunan ada di
+  itu (sejak 2.33.0 bertanda **Siap dibagi** di Kerjakan sekarang), dan ia membaginya dengan
+  membuat **task turunan** untuk staff timnya, dari bagian Task turunan di detail task atau dari
+  kolom **Task induk** di form Tambah task. Task turunan ada di
   proyek, siklus, dan tahap yang sama dengan induknya, tampil menjorok di bawahnya di halaman
   proyek dan di Task, ditinjau Lead itu (juga di sub-stage bertanda Manager), dan tak beranak lagi.
   Induknya baru bisa diajukan atau ditandai selesai setelah semua task turunannya selesai; induk
@@ -162,7 +163,7 @@ dengan satu penyederhanaan: tetap empat status.
   **arsipkan** (proyek tuntas, pilihan utama kalau semua task beres), **mulai siklus
   berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau
   **tahan**. Keputusan proyek: Build, Improve, Maintain, Hold.
-- **Hapus proyek (2.22.0, Manager).** Tombol **Hapus proyek** di halaman proyek membuka
+- **Hapus proyek (2.22.0, Manager).** Tombol **Hapus proyek** (menu **⋯** halaman proyek) membuka
   ringkasan apa saja yang ikut hilang, lalu ID proyek harus diketik ulang. Yang ikut terhapus:
   - semua task proyek itu di semua siklus, termasuk task turunan, sub-task, komentar, tinjauan,
     dan bukti di dalamnya;
@@ -173,7 +174,7 @@ dengan satu penyederhanaan: tetap empat status.
   tersimpan. Untuk proyek yang sudah selesai, **arsipkan saja** (tautan di jendela yang sama):
   semuanya tetap ada dan bisa diaktifkan lagi. Aturannya `Inti.hapusProyek`; di data real
   perubahannya hanya daftar baris yang dihapus. Paketnya bisa langsung dielaborasi ulang.
-- **Ubah proyek (2.28.0, Manager).** Tombol **Ubah proyek** di halaman proyek mengganti nama,
+- **Ubah proyek (2.28.0, Manager).** Tombol **Ubah proyek** (menu **⋯**) mengganti nama,
   platform, dan tujuan proyek yang sudah dibuat; ID, siklus, tahap, dan task-nya tetap
   (`Inti.ubahProyek`, aksi data `ubahProyek`). Riwayat Aktivitas mencatat apa yang diubah.
 - **Duplikat proyek (2.30.0, permintaan user; izin `proyek.buat`).** Untuk proyek yang berulang.
@@ -189,7 +190,7 @@ dengan satu penyederhanaan: tetap empat status.
   hapus proyek memakai lagi PRJ-… dan PRD-… yang dihapus, sehingga riwayat dan pesan Komunikasi
   task lama menempel ke task baru). Nomor tertinggi dicatat saat menghapus di koleksi `nomor`
   (tab `nomor`, tabel `v2_nomor`, ikut data real).
-- **Hapus task (2.23.0).** Di tab tim proyek, tombol **Pilih task untuk dihapus** memunculkan
+- **Hapus task (2.23.0).** Di tab tim proyek, **⋯ → Pilih task untuk dihapus** memunculkan
   kotak centang di tiap task:
   - centang satu per satu (klik barisnya juga mencentang), **Pilih semua di <fase>**, atau
     **Pilih semua** di bilah yang tetap terlihat saat daftar digulir;
@@ -203,9 +204,14 @@ dengan satu penyederhanaan: tetap empat status.
   komentar, tinjauan, bukti, dan setorannya (progres paket turun). Task lain yang menunggu task
   itu tak lagi menunggunya. Riwayat Aktivitas mencatat tiap task yang dipilih. Aturannya
   `Inti.hapusTask`; satu permintaan ditolak utuh bila ada satu saja task yang tak boleh dihapus.
-- **Dashboard:** task aktif per status, tahap, tim pemilik, dan platform; per orang
-  ditambah sub-task terbuka dan **skor bottleneck** (task orang lain yang menunggu dia × 2 +
-  tinjauan yang menunggu dia × 2 + task telatnya).
+- **Dashboard (disusun ulang di 2.33.0):** dibuka dengan **Perlu perhatian** (beban di atas
+  kapasitas, pekerjaan yang ditunggu 3 task lain atau lebih, yang terlambat dan tertahan, serta
+  proyek berisiko, masing-masing bertombol), lalu ubin angka, selesai per minggu, task aktif per
+  tahap, dan tabel per orang: task aktif dari kapasitas 6, **Ditunggu task lain**, **Menunggu
+  tinjauannya**, terlambat, dan selesai 30 hari. Per status, tim pemilik, platform, dan proyek
+  per tahap dilipat di **Rincian lain**. Skor bottleneck PRD (ditunggu × 2 + tinjauan × 2 +
+  telat) masih dihitung `Inti.laporan`, tetapi tak lagi ditampilkan: kolom-kolomnya lebih mudah
+  dibaca daripada satu angka gabungan.
 - **Staff** menerima task dari Lead, dan sejak 0.9.0 boleh **menambah task untuk dirinya
   sendiri**: rutin (kode R), atau task proyek di sub-stage milik timnya (E11 revisi juga boleh;
   sub-stage yang direview Manager tidak). PIC-nya selalu dirinya; menyerahkan ke orang lain tetap
@@ -297,8 +303,10 @@ Halaman pendukung, setara v1:
       menunggu klik kedua.
 - **Task**: satu halaman dengan lima tampilan yang diganti lewat deretan ikon di atas daftar:
   **Daftar** (bisa diurutkan dan diekspor ke CSV, ikut sub-stage, tim, dan keadaannya),
-  **Kanban** (seret-lepas di desktop), **Per orang**, **Timeline** (5 minggu), dan **Kalender**
-  (tenggat per hari). Tab fokus berangka di atasnya: Semua, Terlambat, Tertahan, dan Tinjauan
+  **Kanban** (seret-lepas di desktop), **Per orang**, **Timeline** (5 minggu), dan **Kalender
+  tim** (tenggat per hari, acara, dan pendaftaran paket; namanya sejak 2.33.0 supaya tak tertukar
+  dengan Kalender Saya, dan keduanya saling bertaut). Tab fokus berangka di atasnya: Semua,
+  Terlambat, Tertahan, dan Tinjauan
   saya (Lead & Manager). Kotak cari, lingkup (sesuai peran), dan **Saringan**
   (proyek, jalur, tahap, sub-stage, tim, platform) berlaku di semua tampilan. Tampilan
   dan saringan terakhir diingat per browser.
@@ -716,6 +724,7 @@ Paket, Task, Pengaturan, Halaman, Ruang Saya) dengan kolom Manager, Lead, dan St
   | Membuka Laporan | Lead, Manager |
   | Membuka Riwayat Aktivitas | Manager |
   | Mengelola Inisiatif (sementara hanya tim DAE) | Lead, Manager |
+  | Membuat acara bersama: mengundang peserta, atau membukanya untuk semua (2.33.0) | Staff, Lead, Manager |
 
 - **Tetap** (tampil abu-abu, tak bisa dicentang): yang ditentukan struktur tim dan alur
   tinjauan, mis. siapa Lead tim pemilik sebuah sub-stage, siapa peninjau task, task yang boleh
@@ -811,6 +820,66 @@ Saya** di grup Ruang Saya.
 - Aturannya `Inti.periksaAgenda`, `kejadianAgenda`, `waktuPengingat`, `periksaEmail`; aksi
   server `muatAgenda`, `simpanAgenda`, `hapusAgenda`, `simpanPribadi`. Diuji di
   `test/agenda.test.js` dan `test/rpc.test.js`.
+
+### Acara bersama di kalender (2.33.0)
+
+Permintaan user: dari kalender bisa membuat acara (rapat, review, sharing session, …) dan
+menambahkan orang dari tim sendiri maupun tim lain. Acara = agenda Kalender Saya yang punya
+peserta, atau yang Terbuka.
+
+- **Membuat acara**: tombol **Buat acara** di Kalender Saya, di Kalender tim, di kartu
+  **Acara** halaman proyek, paket, dan inisiatif, dan ikon kalender di detail task. Isinya sama
+  dengan agenda (tanggal, jam, berulang, pengingat, catatan atau agenda rapat), ditambah
+  **lokasi**, **tautan rapat** (Meet/Zoom), **peserta**, **Terbuka**, dan **Terkait dengan**
+  (proyek, paket, inisiatif, atau task).
+- **Peserta dari tim mana pun**, dikelompokkan per tim; **+ RAD**, **+ LNA**, … menambah satu tim
+  sekaligus (Lead dan staff-nya), **+ Semua Lead** semua Lead. Dari detail task, PIC dan
+  peninjaunya langsung terpilih. Tamu di luar ProductTrack tidak ada (keputusan user).
+- **Cek bentrok**: tiap calon peserta yang sudah punya acara lain di jam itu bertanda "ada acara
+  10:00–11:00", dan peserta terpilih yang bentrok disebut di atas daftar. Hanya dari acara
+  bersama; agenda pribadi orang lain tak pernah dihitung atau dibuka. Judul acara bentrok hanya
+  terlihat bila penanya memang boleh melihat acara itu.
+- **Undangan & jawaban**: peserta mendapat notifikasi di lonceng, acaranya muncul di Kalender
+  Saya (ungu), dan bagian **Menunggu jawaban Anda** di atas kalender (juga pengingat di kartu
+  Hari Ini) dengan tombol **Hadir / Mungkin / Tidak hadir**. Pembuat mendapat notifikasi tiap
+  jawaban, dan detail acara menampilkan rekapnya ("3 hadir · 1 mungkin · 1 belum menjawab").
+  Acara yang ditolak tetap tampil tercoret dan tak diingatkan.
+- **Pengingat per peserta**: bawaannya pilihan pembuat; tiap peserta bisa menggantinya di detail
+  acara (**Pengingat saya**).
+- **Notifikasi**: diundang, jadwal diubah (tanggal/jam/pengulangan), jawaban peserta, ikut
+  (acara Terbuka), notulen ditulis orang lain, dan acara dibatalkan (dihapus pembuatnya).
+  Mengklik notifikasinya membuka Kalender Saya di tanggal itu beserta detail acaranya.
+- **Privasi**: bawaannya acara hanya terlihat oleh pembuat dan pesertanya. **Terbuka** (mis.
+  demo produk, sharing session) terlihat semua orang di Kalender tim dan di tanggalnya
+  di Kalender Saya, dan siapa pun bisa **Ikut** (masuk kalendernya, dapat pengingat). Hanya
+  pembuat yang mengubah atau menghapus acara.
+- **Notulen & tindak lanjut**: pembuat dan peserta menulis notulen dan butir tindak lanjut (teks,
+  PIC dari peserta, tenggat). Tiap butir punya tombol **Jadikan task**: form Tambah task terisi
+  (judul, PIC bila boleh dipilih, tenggat, proyek atau inisiatif yang ditautkan acara, keterangan
+  "Tindak lanjut acara …"), dan sesudah dibuat nomor task-nya menempel di butir itu beserta
+  statusnya. Simpanan notulen dari versi lama ditolak supaya tulisan orang lain tak tertimpa.
+- **Acara di tempat kerjanya**: kartu **Acara** di halaman proyek (juga acara yang ditautkan ke
+  task proyek itu), paket, dan inisiatif, serta bagian **Acara** di tab Kerjakan detail task
+  (hanya bila ada): yang akan datang dulu, lalu tiga yang sudah lewat ("ada notulen").
+- **Kalender tim** (halaman Task) kini tiga lapis yang bisa dimatikan: **Tenggat task** (mengikuti
+  saringan), **Acara** (yang diikuti dan yang Terbuka), dan **Pendaftaran paket** (tanggal
+  dibuka dan ditutup).
+- **Kalender lain**: detail acara punya **Google Calendar** (tautan template, tanpa login Google)
+  dan **Unduh .ics**; pengaturan Pengingat punya **Unduh semua (.ics)** untuk kalender ponsel
+  atau Outlook, karena pengingat ProductTrack hanya berbunyi selama aplikasinya terbuka.
+  Perubahan sesudahnya perlu diunduh lagi (tanpa sinkron dua arah).
+- **Izin**: centang baru **Membuat acara bersama** (grup Kalender) di Panel Dev → Izin, bawaannya
+  semua peran. Tanpa izin itu agenda pribadi tetap bisa dibuat, dan peserta lama bisa dilepas.
+- **Penyimpanan**: tetap satu baris per acara di tab `agenda` (`v2_agenda`), dengan peserta,
+  jawaban, kaitan, dan notulennya di kolom `data` (JSON); kolom `orang` = pembuatnya. Server
+  hanya mengirim baris yang boleh dilihat profil sesi itu (miliknya, yang ia ikuti, yang Terbuka)
+  dan tanda batal dua pekan terakhir. Tarikan ulang tiap dua menit selama aplikasi terbuka, dan
+  layar hanya digambar ulang bila ada yang berubah.
+- Aturannya `Inti.periksaAgenda` (isian acara), `gabungAcara`, `periksaPeserta`,
+  `jawabAcara`, `ubahNotulen`, `tandaiTindak`, `bentrokAcara`, `notifAcara`,
+  `icsAgenda`, `tautanGoogle`; aksi server `simpanAgenda`, `jawabAcara`, `simpanNotulen`,
+  `tandaiTindak`, `sibukAcara`. Diuji di `test/agenda.test.js`, `test/rpc.test.js`, dan
+  `test/demo.test.js`.
 
 ### Bahasa Indonesia / English (2.28.0; tahap 2 di 2.29.0)
 
@@ -920,6 +989,53 @@ tetap, susunannya mengikuti "apa yang perlu dilakukan sekarang":
 - **Bilah aksi** (Mulai, Ajukan, Setujui, Kembalikan, Tandai tertahan, …) di bawah detail, dan
   menempel di bawah laci saat digulir; alasan tombol yang nonaktif ada di kartu langkah dan di
   keterangan tombolnya.
+
+### Tampilan lebih jelas (2.33.0)
+
+Permintaan user: bagian mana lagi, seperti detail task, yang bisa dibuat supaya pengguna tak
+bingung. Tujuh bagian, dikerjakan sekaligus mengikuti gambaran sebelum–sesudah yang disetujui:
+
+- **Arti di tempat**: kode sub-stage, chip tim (juga yang berfase), dan label status bisa diketuk
+  (`data-arti`). Artinya muncul di kotak kecil (fase dan tim pemilik, peninjau, Lead, arti
+  label) dengan tautan ke Panduan › Istilah, dan tertutup dengan klik di luar atau Esc. Fase di
+  chip ditulis singkat (**Ana**, **Des**, **Dev**, **Imp**, **Eva**; `Inti.singkatTahap`), jadi
+  Development (V) tak lagi tertukar dengan Design (D).
+- **Halaman proyek**:
+  - kemajuan siklus sebaris ("5 dari 12 task siklus ini selesai") dengan chip terlambat dan
+    tertahan yang membuka Task tersaring;
+  - kartu **Perlu perhatian Anda**: tinjauan untuk Anda, task yang dikembalikan, langkah tim
+    Anda yang siap dibagi (**Bagi ke staff** membuka isian task turunan), yang terlambat dan
+    tertahan di lingkup Anda, dan task Anda yang siap; paling banyak empat, sisanya di Task;
+  - tab tim menulis fasenya ("DAE · Development", "LNA · belum ada task");
+  - fase tanpa task dirapatkan jadi satu baris dengan **+ Tambah**; nama proyek tak diulang di
+    tiap baris task;
+  - **Ubah proyek**, **Duplikat proyek**, dan **Hapus proyek** di menu **⋯** kepala proyek;
+    **Pilih task untuk dihapus** di menu **⋯** kartu tim;
+  - paragraf penjelasan gerbang dan kartu Ringkasan di samping diganti tombol **?**.
+- **Form Tambah task**: pertanyaan pertama **Task ini untuk apa?** (Proyek, Rutin, atau
+  Inisiatif bila ada). Proyek atau inisiatifnya terisi sendiri bila form dibuka dari halamannya,
+  dan wajib dipilih bila tidak. Sub-stage berupa daftar pilihan: tim sendiri di atas, tim lain di
+  **Sub-stage tim lain** (dilipat), dan kotak cari bila pilihannya lebih dari 8. Prioritas dan
+  output dilipat di **Lainnya**. Isian wajib yang kosong disebut namanya ("Pilih proyeknya
+  dulu.").
+- **Hari Ini**: angka di bawah sapaan menjadi tombol yang melompat ke bagiannya. **Kerjakan
+  sekarang** menggabungkan tinjauan (**Tinjau**), langkah tim yang siap dibagi (**Kerjakan
+  sendiri** atau **Bagi ke staff**), yang terlambat, dan yang bertenggat hari ini (**Mulai**),
+  dengan tombolnya di baris. Urutannya: Kerjakan sekarang, agenda hari ini, 7 hari ke depan, pita
+  tim (Lead dan Manager), lalu **Nanti**, **Belum bisa dikerjakan**, dan **Saya bantu** yang
+  dilipat dengan jumlahnya.
+- **Rancangan Paket**: tabel target berkolom Item, Target (dengan satuan), Tayang, Digarap,
+  Progres, dan Status; Duplikat, Salin ke sheet Marsel, dan Hapus di menu **⋯**; paragraf metode
+  progres dan daftar bobot diganti tombol **?**. Form elaborasi punya **pratinjau**: berapa task
+  untuk berapa target, dan per PIC, dihitung dengan menjalankan `Inti.elaborasiPaket` pada
+  salinan data (tak ada yang tersimpan); tombolnya menulis jumlahnya ("Buat 43 task"), dan isian
+  yang salah tampil sebagai pesan di pratinjau.
+- **Dashboard**: lihat **Dashboard** di Alur v2 (Perlu perhatian, tabel per orang berbahasa
+  biasa, Rincian lain).
+- **Dua kalender**: kalender di halaman Task bernama **Kalender tim**; tombol di Kalender Saya
+  membuka Kalender tim, dan sebaliknya.
+- Teks barunya lewat `tr()` (77 teks Inggris). Panduan ikut disesuaikan, termasuk ilustrasi form
+  Tambah task dan Dashboard.
 
 ### Menu akun, mode gelap, dan posisi gulir (2.20)
 
@@ -1217,6 +1333,17 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
   Dashboard internal, PIC Ali. Task lama v1 Ali di luar proyek ditempel ke inisiatifnya menurut
   judul; ProductTrack v2 juga punya satu pembaruan yang selesai dan satu yang sedang berjalan.
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
+- **Acara bersama** (2.33.0), ditulis ke tab `agenda` dengan tanda contoh (hanya terlihat selama
+  sumber data contoh; impor ulang menimpanya karena ID-nya tetap):
+  - **Rapat mingguan Divisi Produk** (Nynda, tiap Senin 09.00, Terbuka) dengan semua Lead; Alya
+    menjawab Mungkin, Dhea belum.
+  - **Kickoff proyek PAPI Kostick** (sudah lewat) dengan notulen dan tiga tindak lanjut: dua sudah
+    jadi task (D2 Andika, D4 Ali), satu belum (coba **Jadikan task**).
+  - **Review blueprint PAPI Kostick** besok, dibuat Andika (RAD) dengan Ali (DAE), Nynda, dan Uma:
+    contoh lintas tim; Uma belum menjawab.
+  - **Sinkron input & QC soal TKA** (Alya, LNA) dengan Kiki, Andika, dan Dhea; Dhea tak hadir.
+  - **Sharing session ProductTrack v2** (Ali, Terbuka), ditautkan ke inisiatifnya; Nadya ikut
+    sendiri.
 
 Bentuk tab hanya bertambah (kolom `paket` di `projects`; tab `setoran`, sejak 0.6.0 dengan kolom
 `tahap` dan `batch`), jadi versi yang sedang live tetap bisa membaca hasil impor ini. Versi baru

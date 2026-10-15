@@ -70,6 +70,7 @@
     { kunci: 'halaman.laporan', grup: 'Halaman', label: 'Membuka Laporan', aksi: 'membuka Laporan', peran: ['manager', 'lead'] },
     { kunci: 'halaman.riwayat', grup: 'Halaman', label: 'Membuka Riwayat Aktivitas', aksi: 'membuka Riwayat Aktivitas', peran: ['manager'] },
     { kunci: 'inisiatif.kelola', grup: 'Inisiatif', label: 'Mendeklarasikan, mengubah, dan menghapus inisiatif timnya (sementara hanya tim DAE)', aksi: 'mengelola inisiatif', peran: ['manager', 'lead'] },
+    { kunci: 'acara.undang', grup: 'Kalender', label: 'Membuat acara bersama: mengundang peserta dari tim mana pun, atau membukanya untuk semua orang', aksi: 'membuat acara bersama', peran: ['manager', 'lead', 'staff'] },
     // Tetap: mengikuti struktur tim dan alur tinjauan.
     { kunci: 'task.buat', grup: 'Task', label: 'Menambah task (staff: untuk dirinya sendiri)', peran: ['manager', 'lead', 'staff'], tetap: true },
     { kunci: 'task.ubah', grup: 'Task', label: 'Mengubah task: Manager semua, Lead task timnya, staff yang ia buat sendiri', peran: ['manager', 'lead', 'staff'], tetap: true },
@@ -1002,6 +1003,9 @@
   /* ---------- Proyek & gate ---------- */
 
   const namaTahap = id => (TAHAP.find(x => x.id === id) || { nama: '—' }).nama;
+  /* Singkatan fase di chip tim (2.33.0): "Dev", bukan "V" yang mudah tertukar dengan D = Design. */
+  const SINGKAT_TAHAP = { A: 'Ana', D: 'Des', V: 'Dev', I: 'Imp', E: 'Eva', R: 'Rutin' };
+  const singkatTahap = id => SINGKAT_TAHAP[id] || id || '';
   const tahapBerikut = id => ({ A: 'D', D: 'V', V: 'I', I: 'E', E: 'A' })[id] || 'A';
 
   const URUT_TAHAP = TAHAP.map(x => x.id);
@@ -1992,7 +1996,52 @@
   const POLA_TGL = /^\d{4}-\d{2}-\d{2}$/;
   const tglSah = s => POLA_TGL.test(s) && isoHari(keTanggal(s)) === s;
   const AGENDA_JUDUL_MAKS = 200;
-  const AGENDA_CATATAN_MAKS = 1000;
+  const AGENDA_CATATAN_MAKS = 2000;
+  /* Acara bersama (2.33.0, permintaan user): agenda yang punya peserta, dari tim mana pun, atau
+     yang Terbuka. Pembuatnya (pemilik = kolom orang di tab agenda) mengatur isi, waktu, dan
+     pesertanya; peserta menjawab Hadir/Mungkin/Tidak dan memilih pengingatnya sendiri; pembuat
+     dan peserta menulis notulen beserta tindak lanjutnya, yang bisa dijadikan task. Bawaannya
+     hanya terlihat oleh pembuat dan peserta; yang Terbuka terlihat semua orang (Kalender di
+     halaman Task) dan siapa pun boleh ikut. Tetap satu baris di tab agenda; server hanya
+     mengirim baris yang boleh dilihat profil itu. */
+  const JAWABAN_ACARA = ['ya', 'mungkin', 'tidak'];
+  const KAIT_ACARA = ['proyek', 'task', 'paket', 'inisiatif'];
+  const POLA_KAIT = /^[A-Z]{2,5}-\d{1,7}$/;
+  const POLA_TINDAK = /^tl[a-z0-9]{3,24}$/;
+  const PESERTA_MAKS = 40;
+  const KAIT_MAKS = 6;
+  const TINDAK_MAKS = 30;
+  const NOTULEN_MAKS = 5000;
+  const LOKASI_MAKS = 200;
+  const waktuSah = x => { const n = Number(x); return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined; };
+  /* { orang: nilai }: hanya kunci ID orang yang sah dan nilai yang lolos sah(). */
+  function petaOrang(v, sah) {
+    const hasil = {};
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      for (const [k, x] of Object.entries(v)) {
+        if (!POLA_ID_ORANG.test(k)) continue;
+        const y = sah(x);
+        if (y !== undefined) hasil[k] = y;
+      }
+    }
+    return hasil;
+  }
+  /* Tindak lanjut di notulen: teks, PIC, tenggat, dan task yang dibuat darinya. Butir kosong dibuang. */
+  function periksaTindak(daftar) {
+    const hasil = [];
+    for (const x of Array.isArray(daftar) ? daftar : []) {
+      const v = x && typeof x === 'object' ? x : {};
+      const isi = String(v.teks == null ? '' : v.teks).replace(/\s+/g, ' ').trim();
+      if (!isi) continue;
+      if (isi.length > 300) throw new Error('Butir tindak lanjut paling panjang 300 karakter.');
+      const id = String(v.id || '').trim();
+      if (!POLA_TINDAK.test(id) || hasil.some(y => y.id === id)) throw new Error('ID butir tindak lanjut tidak sah.');
+      const pic = String(v.pic || '').trim(), due = String(v.due || '').trim(), task = String(v.task || '').trim();
+      hasil.push({ id, teks: isi, pic: POLA_ID_ORANG.test(pic) ? pic : '', due: tglSah(due) ? due : '', task: POLA_KAIT.test(task) ? task : '' });
+    }
+    if (hasil.length > TINDAK_MAKS) throw new Error(`Tindak lanjut paling banyak ${TINDAK_MAKS} butir.`);
+    return hasil;
+  }
   function periksaAgenda(x) {
     const v = x && typeof x === 'object' ? x : {};
     const t = s => String(s == null ? '' : s).trim();
@@ -2018,7 +2067,34 @@
     const beres = [...new Set((Array.isArray(v.beres) ? v.beres : []).map(t).filter(tglSah))].sort().slice(-400);
     const id = t(v.id);
     if (id && !/^ag[a-z0-9-]{4,40}$/.test(id)) throw new Error('ID agenda tidak sah.');
-    return { id, judul, tanggal, mulai, selesai: mulai ? selesai : '', ulang, sampai, pengingat, catatan, beres };
+    // Acara bersama (2.33.0): tempat, tautan rapat, peserta, terbuka, dan kaitan ke pekerjaan.
+    const lokasi = t(v.lokasi).replace(/\s+/g, ' ');
+    if (lokasi.length > LOKASI_MAKS) throw new Error(`Lokasi paling panjang ${LOKASI_MAKS} karakter.`);
+    const tautanIsi = t(v.tautan);
+    const tautan = tautanIsi ? tautanRapi(tautanIsi) : '';
+    if (tautanIsi && (!tautan || tautan.length > 500)) throw new Error('Tautan rapat tidak sah. Tempel alamat lengkapnya, mis. https://meet.google.com/…');
+    const peserta = [...new Set((Array.isArray(v.peserta) ? v.peserta : []).map(t).filter(x => POLA_ID_ORANG.test(x)))];
+    if (peserta.length > PESERTA_MAKS) throw new Error(`Peserta paling banyak ${PESERTA_MAKS} orang.`);
+    const kait = [];
+    for (const k of Array.isArray(v.kait) ? v.kait : []) {
+      const jenis = t(k && k.jenis), kid = t(k && k.id);
+      if (KAIT_ACARA.includes(jenis) && POLA_KAIT.test(kid) && !kait.some(x => x.jenis === jenis && x.id === kid)) kait.push({ jenis, id: kid });
+    }
+    if (kait.length > KAIT_MAKS) throw new Error(`Tautan ke proyek, task, paket, atau inisiatif paling banyak ${KAIT_MAKS}.`);
+    const notulen = String(v.notulen == null ? '' : v.notulen).replace(/\r\n?/g, '\n').trim();
+    if (notulen.length > NOTULEN_MAKS) throw new Error(`Notulen paling panjang ${NOTULEN_MAKS} karakter.`);
+    const notulenOleh = t(v.notulenOleh);
+    return {
+      id, judul, tanggal, mulai, selesai: mulai ? selesai : '', ulang, sampai, pengingat, catatan, beres,
+      lokasi, tautan, peserta, terbuka: v.terbuka === true || v.terbuka === 'ya', kait, notulen, tindak: periksaTindak(v.tindak),
+      // Diisi server: jawaban & pengingat pilihan tiap peserta, kapan diundang (atau ikut sendiri),
+      // kapan jadwal terakhir diubah, siapa yang terakhir menulis notulen.
+      jawaban: petaOrang(v.jawaban, x => (x && JAWABAN_ACARA.includes(x.nilai) ? { nilai: x.nilai, at: waktuSah(x.at) || 0 } : undefined)),
+      ingat: petaOrang(v.ingat, x => (PENGINGAT_AGENDA.includes(String(x)) ? String(x) : undefined)),
+      diundang: petaOrang(v.diundang, waktuSah), ikut: petaOrang(v.ikut, waktuSah),
+      jadwalAt: waktuSah(v.jadwalAt) || 0, notulenAt: waktuSah(v.notulenAt) || 0, notulenOleh: POLA_ID_ORANG.test(notulenOleh) ? notulenOleh : '',
+      contoh: v.contoh === true,
+    };
   }
   /* Apakah agenda a terjadi pada tanggal tgl. */
   function adaPadaTanggal(a, tgl) {
@@ -2056,6 +2132,226 @@
     if (!e) return '';
     if (e.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) throw new Error('Alamat email tidak sah.');
     return e;
+  }
+
+  /* ----- Acara bersama (2.33.0) ----- */
+  const acaraBersama = a => !!a && ((a.peserta || []).length > 0 || !!a.terbuka);
+  const pemilikAgenda = a => (a && (a.pemilik || a.orang)) || '';
+  /* Pembuat atau peserta (yang diundang, atau ikut sendiri ke acara Terbuka). */
+  const ikutAcara = (a, me) => !!a && !!me && (pemilikAgenda(a) === me || (a.peserta || []).includes(me));
+  const bolehLihatAgenda = (a, me) => ikutAcara(a, me) || (!!a && !!a.terbuka);
+  /* Jawaban orang itu: pembuatnya selalu hadir; '' = belum menjawab. */
+  function jawabanAcara(a, me) {
+    if (pemilikAgenda(a) === me) return 'ya';
+    const j = (a.jawaban || {})[me];
+    return j ? j.nilai : '';
+  }
+  /* Rekap kehadiran; pembuatnya dihitung hadir. */
+  function rekapJawaban(a) {
+    const r = { ya: 1, mungkin: 0, tidak: 0, belum: 0 };
+    for (const p of a.peserta || []) r[jawabanAcara(a, p) || 'belum']++;
+    return r;
+  }
+  /* Pengingat untuk profil ini: peserta boleh memilih sendiri; bawaannya pilihan pembuat. */
+  function pengingatUntuk(a, me) {
+    if (pemilikAgenda(a) !== me && Object.prototype.hasOwnProperty.call(a.ingat || {}, me)) return a.ingat[me];
+    return a.pengingat;
+  }
+  /* Tanggal kejadian pertama mulai dari tanggal itu (agenda berulang), '' = sudah lewat semua. */
+  function kejadianBerikut(a, dari) {
+    if (!a.ulang) return a.tanggal >= dari ? a.tanggal : '';
+    for (let d = a.tanggal > dari ? a.tanggal : dari, n = 0; n < 400; d = tambahHari(d, 1), n++) {
+      if (a.sampai && d > a.sampai) return '';
+      if (adaPadaTanggal(a, d)) return d;
+    }
+    return '';
+  }
+  const keMenit = j => { const [h, m] = String(j).split(':').map(Number); return h * 60 + m; };
+  /* Rentang menit sehari: sepanjang hari = 0–1440; tanpa jam selesai dianggap satu jam. */
+  function rentangMenit(mulai, selesai) {
+    if (!mulai) return [0, 1440];
+    const a = keMenit(mulai);
+    return [a, selesai ? keMenit(selesai) : Math.min(a + 60, 1440)];
+  }
+  /* Acara bersama orang itu yang bertabrakan dengan tanggal & jam ini. Yang ia tolak tak dihitung;
+     agenda pribadi tak pernah dihitung (tetap rahasia pemiliknya). */
+  function bentrokAcara(daftar, siapa, tanggal, mulai, selesai, kecuali = '') {
+    const [a, b] = rentangMenit(mulai, selesai);
+    return (daftar || []).filter(x => x.id !== kecuali && acaraBersama(x) && ikutAcara(x, siapa) && jawabanAcara(x, siapa) !== 'tidak' && adaPadaTanggal(x, tanggal))
+      .filter(x => { const [c, d] = rentangMenit(x.mulai, x.selesai); return c < b && a < d; })
+      .sort((x, y) => (x.mulai || '').localeCompare(y.mulai || ''));
+  }
+  /* Peserta yang disimpan pembuatnya: pembuatnya sendiri dibuang; yang baru ditambahkan harus
+     orang aktif di organogram (yang lama tetap, meski kini nonaktif). */
+  function periksaPeserta(peserta, pemilik, lama = []) {
+    const hasil = (peserta || []).filter(p => p !== pemilik && p !== DEV);
+    for (const p of hasil) {
+      if (lama.includes(p)) continue;
+      const o = ORANG_PER_ID.get(p);
+      if (!o || o.aktif === false) throw new Error(`Peserta ${orang(p).pendek} tidak dikenal atau sudah nonaktif.`);
+    }
+    return hasil;
+  }
+  /* Simpanan pembuat acara. Jawaban, pengingat pilihan, dan waktu undangan peserta yang tetap
+     dipertahankan; peserta baru dicatat waktu undangannya (untuk notifikasinya); perubahan
+     tanggal atau jam dicatat supaya peserta diberi tahu. Notulen hanya berubah lewat ubahNotulen. */
+  function gabungAcara(lama, baru, waktu) {
+    const tetap = peta => Object.fromEntries(Object.entries(peta || {}).filter(([k]) => baru.peserta.includes(k)));
+    const diundang = tetap(lama && lama.diundang);
+    for (const p of baru.peserta) if (!diundang[p]) diundang[p] = waktu;
+    const jadwalBerubah = !!lama && ['tanggal', 'mulai', 'selesai', 'ulang', 'sampai'].some(k => (lama[k] || '') !== (baru[k] || ''));
+    return {
+      ...baru, jawaban: tetap(lama && lama.jawaban), ingat: tetap(lama && lama.ingat), diundang, ikut: tetap(lama && lama.ikut),
+      jadwalAt: jadwalBerubah && acaraBersama(baru) ? waktu : (lama && lama.jadwalAt) || 0,
+      notulen: lama ? lama.notulen : '', tindak: lama ? lama.tindak : [], notulenAt: (lama && lama.notulenAt) || 0, notulenOleh: (lama && lama.notulenOleh) || '',
+      contoh: !!(lama && lama.contoh),
+    };
+  }
+  /* Jawaban dan pengingat peserta. Acara Terbuka: siapa pun boleh ikut (Hadir atau Mungkin). */
+  function jawabAcara(a, me, isian, waktu) {
+    if (pemilikAgenda(a) === me) throw new Error('Anda pembuat acara ini; jawaban hanya untuk peserta.');
+    const x = isian && typeof isian === 'object' ? isian : {};
+    const hasil = { ...a, peserta: [...(a.peserta || [])], jawaban: { ...a.jawaban }, ingat: { ...a.ingat }, diundang: { ...a.diundang }, ikut: { ...a.ikut } };
+    if (!hasil.peserta.includes(me)) {
+      if (!a.terbuka) throw new Error('Hanya peserta acara ini yang menjawab undangannya.');
+      if (!['ya', 'mungkin'].includes(x.jawaban)) throw new Error('Pilih Hadir atau Mungkin untuk ikut acara terbuka ini.');
+      if (hasil.peserta.length >= PESERTA_MAKS) throw new Error(`Peserta paling banyak ${PESERTA_MAKS} orang.`);
+      hasil.peserta.push(me);
+      hasil.diundang[me] = waktu;
+      hasil.ikut[me] = waktu;
+    }
+    if (x.jawaban !== undefined) {
+      if (!JAWABAN_ACARA.includes(x.jawaban)) throw new Error('Pilih Hadir, Mungkin, atau Tidak.');
+      hasil.jawaban[me] = { nilai: x.jawaban, at: waktu };
+    }
+    if (x.pengingat !== undefined) {
+      if (x.pengingat === 'bawaan') delete hasil.ingat[me];
+      else if (PENGINGAT_AGENDA.includes(String(x.pengingat))) hasil.ingat[me] = String(x.pengingat);
+      else throw new Error('Pilihan pengingat tidak dikenal.');
+    }
+    return hasil;
+  }
+  /* Notulen & tindak lanjut: pembuat atau peserta. versi = notulenAt yang dilihat penulisnya;
+     kalau orang lain sudah menyimpan sesudahnya, ditolak supaya tulisannya tak tertimpa. Task yang
+     sudah dibuat dari butir yang sama tetap tertaut. */
+  function ubahNotulen(a, me, isian, waktu) {
+    if (!ikutAcara(a, me)) throw new Error('Hanya pembuat dan peserta acara ini yang menulis notulennya.');
+    const x = isian && typeof isian === 'object' ? isian : {};
+    if ((Number(x.versi) || 0) !== (a.notulenAt || 0)) {
+      throw new Error(`Notulen baru saja diubah ${orang(a.notulenOleh || pemilikAgenda(a)).pendek}. Tutup lalu buka lagi acaranya untuk melihat versi terbarunya.`);
+    }
+    const bersih = periksaAgenda({ ...a, notulen: x.notulen, tindak: x.tindak });
+    const lama = new Map((a.tindak || []).map(b => [b.id, b]));
+    const tindak = bersih.tindak.map(b => ({ ...b, task: b.task || (lama.get(b.id) || {}).task || '' }));
+    return { ...a, notulen: bersih.notulen, tindak, notulenAt: waktu, notulenOleh: me };
+  }
+  /* Task yang dibuat dari satu butir tindak lanjut ("Jadikan task"). */
+  function tandaiTindak(a, me, idTindak, idTask) {
+    if (!ikutAcara(a, me)) throw new Error('Hanya pembuat dan peserta acara ini yang menulis notulennya.');
+    if (!POLA_KAIT.test(String(idTask || ''))) throw new Error('ID task tidak sah.');
+    if (!(a.tindak || []).some(b => b.id === idTindak)) throw new Error('Butir tindak lanjut tidak ditemukan. Mungkin baru saja dihapus dari notulen.');
+    return { ...a, tindak: a.tindak.map(b => (b.id === idTindak ? { ...b, task: String(idTask) } : b)) };
+  }
+  /* Notifikasi acara untuk profil ini, dihitung dari acaranya sendiri: diundang, jadwal diubah,
+     jawaban peserta (untuk pembuatnya), notulen ditulis orang lain, dan acara dibatalkan.
+     tanggal = kejadian berikutnya mulai hari itu (agenda berulang), supaya lonceng membuka
+     tanggal yang relevan. */
+  function notifAcara(daftar, batal, me, hari, sejak = 0) {
+    const hasil = [];
+    const dasar = a => ({ agenda: a.id, tanggal: kejadianBerikut(a, hari) || a.tanggal, judul: a.judul, mulai: a.mulai || '' });
+    for (const a of daftar || []) {
+      if (!acaraBersama(a) || !ikutAcara(a, me)) continue;
+      const pemilik = pemilikAgenda(a);
+      if (pemilik !== me) {
+        const undang = (a.diundang || {})[me] || 0;
+        if (undang && !(a.ikut || {})[me]) hasil.push({ jenis: 'undang', at: undang, oleh: pemilik, ...dasar(a) });
+        if (a.jadwalAt && a.jadwalAt > undang) hasil.push({ jenis: 'jadwal', at: a.jadwalAt, oleh: pemilik, ...dasar(a) });
+      } else {
+        for (const [p, j] of Object.entries(a.jawaban || {})) {
+          if (j.at && (a.peserta || []).includes(p)) hasil.push({ jenis: (a.ikut || {})[p] ? 'ikut' : 'jawab', at: j.at, oleh: p, nilai: j.nilai, ...dasar(a) });
+        }
+      }
+      if (a.notulenAt && a.notulenOleh && a.notulenOleh !== me) hasil.push({ jenis: 'notulen', at: a.notulenAt, oleh: a.notulenOleh, ...dasar(a) });
+    }
+    for (const b of batal || []) {
+      if ((b.peserta || []).includes(me) && b.pemilik !== me) hasil.push({ jenis: 'batal', at: b.at, oleh: b.pemilik, agenda: '', tanggal: b.tanggal, judul: b.judul, mulai: b.mulai || '' });
+    }
+    return hasil.filter(n => n.at > sejak).sort((x, y) => y.at - x.at);
+  }
+
+  /* Ke kalender lain (Google Calendar, kalender ponsel lewat .ics): jam dalam UTC dari zona
+     browser, sepanjang hari sebagai tanggal (akhir eksklusif), pengulangan sebagai RRULE. */
+  const fmtUtc = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const tglPolos = iso => String(iso).replace(/-/g, '');
+  function waktuLokal(tgl, jam) {
+    const d = keTanggal(tgl);
+    const [h, m] = jam.split(':').map(Number);
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+  function rentangKalender(a) {
+    if (!a.mulai) return { hari: true, awal: tglPolos(a.tanggal), akhir: tglPolos(tambahHari(a.tanggal, 1)) };
+    const awal = waktuLokal(a.tanggal, a.mulai);
+    const akhir = a.selesai ? waktuLokal(a.tanggal, a.selesai) : new Date(awal.getTime() + 3600e3);
+    return { hari: false, awal: fmtUtc(awal), akhir: fmtUtc(akhir) };
+  }
+  function aturanUlang(a) {
+    const frek = { harian: 'FREQ=DAILY', kerja: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', mingguan: 'FREQ=WEEKLY', bulanan: 'FREQ=MONTHLY' }[a.ulang];
+    if (!frek) return '';
+    if (!a.sampai) return frek;
+    return `${frek};UNTIL=${a.mulai ? fmtUtc(waktuLokal(a.sampai, '23:59')) : tglPolos(a.sampai)}`;
+  }
+  const LABEL_KALENDER = { tautan: 'Tautan rapat', dibuat: 'Dibuat oleh', peserta: 'Peserta', dari: 'Dari ProductTrack' };
+  function teksKalender(a, label = LABEL_KALENDER) {
+    const L = { ...LABEL_KALENDER, ...label };
+    const bagian = [];
+    if (a.catatan) bagian.push(a.catatan);
+    if (a.tautan) bagian.push(`${L.tautan}: ${a.tautan}`);
+    if (acaraBersama(a)) {
+      bagian.push(`${L.dibuat}: ${orang(pemilikAgenda(a)).nama}` + ((a.peserta || []).length ? `\n${L.peserta}: ${a.peserta.map(p => orang(p).nama).join(', ')}` : ''));
+    }
+    bagian.push(L.dari);
+    return bagian.join('\n\n');
+  }
+  function tautanGoogle(a, label) {
+    const r = rentangKalender(a);
+    const q = new URLSearchParams({ action: 'TEMPLATE', text: a.judul, dates: `${r.awal}/${r.akhir}`, details: teksKalender(a, label) });
+    if (a.lokasi || a.tautan) q.set('location', a.lokasi || a.tautan);
+    const ulang = aturanUlang(a);
+    if (ulang) q.set('recur', 'RRULE:' + ulang);
+    return 'https://calendar.google.com/calendar/render?' + q.toString();
+  }
+  const escIcs = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  /* RFC 5545: baris lebih dari 75 oktet dilipat; sambungannya diawali satu spasi. */
+  function lipatIcs(baris) {
+    const keping = [];
+    let kini = '', oktet = 0;
+    for (const c of baris) {
+      const n = c.codePointAt(0);
+      const b = n < 0x80 ? 1 : n < 0x800 ? 2 : n < 0x10000 ? 3 : 4;
+      if (oktet + b > (keping.length ? 74 : 75)) { keping.push(kini); kini = ''; oktet = 0; }
+      kini += c;
+      oktet += b;
+    }
+    keping.push(kini);
+    return keping.join('\r\n ');
+  }
+  function icsAgenda(daftar, opsi = {}) {
+    const stempel = fmtUtc(new Date(opsi.waktu || Date.now()));
+    const b = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cerebrum//ProductTrack v2//ID', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    for (const a of daftar || []) {
+      const r = rentangKalender(a);
+      b.push('BEGIN:VEVENT', `UID:${a.id}@producttrack`, `DTSTAMP:${stempel}`,
+        r.hari ? `DTSTART;VALUE=DATE:${r.awal}` : `DTSTART:${r.awal}`, r.hari ? `DTEND;VALUE=DATE:${r.akhir}` : `DTEND:${r.akhir}`,
+        `SUMMARY:${escIcs(a.judul)}`);
+      const ulang = aturanUlang(a);
+      if (ulang) b.push(`RRULE:${ulang}`);
+      if (a.lokasi || a.tautan) b.push(`LOCATION:${escIcs(a.lokasi || a.tautan)}`);
+      if (a.tautan) b.push(`URL:${a.tautan}`);
+      b.push(`DESCRIPTION:${escIcs(teksKalender(a, opsi.label))}`, 'END:VEVENT');
+    }
+    b.push('END:VCALENDAR');
+    return b.map(lipatIcs).join('\r\n') + '\r\n';
   }
 
   /* ---------- Platform dan jadwal pendaftaran paket (2.18.0) ----------
@@ -3510,7 +3806,7 @@
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,
-    namaTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
+    namaTahap, SINGKAT_TAHAP, singkatTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupKom, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
@@ -3530,6 +3826,9 @@
     centangSubtask, dataKosong, AKSI_DATA, jalankanPerintah, periksaPerintah, ringkasHasil, KOLEKSI_REAL, bedaData, terapkanUbah,
     KODE_AI, AKSI_AGEN, PESAN_AGEN, PERAN_IZIN, IZIN, izin, izinPeran,
     ULANG_AGENDA, PENGINGAT_AGENDA, periksaAgenda, adaPadaTanggal, kejadianAgenda, waktuPengingat, periksaEmail,
+    JAWABAN_ACARA, KAIT_ACARA, PESERTA_MAKS, acaraBersama, pemilikAgenda, ikutAcara, bolehLihatAgenda, jawabanAcara, rekapJawaban, pengingatUntuk,
+    kejadianBerikut, bentrokAcara, periksaPeserta, gabungAcara, jawabAcara, ubahNotulen, tandaiTindak, notifAcara,
+    tautanGoogle, icsAgenda, teksKalender, wajibIzin, tolakIzin,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
     SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, tungguBelum, masihMenahan, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
     bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, ubahProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, pindahSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,

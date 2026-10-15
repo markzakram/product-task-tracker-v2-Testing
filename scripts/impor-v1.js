@@ -85,14 +85,17 @@ async function main() {
     + (denganLink ? `, ${b.linkTanpaProfil} link milik orang yang tak punya profil di v2.` : '.'));
   console.log(`  Tidak dibawa: PIN, catatan pribadi${denganLink ? '' : ', Link Saya'}, notifikasi.`);
 
+  let contohDemo = null;
   if (demo) {
     const c = tambahDemo(data);
+    contohDemo = c;
     console.log('\n  Skenario contoh (--demo)');
     for (const p of c.proyek) console.log('    proyek dari paket     ' + p);
     baris('task hasil elaborasi', c.task);
     baris('setoran ke paket', c.setoran);
     baris('catatan & link contoh', c.catatan + c.link, 'folder "Contoh"');
     baris('inisiatif DAE', c.inisiatif || 0, 'pekerjaan berkelanjutan Ali (2.31.0)');
+    baris('acara bersama', c.acara.length, 'tab agenda, hanya terlihat saat sumber data contoh (2.33.0)');
   }
 
   if (kering) {
@@ -107,6 +110,8 @@ async function main() {
   const k = await sheet.klien();
   console.log(`\n  Menulis ke spreadsheet v2 sebagai ${k.email} …`);
   const hasil = await sheet.tulisContoh(k, id, urai(data), { sumber: `Tarikan v1 ${asal.waktu || '(waktu tak diketahui)'}${demo ? ' + skenario contoh' : ''}` });
+  // Acara contoh (2.33.0): baris agenda ber-ID tetap, jadi impor ulang menimpa, bukan menambah.
+  if (demo && contohDemo) for (const a of contohDemo.acara) await sheet.tulisAgenda(k, id, a, true);
   console.log('\n  Tertulis');
   for (const [tab, n] of Object.entries(hasil.jumlah)) baris(tab, n);
   console.log(`\n  Versi data contoh: ${hasil.versi}`);

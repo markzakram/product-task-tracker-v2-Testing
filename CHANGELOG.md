@@ -28,6 +28,68 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.33.0 — Kalender: acara bersama lintas tim; tampilan yang lebih jelas (2026-10-14)
+
+Dua permintaan user.
+
+- **Acara bersama di kalender.** Dari kalender bisa membuat acara seperti rapat dan menambahkan
+  anggota dari tim sendiri maupun tim lain, ditambah rekomendasi lain. Keputusan user: semua
+  sekaligus; acara bawaannya hanya untuk peserta dan bisa dibuat Terbuka; tanpa tamu di luar
+  ProductTrack.
+  - **Acara** = agenda dengan peserta (dari tim mana pun) atau Terbuka: lokasi, tautan rapat,
+    kaitan ke proyek/paket/inisiatif/task, tombol **+ tim** dan **+ Semua Lead**.
+  - **Cek bentrok** jadwal peserta saat memilih (dari acara bersama saja; agenda pribadi tak
+    pernah dibuka).
+  - **Undangan, jawaban Hadir/Mungkin/Tidak, dan pengingat per peserta**; bagian "Menunggu
+    jawaban Anda" di Kalender Saya dan pengingatnya di Hari Ini.
+  - **Notifikasi** diundang, jadwal diubah, jawaban, ikut, notulen, dan dibatalkan.
+  - **Notulen & tindak lanjut**, tiap butir bisa **Jadikan task** dan tertaut ke task-nya.
+  - **Acara di proyek, paket, inisiatif, dan detail task**; ikon kalender di detail task untuk
+    menjadwalkan acara dengan PIC dan peninjaunya.
+  - **Kalender di halaman Task**: lapis Tenggat task, Acara, dan Pendaftaran paket.
+  - **Google Calendar dan .ics** per acara, dan **Unduh semua (.ics)** di pengaturan Pengingat.
+  - **Izin baru** "Membuat acara bersama" (Panel Dev → Izin), bawaannya semua peran.
+  - Data contoh: lima acara (rapat mingguan, kickoff PAPI dengan notulen, review PAPI lintas
+    tim, sinkron TKA, sharing session Terbuka), hanya terlihat selama sumber data contoh.
+  - Catatan agenda kini sampai 2.000 karakter (agenda rapat).
+- **Tampilan yang lebih jelas**, supaya pengguna tak bingung: tujuh bagian, mengikuti gambaran
+  sebelum–sesudah yang disetujui user.
+  - **Arti di tempat**: kode sub-stage (mis. DV1), chip tim dan fasenya, dan label (Menunggu,
+    Revisi, …) bisa diketuk; artinya muncul di kotak kecil dengan tautan ke Panduan › Istilah.
+    Fase di chip ditulis singkat (**RAD Dev**, bukan **RAD V**) supaya Development tak tertukar
+    dengan Design (`Inti.singkatTahap`).
+  - **Halaman proyek**: kemajuan siklus sebaris dengan chip terlambat dan tertahan; kartu
+    **Perlu perhatian Anda** (tinjauan, revisi, langkah siap dibagi, terlambat, tertahan; paling
+    banyak empat, masing-masing bertombol); tab tim menulis fasenya ("DAE · Development"); fase
+    kosong dirapatkan jadi satu baris dengan **+ Tambah**; nama proyek tak diulang di tiap baris
+    task; **Ubah, Duplikat, Hapus proyek** dan **Pilih task untuk dihapus** pindah ke menu
+    **⋯**; paragraf penjelasan dan kartu Ringkasan di samping diganti tombol **?**.
+  - **Form Tambah task**: dimulai dengan **Task ini untuk apa?** (Proyek, Rutin, atau
+    Inisiatif); proyek atau inisiatifnya terisi sendiri bila dibuka dari halamannya; sub-stage
+    menjadi daftar pilihan dengan tim sendiri di atas, tim lain dilipat, dan kotak cari;
+    prioritas dan output dilipat di **Lainnya**; isian wajib yang kosong disebut namanya.
+  - **Hari Ini**: angka di bawah sapaan menjadi tombol yang melompat ke bagiannya; **Kerjakan
+    sekarang** menggabungkan tinjauan, langkah tim yang siap dibagi, yang terlambat, dan yang
+    bertenggat hari ini, dengan tombolnya langsung di baris (**Tinjau**, **Kerjakan sendiri**,
+    **Bagi ke staff**, **Mulai**); Nanti, Belum bisa dikerjakan, dan Saya bantu dilipat dengan
+    jumlahnya. **Bagi ke staff** membuka detail task tepat di isian task turunan.
+  - **Rancangan Paket**: satu kolom **Target** dengan satuannya (sebelumnya dua kolom bernama
+    Target); Duplikat, Salin ke sheet Marsel, dan Hapus di menu **⋯**; paragraf metode progres
+    diganti tombol **?**. Elaborasi menampilkan **pratinjau** jumlah task per PIC sebelum dibuat,
+    dan tombolnya menulis jumlahnya ("Buat 43 task").
+  - **Dashboard**: dibuka dengan **Perlu perhatian** (beban di atas kapasitas, pekerjaan yang
+    ditunggu banyak task lain, terlambat, tertahan, proyek berisiko); tabel per orang berbahasa
+    biasa (**Ditunggu task lain**, **Menunggu tinjauannya**) menggantikan kolom Menahan dan skor
+    bottleneck; grafik per status, tim, platform, dan proyek per tahap dilipat di **Rincian
+    lain**.
+  - **Dua kalender**: kalender di halaman Task menjadi **Kalender tim**, dengan tautan ke
+    Kalender Saya dan sebaliknya.
+  - Panduan menyesuaikan tombol yang pindah dan nama yang berganti, termasuk ilustrasi form
+    Tambah task dan Dashboard; 77 teks baru berbahasa Inggris, dan 7 teks serta gaya skor
+    Dashboard lama yang tak terpakai dibuang.
+- Tes baru di `test/agenda.test.js`, `test/rpc.test.js`, `test/demo.test.js`, dan
+  `test/inti.test.js`. 290 tes.
+
 ## 2.32.1 — Detail task: tab bergaris bawah dan bagian berikon (2026-10-14)
 
 Permintaan user: detail task mengikuti rancangan yang disetujui.

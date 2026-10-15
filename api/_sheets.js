@@ -715,6 +715,11 @@ async function barisAgenda(k, id) {
   const [judul = AGENDA_KOLOM, ...isi] = (await tabAplikasi(k, id, TAB_AGENDA, AGENDA_KOLOM)) || [];
   return isi.filter(b => b.some(sel => String(sel).trim())).map(b => agendaDariBaris(judul, b));
 }
+/* Semua baris agenda, termasuk yang dihapus (acara bersama, 2.33.0: disaring di rpc). */
+async function bacaSemuaAgenda(k, id) {
+  await pastikanV2(k, id);
+  return barisAgenda(k, id);
+}
 /* Agenda milik satu profil (yang belum dihapus). */
 async function bacaAgenda(k, id, orang) {
   await pastikanV2(k, id);
@@ -913,5 +918,5 @@ module.exports = {
   periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto, bacaTampilan, bacaSampul, tulisTampilan,
   bacaSetelan, tulisSetelan, sumberData, bacaReal, tulisReal,
   bacaOrang, tulisOrang, bacaMaster, tulisMaster, bacaPin, tulisPin, hitungTab, jelaskanGalat,
-  bacaAgenda, tulisAgenda, bacaPribadi, tulisPribadi,
+  bacaAgenda, bacaSemuaAgenda, tulisAgenda, bacaPribadi, tulisPribadi,
 };

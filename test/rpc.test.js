@@ -694,3 +694,100 @@ test('Kalender Saya (2.28.0): hanya profil sesi itu; tiap profil hanya agenda da
   assert.deepEqual((await aksi(kiki, 'muatAgenda')).json.agenda, []);
   assert.equal(p.tab('agenda').values[1][4], 'ya');
 });
+
+test('Acara bersama (2.33.0): undangan lintas tim, jawaban, bentrok, notulen, Terbuka, dan pembatalan', async () => {
+  const { p } = await sheetContoh();
+  const cookie = await masuk();
+  const aksi = (c, action, ...args) => panggil({ body: { action, args }, cookie: c });
+  const profil = async o => pakai(await aksi(cookie, 'masukProfil', o, ''));
+  const [kiki, bilar, andika, nadya] = [await profil('kiki'), await profil('bilar'), await profil('andika'), await profil('nadya')];
+  // Agenda pribadi Kiki di jam yang sama: tak pernah terlihat orang lain, tak dihitung bentrok.
+  assert.equal((await aksi(kiki, 'simpanAgenda', { judul: 'Fokus QC', tanggal: '2026-10-15', mulai: '10:00', selesai: '12:00' })).status, 200);
+  const buat = await aksi(kiki, 'simpanAgenda', { judul: 'Sinkron input soal', tanggal: '2026-10-15', mulai: '10:00', selesai: '11:00', peserta: ['bilar', 'andika', 'kiki'], kait: [{ jenis: 'proyek', id: 'PRJ-1' }] });
+  assert.equal(buat.status, 200, buat.teks);
+  const acara = buat.json.agenda;
+  assert.deepEqual([acara.pemilik, acara.peserta], ['kiki', ['bilar', 'andika']], 'pembuatnya tak jadi peserta');
+  assert.ok(acara.diundang.bilar > 0 && acara.diundang.andika > 0);
+  // Peserta melihatnya; orang lain tidak; agenda pribadi tetap milik pembuatnya.
+  const lihat = async c => (await aksi(c, 'muatAgenda')).json.agenda.map(a => a.judul).sort();
+  assert.deepEqual(await lihat(bilar), ['Sinkron input soal']);
+  assert.deepEqual(await lihat(nadya), []);
+  assert.deepEqual(await lihat(kiki), ['Fokus QC', 'Sinkron input soal']);
+  // Hanya pembuatnya yang mengubah; yang bukan peserta bahkan tak diberi tahu acaranya ada.
+  const ambilAlih = await aksi(bilar, 'simpanAgenda', { ...acara, judul: 'Diambil alih' });
+  assert.equal(ambilAlih.status, 400);
+  assert.match(ambilAlih.json.message, /Hanya Kiki, pembuat acara ini/);
+  const asing = await aksi(nadya, 'simpanAgenda', { ...acara, judul: 'x' });
+  assert.equal(asing.json.message, 'Agenda tidak ditemukan. Muat ulang halaman.');
+  // Jawaban & pengingat peserta.
+  const jawab = await aksi(bilar, 'jawabAcara', acara.id, { jawaban: 'ya', pengingat: '30' });
+  assert.equal(jawab.status, 200, jawab.teks);
+  assert.deepEqual([jawab.json.agenda.jawaban.bilar.nilai, jawab.json.agenda.ingat.bilar], ['ya', '30']);
+  assert.equal((await aksi(nadya, 'jawabAcara', acara.id, { jawaban: 'ya' })).status, 400, 'bukan peserta, acaranya tak terbuka');
+  // Bentrok: dari acara bersama saja; judulnya hanya untuk yang boleh melihat acara itu.
+  const sibuk = await aksi(nadya, 'sibukAcara', { tanggal: '2026-10-15', mulai: '10:30', selesai: '11:30', orang: ['kiki', 'bilar', 'nadya', 'bukan'] });
+  assert.equal(sibuk.status, 200, sibuk.teks);
+  assert.deepEqual(sibuk.json.sibuk, { kiki: [{ mulai: '10:00', selesai: '11:00', judul: '' }], bilar: [{ mulai: '10:00', selesai: '11:00', judul: '' }] });
+  assert.equal((await aksi(andika, 'sibukAcara', { tanggal: '2026-10-15', mulai: '10:30', orang: ['bilar'] })).json.sibuk.bilar[0].judul, 'Sinkron input soal');
+  assert.equal((await aksi(andika, 'sibukAcara', { tanggal: 'besok' })).status, 400);
+  // Notulen: peserta boleh menulis; simpanan dari versi lama ditolak; "Jadikan task" menautkan butirnya.
+  const notulen = await aksi(andika, 'simpanNotulen', acara.id, { notulen: 'Input mulai Senin', tindak: [{ id: 'tlinput1', teks: 'Input 40 soal', pic: 'kiki' }], versi: 0 });
+  assert.equal(notulen.status, 200, notulen.teks);
+  const basi = await aksi(bilar, 'simpanNotulen', acara.id, { notulen: 'versi lama', versi: 0 });
+  assert.equal(basi.status, 400);
+  assert.match(basi.json.message, /baru saja diubah Andika/);
+  assert.equal((await aksi(nadya, 'simpanNotulen', acara.id, { notulen: 'x', versi: notulen.json.agenda.notulenAt })).status, 400);
+  const tandai = await aksi(kiki, 'tandaiTindak', acara.id, 'tlinput1', 'PRD-901');
+  assert.equal(tandai.json.agenda.tindak[0].task, 'PRD-901');
+  // Pembuat menyimpan ulang (jam berubah): jawaban & notulen tetap, peserta diberi tahu.
+  const lagi = await aksi(kiki, 'simpanAgenda', { ...tandai.json.agenda, mulai: '13:00', selesai: '14:00', notulen: 'ditimpa?' });
+  assert.equal(lagi.status, 200, lagi.teks);
+  assert.deepEqual([lagi.json.agenda.jawaban.bilar.nilai, lagi.json.agenda.notulen, lagi.json.agenda.tindak[0].task], ['ya', 'Input mulai Senin', 'PRD-901']);
+  assert.ok(lagi.json.agenda.jadwalAt > 0);
+  assert.equal(p.tab('agenda').values.filter(b => b[0] === acara.id).length, 1, 'tetap satu baris');
+  assert.ok(!p.tab('agenda').values.some(b => String(b[2]).includes('"pemilik"')), 'pemilik tak ikut ditulis ke data');
+  // Terbuka: terlihat semua orang, dan siapa pun boleh ikut.
+  const buka = await aksi(andika, 'simpanAgenda', { judul: 'Sharing session RAD', tanggal: '2026-10-16', mulai: '15:00', terbuka: true });
+  assert.equal(buka.status, 200, buka.teks);
+  assert.deepEqual(await lihat(nadya), ['Sharing session RAD']);
+  const ikut = await aksi(nadya, 'jawabAcara', buka.json.agenda.id, { jawaban: 'ya' });
+  assert.deepEqual([ikut.status, ikut.json.agenda.peserta, Object.keys(ikut.json.agenda.ikut)], [200, ['nadya'], ['nadya']]);
+  // Dibatalkan: hilang dari kalender peserta, diganti tanda batal untuk notifikasinya.
+  assert.equal((await aksi(bilar, 'hapusAgenda', acara.id)).status, 400, 'peserta tak bisa menghapus');
+  assert.equal((await aksi(kiki, 'hapusAgenda', acara.id)).status, 200);
+  const muat = (await aksi(bilar, 'muatAgenda')).json;
+  assert.deepEqual([muat.agenda.map(a => a.judul), muat.batal.map(b => [b.judul, b.pemilik])], [['Sharing session RAD'], [['Sinkron input soal', 'kiki']]], 'yang Terbuka tetap terlihat');
+  assert.equal((await aksi(bilar, 'jawabAcara', acara.id, { jawaban: 'ya' })).status, 400);
+  assert.ok(!(await aksi(cookie, 'muatContoh')).teks.includes('Sinkron input soal'), 'tak ikut data yang dimuat semua orang');
+});
+
+test('Acara bersama: izin acara.undang berlaku di server; agenda pribadi tetap boleh', async () => {
+  const I = require('../public/inti');
+  await sheetContoh();
+  const cookie = await masuk();
+  process.env.DEV_PIN = PIN_DEV;
+  const dev = await masukDev();
+  try {
+    assert.equal((await panggil({ body: { action: 'simpanMaster', args: ['izin', { kunci: 'acara.undang', peran: ['manager', 'lead'] }] }, cookie: dev })).status, 200);
+    const kiki = pakai(await panggil({ body: { action: 'masukProfil', args: ['kiki', ''] }, cookie }));
+    const tolak = await panggil({ body: { action: 'simpanAgenda', args: [{ judul: 'Rapat', tanggal: '2026-10-15', peserta: ['bilar'] }] }, cookie: kiki });
+    assert.equal(tolak.status, 403);
+    assert.equal(tolak.json.message, 'Hanya Lead atau Manager yang membuat acara bersama.');
+    const terbuka = await panggil({ body: { action: 'simpanAgenda', args: [{ judul: 'Demo', tanggal: '2026-10-15', terbuka: true }] }, cookie: kiki });
+    assert.equal(terbuka.status, 403);
+    assert.equal((await panggil({ body: { action: 'simpanAgenda', args: [{ judul: 'Fokus', tanggal: '2026-10-15' }] }, cookie: kiki })).status, 200);
+  } finally { I.aturMaster([]); }
+});
+
+test('Acara contoh (impor --demo) hanya terlihat selama sumber data contoh', async () => {
+  const { p } = await sheetContoh();
+  const cookie = await masuk();
+  const I = require('../public/inti');
+  const contoh = { ...I.periksaAgenda({ judul: 'Rapat contoh', tanggal: '2026-10-15', peserta: ['kiki'] }), id: 'agdemo-rapat', orang: 'nynda', contoh: true };
+  await sheet.tulisAgenda(p.k, ID, contoh, true);
+  const kiki = pakai(await panggil({ body: { action: 'masukProfil', args: ['kiki', ''] }, cookie }));
+  const judul = async () => (await panggil({ body: { action: 'muatAgenda' }, cookie: kiki })).json.agenda.map(a => a.judul);
+  assert.deepEqual(await judul(), ['Rapat contoh']);
+  await sheet.tulisSetelan(p.k, ID, 'sumber_data', 'real', 'dev');
+  try { assert.deepEqual(await judul(), []); } finally { await sheet.tulisSetelan(p.k, ID, 'sumber_data', 'contoh', 'dev'); }
+});

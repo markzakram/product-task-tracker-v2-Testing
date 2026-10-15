@@ -81,14 +81,15 @@ const TAB_MASTER = 'master';
 const MASTER_KOLOM = ['jenis', 'kunci', 'data', 'aktif', 'urutan', 'diperbarui'];
 /* Tab pin (PIN tiap profil, 0.14.0): hanya dibaca server. hash = scrypt(PIN, garam). */
 /* Kalender Saya (2.28.0): satu baris = satu agenda (data = JSON isinya), hanya dibaca untuk
-   profil pemiliknya; agenda yang dihapus ditandai. Tab pribadi: email pribadi opsional per profil
+   profil pemiliknya; agenda yang dihapus ditandai. Acara bersama (2.33.0): peserta, jawaban, dan
+   notulennya ikut di data; orang = pembuatnya. pemilik (dari kolom orang) tak ikut ditulis. Tab pribadi: email pribadi opsional per profil
    untuk pengingat email nanti, hanya untuk pemiliknya. */
 const TAB_AGENDA = 'agenda';
 const AGENDA_KOLOM = ['id', 'orang', 'data', 'diperbarui', 'dihapus'];
 const TAB_PRIBADI = 'pribadi';
 const PRIBADI_KOLOM = ['orang', 'email', 'diperbarui'];
 function agendaKeBaris(a) {
-  const { id, orang, diperbarui, dihapus, ...data } = a;
+  const { id, orang, diperbarui, dihapus, pemilik, ...data } = a;
   return [String(id || ''), String(orang || ''), JSON.stringify(data), keSel('at', diperbarui), dihapus ? 'ya' : ''];
 }
 function agendaDariBaris(judul, baris) {

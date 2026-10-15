@@ -36,6 +36,12 @@
    dan satu yang sedang berjalan di ProductTrack v2.
    Ditambah beberapa Catatan Saya dan Link Saya contoh (folder "Contoh") memakai tautan
    Dashboard Lain dan tautan paket yang memang sudah ada di data contoh.
+   Ditambah lima Acara bersama (2.33.0): rapat mingguan Manager dengan semua Lead (Terbuka),
+   kickoff PAPI Kostick yang sudah lewat lengkap dengan notulen dan tindak lanjut (dua sudah jadi
+   task, satu belum), review blueprint PAPI lintas tim RAD–DAE besok, sinkron input & QC TKA
+   (LNA, RAD, CLO) yang salah satu pesertanya tak hadir, dan sharing session DAE yang Terbuka.
+   Acara tidak masuk data contoh: impor menulisnya ke tab agenda dengan tanda contoh, jadi hanya
+   terlihat selama sumber data contoh.
 
    Fungsi murni terhadap `data` (hasil _v1ke2.ubah); tidak menyentuh jaringan maupun berkas.
    ========================================================================== */
@@ -364,6 +370,73 @@ function ruangSayaContoh(data, sekarang) {
   return { catatan: n, link: m };
 }
 
+/* Acara bersama contoh (2.33.0). Baris tab agenda: isi agenda + orang (pembuatnya) + contoh. */
+function acaraContoh(data, sekarang, papi, inisiatif) {
+  const hari = n => Inti.isoHari(sekarang + n * HARI);
+  const ada = id => Inti.ORANG.some(o => o.id === id && o.aktif !== false);
+  // Senin pekan ini: awal rapat mingguan.
+  const senin = Inti.isoHari(sekarang - ((new Date(sekarang).getDay() + 6) % 7) * HARI);
+  const jawab = daftar => Object.fromEntries(daftar.filter(([p]) => ada(p)).map(([p, nilai, at]) => [p, { nilai, at }]));
+  const acara = (id, orang, f) => {
+    const peserta = (f.peserta || []).filter(ada);
+    const undang = f.undang || sekarang - 2 * HARI;
+    return { ...Inti.periksaAgenda({ pengingat: '10', ...f, peserta, id: 'agdemo-' + id, diundang: Object.fromEntries(peserta.map(p => [p, undang])) }), orang, contoh: true };
+  };
+  const tka = Inti.proyekPengisi(data, 'PKG-001')[0];
+  const t = sub => papi && papi.tasks.find(x => x.sub === sub);
+  const daftar = [
+    acara('rapat-mingguan', MANAGER, {
+      judul: 'Rapat mingguan Divisi Produk', tanggal: senin, mulai: '09:00', selesai: '10:00', ulang: 'mingguan', terbuka: true, lokasi: 'Ruang rapat lt. 3',
+      peserta: ['ali', 'andika', 'alya', 'dhea'], undang: sekarang - 20 * HARI,
+      catatan: 'Agenda tetap:\n1. Progres tiap tim\n2. Task yang tertahan atau terlambat\n3. Keputusan proyek yang menunggu Manager',
+      jawaban: jawab([['ali', 'ya', sekarang - 19 * HARI], ['andika', 'ya', sekarang - 19 * HARI], ['alya', 'mungkin', sekarang - 18 * HARI]]),
+    }),
+  ];
+  if (papi) {
+    const awal = sekarang - 11 * HARI;
+    daftar.push(acara('kickoff-papi', MANAGER, {
+      judul: 'Kickoff proyek PAPI Kostick', tanggal: Inti.isoHari(awal), mulai: '13:00', selesai: '14:00', lokasi: 'Ruang rapat lt. 3',
+      peserta: ['andika', 'ali', 'uma'], undang: awal - 2 * HARI, kait: [{ jenis: 'proyek', id: papi.project.id }],
+      catatan: 'Pembagian kerja RAD dan DAE untuk tes PAPI Kostick.',
+      jawaban: jawab([['andika', 'ya', awal - HARI], ['ali', 'ya', awal - HARI], ['uma', 'ya', awal - HARI]]),
+      notulen: 'Tes PAPI Kostick dibangun dari nol: RAD menyusun instrumen dan norma skor, DAE membangun sistem penilaian dan prototype.\nPrototype dimulai begitu blueprint RAD diajukan, tanpa menunggu tinjauan Manager selesai.\nUji coba terbatas dengan karyawan internal dulu sebelum masuk paket.',
+      notulenAt: awal + 2 * JAM, notulenOleh: MANAGER,
+      tindak: [
+        { id: 'tlkickoff1', teks: 'Blueprint instrumen: 90 pasang pernyataan, 20 aspek, dan norma skor', pic: 'andika', due: t('D2') ? t('D2').due : '', task: t('D2') ? t('D2').id : '' },
+        { id: 'tlkickoff2', teks: 'Rancangan sistem penilaian & laporan otomatis', pic: 'ali', due: t('D4') ? t('D4').due : '', task: t('D4') ? t('D4').id : '' },
+        { id: 'tlkickoff3', teks: 'Daftar karyawan untuk uji coba internal', pic: MANAGER, due: hari(8) },
+      ],
+    }));
+    daftar.push(acara('review-papi', 'andika', {
+      judul: 'Review blueprint instrumen PAPI Kostick', tanggal: hari(1), mulai: '13:00', selesai: '14:00', lokasi: 'Ruang rapat lt. 2',
+      peserta: ['ali', MANAGER, 'uma'], undang: sekarang - 3 * JAM, kait: [{ jenis: 'proyek', id: papi.project.id }, ...(t('D2') ? [{ jenis: 'task', id: t('D2').id }] : [])],
+      catatan: 'Cek 90 pasang pernyataan dan norma skor sebelum blueprint diajukan; DAE menyiapkan kebutuhan data untuk prototype.',
+      jawaban: jawab([['ali', 'ya', sekarang - 2 * JAM], [MANAGER, 'mungkin', sekarang - JAM]]),
+    }));
+  }
+  if (tka) {
+    daftar.push(acara('sinkron-tka', 'alya', {
+      judul: 'Sinkron input & QC soal TKA', tanggal: hari(2), mulai: '10:00', selesai: '10:45', lokasi: 'Ruang LNA',
+      peserta: ['kiki', 'andika', 'dhea'], undang: sekarang - 5 * JAM, kait: [{ jenis: 'paket', id: 'PKG-001' }, { jenis: 'proyek', id: tka.id }],
+      catatan: 'Urutan input batch Latsol dan jadwal QC Web/Android/iOS.',
+      jawaban: jawab([['kiki', 'ya', sekarang - 4 * JAM], ['dhea', 'tidak', sekarang - 3 * JAM]]),
+    }));
+  }
+  const v2 = (inisiatif || []).find(x => x.nama === 'ProductTrack v2');
+  if (ada('ali')) {
+    daftar.push(acara('sharing-dae', 'ali', {
+      judul: 'Sharing session: ProductTrack v2 untuk semua tim', tanggal: hari(3), mulai: '15:00', selesai: '16:00', terbuka: true, lokasi: 'Ruang rapat lt. 3',
+      peserta: ['nadya'], undang: sekarang - 6 * JAM, kait: v2 ? [{ jenis: 'inisiatif', id: v2.id }] : [],
+      catatan: 'Demo Kalender & acara bersama, Inisiatif, dan alur ADDIE per tim. Terbuka untuk semua: tekan Ikut supaya masuk Kalender Saya.',
+      jawaban: jawab([['nadya', 'ya', sekarang - 6 * JAM]]),
+    }));
+    // Nadya ikut sendiri (acara Terbuka), bukan diundang.
+    const s = daftar[daftar.length - 1];
+    if (s.peserta.includes('nadya')) s.ikut = { nadya: sekarang - 6 * JAM };
+  }
+  return daftar;
+}
+
 function tambahDemo(data, sekarang = Date.now()) {
   data.setoran = data.setoran || [];
   const tka = skenarioTka(data, sekarang);
@@ -373,6 +446,7 @@ function tambahDemo(data, sekarang = Date.now()) {
   if (utbk && !utbk.items.length) beriTarget(utbk, TARGET_CONTOH['PKG-006'], sekarang - 2 * HARI);
   const ruang = ruangSayaContoh(data, sekarang);
   const inisiatif = inisiatifContoh(data, sekarang);
+  const acara = acaraContoh(data, sekarang, papi, inisiatif);
   Inti.segarkanTahap(data);
   // Langkah alur di atas dicatat dengan waktu lampau; riwayat harus tetap terbaru di atas.
   data.log.sort((a, b) => b.at - a.at);
@@ -383,6 +457,7 @@ function tambahDemo(data, sekarang = Date.now()) {
     task: proyek.reduce((n, x) => n + x.semua.length, 0),
     setoran: data.setoran.length,
     inisiatif: inisiatif.length,
+    acara,
     ...ruang,
   };
 }

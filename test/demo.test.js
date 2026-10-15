@@ -119,3 +119,25 @@ test('skenario contoh Inisiatif (2.31.0): empat inisiatif DAE, pembaruannya task
   assert.ok(r2.beres.every(t => t.status === 'Selesai'));
 });
 
+
+test('skenario contoh Acara bersama (2.33.0): lintas tim, notulen dengan task, Terbuka, hanya untuk data contoh', () => {
+  const d = data();
+  const { acara } = tambahDemo(d, SEKARANG);
+  assert.deepEqual(acara.map(a => a.id), ['agdemo-rapat-mingguan', 'agdemo-kickoff-papi', 'agdemo-review-papi', 'agdemo-sinkron-tka', 'agdemo-sharing-dae']);
+  assert.ok(acara.every(a => a.contoh && I.acaraBersama(a) && I.periksaAgenda(a)), 'semua sah dan bertanda contoh');
+  const per = Object.fromEntries(acara.map(a => [a.id.slice(7), { ...a, pemilik: a.orang }]));
+  // Kickoff: notulen dengan tiga tindak lanjut, dua sudah jadi task proyek PAPI.
+  const k = per['kickoff-papi'];
+  const papi = d.projects.find(p => p.name === 'Tes Psikologi PAPI Kostick');
+  assert.deepEqual(k.kait, [{ jenis: 'proyek', id: papi.id }]);
+  assert.deepEqual(k.tindak.map(b => !!b.task), [true, true, false]);
+  assert.ok(k.tindak.filter(b => b.task).every(b => d.tasks.find(t => t.id === b.task).project === papi.id));
+  // Review lintas tim (RAD membuat, DAE dan Manager diundang); belum semua menjawab.
+  const r = per['review-papi'];
+  assert.deepEqual([r.pemilik, I.rekapJawaban(r)], ['andika', { ya: 2, mungkin: 1, tidak: 0, belum: 1 }]);
+  assert.ok(I.notifAcara(Object.values(per), [], 'ali', I.isoHari(SEKARANG)).some(n => n.jenis === 'undang' && n.agenda === r.id));
+  // Sharing session Terbuka: Nadya ikut sendiri, siapa pun bisa melihatnya.
+  const s = per['sharing-dae'];
+  assert.deepEqual([s.terbuka, s.peserta, I.bolehLihatAgenda(s, 'bagas')], [true, ['nadya'], true]);
+  assert.equal(I.jawabanAcara(per['sinkron-tka'], 'dhea'), 'tidak');
+});

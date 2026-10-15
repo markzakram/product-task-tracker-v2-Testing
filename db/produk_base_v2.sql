@@ -394,6 +394,8 @@ CREATE TABLE IF NOT EXISTS `v2_setoran` (
 
 -- Kalender Saya (2.28.0): agenda pribadi per profil (data = JSON isinya), hanya untuk
 -- pemiliknya; yang dihapus ditandai. Email pribadi opsional untuk pengingat email nanti.
+-- Acara bersama (2.33.0): peserta, jawaban, kaitan, dan notulen ikut di `data`; `orang` =
+-- pembuatnya. Saringan "yang boleh dilihat" (pembuat, peserta, Terbuka) dilakukan server.
 CREATE TABLE IF NOT EXISTS `v2_agenda` (
   `id`         VARCHAR(64)  NOT NULL,
   `orang`      VARCHAR(64)  NOT NULL,

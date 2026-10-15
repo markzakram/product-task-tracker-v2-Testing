@@ -25,6 +25,7 @@
                     isian { kunci, dihapus: true } menghapus sub-stage yang belum dipakai (2.24.0)
      POST /api/rpc  { action: 'pindahSub', args: [dari, ke] }  [Lead/Manager/Dev] pindahkan sub-stage ke kode lain (2.25.0)
      POST /api/rpc  { action: 'muatAgenda' | 'simpanAgenda' | 'hapusAgenda' | 'simpanPribadi' }  Kalender Saya profil sesi ini (2.28.0)
+     POST /api/rpc  { action: 'jawabAcara' | 'simpanNotulen' | 'tandaiTindak' | 'sibukAcara' }  acara bersama (2.33.0)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
      POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
      POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
@@ -111,6 +112,36 @@ async function profilAgenda(konteks, k) {
   const me = await meSah(konteks, k);
   if (!me || !Inti.ORANG.some(o => o.id === me && o.aktif !== false)) throw new GalatIzin('Pilih profil Anda dulu: Kalender Saya hanya untuk profil yang sedang dipakai.');
   return me;
+}
+/* Semua baris agenda yang terbaca, dengan pembuatnya (pemilik) — 2.33.0. Acara contoh dari
+   impor --demo hanya terlihat selama sumber data contoh, supaya tak muncul di kalender orang
+   saat tim memakai data real. Yang boleh dilihat siapa disaring pemanggilnya. */
+async function semuaAgenda(k, id) {
+  const [baris, sumber] = await Promise.all([sheet.bacaSemuaAgenda(k, id), sheet.sumberData(k, id)]);
+  const hasil = [];
+  for (const b of baris) {
+    let a;
+    try { a = Inti.periksaAgenda(b); } catch (err) { continue; }   // baris rusak dilewati
+    if (a.contoh && sumber !== 'contoh') continue;
+    hasil.push({ ...a, pemilik: b.orang, diperbarui: b.diperbarui, dihapus: b.dihapus });
+  }
+  return hasil;
+}
+/* Satu ubahan pada acara bersama yang masih ada, oleh pembuat atau pesertanya (terbukaBoleh:
+   juga siapa pun untuk acara Terbuka). ubah(a, me, waktu) mengembalikan acara sesudahnya. */
+async function ubahAcara(konteks, idAcara, ubah, terbukaBoleh = false) {
+  const k = await sheet.klien();
+  const id = sheet.idSpreadsheet();
+  const me = await profilAgenda(konteks, k);
+  const a = (await semuaAgenda(k, id)).find(x => x.id === String(idAcara || '') && !x.dihapus);
+  if (!a || !Inti.acaraBersama(a) || !(Inti.ikutAcara(a, me) || (terbukaBoleh && a.terbuka))) {
+    throw new GalatIsian('Acara tidak ditemukan. Mungkin sudah dihapus pembuatnya; muat ulang halaman.');
+  }
+  let hasil;
+  try { hasil = ubah(a, me, Date.now()); } catch (err) { throw new GalatIsian(err.message); }
+  const { dihapus, diperbarui, ...isi } = hasil;
+  if (!(await sheet.tulisAgenda(k, id, { ...isi, orang: a.pemilik }, false))) throw new GalatIsian('Acara tidak ditemukan. Mungkin sudah dihapus pembuatnya; muat ulang halaman.');
+  return { agenda: { ...isi, pemilik: a.pemilik } };
 }
 /* Sejak 2.29.0 siapa yang boleh mengubah Master mengikuti izin master.ubah (Panel Dev → Izin);
    panggil sesudah Inti.aturMaster supaya izin terkini yang berlaku. */
@@ -335,20 +366,75 @@ const AKSI = {
     const k = await sheet.klien();
     const id = sheet.idSpreadsheet();
     const me = await profilAgenda(this, k);
-    const [baris, pribadi] = await Promise.all([sheet.bacaAgenda(k, id, me), sheet.bacaPribadi(k, id, me)]);
-    const agenda = [];
-    for (const b of baris) { try { agenda.push({ ...Inti.periksaAgenda(b), diperbarui: b.diperbarui }); } catch (err) { /* baris rusak dilewati */ } }
-    return { orang: me, agenda, pribadi };
+    const [semua, pribadi] = await Promise.all([semuaAgenda(k, id), sheet.bacaPribadi(k, id, me)]);
+    // Acara bersama (2.33.0): miliknya, yang ia ikuti, dan yang Terbuka; acara yang ia ikuti dan
+    // dibatalkan dua pekan terakhir dikirim sebagai "batal" (untuk notifikasinya).
+    const agenda = [], batal = [];
+    const sejak = Date.now() - 14 * 864e5;
+    for (const a of semua) {
+      if (!a.dihapus) { if (Inti.bolehLihatAgenda(a, me)) agenda.push(a); continue; }
+      if (a.pemilik !== me && a.peserta.includes(me) && a.diperbarui > sejak) {
+        batal.push({ id: a.id, judul: a.judul, tanggal: a.tanggal, mulai: a.mulai, pemilik: a.pemilik, peserta: [me], at: a.diperbarui });
+      }
+    }
+    return { orang: me, agenda, batal, pribadi };
   },
   async simpanAgenda(isian) {
     const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
     const me = await profilAgenda(this, k);
     let a;
     try { a = Inti.periksaAgenda(isian); } catch (err) { throw new GalatIsian(err.message); }
     const baru = !a.id;
+    let lama = null;
+    if (!baru) {
+      lama = (await semuaAgenda(k, id)).find(x => x.id === a.id && !x.dihapus) || null;
+      // Agenda pribadi orang lain tak pernah disebut ada.
+      if (!lama || (lama.pemilik !== me && !Inti.ikutAcara(lama, me))) throw new GalatIsian('Agenda tidak ditemukan. Muat ulang halaman.');
+      if (lama.pemilik !== me) throw new GalatIsian(`Hanya ${Inti.orang(lama.pemilik).pendek}, pembuat acara ini, yang bisa mengubahnya.`);
+    }
+    try { a.peserta = Inti.periksaPeserta(a.peserta, me, lama ? lama.peserta : []); } catch (err) { throw new GalatIsian(err.message); }
+    // Mengundang orang baru atau membuka acara untuk semua mengikuti izin acara.undang.
+    if (a.peserta.some(p => !(lama && lama.peserta.includes(p))) || (a.terbuka && !(lama && lama.terbuka))) {
+      Inti.aturMaster(await sheet.bacaMaster(k, id));
+      if (!Inti.izin(me, 'acara.undang')) throw new GalatIzin(Inti.tolakIzin('acara.undang').message);
+    }
     if (baru) a.id = 'ag' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
-    if (!(await sheet.tulisAgenda(k, sheet.idSpreadsheet(), { ...a, orang: me }, baru))) throw new GalatIsian('Agenda tidak ditemukan. Muat ulang halaman.');
-    return { agenda: a };
+    const hasil = Inti.gabungAcara(lama, a, Date.now());
+    if (!(await sheet.tulisAgenda(k, id, { ...hasil, orang: me }, baru))) throw new GalatIsian('Agenda tidak ditemukan. Muat ulang halaman.');
+    return { agenda: { ...hasil, pemilik: me } };
+  },
+  /* Peserta menjawab undangan (Hadir/Mungkin/Tidak) dan memilih pengingatnya sendiri; acara
+     Terbuka boleh diikuti siapa pun. isian { jawaban?, pengingat? } (pengingat 'bawaan' = ikut
+     pilihan pembuat). */
+  async jawabAcara(idAcara, isian) {
+    return ubahAcara(this, idAcara, (a, me, waktu) => Inti.jawabAcara(a, me, isian, waktu), true);
+  },
+  /* Notulen & tindak lanjut (pembuat atau peserta). isian { notulen, tindak, versi }. */
+  async simpanNotulen(idAcara, isian) {
+    return ubahAcara(this, idAcara, (a, me, waktu) => Inti.ubahNotulen(a, me, isian, waktu));
+  },
+  /* Task yang dibuat dari satu butir tindak lanjut. */
+  async tandaiTindak(idAcara, idTindak, idTask) {
+    return ubahAcara(this, idAcara, (a, me) => Inti.tandaiTindak(a, me, String(idTindak || ''), String(idTask || '')));
+  },
+  /* Siapa yang sudah punya acara bersama di tanggal & jam itu, untuk form acara. Judulnya hanya
+     untuk acara yang boleh dilihat penanya; agenda pribadi tak pernah dihitung. */
+  async sibukAcara(isian) {
+    const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
+    const me = await profilAgenda(this, k);
+    const x = isian && typeof isian === 'object' ? isian : {};
+    let w;
+    try { w = Inti.periksaAgenda({ judul: 'cek', tanggal: x.tanggal, mulai: x.mulai, selesai: x.selesai }); } catch (err) { throw new GalatIsian(err.message); }
+    const orang = [...new Set((Array.isArray(x.orang) ? x.orang : []).map(String))].filter(p => Inti.ORANG.some(o => o.id === p)).slice(0, 60);
+    const semua = (await semuaAgenda(k, id)).filter(a => !a.dihapus);
+    const sibuk = {};
+    for (const p of orang) {
+      const daftar = Inti.bentrokAcara(semua, p, w.tanggal, w.mulai, w.selesai, String(x.kecuali || ''));
+      if (daftar.length) sibuk[p] = daftar.map(a => ({ mulai: a.mulai, selesai: a.selesai, judul: Inti.bolehLihatAgenda(a, me) ? a.judul : '' }));
+    }
+    return { sibuk };
   },
   async hapusAgenda(idAgenda) {
     const k = await sheet.klien();

@@ -966,3 +966,12 @@ test('inisiatif (2.31.0): dideklarasikan tim DAE atau Manager; pembaruannya task
   assert.equal(I.bedaData(I.dataKosong(), kosong).inisiatif.pasang.length, 1);
 });
 
+
+test('singkatTahap: fase ditulis singkat di chip tim, V tak tertukar dengan D (2.33.0)', () => {
+  assert.deepEqual(['A', 'D', 'V', 'I', 'E', 'R'].map(I.singkatTahap), ['Ana', 'Des', 'Dev', 'Imp', 'Eva', 'Rutin']);
+  assert.notEqual(I.singkatTahap('V'), I.singkatTahap('D'));
+  // Setiap fase ADDIE punya singkatan, dan singkatannya awalan nama lengkapnya.
+  for (const t of I.TAHAP) assert.ok(I.namaTahap(t.id).startsWith(I.singkatTahap(t.id)), t.id);
+  assert.equal(I.singkatTahap('X'), 'X', 'kode tak dikenal apa adanya');
+  assert.equal(I.singkatTahap(''), '');
+});

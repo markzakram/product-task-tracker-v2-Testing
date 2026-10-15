@@ -60,9 +60,9 @@
       langkah: [
         '**Ringkasan**: **Hari Ini** (pekerjaan Anda per tenggat; Lead juga melihat antrean timnya), **Dashboard**, dan **Laporan**.',
         '**Pekerjaan**, berurutan seperti alurnya: **Rancangan Paket** (target paket) → **Proyek** (ADDIE) → **Task** → **Komunikasi** (utas per task, ruang tim, dan ruang proyek).',
-        '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan Kalender. Saringannya berlaku di semua tampilan.',
+        '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan **Kalender tim** (tenggat task, acara bersama, dan pendaftaran paket). Saringannya berlaku di semua tampilan.',
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
-        '**Ruang Saya**: Link Saya (termasuk tautan tim) dan Catatan Saya.',
+        '**Ruang Saya**: **Kalender Saya** (agenda pribadi dan acara yang Anda ikuti), Link Saya (termasuk tautan tim), dan Catatan Saya.',
         '**Manajer**: **Riwayat Aktivitas** (Manager) dan **Master** (Lead dan Manager), tempat daftar pilihan bersama diatur. Itu bawaannya: siapa yang boleh membuka halaman ini dan apa saja yang boleh dilakukan tiap peran diatur mode Dev di **Panel Dev → Izin**.',
         '**Sesuaikan tampilan** dan **Setel status** ada di menu foto Anda di kanan atas: warna aksen, latar, sampul, kepadatan, ukuran huruf, halaman awal, dan status ber-emoji. Semuanya milik profil Anda dan ikut ke perangkat lain.',
         '**Tema**: tombol bulan/matahari di samping lonceng memindah terang ↔ gelap dengan sekali klik. Untuk mengikuti tema perangkat, klik foto Anda di kanan atas lalu pilih **Sistem**; di menu yang sama ada **Ganti profil** dan **Keluar**. Pilihannya tersimpan di browser ini; bisa juga lewat Ctrl+K, ketik "tema".',
@@ -100,6 +100,18 @@
         'Catatan pribadi dan hanya ada di **browser ini**; tidak terkirim ke spreadsheet. Unduh sebagai .txt bila perlu disimpan di tempat lain.',
       ],
     },
+    {
+      id: 'mulai-acara', peran: 'mulai', judul: 'Membuat acara dan rapat', tujuan: 'Mengundang orang dari tim mana pun, lalu mencatat hasilnya.', coba: true,
+      langkah: [
+        'Di **Kalender Saya**, tekan **Buat acara**. Bisa juga dari kartu **Acara** di halaman proyek, paket, atau inisiatif, atau ikon kalender di detail task (PIC dan peninjaunya langsung jadi peserta).',
+        'Isi judul, tanggal, jam, lalu lokasi atau tautan rapat (Meet/Zoom) bila ada.',
+        'Di **Peserta**, centang orangnya, atau tekan **+ RAD**, **+ LNA**, … untuk satu tim sekaligus. Peserta yang sudah punya acara lain di jam itu bertanda kuning.',
+        'Centang **Terbuka** untuk acara yang boleh diikuti siapa pun, mis. demo produk atau sharing session. Tanpa itu, acaranya hanya terlihat oleh Anda dan pesertanya.',
+        'Tautkan ke proyek, paket, atau inisiatif supaya acaranya tampil di halaman itu, lalu **Simpan**. Peserta mendapat notifikasi dan menjawab hadir atau tidak.',
+        'Sesudah rapat, buka acaranya dan tekan **Tulis notulen**. Tambahkan butir tindak lanjut dengan PIC-nya, lalu **Jadikan task** di tiap butir.',
+        'Pengingat ProductTrack hanya berbunyi selama aplikasinya terbuka. Untuk pengingat di ponsel, tekan **Google Calendar** atau **Unduh .ics** di detail acara.',
+      ],
+    },
 
     {
       id: 'konsep-status', peran: 'konsep', judul: 'Empat status dan labelnya', tujuan: 'Membaca keadaan task sekilas.', ilustrasi: 'status', coba: true,
@@ -112,8 +124,8 @@
     {
       id: 'konsep-kode', peran: 'konsep', judul: 'Sub-stage dan tim pemilik', tujuan: 'Memahami kode seperti DV8 atau E1 di setiap task.', ilustrasi: 'kode', coba: true,
       langkah: [
-        'Setiap task berkode **sub-stage**. Awalannya menunjukkan tahap: **A** Analysis, **D** Design, **DV** Development, **I** Implementation, **E** Evaluation. Kode **R** (R1–R4) untuk pekerjaan rutin di luar proyek.',
-        'Kode menentukan **tim pemilik**: **DAE** Data & AI Engineer, **RAD** Research, Academic & Development, **LNA** Learning & Architecture, **CLO** Content & Learning Operation, dan **MG** Manager. Arahkan kursor ke kode untuk melihat nama lengkapnya.',
+        'Setiap task berkode **sub-stage**. Awalannya menunjukkan tahap: **A** Analysis, **D** Design, **DV** Development, **I** Implementation, **E** Evaluation. Kode **R** (R1–R4) untuk pekerjaan rutin di luar proyek. Di chip tim, fasenya ditulis singkat: **Ana**, **Des**, **Dev**, **Imp**, **Eva** (mis. **RAD · Dev**).',
+        'Kode menentukan **tim pemilik**: **DAE** Data & AI Engineer, **RAD** Research, Academic & Development, **LNA** Learning & Architecture, **CLO** Content & Learning Operation, dan **MG** Manager. **Ketuk** kode, chip tim, atau label (mis. **Menunggu**) di mana pun: artinya muncul di tempat, dengan tautan ke **Istilah**.',
         'Peninjau: task staff ditinjau Lead-nya, task Lead ditinjau Manager. Kode **A1, A6, D1, I8, dan E12** selalu ditinjau Manager, kecuali task turunan: itu ditinjau Lead yang membaginya.',
         'Daftar sub-stage diatur Lead dan Manager di halaman **Master**: kode baru bisa ditambah, nama, tim pemilik, dan tinjauannya diubah, dan yang tak dipakai lagi dinonaktifkan. Yang belum pernah dipakai task bisa **dihapus**; nomor lain tak bergeser dan kodenya tak dipakai ulang, jadi kode baru melanjutkan dari nomor terbesar (mis. E13).',
         'Kode berwarna biru muda menandai pekerjaan **lepas** warisan v1: pekerjaan produk yang tidak masuk proyek mana pun.',
@@ -122,13 +134,14 @@
     {
       id: 'konsep-tahap', peran: 'konsep', judul: 'ADDIE per tim dan siklus', tujuan: 'Tahu siapa menunggu siapa di sebuah proyek.', ilustrasi: 'tahap', coba: true,
       langkah: [
-        'Halaman proyek dibagi per tim: tab **DAE · RAD · LNA · CLO**, ditambah **Ringkasan**. Tiap tim menjalankan **ADDIE-nya sendiri**: task masuk tab tim pemilik sub-stage-nya.',
+        'Halaman proyek dibagi per tim: tab **DAE · RAD · LNA · CLO** (tiap tab menulis fase tim itu sekarang), ditambah **Ringkasan**. Tiap tim menjalankan **ADDIE-nya sendiri**: task masuk tab tim pemilik sub-stage-nya.',
         'Fase tim **dihitung**: fase task terbuka tim itu yang paling awal. Di dalam satu tim, task baru bisa dimulai setelah task tim itu di fase yang lebih awal selesai; yang sefase dikerjakan **bersamaan**.',
         'Tim yang berbeda **tidak saling menunggu**, kecuali lewat **serah-terima** yang diatur Lead (mis. input LNA menunggu soal dari RAD) dan **gerbang Manager**: task Manager di Analysis (A1, A6) ditunggu fase Design dan sesudahnya di semua tim.',
         '**Lead mengatur urutan timnya** lewat tombol **Atur urutan tunggu** (di tab tim atau detail task): task mana yang ditunggu, termasuk dari tim lain, dan apakah ikut urutan fase timnya. Elaborasi paket sudah memasang serah-terima antartim dan urutan alurnya (mis. tayang menunggu QC). Urutan yang membuat task saling menunggu ditolak.',
         'Klik fase di jalur **A D V I E** sebuah tim untuk membuka task fase itu di tab timnya.',
         'Proyek selalu terbuka di **tab tim Anda**; Manager di **Ringkasan**.',
-        '**Hapus task**: di tab tim, tekan **Pilih task untuk dihapus**, centang task-nya (atau **Pilih semua** per fase), lalu **Hapus**. Turunan ikut terhapus bersama induknya. Satu task juga bisa dihapus dari tombol tempat sampah di detail task. Yang boleh: Manager, Lead untuk task timnya, dan staff untuk task yang ia buat sendiri.',
+        'Kartu **Perlu perhatian Anda** di atas tab berisi yang menunggu tindakan Anda di proyek itu: tinjauan, revisi, langkah yang siap dibagi ke staff, yang terlambat, dan yang tertahan, masing-masing dengan tombolnya. Fase tanpa task dirapatkan jadi satu baris; **+ Tambah** di sampingnya menambah task di fase itu.',
+        '**Hapus task**: di tab tim, buka menu **⋯** lalu pilih **Pilih task untuk dihapus**, centang task-nya (atau **Pilih semua** per fase), lalu **Hapus**. Turunan ikut terhapus bersama induknya. Satu task juga bisa dihapus dari tombol tempat sampah di detail task. Yang boleh: Manager, Lead untuk task timnya, dan staff untuk task yang ia buat sendiri.',
         'Siklus ditutup oleh task **E12 · Final approval** yang disetujui Manager; E12 menunggu semua task lain di siklusnya.',
         'Sesudah Evaluation tidak ada tahap keenam. Manager memilih: **arsipkan** (tuntas), **mulai siklus berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau **tahan**.',
       ],
@@ -146,11 +159,12 @@
     {
       id: 'staff-hari', peran: 'staff', judul: 'Melihat pekerjaan hari ini', tujuan: 'Tahu apa yang dikerjakan lebih dulu.', coba: true,
       langkah: [
-        'Buka **Hari Ini**. Task Anda dikelompokkan: Terlambat, Hari ini, 7 hari ke depan, dan Nanti.',
-        '**Belum bisa dikerjakan** berisi task yang menunggu task lain atau sedang tertahan, lengkap dengan alasannya.',
+        'Buka **Hari Ini**. **Kerjakan sekarang** berisi task yang terlambat dan yang bertenggat hari ini, dengan tombol **Mulai** langsung di barisnya; di bawahnya **7 hari ke depan**. Angka di bawah sapaan bisa diklik untuk melompat ke bagiannya.',
+        'Yang belum perlu ditindak dilipat dengan jumlahnya; klik judulnya untuk membuka. **Nanti**: tenggat lebih dari seminggu lagi, atau tanpa tenggat. **Belum bisa dikerjakan**: menunggu task lain, sedang ditinjau, atau tertahan, lengkap dengan alasannya.',
         '**Saya bantu** berisi task orang lain yang melibatkan Anda. Ceklis pengerjaan milik PIC task-nya, jadi ada di task Anda sendiri.',
         'Klik sebuah task untuk membuka detail dan tombol-tombolnya.',
         'Kartu **Agenda saya hari ini** berisi aktivitas pribadi Anda dari **Kalender Saya** (grup Ruang Saya): tambahkan agenda dengan jam, pengulangan, dan pengingat. Hanya Anda yang melihatnya.',
+        'Undangan acara (rapat, review, sharing session) dari tim mana pun juga masuk Kalender Saya dan lonceng. Jawab **Hadir**, **Mungkin**, atau **Tidak hadir** di bagian **Menunggu jawaban Anda**.',
         'Bahasa tampilan (Indonesia atau English) dipilih dari menu akun di kanan atas; tersimpan untuk profil Anda.',
       ],
     },
@@ -192,7 +206,7 @@
       id: 'staff-tambah', peran: 'staff', judul: 'Menambah task sendiri', tujuan: 'Mencatat pekerjaan Anda yang belum ada di daftar.', coba: true,
       langkah: [
         'Tekan **Tambah task** di kanan atas (di ponsel: tombol **+**).',
-        'Pilih jalur: **Rutin** (kode R) untuk pekerjaan harian, atau **Proyek** bila pekerjaannya bagian dari proyek. Pilih sendiri jenis rutin atau **sub-stage**-nya; tidak ada pilihan bawaan. Sub-stage proyek yang tersedia hanya milik tim Anda.',
+        'Di **Task ini untuk apa?**, pilih **Rutin** (kode R) untuk pekerjaan harian, atau **Proyek** bila pekerjaannya bagian dari proyek. Pilih sendiri jenis rutin atau **sub-stage**-nya; tidak ada pilihan bawaan. Sub-stage proyek yang tersedia hanya milik tim Anda; kotak cari muncul bila daftarnya panjang.',
         'PIC-nya otomatis Anda sendiri. Menyerahkan task ke orang lain tetap lewat Lead.',
         'Lead Anda mendapat notifikasi. Task proyek tetap diajukan ke Lead untuk ditinjau; task rutin langsung ditandai selesai.',
         'Salah ketik? Task buatan sendiri bisa diperbaiki lewat **Ubah** di detail task.',
@@ -213,7 +227,7 @@
     {
       id: 'lead-antrean', peran: 'lead', judul: 'Memecah langkah jadi task turunan', tujuan: 'Membagi pekerjaan langkah yang Anda pegang ke staff tim, atau ke diri sendiri.', ilustrasi: 'antrean', coba: true,
       langkah: [
-        'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Antrean tim · siap dibagi** di Hari Ini.',
+        'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Kerjakan sekarang** di Hari Ini, bertanda **Siap dibagi**. Tekan **Bagi ke staff** di barisnya (atau di kartu **Perlu perhatian Anda** di halaman proyek): detail task terbuka di bagian **Task turunan**, siap diisi. **Kerjakan sendiri** memulainya tanpa task turunan.',
         'Buka langkahnya. Di bagian **Task turunan**, tulis bagian pekerjaannya, pilih PIC-nya (staff tim, atau **Anda sendiri**) dan tenggat, lalu tekan **Buat task turunan**. Ulangi untuk bagian lain.',
         'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Langkahnya sendiri tetap Anda pegang: task Lead tidak diserahkan ke staff.',
         'Setelah semua task turunan disetujui, lengkapi output langkah Anda, lalu ajukan ke Manager. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
@@ -223,7 +237,7 @@
     {
       id: 'lead-tinjau', peran: 'lead', judul: 'Meninjau hasil kerja', tujuan: 'Menyetujui atau mengembalikan task yang diajukan.', ilustrasi: 'tinjau', coba: true,
       langkah: [
-        'Task yang menunggu Anda ada di **Perlu Anda tinjau** (Hari Ini) dan **Menunggu tinjauan Anda** (Proyek).',
+        'Task yang menunggu Anda ada di **Kerjakan sekarang** (Hari Ini, bertanda **Tinjau**), di kartu **Perlu perhatian Anda** di halaman proyeknya, dan di **Menunggu tinjauan Anda** (Proyek).',
         'Buka task-nya: di tab **Kerjakan**, **Hasil kerja** dan ceklisnya sudah terbuka untuk diperiksa; percakapannya di tab **Diskusi**.',
         'Tekan **Setujui** kalau sudah benar. Kalau langkah itu bercapaian, progres paketnya ikut naik.',
         'Kalau belum, tekan **Kembalikan** dan tulis yang perlu diperbaiki. Task kembali ke PIC dengan label Revisi.',
@@ -232,11 +246,11 @@
     {
       id: 'lead-buat', peran: 'lead', judul: 'Membuat task', tujuan: 'Menambah pekerjaan dengan kode dan PIC yang tepat.', ilustrasi: 'formtask', coba: true,
       langkah: [
-        'Tekan **Tambah task**, lalu pilih jalur **Proyek** atau **Rutin**. Dari tab tim di halaman proyek, **Tambah task di …** langsung memakai jalur Proyek dan hanya menawarkan sub-stage tim dan fase itu.',
-        'Pilih proyek dan **sub-stage**-nya (wajib; tidak ada pilihan bawaan). Keterangan di bawahnya menyebut fase dan tim pemiliknya.',
+        'Tekan **Tambah task**, lalu di **Task ini untuk apa?** pilih **Proyek** atau **Rutin**. Dari halaman proyek, proyeknya sudah terpilih; dari tab tim, **Tambah task di …** langsung memakai jalur Proyek dan hanya menawarkan sub-stage tim dan fase itu.',
+        'Pilih proyek dan **sub-stage**-nya (wajib; tidak ada pilihan bawaan). Sub-stage tim Anda di atas; tim lain dilipat di **Sub-stage tim lain**. Tiap baris menyebut fasenya, timnya bila bukan tim Anda, dan bila direview Manager.',
         'Pilih **PIC**: anggota tim Anda, atau Lead tim pemilik kalau sub-stage itu milik tim lain (mis. DV8 Input dipegang Lead LNA).',
         'Kalau PIC-nya staff Anda (atau Anda sendiri) dan Anda memegang task di fase yang sama, pilih **Task induk** supaya task ini menjadi task turunannya.',
-        'Isi tenggat dan keterangan, lalu tekan **Tambah task**.',
+        'Isi tenggat dan keterangan (prioritas dan output ada di **Lainnya**), lalu tekan **Tambah task**.',
       ],
     },
     {
@@ -245,7 +259,7 @@
         'Buka **Rancangan Paket**, pilih paketnya, lalu tekan **Elaborasi jadi proyek**.',
         'Centang target yang dikerjakan; awalnya belum ada yang tercentang (**Centang semua** bila semuanya). Jumlahnya boleh dikecilkan, mis. target 10 tapi proyek ini 5.',
         'Pilih **Alur lengkap per jenis**, lalu coret langkah yang tidak perlu.',
-        'Pilih **proyek tujuan** (baru atau yang sudah ada) dan tenggat, lalu tekan **Buat task**.',
+        'Pilih **proyek tujuan** (baru atau yang sudah ada) dan tenggat. Kotak pratinjau menghitung berapa task yang akan dibuat dan untuk siapa saja; tombolnya menulis jumlahnya, mis. **Buat 43 task**.',
         'Langkah-langkahnya masuk tab tim pemiliknya dan dikerjakan menurut fase ADDIE tim itu. Serah-terima antartim (mis. input menunggu soal) dan urutan alurnya (tayang menunggu QC) dipasang otomatis; Lead tim bisa mengubahnya lewat **Atur urutan tunggu**.',
       ],
     },
@@ -254,7 +268,7 @@
       langkah: [
         'Di **Task**, pilih tampilan **Per orang** (ikon di atas daftar) untuk melihat beban tiap anggota tim.',
         'Tab **Terlambat**, **Tertahan**, dan **Tinjauan saya** di atas daftar langsung menyaring task yang perlu ditindak.',
-        '**Dashboard** menunjukkan skor bottleneck: siapa yang paling banyak ditunggu orang lain.',
+        '**Dashboard** dibuka dengan **Perlu perhatian**: beban di atas kapasitas, pekerjaan yang ditunggu banyak task lain, yang terlambat dan tertahan, masing-masing dengan tombol ke task-nya.',
         '**Laporan** merangkum per minggu atau bulan; **Salin ringkasan** siap ditempel di chat.',
       ],
     },
@@ -262,10 +276,10 @@
     {
       id: 'manager-proyek', peran: 'manager', judul: 'Membaca halaman Proyek', tujuan: 'Melihat keadaan semua proyek sekilas.', coba: true,
       langkah: [
-        'Setiap baris menunjukkan tim beserta fasenya (mis. **RAD V**, **CLO ✓**), progres siklus, dan keadaannya: Sesuai rencana, Berisiko, Siklus selesai, dan lainnya.',
+        'Setiap baris menunjukkan tim beserta fasenya (mis. **RAD Dev**, **CLO ✓**; ketuk chip-nya untuk artinya), progres siklus, dan keadaannya: Sesuai rencana, Berisiko, Siklus selesai, dan lainnya.',
         'Kotak **Keputusan siklus** berisi proyek yang task E12-nya sudah disetujui.',
         'Klik proyek untuk melihat **Ringkasan** semua tim dan gerbang Manager, lalu tab tiap tim dengan task per fase ADDIE-nya. Peringatan merah muncul kalau ada task yang saling menunggu.',
-        '**Hapus proyek** (di halaman proyek) menghapus proyek beserta semua task dan setoran paketnya, setelah ID proyeknya diketik ulang. Untuk proyek yang sudah selesai, lebih aman **arsipkan**: semuanya tetap ada dan bisa diaktifkan lagi.',
+        '**Hapus proyek** (menu **⋯** di halaman proyek, bersama **Ubah proyek** dan **Duplikat proyek**) menghapus proyek beserta semua task dan setoran paketnya, setelah ID proyeknya diketik ulang. Untuk proyek yang sudah selesai, lebih aman **arsipkan**: semuanya tetap ada dan bisa diaktifkan lagi.',
       ],
     },
     {
@@ -289,9 +303,10 @@
     {
       id: 'manager-dashboard', peran: 'manager', judul: 'Membaca Dashboard', tujuan: 'Melihat beban dan hambatan divisi.', ilustrasi: 'bottleneck', coba: true,
       langkah: [
-        'Ubin atas: task aktif, terlambat, tertahan, menunggu tinjauan, dan selesai 30 hari. Ubin Terlambat dan Tertahan bisa diklik untuk membuka Task yang tersaring.',
-        'Task aktif dibagi per tahap proyek, tim pemilik, dan platform.',
-        'Tabel per orang menampilkan **skor bottleneck**. Kuning mulai 3 dan merah mulai 6: orang itu perlu dibantu, atau pekerjaannya dibagi.',
+        '**Perlu perhatian** di paling atas: orang yang memegang task aktif melebihi kapasitas, orang yang pekerjaannya ditunggu 3 task lain atau lebih, task terlambat, task tertahan, dan proyek berisiko. Tiap baris punya tombol untuk melihatnya.',
+        'Ubin di bawahnya: task aktif, terlambat, tertahan, menunggu tinjauan, dan selesai 30 hari. Ubin Terlambat dan Tertahan bisa diklik untuk membuka Task yang tersaring.',
+        'Tabel **Per orang**: task aktif dari kapasitas, **Ditunggu task lain** (berapa task lain menunggu pekerjaannya selesai), **Menunggu tinjauannya**, terlambat, dan selesai 30 hari. Angka Ditunggu task lain yang tinggi berarti orang itu perlu dibantu, atau pekerjaannya dibagi.',
+        'Pembagian per status, tim pemilik, platform, dan proyek per tahap ada di **Rincian lain** (dilipat).',
       ],
     },
     {
@@ -321,12 +336,12 @@
     ['Label', 'Keadaan yang dihitung dari status: **Siap**, **Menunggu**, **Revisi**, dan **Tertahan**.'],
     ['Sub-stage', 'Kode langkah kerja: A, D, DV, I, dan E di dalam proyek; R untuk rutin. Daftarnya diatur Lead dan Manager di Master.'],
     ['Tim pemilik', 'Tim yang memegang sebuah sub-stage: DAE, RAD, LNA, CLO, atau MG (Manager). Nama dan singkatannya diatur di Master.'],
-    ['Antrean tim', 'Langkah proyek yang sudah bisa dimulai, di Hari Ini Lead tim pemiliknya: dikerjakan sendiri atau dibagi ke staff lewat task turunan.'],
+    ['Antrean tim', 'Langkah proyek yang sudah bisa dimulai, di Hari Ini Lead tim pemiliknya (bertanda **Siap dibagi**): dikerjakan sendiri atau dibagi ke staff lewat task turunan.'],
     ['Task turunan', 'Bagian pekerjaan yang dibuat Lead di bawah task yang ia pegang, untuk staff timnya atau untuk dirinya sendiri (dulu disebut task anak). Tampil menjorok di bawah induknya; yang dipegang staff ditinjau Lead itu. Induknya baru bisa diajukan setelah semua turunannya selesai.'],
     ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, ceklis, task turunan (kalau ada), task yang ditunggu sudah diajukan atau selesai, dan tidak tertahan.'],
     ['Serah-terima', 'Task yang diatur menunggu task lain, juga dari tim lain. Begitu task yang ditunggu diajukan untuk ditinjau, task berikutnya sudah bisa mulai sejajar; E12 tetap menunggu semuanya disetujui.'],
     ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task turunan), Manager untuk task Lead dan kode bertanda Manager.'],
-    ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1).'],
+    ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1). Di form Tambah task dipilih lewat **Task ini untuk apa?**, ditambah **Inisiatif** untuk pembaruan inisiatif.'],
     ['Fase', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation, dijalankan tiap tim di proyek. Task sefase dalam satu tim dikerjakan bersamaan; fase berikutnya menunggu fase sebelumnya tim itu selesai.'],
     ['Urutan tunggu', 'Yang harus selesai dulu sebelum sebuah task jalan: fase timnya (bawaan), serah-terima yang diatur Lead (boleh dari tim lain), gerbang Manager (A1, A6), dan untuk E12 semua task lain di siklusnya.'],
     ['Siklus', 'Satu putaran ADDIE. Ditutup task E12 yang disetujui; siklus berikutnya opsional.'],
@@ -405,6 +420,7 @@
       case 'staff-diskusi': return { view: 'komunikasi', ket: 'Komunikasi' };
       case 'mulai-ruang': return { view: 'link', ket: 'Link Saya' };
       case 'mulai-catatan': return { view: 'catatan', ket: 'Catatan Saya' };
+      case 'mulai-acara': return { view: 'agenda', ket: 'Kalender Saya' };
 
       case 'lead-antrean':
         for (const l of lead.includes(me) ? [me, ...lead.filter(x => x !== me)] : lead) {
