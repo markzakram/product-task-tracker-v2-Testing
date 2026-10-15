@@ -304,7 +304,7 @@
     lap: { periode: 'minggu', tim: '', buka: '' },
     /* Komunikasi: pilih = ruang yang terbuka (task:PRD-…, proyek:PRJ-…, tim:AK); balas/ubah = id
        pesan di kotak tulis; tanya = pesan berikut menunggu jawaban; draf per ruang. */
-    kom: { lingkup: 'terlibat', q: '', saring: 'semua', pilih: null, balas: '', ubah: '', tanya: false, draf: {}, konteks: ambil('kom_konteks', !hp()), proyekSemua: false, lompat: '', batasBaru: null, keBawah: false },
+    kom: { lingkup: 'terlibat', q: '', saring: 'semua', pilih: null, balas: '', ubah: '', tanya: false, draf: {}, konteks: ambil('kom_info', false), cepatBuka: false, grupBuka: new Set(), proyekSemua: false, lompat: '', batasBaru: null, keBawah: false },
     /* Pesan bersama dari tab obrolan spreadsheet v2 (lihat tarikObrolan). */
     obr: { peristiwa: [], sejak: 0, versi: 0, diperbarui: 0, galat: '', gagal: 0, menarik: false },
     pkt: { q: '', platform: [], dari: '', sampai: '', atur: false, pilih: null, sunting: false, kotor: false },
@@ -4536,7 +4536,7 @@
     ['tanya', 'Perlu jawaban', 'tanya'],
     ['semua', 'Semua utas', 'pesan'],
   ];
-  const PESAN_CEPAT = ['Sudah saya cek ✅', 'Mohon dicek ya 🙏', 'Sedang saya kerjakan', 'Butuh bantuan untuk ini'];
+
   const CALON_PERAN = [['semua', 'Semua orang di divisi'], ['lead', 'Semua Lead'], ['staff', 'Semua staff'], ['manager', 'Manager']];
 
   /* ----- Pesan bersama: susunan, tarik, kirim ----- */
@@ -4581,12 +4581,21 @@
   }
 
   /* Kuota baca Sheets dihitung per service account, jadi jedanya hemat: 20 detik di
-     Komunikasi, semenit di halaman lain, berhenti saat tab tak terlihat, melambat saat gagal. */
+     Komunikasi, semenit di halaman lain, berhenti saat tab tak terlihat, melambat saat gagal.
+     Sejak 2.35.0 (permintaan user) 8 detik selama sebuah utas terbuka (ruang di Komunikasi, atau
+     tab Diskusi di detail task), dan ditarik seketika saat utas dibuka. Server memakai bacaan
+     yang sama selama 3 detik untuk semua yang menarik, jadi bebannya tetap terbatas. */
   let jamTarik = null;
+  const utasTerbuka = () => (S.view === 'komunikasi' && !!S.kom.pilih)
+    || (!!S.pilih && !!S.detailTab && S.detailTab.id === S.pilih && S.detailTab.tab === 'diskusi');
+  function segarkanUtas() {
+    if (S.obr.menarik || !S.data || Date.now() - (S.obr.diperbarui || 0) < 3000) return jadwalkanTarik();
+    tarikObrolan().then(jadwalkanTarik);
+  }
   function jadwalkanTarik() {
     clearTimeout(jamTarik);
     // Data real ikut ditarik di sini, jadi di halaman lain lebih sering (30 detik).
-    const dasar = S.view === 'komunikasi' ? 20000 : S.mode === 'real' ? 30000 : 60000;
+    const dasar = utasTerbuka() ? 8000 : S.view === 'komunikasi' ? 20000 : S.mode === 'real' ? 30000 : 60000;
     jamTarik = setTimeout(async () => {
       if (!document.hidden && S.data && !$('#app').hidden) await tarikObrolan();
       jadwalkanTarik();
@@ -4709,6 +4718,7 @@
     S.notif.buka = false;
     if (S.view !== 'komunikasi' || S.pilih) { S.pilih = null; pindahHalaman('komunikasi'); } else render();
     if (!hp()) { const ta = $('#tulis-kom'); if (ta) ta.focus({ preventScroll: true }); }
+    segarkanUtas();
   }
   /* Setelah digambar: ke pesan yang dituju, ke batas "Pesan baru", atau ke paling bawah. */
   /* foto = posisi sebelum digambar ulang (render): yang sedang membaca pesan lama di utas yang
@@ -4872,17 +4882,27 @@
         <p class="hint">${tr('Task ini tak ada di data contoh browser Anda, tetapi percakapannya tetap terbagi.')}</p></div>`;
     }
     if (jenis === 'task') {
-      const tombol = I.aksiUntuk(t, S.me, perIdKini()).map(a => `<button type="button" class="tombol kecil ${a.utama ? 'utama' : ''}" data-aksi="aksi-task" data-id="${esc(t.id)}" data-kunci="${a.kunci}"${a.nonaktif ? ` disabled title="${esc(trPola(a.alasan || ''))}"` : ''}>${esc(labelAksi(a))}</button>`).join('');
+      /* Kepala ringkas (2.35.0): sub-stage, status, PIC → peninjau, dan tenggat sekali saja. Aksi
+         utama (dan Kembalikan bagi peninjau) tetap di sini; yang membalik keadaan atau jarang
+         dipakai (Tarik dari tinjauan, Buka kembali, tertahan) pindah ke menu ⋯. */
+      const aksi = I.aksiUntuk(t, S.me, perIdKini());
+      const diKepala = a => a.utama || a.kunci === 'kembalikan';
+      const nonaktif = a => (a.nonaktif ? ` disabled title="${esc(trPola(a.alasan || ''))}"` : '');
+      const tombol = aksi.filter(diKepala).map(a => `<button type="button" class="tombol kecil ${a.utama ? 'utama' : ''}" data-aksi="aksi-task" data-id="${esc(t.id)}" data-kunci="${a.kunci}"${nonaktif(a)}>${esc(labelAksi(a))}</button>`).join('');
+      const lain = aksi.filter(a => !diKepala(a)).map(a => `<button type="button" data-aksi="aksi-task" data-id="${esc(t.id)}" data-kunci="${a.kunci}"${nonaktif(a)}>${ikon(IKON_AKSI_LAIN[a.kunci] || 'kilat', 16)}<span>${esc(labelAksi(a))}</span></button>`).join('');
+      const tinjau = I.peninjau(t);
+      const sub = t.sub ? I.subTahap(t.sub) : null;
+      const orangnya = tinjau && tinjau !== t.pic ? tr('PIC {pic} → peninjau {peninjau}', { pic: nama(t.pic), peninjau: nama(tinjau) }) : tr('PIC {pic}', { pic: nama(t.pic) });
       return `${kembali}<div class="km-kepala-isi">
           <p class="detail-asal">${esc(asal(t))} · ${esc(t.id)}</p>
           <h2>${esc(t.title)}</h2>
-          <div class="detail-chip">${chipJalur(t)} ${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} <span class="hint">${tr('PIC')} ${nama(t.pic)}</span></div>
+          <div class="detail-chip">${chipJalur(t)}${sub ? `<span class="km-sub-nama">${esc(sub.nama)}</span>` : ''} ${pillStatus(t.status)} ${chipLabel(t)} <span class="hint">${orangnya}</span> ${chipTenggat(t)}</div>
           ${tombol ? `<div class="km-aksi">${tombol}</div>` : ''}
         </div>
         <div class="km-kepala-alat">
-          <button type="button" class="ikon-tombol" data-aksi="kom-konteks" aria-pressed="${!!S.kom.konteks}" title="${S.kom.konteks ? tr('Sembunyikan konteks task') : tr('Tampilkan konteks task')}" aria-label="${tr('Konteks task')}">${ikon('info', 18)}</button>
           ${salin}
           <button type="button" class="tombol kecil" data-aksi="buka-task" data-id="${esc(t.id)}">${tr('Detail')}</button>
+          ${lain ? menuLagi(tr('Aksi lain task ini'), lain) : ''}
         </div>`;
     }
     if (jenis === 'proyek') {
@@ -4897,25 +4917,32 @@
       <div class="km-kepala-alat">${salin}</div>`;
   }
 
-  /* Konteks task di atas percakapan: cukup untuk memutuskan tanpa membuka detailnya. */
+  const IKON_AKSI_LAIN = { tarik: 'ulang', buka: 'ulang', tahan: 'jeda', lanjutkan: 'kanan' };
+  /* Info task di bawah kepala utas (2.35.0): satu baris ringkas (output, yang ditunggu, syarat
+     ajukan) yang bisa dibuka untuk proyeknya dan daftar syaratnya. PIC, peninjau, tenggat, dan
+     sub-stage sudah di kepala, jadi tak diulang. */
   function konteksTask(t) {
-    if (!S.kom.konteks) return '';
     const perId = perIdKini();
     const p = t.project ? proyekDari(t.project) : null;
     const tunggu = I.aktif(t) ? I.alasanTunggu(t, perId) : '';
     const syarat = t.lane === 'proyek' && I.aktif(t) && t.status !== 'Ditinjau' ? I.syaratAjukan(t, perId) : [];
-    const tinjau = I.peninjau(t);
+    const ringkas = [
+      t.output ? `<span>${tr('Output')}: <b>${esc(potong(t.output, 60))}</b></span>` : '',
+      tunggu ? `<span class="km-info-tunggu">${esc(trPola(tunggu))}</span>` : '',
+      syarat.length ? `<span>${tr('Syarat ajukan {a}/{b}', { a: syarat.filter(s => s.ok).length, b: syarat.length })}</span>` : '',
+    ].filter(Boolean).join('<span class="km-info-titik" aria-hidden="true">·</span>');
+    if (!ringkas && !p) return '';
+    const buka = !!S.kom.konteks;
     return `<div class="km-konteks">
-        <dl class="km-fakta">
-          ${t.sub ? `<div><dt>${tr('Sub-stage')}</dt><dd>${esc(I.namaSub(t.sub))}</dd></div>` : ''}
-          ${p ? `<div><dt>${tr('Proyek§satu')}</dt><dd><button type="button" class="tautan-kecil" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button></dd></div>` : ''}
-          <div><dt>${tr('PIC')}</dt><dd>${nama(t.pic)}</dd></div>
-          ${tinjau ? `<div><dt>${tr('Peninjau')}</dt><dd>${nama(tinjau)}</dd></div>` : ''}
-          <div><dt>${tr('Tenggat')}</dt><dd>${t.due ? esc(fmtTanggal(t.due)) : '—'}</dd></div>
-          ${t.output ? `<div class="lebar"><dt>${tr('Output')}</dt><dd>${esc(t.output)}</dd></div>` : ''}
-        </dl>
-        ${tunggu ? `<p class="km-konteks-tunggu">${esc(trPola(tunggu))}</p>` : ''}
-        ${syarat.length ? `<ul class="km-syarat">${syarat.map(s => `<li class="${s.ok ? 'ok' : ''}">${ikon(s.ok ? 'centang' : 'bulat', 14)}${esc(trPola(s.label))}</li>`).join('')}</ul>` : ''}
+        <button type="button" class="km-info-tombol" data-aksi="kom-konteks" aria-expanded="${buka}">${ikon(buka ? 'bawah' : 'kanan', 14)}<b>${tr('Info task')}</b>${ringkas ? `<span class="km-info-ringkas">${ringkas}</span>` : ''}</button>
+        ${buka ? `<div class="km-info-isi">
+          <dl class="km-fakta">
+            ${p ? `<div><dt>${tr('Proyek§satu')}</dt><dd><button type="button" class="tautan-kecil" data-aksi="buka-proyek" data-id="${esc(p.id)}">${esc(p.name)}</button></dd></div>` : ''}
+            ${t.output ? `<div class="lebar"><dt>${tr('Output')}</dt><dd>${esc(t.output)}</dd></div>` : ''}
+          </dl>
+          ${tunggu ? `<p class="km-konteks-tunggu">${esc(trPola(tunggu))}</p>` : ''}
+          ${syarat.length ? `<ul class="km-syarat">${syarat.map(s => `<li class="${s.ok ? 'ok' : ''}">${ikon(s.ok ? 'centang' : 'bulat', 14)}${esc(trPola(s.label))}</li>`).join('')}</ul>` : ''}
+        </div>` : ''}
       </div>`;
   }
 
@@ -4953,15 +4980,23 @@
     const pertamaBaru = b === null ? null
       : semua.find(x => !x.sistem && x.oleh !== S.me && !x.dihapus && x.at > Math.max(b, x.bersama ? awalBersama() : S.dimuat || 0));
     let hari = '', sebelum = null, html = '';
+    // Kejadian task berturut-turut (tanpa pesan di antaranya) dikumpulkan jadi satu baris (2.35.0).
+    let jejakBeruntun = [];
+    const tutupJejak = () => {
+      if (jejakBeruntun.length) html += jejakBeruntun.length > 1 ? grupSistem(jejakBeruntun) : barisSistem(jejakBeruntun[0]);
+      jejakBeruntun = [];
+    };
     for (const x of semua) {
       const h = labelHari(x.at);
-      if (h !== hari) { html += `<div class="km-hari"><span>${esc(h)}</span></div>`; hari = h; sebelum = null; }
-      if (x === pertamaBaru) { html += `<div class="km-batas-baru"><span>${tr('Pesan baru')}</span></div>`; sebelum = null; }
-      if (x.sistem) { html += barisSistem(x); sebelum = null; continue; }
+      if (h !== hari) { tutupJejak(); html += `<div class="km-hari"><span>${esc(h)}</span></div>`; hari = h; sebelum = null; }
+      if (x === pertamaBaru) { tutupJejak(); html += `<div class="km-batas-baru"><span>${tr('Pesan baru')}</span></div>`; sebelum = null; }
+      if (x.sistem) { jejakBeruntun.push(x); sebelum = null; continue; }
+      tutupJejak();
       const sambung = !!sebelum && sebelum.oleh === x.oleh && !!sebelum.ai === !!x.ai && x.at - sebelum.at < 5 * 60000 && !x.balas && !sebelum.tanya.length && !x.tanya.length;
       html += gelembung(x, wadah, sambung, pesan);
       sebelum = x;
     }
+    tutupJejak();
     return html;
   }
 
@@ -4969,6 +5004,23 @@
     Diajukan: ['tugas', 'mengajukan untuk ditinjau', ''], Dikembalikan: ['ulang', 'mengembalikan', 'kembali'],
     Disetujui: ['centang', 'menyetujui', 'setuju'], Ditarik: ['ulang', 'menarik dari tinjauan', ''],
   };
+  /* Ringkasan beberapa kejadian: "Nynda menyetujui → Ali: Dibuka kembali → Ali mengajukan…",
+     bisa dibuka untuk melihat tiap barisnya. Buka-tutupnya bertahan selama halaman terbuka. */
+  function frasaSistem(a) {
+    if (a.jenis !== 'tinjau') return `<b>${nama(a.oleh)}</b>: ${esc(potong(a.teks, 40))}`;
+    const [, kata, kelas] = KATA_TINJAU[a.aksi] || ['', String(a.aksi).toLowerCase(), ''];
+    return `<span class="km-frasa ${kelas}"><b>${nama(a.oleh)}</b> ${esc(tr(kata))}</span>`;
+  }
+  function grupSistem(jejak) {
+    const kunci = jejak[0].id || String(jejak[0].at);
+    const tampil = jejak.length > 3 ? [jejak[0], jejak[1], null, jejak[jejak.length - 1]] : jejak;
+    const frasa = tampil.map(a => (a ? frasaSistem(a) : esc(tr('… {n} lagi', { n: jejak.length - 3 })))).join(' <span aria-hidden="true">→</span> ');
+    const awal = fmtJam(jejak[0].at), akhir = fmtJam(jejak[jejak.length - 1].at);
+    return `<details class="km-sistem-grup" data-grup="${esc(kunci)}" ${S.kom.grupBuka.has(kunci) ? 'open' : ''}>
+        <summary>${ikon('kanan', 14)}<span>${frasa}</span><small>${esc(awal === akhir ? awal : `${awal}–${akhir}`)}</small></summary>
+        ${jejak.map(barisSistem).join('')}
+      </details>`;
+  }
   function barisSistem(a) {
     const [ik, kata, kelas] = a.jenis === 'tinjau' ? KATA_TINJAU[a.aksi] || ['kilat', String(a.aksi).toLowerCase(), ''] : [a.jenis === 'create' ? 'tambah' : 'kilat', '', ''];
     const isi = a.jenis === 'tinjau'
@@ -4983,7 +5035,7 @@
     const lokal = !m.bersama && m.at > (S.dimuat || 0);
     const kepala = sambung ? '' : `<div class="km-psn-kepala"><strong>${saya ? tr('Anda') : esc(I.orang(m.oleh).nama)}</strong>${statusHtml(m.oleh)}${tandaAi(m.ai)}
         <small>${esc(fmtJam(m.at))}${m.diubah ? ' · ' + tr('diubah') : ''}${lokal ? ' · ' + tr('hanya di browser ini') : ''}</small></div>`;
-    const isi = m.dihapus ? `<i class="km-dihapus">${m.dimoderasi ? tr('Pesan dihapus oleh Dev') : tr('Pesan dihapus')}</i>` : `<div class="km-teks">${formatPesan(m.teks)}</div>`;
+    const isi = m.dihapus ? `<i class="km-dihapus">${m.dimoderasi ? tr('Pesan dihapus oleh Dev') : tr('Pesan dihapus')}</i>` : `<div class="km-teks">${formatPesan(m.teks, { kartu: true })}</div>`;
     const status = m.tertunda ? `<div class="km-status">${tr('Mengirim…')}</div>`
       : m.gagal ? `<div class="km-status gagal">${tr('Belum terkirim.')} <button type="button" class="tautan-kecil" data-aksi="psn-ulang" data-id="${esc(m.id)}">${tr('Kirim ulang')}</button> · <button type="button" class="tautan-kecil" data-aksi="psn-buang" data-id="${esc(m.id)}">${tr('Buang')}</button></div>` : '';
     return `<div class="km-psn ${saya ? 'saya' : ''} ${sambung ? 'sambung' : ''} ${kena ? 'kena' : ''}" id="psn-${wadah}-${esc(m.id)}">
@@ -5052,22 +5104,38 @@
     return `<span class="km-sebut ${kena ? 'saya' : ''}" title="${esc(o ? o.nama : CALON_PERAN.reduce((t, [a, b]) => (a === k ? tr(b) : t), tr('Semua {peran}', { peran: k })))}">@${esc(o ? o.pendek : k)}</span>`;
   }
   const sebutDalam = s => esc(s).replace(/(^|[^A-Za-z0-9_])@([A-Za-z]+)/g, (x, a, b) => a + tandaSebut(b));
-  function formatPesan(teks) {
+  /* Kartu tautan berkas Google (2.35.0): ikon jenisnya, judul (label tautan, atau jenisnya), dan
+     alamat ringkas. Hanya di gelembung pesan (opsi.kartu); Catatan Saya tetap tautan biasa. */
+  const IKON_BERKAS = { sheets: 'tabel', docs: 'laporan', slides: 'jendela', forms: 'centangKotak', drive: 'folder' };
+  const kartuTautanHtml = (u, k, label) => `<a class="km-kartu-tautan" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span class="km-kartu-ikon ${k.jenis}">${ikon(IKON_BERKAS[k.jenis], 18)}</span><span class="km-kartu-teks"><b>${esc(label || k.judul)}</b><small>${esc(label ? k.judul : k.ket)}</small></span></a>`;
+  function formatPesan(teks, opsi = {}) {
     const s = String(teks || '');
     const pola = new RegExp(POLA_FORMAT.source, 'g');
     let out = '', i = 0, m;
+    // Kartu berdiri di barisnya sendiri: satu ganti baris tepat sebelum dan sesudahnya tak ikut.
+    const pasangKartu = html => { out = out.replace(/\n$/, '') + html; };
     while ((m = pola.exec(s))) {
       const g = m.groups;
       out += esc(s.slice(i, m.index));
       if (g.kode !== undefined) out += `<code>${esc(g.kode)}</code>`;
       else if (g.tebal !== undefined) out += `<strong>${sebutDalam(g.tebal)}</strong>`;
       else if (g.coret !== undefined) out += `<s>${sebutDalam(g.coret)}</s>`;
-      else if (g.label !== undefined) out += `<a href="${esc(g.alamat)}" target="_blank" rel="noopener noreferrer">${esc(g.label)}</a>`;
-      else if (g.miring !== undefined) out += `${esc(g.pra)}<em>${sebutDalam(g.miring)}</em>`;
+      else if (g.label !== undefined) {
+        const k = opsi.kartu ? I.kartuTautan(g.alamat) : null;
+        if (k) {
+          pasangKartu(kartuTautanHtml(g.alamat, k, g.label));
+          i = pola.lastIndex + (s[pola.lastIndex] === '\n' ? 1 : 0);
+          pola.lastIndex = i;
+          continue;
+        }
+        out += `<a href="${esc(g.alamat)}" target="_blank" rel="noopener noreferrer">${esc(g.label)}</a>`;
+      } else if (g.miring !== undefined) out += `${esc(g.pra)}<em>${sebutDalam(g.miring)}</em>`;
       else if (g.url !== undefined) {
         const u = g.url.replace(/[.,;:!?)\]]+$/, '');
-        out += `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`;
-        i = m.index + u.length;
+        const k = opsi.kartu ? I.kartuTautan(u) : null;
+        if (k) pasangKartu(kartuTautanHtml(u, k, ''));
+        else out += `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`;
+        i = m.index + u.length + (k && s[m.index + u.length] === '\n' ? 1 : 0);
         pola.lastIndex = i;
         continue;
       } else out += esc(g.pra2) + tandaSebut(g.nama);
@@ -5085,10 +5153,15 @@
     const k = S.kom;
     const ubah = k.ubah ? susunan().perId.get(k.ubah) : null;
     const draf = ubah && ubah.ruang === ruang ? ubah.teks : k.draf[ruang] || '';
-    return `<form class="km-tulis" data-form="pesan" data-ruang="${esc(ruang)}" data-wadah="${wadah}" novalidate>
+    // Balasan cepat menurut peran dan keadaan task (2.35.0); di ponsel dibuka lewat tombol kilat.
+    const r = I.bacaRuang(ruang);
+    const cepat = I.pesanCepatUntuk(r.jenis === 'task' ? perIdKini().get(r.id) || null : null, S.me, perIdKini());
+    const labelCepat = cepat.keadaan ? tr('Balasan cepat · {keadaan}', { keadaan: tr(cepat.keadaan) }) : tr('Balasan cepat');
+    return `<form class="km-tulis ${wadah === 'kom' && k.cepatBuka ? 'cepat-buka' : ''}" data-form="pesan" data-ruang="${esc(ruang)}" data-wadah="${wadah}" novalidate>
         <div class="km-tulis-atas" id="tulis-atas-${wadah}">${barTulis(ruang)}</div>
-        ${wadah === 'kom' ? `<div class="km-cepat" aria-label="${tr('Pesan cepat')}">${PESAN_CEPAT.map(p => `<button type="button" class="km-cepat-item" data-aksi="kom-cepat" data-teks="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : ''}
+        ${wadah === 'kom' ? `<div class="km-cepat" role="group" aria-label="${esc(labelCepat)}"><span class="km-cepat-label">${esc(labelCepat)}</span>${cepat.isi.map(p => `<button type="button" class="km-cepat-item" data-aksi="kom-cepat" data-teks="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : ''}
         <div class="km-tulis-baris">
+          ${wadah === 'kom' ? `<button type="button" class="ikon-tombol km-cepat-tombol" data-aksi="kom-cepat-buka" aria-expanded="${!!k.cepatBuka}" title="${tr('Balasan cepat')}" aria-label="${tr('Balasan cepat')}">${ikon('kilat', 18)}</button>` : ''}
           <label class="sr" for="tulis-${wadah}">${tr('Tulis pesan')}</label>
           <textarea id="tulis-${wadah}" class="km-isian" name="teks" rows="1" maxlength="${I.BATAS_PESAN}" placeholder="${hp() ? tr('Tulis pesan… (@ untuk sebut)') : tr('Tulis pesan… ketik @ untuk menyebut')}" autocomplete="off">${esc(draf)}</textarea>
           <button type="button" class="ikon-tombol km-tanya-tombol" data-aksi="kom-tanya" aria-pressed="${!!k.tanya}" title="${tr('Tandai perlu jawaban dari orang yang disebut')}" aria-label="${tr('Perlu jawaban')}">${ikon('tanya', 18)}</button>
@@ -9797,7 +9870,7 @@
         bukaTask(t.id);
         break;
       case 'tutup-detail': S.pilih = null; render(); break;
-      case 'detail-tab': S.detailTab = { id: d.id, tab: d.nilai }; render(); break;
+      case 'detail-tab': S.detailTab = { id: d.id, tab: d.nilai }; render(); if (d.nilai === 'diskusi') segarkanUtas(); break;
       case 'aksi-task': if (t) jalankanAksi(t, d.kunci); break;
       case 'ubah-task': if (t) bukaModal({ jenis: 'ubah', id: t.id }, formTask(t)); break;
       case 'atur-tunggu': if (t) bukaModal({ jenis: 'tunggu', id: t.id }, formTunggu(t)); break;
@@ -10206,10 +10279,25 @@
         if (hp()) window.scrollTo(0, 0);
         break;
       case 'kom-tutup': Object.assign(S.kom, { pilih: null, balas: '', ubah: '' }); render(); break;
-      case 'kom-konteks': S.kom.konteks = !S.kom.konteks; simpan('kom_konteks', S.kom.konteks); render(); break;
+      case 'kom-konteks': S.kom.konteks = !S.kom.konteks; simpan('kom_info', S.kom.konteks); render(); break;
+      case 'kom-cepat-buka':
+        S.kom.cepatBuka = !S.kom.cepatBuka;
+        for (const f of $$('.km-tulis')) f.classList.toggle('cepat-buka', S.kom.cepatBuka);
+        for (const b of $$('.km-cepat-tombol')) b.setAttribute('aria-expanded', String(S.kom.cepatBuka));
+        break;
       case 'kom-proyek-semua': S.kom.proyekSemua = !S.kom.proyekSemua; $('#km-saring').innerHTML = saringKomHtml(); break;
       case 'kom-pilih-proyek': bukaModal({ jenis: 'pilih-ruang' }, formPilihRuang()); break;
-      case 'kom-cepat': { const ta = $('#tulis-kom'); if (ta) sisipkan(ta, d.teks); break; }
+      case 'kom-cepat': {
+        const ta = $('#tulis-kom');
+        if (ta) sisipkan(ta, d.teks);
+        // Di ponsel panel balasan cepat ditutup lagi, supaya kotak tulisnya kembali lega.
+        if (hp() && S.kom.cepatBuka) {
+          S.kom.cepatBuka = false;
+          for (const f of $$('.km-tulis')) f.classList.remove('cepat-buka');
+          for (const b of $$('.km-cepat-tombol')) b.setAttribute('aria-expanded', 'false');
+        }
+        break;
+      }
       case 'kom-tanya': S.kom.tanya = !S.kom.tanya; perbaruiTulis(); break;
       case 'kom-batal': batalTulis(); break;
       case 'sebut-pilih': pakaiSebutan(Number(d.i)); break;
@@ -10817,6 +10905,12 @@
     }
   });
   document.addEventListener('drop', e => { if (e.target.closest && e.target.closest('.ne[data-ne]')) e.preventDefault(); });
+  // Ringkasan kejadian task di utas (2.35.0): yang dibuka tetap terbuka saat pesan baru masuk.
+  document.addEventListener('toggle', e => {
+    const d = e.target;
+    if (!d.classList || !d.classList.contains('km-sistem-grup')) return;
+    if (d.open) S.kom.grupBuka.add(d.dataset.grup); else S.kom.grupBuka.delete(d.dataset.grup);
+  }, true);
   /* Seret tetikus melewati baris lain: memilih baris utuh (2.34.0). */
   let seretPilih = null;
   function blokDiY(y) {

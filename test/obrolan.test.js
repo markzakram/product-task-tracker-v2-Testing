@@ -152,3 +152,30 @@ test('aktivitasTask: tinjauan beserta catatannya dan jejak log task itu, tanpa k
   assert.deepEqual(I.aktivitasTask(d, t).map(x => [x.at, x.oleh, x.aksi || x.teks]), [[200, 'kiki', 'Mulai dikerjakan'], [300, 'kiki', 'Diajukan'], [400, 'alya', 'Dikembalikan']]);
   assert.equal(I.aktivitasTask(d, t)[2].teks, 'No. 7 pecah');
 });
+
+test('kartu tautan (2.35.0): berkas Google dikenali dari alamatnya, tautan lain tidak', () => {
+  assert.deepEqual(I.kartuTautan('https://docs.google.com/spreadsheets/d/1Xk9/edit#gid=0'), { jenis: 'sheets', judul: 'Google Sheets', ket: 'docs.google.com › spreadsheets' });
+  assert.equal(I.kartuTautan('https://docs.google.com/document/d/1Ab/edit').jenis, 'docs');
+  assert.equal(I.kartuTautan('https://docs.google.com/presentation/d/1Ab/edit').jenis, 'slides');
+  assert.equal(I.kartuTautan('https://docs.google.com/forms/d/e/1Ab/viewform').jenis, 'forms');
+  assert.equal(I.kartuTautan('https://www.drive.google.com/drive/folders/abc').ket, 'drive.google.com › drive');
+  for (const u of ['https://docs.google.com/', 'https://contoh.id/sheets', 'http://192.168.2.185:5190/#/akademik', 'javascript:alert(1)', 'bukan alamat']) {
+    assert.equal(I.kartuTautan(u), null, u);
+  }
+});
+
+test('balasan cepat (2.35.0): menurut peran di task itu dan keadaannya', () => {
+  const perId = new Map();
+  const isi = (o, me) => I.pesanCepatUntuk(o ? task(o) : null, me, perId);
+  assert.equal(isi(null, 'kiki').keadaan, '', 'ruang proyek atau tim: balasan umum');
+  assert.ok(isi(null, 'kiki').isi.length >= 3);
+  assert.equal(isi({ pic: 'kiki', status: 'Dikerjakan' }, 'kiki').isi[0], 'Sedang saya kerjakan');
+  assert.equal(isi({ pic: 'kiki', status: 'Antre' }, 'kiki').keadaan, 'Antre');
+  // Task rutin ditinjau Manager bila terlanjur Ditinjau: PIC dan peninjaunya mendapat balasan berbeda.
+  assert.equal(isi({ pic: 'kiki', status: 'Ditinjau' }, 'kiki').isi[0], 'Sudah saya ajukan');
+  assert.equal(isi({ pic: 'kiki', status: 'Ditinjau' }, 'nynda').isi[1], 'Ada revisi kecil');
+  assert.equal(isi({ pic: 'kiki', status: 'Dikerjakan', tertahan: true, alasanTertahan: 'akses' }, 'kiki').keadaan, 'Tertahan');
+  assert.equal(isi({ pic: 'kiki', status: 'Dikerjakan', tinjauan: [{ id: 'r1', by: 'alya', action: 'Dikembalikan', at: 5 }] }, 'kiki').keadaan, 'Revisi');
+  assert.equal(isi({ pic: 'kiki', status: 'Selesai' }, 'alya').keadaan, 'Selesai');
+  assert.equal(isi({ pic: 'kiki', status: 'Dikerjakan' }, 'alya').isi[1], 'Bagaimana progresnya?', 'orang lain');
+});

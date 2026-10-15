@@ -28,6 +28,32 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.35.0 — Obrolan lebih jelas: kepala ringkas, balasan cepat menurut keadaan, kartu tautan (2026-10-15)
+
+Permintaan user: rekomendasi perbaikan fitur obrolan; sesudah melihat gambaran sebelum–sesudah
+(kanvas "Obrolan sebelum–sesudah"), user meminta nomor 1–7 dikerjakan sekaligus.
+
+- **Kepala utas ringkas**: sub-stage, status, "PIC → peninjau", dan tenggat sekali saja (dulu
+  diulang di kotak konteks). Di ponsel nama sub-stage disembunyikan; kodenya tetap bisa diketuk.
+- **Aksi pembalik di menu ⋯**: kepala utas memuat aksi utama (Mulai, Ajukan, Setujui, dan
+  Kembalikan bagi peninjau); Tarik dari tinjauan, Buka kembali, dan tanda tertahan pindah ke ⋯,
+  tetap dengan konfirmasi 2.34.3.
+- **Info task** menggantikan kotak konteks: satu baris (output, yang ditunggu, syarat ajukan
+  n/m) yang bisa dibuka untuk proyek dan daftar syaratnya.
+- **Gelembung sendiri** berwarna aksen tipis tanpa bingkai (dulu dengan aksen gelap seperti
+  merah terbaca seperti peringatan); tautan di dalamnya mengikuti warna teks.
+- **Kejadian task berturut-turut diringkas** jadi satu baris yang bisa dibuka, dan tetap
+  terbuka saat pesan baru masuk.
+- **Balasan cepat menurut peran dan keadaan** (PIC dikerjakan/ditinjau/revisi/tertahan,
+  peninjau, orang lain, ruang proyek/tim), dengan labelnya ("Balasan cepat · Ditinjau"). Di
+  ponsel dibuka lewat tombol kilat dan menutup sendiri sesudah dipilih.
+- **Lebih langsung**: pesan ditarik tiap 8 detik selama utas terbuka (dulu 20 detik di
+  Komunikasi dan 30–60 detik di tab Diskusi halaman lain), dan seketika saat utas dibuka. Server
+  tetap memakai bacaan yang sama selama 3 detik untuk semua, jadi kuota Sheets aman.
+- **Kartu tautan** untuk Google Sheets, Docs, Slides, Forms, dan Drive: ikon jenisnya, judul
+  (label tautan atau jenis berkas), dan alamat ringkas. Tautan lain tetap tautan biasa.
+- Tes baru di `test/obrolan.test.js` (`kartuTautan`, `pesanCepatUntuk`). 295 tes.
+
 ## 2.34.3 — Konfirmasi sebelum Tarik dari tinjauan dan Buka kembali (2026-10-15)
 
 Permintaan user (dengan tangkapan layar utas yang tak sengaja dibuka kembali): popup

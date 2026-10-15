@@ -226,6 +226,9 @@
         'Arahkan kursor ke pesan (di ponsel: ketuk) untuk memberi reaksi, **membalas** dengan kutipan, atau mengubah dan menghapus pesan sendiri.',
         'Tombol **?** di kotak tulis menandai pesan **perlu jawaban** dari orang yang disebut. Pesan itu ada di **Perlu jawaban** orang itu sampai dibalas atau ditandai beres.',
         'Enter mengirim, Shift+Enter membuat baris baru. Format ringan: **tebal** dengan dua bintang, _miring_ dengan garis bawah.',
+        'Di utas task, **balasan cepat** di atas kotak tulis menyesuaikan peran Anda dan status task-nya (di ponsel: tombol kilat). Menekannya hanya menyisipkan teks, jadi masih bisa diubah sebelum dikirim.',
+        'Kepala utas memuat aksi utama (Ajukan, Setujui, Kembalikan). **Tarik dari tinjauan** dan **Buka kembali** ada di menu **⋯** dan meminta konfirmasi. **Info task** di bawahnya bisa dibuka untuk output, proyek, dan syarat ajukan.',
+        'Tautan Google Sheets, Docs, Slides, Forms, dan Drive tampil sebagai kartu kecil. Beberapa kejadian task berturut-turut (disetujui, dibuka kembali, diajukan) diringkas jadi satu baris; ketuk untuk melihat semuanya.',
       ],
     },
 

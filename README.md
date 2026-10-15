@@ -412,17 +412,30 @@ pesan disimpan ke tab `obrolan` di spreadsheet v2, bukan di browser.
   - Enter mengirim, Shift+Enter membuat baris baru.
   - Format ringan seperti v1: **tebal**, _miring_, ~~coret~~, `kode`, dan tautan otomatis.
   - Ketik **@** untuk menyebut orang (@Kiki) atau peran (@manager, @lead, @staff, @semua).
-  - Ada pesan cepat ("Sudah saya cek", "Mohon dicek", dan lainnya) dan draf yang tersimpan per
-    ruang.
+  - **Balasan cepat** menurut peran dan keadaan task (2.35.0): PIC saat dikerjakan ("Sedang saya
+    kerjakan"), saat ditinjau ("Sudah saya ajukan", "Mohon dicek ya"), saat revisi ("Siap, saya
+    perbaiki"); peninjau ("Sudah saya cek, saya setujui", "Ada revisi kecil"); orang lain dan
+    ruang proyek/tim mendapat balasan umum. Hanya menyisipkan teks; di ponsel dibuka lewat
+    tombol kilat. Aturannya `Inti.pesanCepatUntuk`. Draf tersimpan per ruang.
+  - **Kartu tautan** (2.35.0): tautan Google Sheets, Docs, Slides, Forms, dan Drive tampil
+    sebagai kartu kecil berikon (judulnya label tautan, atau jenis berkasnya; judul asli berkas
+    tak bisa dibaca aplikasi). Tautan lain tetap tautan biasa (`Inti.kartuTautan`).
 - **Mengelola pesan.** Pesan bisa dibalas dengan kutipannya dan diberi reaksi 👍 ✅ 👀 🙏.
   Pesan sendiri bisa diubah (bertanda "diubah") atau dihapus (tampil "Pesan dihapus").
 - **Perlu jawaban.** Tombol **?** menandai pesan menunggu jawaban orang yang disebut; di
   ruang task tanpa sebutan, yang ditunggu adalah PIC-nya. Pesan itu muncul di **Perlu jawaban**
   orang tersebut sampai ia membalas atau seseorang menandainya beres.
 - **Konteks kerja di percakapan.** Utas task memuat jejak task-nya (diajukan, dikembalikan
-  beserta alasannya, disetujui, diserahkan, tertahan) dan panel konteks: sub-stage, proyek, PIC,
-  peninjau, tenggat, dan syarat ajukan. Tombol aksinya (Mulai, Ajukan, Setujui, Kembalikan, …)
-  ada di kepala percakapan.
+  beserta alasannya, disetujui, diserahkan, tertahan). Sejak 2.35.0 (permintaan user):
+  - kepala percakapan ringkas: sub-stage, status, "PIC → peninjau", dan tenggat sekali saja;
+  - aksi utama (Mulai, Ajukan, Setujui, dan Kembalikan bagi peninjau) di kepala; yang membalik
+    keadaan atau jarang dipakai (Tarik dari tinjauan, Buka kembali, tertahan) di menu ⋯, tetap
+    dengan konfirmasi;
+  - **Info task** satu baris (output, yang ditunggu, syarat ajukan n/m) yang bisa dibuka untuk
+    proyek dan daftar syaratnya; pilihan buka-tutupnya diingat browser;
+  - kejadian task berturut-turut diringkas jadi satu baris ("Nynda menyetujui → Ali: Dibuka
+    kembali → …") yang bisa dibuka, dan tetap terbuka saat pesan baru masuk;
+  - gelembung pesan sendiri berwarna aksen tipis tanpa bingkai, tautannya mengikuti warna teks.
 - **Diskusi di detail task.** Bagian **Diskusi** di laci detail task memakai utas yang sama.
 - **Notifikasi.** Lonceng dan lencana sidebar ikut pesan bersama: pesan baru di task yang
   melibatkan Anda, sebutan, dan pertanyaan untuk Anda. Ruang tim dan proyek hanya memberi tahu
@@ -439,7 +452,9 @@ saling menimpa.
   browser yang jamnya meleset.
 - **Tarikan berkala.** Browser menarik pesan baru tiap 20 detik di Komunikasi dan tiap 60
   detik di halaman lain (30 detik di data real, karena perubahan data ikut tarikan yang sama),
-  berhenti saat tab tak terlihat, dan melambat saat gagal.
+  berhenti saat tab tak terlihat, dan melambat saat gagal. Sejak 2.35.0 tiap 8 detik selama
+  sebuah utas terbuka (ruang di Komunikasi atau tab Diskusi detail task), dan seketika saat utas
+  dibuka (bila tarikan terakhir lebih dari 3 detik lalu).
 - **Kuota.** Kuota baca Google Sheets dihitung per service account, jadi server juga memakai
   ulang bacaan yang berdekatan selama 3 detik.
 - **Aman dari impor ulang.** `npm run impor:v1` tak pernah menyentuh tab `obrolan`

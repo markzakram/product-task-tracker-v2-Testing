@@ -2377,3 +2377,59 @@ button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua)
 
 /* Konfirmasi Tarik dari tinjauan & Buka kembali (2.34.3). */
 .konfirmasi-task, .konfirmasi-task + .hint { margin: 0; }
+
+/* ---------- Obrolan lebih jelas (2.35.0, permintaan user) ---------- */
+/* Kepala utas ringkas: nama sub-stage di samping kodenya; aksi lain di menu ⋯. */
+.km-sub-nama { margin-left: 4px; font-size: calc(12.5px * var(--skala-huruf)); color: var(--tinta-2); }
+.km-kepala-alat .menu-lagi > summary { width: 36px; height: 36px; }
+/* Info task: satu baris ringkas yang bisa dibuka. */
+.km-konteks { gap: 6px; padding: 4px 14px; }
+.km-info-tombol { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 34px; padding: 0; border: 0; background: transparent; color: var(--redup); font: inherit; font-size: calc(13px * var(--skala-huruf)); text-align: left; cursor: pointer; }
+.km-info-tombol > svg { flex: none; }
+.km-info-tombol > b { flex: none; color: var(--tinta-2); }
+.km-info-ringkas { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
+.km-info-ringkas > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.km-info-ringkas > span:last-child { flex-shrink: 1; }
+.km-info-ringkas b { color: var(--tinta); }
+.km-info-titik { flex: none; color: var(--samar); }
+.km-info-tunggu { color: var(--kuning); font-weight: 600; }
+.km-info-isi { display: flex; flex-direction: column; gap: 8px; padding: 2px 0 8px 20px; }
+/* Gelembung sendiri: warna aksen tipis tanpa bingkai; tautan mengikuti warna teks. */
+.km-psn.saya .km-gel { border-color: transparent; background: color-mix(in srgb, var(--biru) 16%, var(--muka)); }
+.km-psn.saya .km-teks a:not(.km-kartu-tautan) { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 2px; }
+/* Kartu tautan berkas Google. */
+.km-kartu-tautan { display: flex; align-items: center; gap: 10px; max-width: 340px; margin: 2px 0; padding: 8px 10px; border: 1px solid var(--garis); border-radius: 10px; background: var(--muka); color: var(--tinta); text-decoration: none; white-space: normal; }
+.km-teks a.km-kartu-tautan, .km-teks a.km-kartu-tautan:hover { color: var(--tinta); }
+.km-kartu-tautan:hover { border-color: var(--garis-2); }
+.km-psn.saya .km-kartu-tautan { border-color: color-mix(in srgb, var(--biru) 28%, var(--garis)); background: color-mix(in srgb, var(--biru) 8%, var(--muka)); }
+.km-kartu-ikon { flex: none; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--abu); color: var(--tinta-2); }
+.km-kartu-ikon.sheets { background: var(--hijau-muda); color: var(--hijau); }
+.km-kartu-ikon.docs { background: var(--info-muda); color: var(--info-tua); }
+.km-kartu-ikon.slides, .km-kartu-ikon.forms { background: var(--kuning-muda); color: var(--kuning); }
+.km-kartu-teks { min-width: 0; display: flex; flex-direction: column; }
+.km-kartu-teks b { font-size: calc(13px * var(--skala-huruf)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.km-kartu-teks small { font-size: calc(12px * var(--skala-huruf)); color: var(--redup); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Kejadian task berturut-turut: satu baris ringkas yang bisa dibuka. */
+.km-sistem-grup { width: fit-content; max-width: 92%; margin: 6px auto 0; }
+.km-sistem-grup > summary { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--garis); border-radius: 999px; background: var(--muka); color: var(--redup); font-size: calc(12px * var(--skala-huruf)); line-height: 1.4; cursor: pointer; list-style: none; }
+.km-sistem-grup > summary::-webkit-details-marker { display: none; }
+.km-sistem-grup > summary > svg { flex: none; transition: transform .15s; }
+.km-sistem-grup[open] > summary > svg { transform: rotate(90deg); }
+.km-sistem-grup > summary > span { min-width: 0; }
+.km-sistem-grup > summary small { flex: none; color: var(--samar); }
+.km-sistem-grup[open] { padding-bottom: 2px; }
+.km-frasa.setuju { color: var(--hijau); }
+.km-frasa.kembali { color: var(--kuning); }
+/* Balasan cepat: label keadaannya; di ponsel dibuka lewat tombol kilat. */
+.km-cepat { align-items: center; }
+.km-cepat-label { flex: 0 0 auto; font-size: calc(11.5px * var(--skala-huruf)); color: var(--samar); }
+.km-cepat-tombol { display: none; width: 42px; height: 42px; }
+.km-cepat-tombol[aria-expanded="true"] { background: var(--biru-muda); color: var(--biru-tua); }
+@media (max-width: 899px) {
+  .km-cepat-tombol { display: inline-flex; flex: none; }
+  .km-sub-nama { display: none; }
+  .km-tulis:not(.cepat-buka) .km-cepat { display: none; }
+  .km-tulis.cepat-buka .km-cepat { flex-wrap: wrap; overflow: visible; padding: 8px; border: 1px solid var(--garis-2); border-radius: 12px; background: var(--dasar-2); }
+  .km-tulis.cepat-buka .km-cepat-label { flex-basis: 100%; }
+  .km-tulis.cepat-buka .km-cepat-item { min-height: 36px; }
+}

@@ -949,9 +949,6 @@
     'Salin tautan ruang ini': 'Copy link to this room',
     'Salin tautan ruang': 'Copy room link',
     'Task ini tak ada di data contoh browser Anda, tetapi percakapannya tetap terbagi.': 'This task isn\'t in your browser\'s sample data, but its conversation is still shared.',
-    'Sembunyikan konteks task': 'Hide task context',
-    'Tampilkan konteks task': 'Show task context',
-    'Konteks task': 'Task context',
     'Detail': 'Details',
     'Buka proyek': 'Open project',
     '{n} anggota, ditambah Manager': '{n} members, plus the Manager',
@@ -991,7 +988,6 @@
     'Ubah pesan': 'Edit message',
     'Hapus pesan': 'Delete message',
     'Mode Dev membaca dan memoderasi, tidak menulis pesan. Untuk ikut berdiskusi, pilih profil Anda sendiri.': 'Dev mode reads and moderates, it doesn\'t write messages. To join the discussion, pick your own profile.',
-    'Pesan cepat': 'Quick messages',
     'Tulis pesan': 'Write a message',
     'Tulis pesan… (@ untuk sebut)': 'Write a message… (@ to mention)',
     'Tulis pesan… ketik @ untuk menyebut': 'Write a message… type @ to mention',
@@ -2288,6 +2284,14 @@
     'Task yang sudah selesai kembali ke Dikerjakan dan perlu diajukan atau ditandai selesai lagi.': 'The finished task goes back to In progress and must be submitted or marked done again.',
     'Capaiannya ditarik lagi dari progres paket.': 'Its milestones are taken back out of the package progress.',
     'Ya, buka kembali': 'Yes, reopen',
+    /* ----- Obrolan lebih jelas (2.35.0) ----- */
+    'PIC {pic} → peninjau {peninjau}': 'PIC {pic} → reviewer {peninjau}',
+    'PIC {pic}': 'PIC {pic}',
+    'Aksi lain task ini': 'More task actions',
+    'Info task': 'Task info',
+    '… {n} lagi': '… {n} more',
+    'Balasan cepat · {keadaan}': 'Quick replies · {keadaan}',
+    'Balasan cepat': 'Quick replies',
   };
 
   let kini = 'id';

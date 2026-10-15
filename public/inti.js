@@ -3023,6 +3023,44 @@
     if (/drive\.google\.com/i.test(u)) return 'Google Drive';
     try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return 'Tautan'; }
   }
+  /* Kartu tautan di pesan Komunikasi (2.35.0): berkas Google dikenali dari alamatnya. Judul
+     berkasnya tak bisa diambil (berkas orang lain, tanpa akses), jadi kartunya menulis jenisnya
+     dan alamat ringkasnya. null untuk tautan lain, yang tetap tampil sebagai tautan biasa. */
+  function kartuTautan(u) {
+    let url;
+    try { url = new URL(u); } catch (e) { return null; }
+    if (!/^https?:$/.test(url.protocol)) return null;
+    const host = url.hostname.replace(/^www\./, '').toLowerCase();
+    const jalur = url.pathname;
+    const jenis = host === 'docs.google.com'
+      ? (/^\/spreadsheets\//.test(jalur) ? ['sheets', 'Google Sheets'] : /^\/document\//.test(jalur) ? ['docs', 'Google Docs']
+        : /^\/presentation\//.test(jalur) ? ['slides', 'Google Slides'] : /^\/forms\//.test(jalur) ? ['forms', 'Google Forms'] : null)
+      : host === 'drive.google.com' ? ['drive', 'Google Drive'] : null;
+    if (!jenis) return null;
+    const bagian = jalur.split('/').filter(Boolean)[0] || '';
+    return { jenis: jenis[0], judul: jenis[1], ket: bagian ? `${host} › ${bagian}` : host };
+  }
+
+  /* Balasan cepat di kotak tulis Komunikasi (2.35.0): menurut peran `me` di task itu (PIC,
+     peninjau, atau orang lain) dan keadaannya. Hanya menyisipkan teks, tak pernah terkirim
+     sendiri. t = null untuk ruang proyek dan ruang tim. keadaan = label yang ditulis di depannya. */
+  const BALASAN_UMUM = ['Sudah saya cek ✅', 'Mohon dicek ya 🙏', 'Sedang saya kerjakan', 'Terima kasih 🙏'];
+  function pesanCepatUntuk(t, me, perId) {
+    if (!t) return { keadaan: '', isi: BALASAN_UMUM };
+    const pic = t.pic === me;
+    if (selesai(t)) return { keadaan: 'Selesai', isi: ['Terima kasih 🙏', 'Mantap, sudah beres ✅'] };
+    if (t.status === 'Ditinjau' && peninjau(t) === me) return { keadaan: 'Ditinjau', isi: ['Sudah saya cek, saya setujui ✅', 'Ada revisi kecil', 'Saya cek besok pagi'] };
+    if (pic && t.status === 'Ditinjau') return { keadaan: 'Ditinjau', isi: ['Sudah saya ajukan', 'Mohon dicek ya 🙏', 'Ada yang perlu saya ubah?'] };
+    if (pic && t.tertahan) return { keadaan: 'Tertahan', isi: ['Masih tertahan, nanti saya kabari', 'Butuh bantuan untuk ini'] };
+    if (pic) {
+      const label = labelKeadaan(t, perId);
+      if (label === 'Revisi') return { keadaan: 'Revisi', isi: ['Siap, saya perbaiki', 'Boleh dijelaskan bagian mana?', 'Sudah saya perbaiki'] };
+      if (label === 'Menunggu') return { keadaan: 'Menunggu', isi: ['Saya tunggu task sebelumnya ya', 'Butuh bantuan untuk ini'] };
+      if (t.status === 'Antre') return { keadaan: 'Antre', isi: ['Siap, segera saya mulai', 'Butuh bantuan untuk ini'] };
+      return { keadaan: 'Dikerjakan', isi: ['Sedang saya kerjakan', 'Target selesai hari ini', 'Butuh bantuan untuk ini'] };
+    }
+    return { keadaan: '', isi: ['Sudah saya cek ✅', 'Bagaimana progresnya?', 'Butuh bantuan?'] };
+  }
 
   /* Dikelompokkan per folder, "Umum" (folder kosong) paling akhir. */
   function kelompokFolder(daftar) {
@@ -3882,7 +3920,7 @@
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,
     setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
-    FOLDER_UMUM, tautanRapi, judulTautan, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
+    FOLDER_UMUM, tautanRapi, judulTautan, kartuTautan, pesanCepatUntuk, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
     WARNA_CATATAN, warnaiCatatan, pindahFolderCatatan, hapusCatatan, pulihkanCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
     JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar, pindahBlokKe, geserBlok, duplikatBlok,
     FOTO_MAKS, fotoSah, periksaFoto,
