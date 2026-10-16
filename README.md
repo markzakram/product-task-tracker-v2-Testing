@@ -230,7 +230,10 @@ dengan satu penyederhanaan: tetap empat status.
   (**Semua**, bawaannya). Berlaku di Task, Dashboard, Komunikasi, dan pencarian cepat (ditambah
   task yang melibatkan orang itu: pemberi, peninjau, pendukung, atau yang berkomentar). Halaman
   proyek dan rancangan paket tetap terbuka untuk semua, karena itulah konteks kerja bersama.
-  Aturannya `lingkupBoleh`/`lingkupOrang` di `public/inti.js`.
+  Maka sejak 2.35.1, selagi Task disaring ke satu proyek, Staff dan Lead mendapat pilihan
+  **Semua tim** (semua tim di proyek itu), dan angka di halaman proyek ("2 terlambat",
+  "5 tertahan", "Lihat di Task") membuka Task dengan lingkup itu, supaya angkanya sama.
+  Aturannya `lingkupBoleh`/`lingkupOrang`/`lingkupTask` di `public/inti.js`.
 
 Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tampilan
 (`public/app.js`) hanya meneruskan klik ke aturan itu.

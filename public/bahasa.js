@@ -2292,6 +2292,9 @@
     '… {n} lagi': '… {n} more',
     'Balasan cepat · {keadaan}': 'Quick replies · {keadaan}',
     'Balasan cepat': 'Quick replies',
+    /* ----- Task dari proyek: semua tim (2.35.1) ----- */
+    'Semua tim': 'All teams',
+    'Semua tim di proyek ini': 'All teams in this project',
   };
 
   let kini = 'id';

@@ -1164,6 +1164,10 @@
     if (l === 'semua') return null;
     return [me, ...ORANG.filter(o => o.lead === me).map(o => o.id)];
   }
+  /* Halaman Task yang disaring ke satu proyek (2.35.1): lingkup 'proyek' = semua tim di proyek
+     itu. Halaman proyek sudah menampilkan task semua tim kepada siapa pun, jadi angka di sana
+     (mis. "2 terlambat") harus bisa ditelusuri. Tanpa saringan proyek ia jatuh ke lingkup biasa. */
+  const lingkupTask = (me, lingkup, proyek) => (proyek && lingkup === 'proyek' ? null : lingkupOrang(me, lingkup));
 
   /* Tim pemilik sebuah task: dari sub-stage-nya; kalau tak berkode, tim PIC-nya. */
   const timTask = t => { const s = subTahap(t.sub); return (s && s.tim) || (timOrang(t.pic) || {}).kode || ''; };
@@ -3912,7 +3916,7 @@
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,
     namaTahap, SINGKAT_TAHAP, singkatTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
     KEPUTUSAN, setKeputusan, setArsip,
-    pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupKom, kolomPapan, bebanOrang, laporan, cari,
+    pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
     terlibat, notifikasi, JENIS_LOG, saringLog,
     JENIS_PERISTIWA, REAKSI, BATAS_PESAN, ruangTask, ruangProyek, ruangTim, bacaRuang, anggotaTim, bolehRuang, ruangTimSaya,

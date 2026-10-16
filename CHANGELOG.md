@@ -28,6 +28,21 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.35.1 — Angka terlambat di proyek kini bisa ditelusuri di Task (2026-10-16)
+
+Keluhan user (tangkapan layar): halaman proyek menulis "2 terlambat", tetapi sesudah diklik tab
+Terlambat di Task berisi 0. Penyebab: angka di proyek menghitung semua tim, sedangkan Task untuk
+Lead dibuka dengan lingkup **Tim saya** (Staff: **Saya**), jadi task terlambat milik tim lain
+tak terlihat.
+
+- Selagi Task disaring ke satu proyek, Staff dan Lead mendapat pilihan lingkup **Semua tim**
+  (`Inti.lingkupTask`); keterangannya "Semua tim di proyek ini". Halaman proyek memang sudah
+  menampilkan task semua tim kepada siapa pun, jadi tak ada yang baru terlihat.
+- Chip "n terlambat" dan "n tertahan", "Lihat di Task", dan "dan n lagi · lihat di Task" di
+  halaman proyek membuka Task dengan lingkup itu (Manager tetap **Semua**). **Tim saya** tetap
+  bisa dipilih. Tanpa saringan proyek pilihan itu hilang dan lingkup kembali ke bawaan peran.
+- Tes baru di `test/inti.test.js`. 296 tes.
+
 ## 2.35.0 — Obrolan lebih jelas: kepala ringkas, balasan cepat menurut keadaan, kartu tautan (2026-10-15)
 
 Permintaan user: rekomendasi perbaikan fitur obrolan; sesudah melihat gambaran sebelum–sesudah

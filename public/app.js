@@ -1108,11 +1108,10 @@
 
   /* Pilihan lingkup per peran (I.lingkupBoleh): Staff hanya Saya, jadi tanpa segmen; Lead
      Saya + Tim saya; Manager Saya + Tim saya (para Lead) + Semua. */
-  const LABEL_LINGKUP = { saya: 'Saya', tim: 'Tim saya', semua: 'Semua' };
-  function segmenLingkup(ruang, nilai, label = 'Lingkup', teks = LABEL_LINGKUP) {
-    const opsi = I.lingkupBoleh(S.me);
+  const LABEL_LINGKUP = { saya: 'Saya', tim: 'Tim saya', semua: 'Semua', proyek: 'Semua tim' };
+  function segmenLingkup(ruang, nilai, label = 'Lingkup', teks = LABEL_LINGKUP, opsi = I.lingkupBoleh(S.me)) {
     if (opsi.length < 2) return '';
-    const kini = I.lingkupSah(S.me, nilai);
+    const kini = opsi.includes(nilai) ? nilai : I.lingkupSah(S.me, nilai);
     return `<div class="segmen" role="group" aria-label="${esc(tr(label))}">${opsi.map(v => `<button type="button" data-aksi="atur" data-ruang="${ruang}" data-kunci="lingkup" data-nilai="${v}" aria-pressed="${kini === v}">${esc(tr(teks[v]))}</button>`).join('')}</div>`;
   }
   /* Keterangan di bawah judul halaman: "Task saya", "Tim Alya · 3 orang", "Seluruh divisi". */
@@ -3373,8 +3372,11 @@
      tinjauan saya, jadi lingkup orang tak berlaku di sana. */
   function saringTask(fokus = S.task.fokus) {
     const f = S.task;
-    return { orang: fokus === 'tinjau' ? null : I.lingkupOrang(S.me, f.lingkup), proyek: f.proyek, ...nilaiSaring(f), fokus, me: S.me, q: f.q };
+    return { orang: fokus === 'tinjau' ? null : I.lingkupTask(S.me, f.lingkup, f.proyek), proyek: f.proyek, ...nilaiSaring(f), fokus, me: S.me, q: f.q };
   }
+  /* Selagi Task disaring ke satu proyek, peran tanpa "Semua" (Staff, Lead) mendapat pilihan
+     "Semua tim" (I.lingkupTask, 2.35.1). */
+  const opsiLingkupTask = () => { const o = I.lingkupBoleh(S.me); return S.task.proyek && !o.includes('semua') ? [...o, 'proyek'] : o; };
   const jumlahSaring = () => [S.task.proyek, ...Object.keys(SARING_KOSONG).map(k => S.task[k])].filter(Boolean).length;
   const daftarSaring = () => I.daftarTask(S.data, { ...saringTask(), status: S.task.status, urut: S.task.urut, arah: S.task.arah }, hariIni());
 
@@ -3382,11 +3384,11 @@
     const f = S.task;
     const n = jumlahSaring();
     const proyekSemua = S.data.projects.slice().sort((a, b) => a.arsip - b.arsip || a.name.localeCompare(b.name, 'id'));
-    const lingkup = ketLingkup(f.lingkup);
+    const lingkup = f.proyek && f.lingkup === 'proyek' ? tr('Semua tim di proyek ini') : ketLingkup(f.lingkup);
     return `<div class="judul-halaman"><div><h1>${tr('Task')}</h1><p>${lingkup} · ${tr('ganti tampilan lewat ikon di atas daftar')}</p></div></div>
       <div class="alat alat-task">
         ${kotakCari('task', f.q, 'Cari judul, ID, orang, proyek, sub-stage…')}
-        ${segmenLingkup('task', f.lingkup)}
+        ${segmenLingkup('task', f.lingkup, 'Lingkup', LABEL_LINGKUP, opsiLingkupTask())}
         <button type="button" class="tombol kecil tombol-saring" data-aksi="task-saring" aria-expanded="${f.saringBuka}">${ikon('saring', 16)} ${tr('Saringan')}${n ? ` <span class="lencana biru">${n}</span>` : ''}</button>
         ${n && !f.saringBuka ? `<button type="button" class="tombol kecil" data-aksi="task-bersih">${tr('Hapus saringan')}</button>` : ''}
       </div>
@@ -3468,7 +3470,7 @@
   }
 
   function badanOrang(h) {
-    const ids = I.lingkupOrang(S.me, S.task.lingkup);
+    const ids = I.lingkupTask(S.me, S.task.lingkup, S.task.proyek);
     const perId = perIdKini();
     const daftarOrang = ids || [...new Set([...I.ORANG.map(x => x.id), ...S.data.tasks.filter(I.aktif).map(t => t.pic)])];
     const aktif = I.kolomPapan(S.data, saringTask(), h).filter(k => k.status !== 'Selesai').flatMap(k => k.isi);
@@ -10071,7 +10073,8 @@
         render();
         break;
       case 'papan-proyek':
-        Object.assign(S.task, { proyek: d.id, ...SARING_KOSONG, fokus: d.fokus || '', q: '', hal: 1, lingkup: I.lingkupBoleh(S.me).slice(-1)[0] });
+        // Dari halaman proyek: semua tim di proyek itu, sama dengan angka yang diklik (2.35.1).
+        Object.assign(S.task, { proyek: d.id, ...SARING_KOSONG, fokus: d.fokus || '', q: '', hal: 1, lingkup: I.lingkupBoleh(S.me).includes('semua') ? 'semua' : 'proyek' });
         simpanPref('task');
         pindahHalaman('task');
         break;

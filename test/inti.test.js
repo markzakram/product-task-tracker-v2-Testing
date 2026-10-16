@@ -190,6 +190,19 @@ test('papan: kolom Selesai hanya 7 hari terakhir; lingkup tim mengikuti Lead', (
   assert.deepEqual(I.lingkupOrang('alya', 'tim'), ['alya', 'kiki', 'bilar']);
 });
 
+test('lingkup Task dari proyek: "Semua tim" hanya selagi disaring ke satu proyek (2.35.1)', () => {
+  // Keluhan user: proyek menulis "2 terlambat", Task (Tim saya) menampilkan 0 karena keduanya tim lain.
+  const tasks = [
+    task({ id: 'T1', project: 'PRJ-1', pic: 'kiki', due: '2026-05-01', status: 'Dikerjakan', title: 'tim sendiri' }),
+    task({ id: 'T2', project: 'PRJ-1', pic: 'uma', due: '2026-05-01', status: 'Dikerjakan', title: 'tim lain' }),
+  ];
+  const telat = orang => I.daftarTask(data(tasks), { orang, proyek: 'PRJ-1', fokus: 'telat', status: 'aktif' }, HARI).map(t => t.id);
+  assert.deepEqual(telat(I.lingkupTask('alya', 'tim', 'PRJ-1')), ['T1'], 'Tim saya tetap tim sendiri');
+  assert.deepEqual(telat(I.lingkupTask('alya', 'proyek', 'PRJ-1')), ['T1', 'T2'], 'Semua tim = angka di halaman proyek');
+  assert.equal(I.lingkupTask('kiki', 'proyek', 'PRJ-1'), null, 'staff juga, karena halaman proyek terbuka bagi semua');
+  assert.deepEqual(I.lingkupTask('alya', 'proyek', ''), ['alya', 'kiki', 'bilar'], 'tanpa saringan proyek jatuh ke bawaan peran');
+});
+
 test('lingkup per peran: Staff hanya Saya, Lead + Tim saya, Manager + Semua', () => {
   assert.deepEqual(['kiki', 'alya', 'nynda'].map(I.lingkupBoleh), [['saya'], ['saya', 'tim'], ['saya', 'tim', 'semua']]);
   assert.deepEqual(['kiki', 'alya', 'nynda'].map(I.lingkupAwal), ['saya', 'tim', 'semua']);
