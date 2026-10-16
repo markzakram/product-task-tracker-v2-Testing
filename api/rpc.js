@@ -35,7 +35,8 @@
 
    Agen AI (2.17.0): sesi agen hanya boleh membaca (muatContoh, sinkron, muatObrolan, muatFoto),
    menulis pesan atas nama profilnya (Inti.PESAN_AGEN), dan perubahan data real yang ada di
-   Inti.AKSI_AGEN. Pesan, aktivitas, dan tinjauannya ditandai AI oleh server.
+   Inti.AKSI_AGEN (sejak 2.37.0 termasuk taskBaru, untuk mencatat pekerjaan harian dari rekap).
+   Pesan, aktivitas, dan tinjauannya ditandai AI oleh server.
 
    Sejak 2.16.0 aplikasi punya dua sumber data, dipilih mode Dev untuk semua pengguna (tab
    setelan): data CONTOH (tab-tab hasil impor v1, suntingannya hanya di browser) dan data REAL

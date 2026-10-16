@@ -1619,9 +1619,12 @@
      dan jenis pesan di bawah ini; selebihnya (proyek, paket, Master, PIN, ...) tetap pekerjaan
      orangnya sendiri. Pesan dari agen ditandai server dengan kode KODE_AI (kolom kode hanya
      dipakai reaksi, jadi untuk pesan dan ubah selalu kosong), aktivitas dan tinjauannya dengan
-     ai: true. */
+     ai: true.
+     Sejak 2.37.0 agen juga boleh membuat task (taskBaru) untuk mencatat pekerjaan harian dari
+     rekap. Aturannya sama dengan form Tambah task atas nama profil agen (taskBaru memeriksa
+     proyek, sub-stage, dan PIC); yang tampil sebagai AI adalah aktivitas "Dibuat untuk …". */
   const KODE_AI = 'ai';
-  const AKSI_AGEN = ['terapkanAksi', 'isiOutput', 'tambahBukti', 'tambahSubtask', 'ubahSubtask', 'centangSubtask'];
+  const AKSI_AGEN = ['terapkanAksi', 'isiOutput', 'tambahBukti', 'tambahSubtask', 'ubahSubtask', 'centangSubtask', 'taskBaru'];
   const PESAN_AGEN = ['pesan', 'ubah', 'hapus', 'reaksi', 'lepas', 'beres'];
 
   /* Komentar data contoh + peristiwa bersama → pesan per ruang, terurut waktu.

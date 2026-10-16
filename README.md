@@ -654,10 +654,13 @@ yang ditulisnya bertanda **AI**. Cara menyiapkan dan memakainya ada di `agen/REA
   - membaca data dan obrolan;
   - pesan: kirim, ubah atau hapus pesan sendiri, reaksi, tandai beres;
   - di data real: isi output, tambah bukti, tambah atau ubah atau centang sub-task, dan aksi
-    status (mulai, ajukan, selesai, tarik, tahan, lanjutkan, setujui, kembalikan, buka).
+    status (mulai, ajukan, selesai, tarik, tahan, lanjutkan, setujui, kembalikan, buka);
+  - membuat task (`taskBaru`, sejak 2.37.0) untuk mencatat pekerjaan harian dari rekap. Server
+    memeriksanya dengan aturan form Tambah task atas nama Ali: proyek aktif, sub-stage, PIC, dan
+    inisiatif. Yang bertanda AI adalah aktivitas "Dibuat untuk …", lalu aksi status sesudahnya.
 
-  Membuat task atau proyek, paket, Master, PIN, dan foto tetap dikerjakan Ali sendiri di
-  aplikasi.
+  Membuat proyek, paket, inisiatif, Master, PIN, dan foto, serta mengubah atau menghapus task,
+  tetap dikerjakan Ali sendiri di aplikasi.
 - **Tanda AI.** Server menandai pesan agen: kolom `kode` diisi `ai`, padahal untuk pesan biasa
   kolom itu selalu kosong. Aktivitas dan tinjauannya diberi `ai: true` di perubahan data real.
   Label **AI** tampil di:
@@ -674,6 +677,9 @@ yang ditulisnya bertanda **AI**. Cara menyiapkan dan memakainya ada di `agen/REA
   - `tim.js`: pekerjaan Lead (rekap tim, laporan mingguan, antrean + saran PIC, cek kerapian
     data), dijalankan `rekap-tim.js`, `mingguan.js`, `antrean.js`, dan `cek-data.js`.
     Laporan mingguan ditulis ke `agen/laporan/` (tak ikut git).
+  - `task.js`, `pilihan-task.js`, dan `buat-task.js` (2.37.0): pilihan form Tambah task dibaca
+    dari ProductTrack, dan butir rekap kerja harian yang sudah diterima Ali disimpan sebagai
+    task. Cara pakai dan skemanya ada di `agen/README.md`.
   - `mcp.js` dan `.mcp.json`: alat untuk sesi AI.
   - `.claude/settings.json`: alat baca langsung jalan; alat tulis selalu minta persetujuan.
   - `CLAUDE.md`: aturan kerja agen.
@@ -686,10 +692,15 @@ yang ditulisnya bertanda **AI**. Cara menyiapkan dan memakainya ada di `agen/REA
     proyek & fase ADDIE, yang macet, beban per orang, task turunan), **Laporan mingguan** (HTML
     dan Markdown), **Antrean + saran PIC** (staff berbeban paling ringan; hanya saran), dan
     **Cek data tim** (tenggat, output, turunan, dan urutan tunggu yang perlu dirapikan).
+  - **Ambil pilihan form task** (hanya membaca) dan **Simpan task dari rekap** (menulis task,
+    tanpa token, bertanda AI), untuk rekap kerja harian. Butir yang sudah dibuat tidak dibuat dua
+    kali, dan yang tidak sah ditolak dengan alasannya.
   - Tugas AI ("@Ali jawab pesan yang menunggu", "@Ali PRD-123 sudah selesai, …") memakai kredit
-    API. Setiap tulisan muncul dulu sebagai kartu Izinkan/Tolak berisi isinya.
+    API. Setiap tulisan muncul dulu sebagai kartu Izinkan/Tolak berisi isinya. Alat `buat_task`
+    (dan `pilihan_task` untuk membaca pilihannya) ikut di sini.
 
-Diuji di `test/agen.test.js`, termasuk alat MCP yang dijalankan lewat stdio sungguhan.
+Diuji di `test/agen.test.js`, termasuk alat MCP yang dijalankan lewat stdio sungguhan, serta
+`test/agen-task.test.js` (aturan butir → task) dan `test/agen-task-e2e.test.js` (server uji lokal).
 
 ### Master & PIN profil
 
@@ -1190,7 +1201,7 @@ public/panduan.js     isi halaman Panduan + pencari contoh untuk "Coba sekarang"
 public/cek.html       halaman cek: setelan, akun, spreadsheet, kepemilikan, data contoh
 api/rpc.js            satu pintu API: masuk, keluar, status, siapkan, muatContoh, sinkron, data real, obrolan, foto, mode Dev, Master, PIN profil
 api/_real.js          data real: perintah diperiksa berurutan, keadaan dari tab data_real
-agen/                 agen AI Ali: klien, ringkasan & pengingat, alat MCP (lihat agen/README.md)
+agen/                 agen AI Ali: klien, ringkasan & pengingat, catat task dari rekap, alat MCP (lihat agen/README.md)
 api/_sesi.js          gerbang PIN + cookie sesi (mode Dev, profil terbukti)
 api/_sheets.js        Google Sheets + aturan kepemilikan + data contoh + tab obrolan, foto, orang, master, pin, setelan, data_real
 api/_skema.js         bentuk tab spreadsheet v2, baris ↔ objek prototipe

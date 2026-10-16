@@ -251,12 +251,18 @@ function buatKlien(opsi = {}) {
   const idPerintah = () => 'a' + jam().toString(36) + (urut++ % 1296).toString(36).padStart(2, '0') + Math.random().toString(36).slice(2, 6);
 
   /* Perubahan data real atas nama agen. Diperiksa dulu di sini dengan aturan yang sama,
-     supaya galatnya jelas sebelum dikirim; server memeriksanya lagi. */
-  async function ubah(aksi, isi) {
+     supaya galatnya jelas sebelum dikirim; server memeriksanya lagi.
+     opsi (semuanya boleh kosong; dipakai buat-task.js, 2.37.0):
+       id    ID perintah yang ditentukan pemanggil. ID yang sama dikirim dua kali tersimpan sekali
+             (server membuang kiriman ulang), jadi pekerjaan yang diulang tak menggandakan task;
+       hari  tanggal perintah (YYYY-MM-DD), mis. tanggal rekap untuk "mulai" task baru;
+       k     keadaan yang sudah dimuat (muat() atau keadaan()), supaya beberapa perubahan
+             berurutan tak menarik data berulang kali; pemanggil menyamakannya sendiri. */
+  async function ubah(aksi, isi, { id = '', hari = '', k: awal = null } = {}) {
     if (!I.AKSI_AGEN.includes(aksi)) throw new GalatAgen(`Agen tidak boleh melakukan "${aksi}".`, 'AGEN');
-    const k = await keadaan();
+    const k = awal || await keadaan();
     if (k.mode !== 'real') throw new GalatAgen('ProductTrack sedang memakai data contoh. Perubahan task hanya tersimpan di data real; minta Dev memindahkan sumber datanya.', 'SUMBER');
-    const p = { id: idPerintah(), aksi, isi, oleh: k.me, at: jam(), hari: k.hari };
+    const p = { id: id || idPerintah(), aksi, isi, oleh: k.me, at: jam(), hari: hari || k.hari || I.isoHari(jam()) };
     const coba = I.jalankanPerintah(structuredClone(k.data), p);
     if (!coba.ok) throw new GalatAgen(coba.galat, 'ATURAN', 400);
     const h = await rpc('simpanReal', [{ id: p.id, aksi, isi, at: p.at, hari: p.hari }]);
@@ -290,7 +296,7 @@ function buatKlien(opsi = {}) {
     return (await rpc('kirimObrolan', [{ jenis: 'beres', ruang, oleh: k.me, target: pesan }])).peristiwa;
   }
 
-  return { masuk, rpc, muat, obrolan, keadaan, ubah, kirimPesan, beres, get me() { return me; }, alamat, folderData };
+  return { masuk, rpc, muat, obrolan, keadaan, ubah, kirimPesan, beres, jam, get me() { return me; }, alamat, folderData };
 }
 
 module.exports = { buatKlien, GalatAgen, bacaEnv, rapikan, judulRuang, barisTask, revisi, pesanMenunggu, barisPesan, tglPendek, tglPanjang, jamLalu, selisihHari, potong, pendek };

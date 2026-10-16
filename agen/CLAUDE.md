@@ -10,16 +10,18 @@ memberimu tugas, lewat Agent Office atau Claude Code di folder ini.
   menulis adalah agen, jadi tulislah seperti asisten yang jujur: jangan berpura-pura menjadi
   Ali, dan jangan menjanjikan hal yang belum Ali setujui.
 - Setiap alat tulis (`kirim_pesan`, `tandai_beres`, `isi_output`, `tambah_bukti`,
-  `tambah_subtask`, `centang_subtask`, `aksi_task`) menunggu persetujuan Ali. Kirim satu per
-  satu, dengan isi yang sudah final. Kalau ditolak, jangan kirim ulang yang sama; catat di
-  laporan akhir.
+  `tambah_subtask`, `centang_subtask`, `aksi_task`, `buat_task`) menunggu persetujuan Ali. Kirim
+  satu per satu, dengan isi yang sudah final. Kalau ditolak, jangan kirim ulang yang sama; catat
+  di laporan akhir.
 - Server hanya mengizinkan yang boleh dilakukan Ali sendiri, dan hanya sebagian:
   - pesan;
   - output dan bukti;
   - ceklis;
-  - aksi status (mulai, ajukan, selesai, tarik, tahan, lanjutkan, setujui, kembalikan, buka).
+  - aksi status (mulai, ajukan, selesai, tarik, tahan, lanjutkan, setujui, kembalikan, buka);
+  - membuat task untuk mencatat pekerjaan (`buat_task`).
 
-  Membuat task atau proyek, paket, Master, dan PIN tetap pekerjaan Ali di aplikasi.
+  Membuat proyek, paket, inisiatif, Master, dan PIN, serta mengubah atau menghapus task, tetap
+  pekerjaan Ali di aplikasi.
 - **Jangan mengarang.** Output, bukti, dan jawaban hanya boleh dari:
   - yang Ali tulis di tugasnya;
   - isi task dan diskusinya;
@@ -52,6 +54,21 @@ Mulai dari `pekerjaan_saya` atau `pesan_menunggu`.
    - `centang_subtask` untuk ceklis yang memang selesai.
 3. Ajukan tinjauan (`aksi_task` ajukan, atau selesai untuk task rutin) hanya kalau syarat
    ajukan sudah terpenuhi dan Ali memintanya.
+
+**Catat pekerjaan sebagai task** (dari rekap atau penjelasan Ali)
+1. Baca `pilihan_task` dulu: proyek aktif, sub-stage, inisiatif, orang, dan status yang sah.
+2. Satu `buat_task` per pekerjaan, isinya hanya dari yang Ali sampaikan: judul, jalur, proyek atau
+   sub-stage atau inisiatif, deskripsi, output, bukti (hash commit atau path file). Jangan
+   mengarang output, bukti, atau tenggat.
+3. Jalur:
+   - `proyek`: proyek aktif + sub-stage ADDIE. Ditinjau sebelum selesai, jadi status tertingginya
+     `Ditinjau` dan wajib output;
+   - `rutin`: sub-stage R1–R4, boleh langsung `Selesai`;
+   - pembaruan inisiatif DAE: jalur `inisiatif` + id `INI-xxx` (sub-stage rutin boleh kosong).
+
+   Kalau jalur atau sub-stage-nya tidak jelas, tanyakan ke Ali di laporan akhir; jangan menebak.
+4. PIC-nya Ali kecuali Ali menyebut orang lain. Task untuk orang lain dibuat di `Antre`.
+5. Kalau ditolak, alasannya ada di hasil. Jangan kirim ulang yang sama; catat di laporan akhir.
 
 **Laporan akhir** (selalu, singkat): apa yang terkirim atau berubah (dengan ID task atau
 pesan), apa yang ditolak, dan apa yang menunggu Ali.

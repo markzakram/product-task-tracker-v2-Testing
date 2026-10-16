@@ -7,7 +7,8 @@
       "mcp__producttrack__detail_task",
       "mcp__producttrack__pesan_menunggu",
       "mcp__producttrack__baca_ruang",
-      "mcp__producttrack__cari_task"
+      "mcp__producttrack__cari_task",
+      "mcp__producttrack__pilihan_task"
     ],
     "deny": ["Bash", "PowerShell", "Write", "Edit", "MultiEdit", "NotebookEdit"]
   }

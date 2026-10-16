@@ -1,5 +1,42 @@
 # Changelog — ProductTrack v2
 
+## 2.37.0 — Agen Ali mencatat pekerjaan harian sebagai task (2026-10-16)
+
+Permintaan user: pekerjaan harian Ali (commit, perubahan yang belum di-commit, sesi kerja) dicatat
+di ProductTrack tanpa mengetik ulang. Rekap disusun di Agent Office; usulan yang diterima Ali
+ditulis agennya sebagai task. Sebelumnya server menolak agen membuat task.
+
+**Perlu deploy server: ya.** Satu perubahan di `public/inti.js` (`taskBaru` masuk
+`Inti.AKSI_AGEN`) dibaca `api/rpc.js` dan tak ada tanpa deploy. Sebelum server di-deploy,
+`agen/buat-task.js` berhenti dengan "Server ProductTrack belum mendukung agen membuat task" dan tak
+ada yang ditulis; `agen/pilihan-task.js` dan `buat-task.js --uji` tetap jalan karena hanya membaca.
+Browser tak berubah (versi dan `?v=` naik karena `inti.js` berubah).
+
+- **Server**: agen boleh membuat task (`taskBaru`). Server memeriksanya seperti form Tambah task
+  atas nama Ali (proyek, sub-stage, PIC, inisiatif); yang bertanda AI adalah aktivitas "Dibuat
+  untuk …" dan aksi statusnya. Proyek, paket, inisiatif, Master, PIN, serta ubah dan hapus task
+  tetap pekerjaan Ali di aplikasi.
+- **Pilihan form** (`agen/pilihan-task.js`, hanya membaca): proyek aktif beserta timnya, sub-stage
+  proyek (tim Ali di atas) dan rutin, inisiatif yang bisa dipakai, orang yang boleh jadi PIC, status
+  awal yang sah per jalur, dan aturan tenggat, ke `agen/.data/pilihan-task.json`.
+- **Butir → task** (`agen/buat-task.js --berkas <usulan.json> [--uji]`): tiap butir diperiksa dengan
+  aturan Inti yang sama dengan form (jalur **proyek**, **rutin**, dan pembaruan **inisiatif**), lalu
+  dibuat di Antre dan dinaikkan ke status yang diminta dengan aksi yang sama dengan tombol (mulai,
+  ajukan, selesai). Yang tidak sah ditolak dengan alasannya tanpa menghentikan butir lain; hasil per
+  butir di `<berkas>.hasil.json`. Task proyek berhenti di Ditinjau (ditinjau Nynda), rutin dan inisiatif
+  boleh Selesai. Hash commit dan path file ditulis di Keterangan task, bersama baris "Dicatat agen AI".
+- **Idempoten**: butir yang sudah dibuat dicatat di `agen/.data/rekap-terkirim.json`, dan tiap
+  perintah memakai ID tetap yang dikenali server, jadi jalan ulang (juga setelah catatan hilang atau
+  jalan yang terputus) tak menggandakan task.
+- **Agent Office**: pekerjaan baru `pilihantask` ("Ambil pilihan form task") dan `buattask` ("Simpan
+  task dari rekap", isian berkas di `.data/usulan`, centang Uji saja) di `agen/agent-office.json`.
+- **Alat MCP** `pilihan_task` (membaca) dan `buat_task` (menulis, lewat kartu Izinkan/Tolak). Aturan
+  kerja agen (`agen/CLAUDE.md`) dan README (`agen/README.md`: cara pakai dan skema) diperbarui.
+- Fungsinya di `agen/task.js`. Tes baru `test/agen-task.test.js` (aturan butir, idempotensi, urutan
+  penulisan) dan `test/agen-task-e2e.test.js` (server uji lokal: agen masuk, mengambil pilihan, lalu
+  membuat task proyek, rutin, dan inisiatif; butir tak sah ditolak; jalan ulang tak menggandakan).
+  330 tes.
+
 ## Belum dirilis — Agen Ali: pekerjaan Lead (2026-10-13)
 
 Permintaan user: agen Ali punya pekerjaan yang sesuai perannya sebagai Lead tim DAE. Semuanya

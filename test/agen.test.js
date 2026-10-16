@@ -123,7 +123,9 @@ test('data real dari agen: hanya aksi agen, atas nama Ali, aktivitas dan tinjaua
   sheetV2();
   const { nynda } = await siapkanReal();
   const agen = await masukAgen();
-  for (const [a, isi] of [['proyekBaru', { f: { name: 'X' } }], ['taskBaru', { f: { title: 'Y', pic: 'ali', sub: 'R1' } }], ['hapusBukti', { task: 'PRD-001', bukti: 'e1' }]]) {
+  // Proyek, hapus, dan sebagainya tetap pekerjaan Ali di aplikasi. Membuat task diizinkan sejak 2.37.0
+  // (lihat test/agen-task-e2e.test.js).
+  for (const [a, isi] of [['proyekBaru', { f: { name: 'X' } }], ['hapusTask', { task: 'PRD-001' }], ['hapusBukti', { task: 'PRD-001', bukti: 'e1' }]]) {
     const r = await aksi(agen, 'simpanReal', perintah(a, isi));
     assert.equal(r.status, 403, a);
   }
@@ -301,7 +303,8 @@ test('alat MCP lewat stdio: daftar alat, baca pekerjaan, aksi yang tak tersedia 
     mcp.beri('notifications/initialized');
     const daftar = (await mcp.minta('tools/list')).result.tools;
     assert.deepEqual(daftar.map(t => t.name), ALAT.map(a => a.name));
-    assert.deepEqual(daftar.filter(t => t.annotations.readOnlyHint).map(t => t.name), ['pekerjaan_saya', 'ringkasan_pagi', 'detail_task', 'pesan_menunggu', 'baca_ruang', 'cari_task']);
+    assert.deepEqual(daftar.filter(t => t.annotations.readOnlyHint).map(t => t.name), ['pekerjaan_saya', 'ringkasan_pagi', 'detail_task', 'pesan_menunggu', 'baca_ruang', 'cari_task', 'pilihan_task']);
+    assert.ok(daftar.find(t => t.name === 'buat_task'), 'buat_task ada dan menunggu persetujuan (bukan alat baca)');
     const kerja = (await mcp.minta('tools/call', { name: 'pekerjaan_saya', arguments: {} })).result;
     assert.equal(kerja.isError, undefined, kerja.content[0].text);
     assert.match(kerja.content[0].text, /PRD-001 · DV6 · Skrip tarik data/);
@@ -332,7 +335,9 @@ test('folder agen: izin alat baca saja, pekerjaan Agent Office menunjuk skrip ya
   const kantor = JSON.parse(fs.readFileSync(path.join(AKAR, 'agen', 'agent-office.json'), 'utf8'));
   for (const j of kantor.pekerjaan) {
     assert.ok(fs.existsSync(path.join(AKAR, 'agen', j.perintah[0])), j.id);
-    assert.equal(new RegExp(j.hasil, 'm').exec('baris\nRINGKAS: 2 telat\n')[1], '2 telat');
+    // Pekerjaan task (2.37.0) melapor lewat "HASIL: …"; selebihnya lewat "RINGKAS: …".
+    if (/HASIL/.test(j.hasil)) assert.ok(new RegExp(j.hasil, 'm').exec('baris\nHASIL: 2 task dibuat, 0 ditolak\n'), j.id);
+    else assert.equal(new RegExp(j.hasil, 'm').exec('baris\nRINGKAS: 2 telat\n')[1], '2 telat');
   }
   assert.ok(new RegExp(kantor.pekerjaan.find(j => j.id === 'pengingat').senyap, 'i').test('Pengingat ProductTrack (tidak ada pengingat baru). Tanpa token.'));
 });

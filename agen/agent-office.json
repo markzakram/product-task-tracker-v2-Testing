@@ -1,5 +1,5 @@
 {
-  "_keterangan": "Pekerjaan tanpa token agen AI Ali untuk Agent Office (G:\\Ali\\code\\Agent AI). Karyawan operator yang memegang folder agen/ ini menjalankannya; tugas yang butuh AI (jawab pesan, perbarui task) berjalan di folder ini dengan alat dari .mcp.json. Format: README Agent Office bagian agent-office.json.",
+  "_keterangan": "Pekerjaan tanpa token agen AI Ali untuk Agent Office (G:\\Ali\\code\\Agent AI). Karyawan operator yang memegang folder agen/ ini menjalankannya; tugas yang butuh AI (jawab pesan, perbarui task, buat task) berjalan di folder ini dengan alat dari .mcp.json. Format: README Agent Office bagian agent-office.json.",
   "nama": "ProductTrack · agen Ali",
   "pekerjaan": [
     {
@@ -80,6 +80,39 @@
       "ringkasan": "Cek data tim",
       "senyap": "tidak ada temuan",
       "batas_menit": 2
+    },
+    {
+      "id": "pilihantask",
+      "judul": "Ambil pilihan form Tambah task",
+      "singkat": "Ambil pilihan form task",
+      "kata_kunci": ["pilihan form task", "pilihan task", "form tambah task", "pilihan tambah task", "pilihan form tambah task"],
+      "wajib_salah_satu": ["pilihan form task", "pilihan task", "form tambah task", "pilihan tambah task"],
+      "perintah": ["pilihan-task.js"],
+      "catatan": ["hanya membaca ProductTrack: proyek aktif, sub-stage proyek dan rutin, inisiatif DAE, orang yang boleh jadi PIC, status awal yang sah, dan aturan tenggat; ditulis ke agen/.data/pilihan-task.json"],
+      "hasil": "^(?:BERKAS|HASIL): (.+)$",
+      "ringkasan": "Pilihan form task",
+      "batas_menit": 2
+    },
+    {
+      "id": "buattask",
+      "judul": "Simpan task dari rekap ke ProductTrack",
+      "singkat": "Simpan task dari rekap",
+      "kata_kunci": ["simpan task dari rekap", "task dari rekap", "usulan task", "simpan usulan task", "kirim usulan task", "simpan rekap ke producttrack"],
+      "wajib_salah_satu": ["simpan task dari rekap", "task dari rekap", "usulan task", "simpan usulan task", "simpan rekap ke producttrack"],
+      "perintah": ["buat-task.js", ["--berkas", "{berkas}"], "{uji?--uji}"],
+      "parameter": {
+        "berkas": {
+          "jenis": "file", "folder": ".data/usulan", "ekstensi": ".json", "kecuali": "\\.hasil\\.json$", "wajib": true,
+          "label": "Berkas usulan",
+          "bantuan": "Usulan yang sudah diterima (tanggal + butir) di agen/.data/usulan; yang terbaru dipilih otomatis. Hasil per butir ditulis di sebelahnya, <nama>.json.hasil.json.",
+          "pesan_kosong": "Belum ada berkas usulan (.json) di agen/.data/usulan. Buat dulu lewat rekap harian (Catat pekerjaan hari ini) di Agent Office."
+        },
+        "uji": { "jenis": "tanda", "jika_disebut": ["uji saja", "periksa saja"], "label": "Uji saja (tanpa menyimpan)", "bantuan": "Memeriksa butir dengan aturan ProductTrack tanpa membuat task" }
+      },
+      "catatan": ["menulis task ke ProductTrack (data real) atas nama Ali dan bertanda AI, tanpa token; butir yang sudah dibuat tidak dibuat dua kali, butir yang tidak sah ditolak dengan alasannya"],
+      "hasil": "^HASIL: (.+)$",
+      "ringkasan": "Task dari rekap",
+      "batas_menit": 10
     }
   ]
 }

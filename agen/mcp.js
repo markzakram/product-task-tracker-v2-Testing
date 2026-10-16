@@ -17,6 +17,7 @@
 
 const I = require('../public/inti.js');
 const K = require('./klien');
+const T = require('./task');
 const { ringkasanPagi } = require('./laporan');
 
 let versi = '';
@@ -176,6 +177,13 @@ const ALAT = [
     jalankan: async (c, a) => teksCari(await c.keadaan(), a.kata),
   },
   {
+    name: 'pilihan_task', title: 'Pilihan form Tambah task',
+    description: 'Pilihan form "Tambah task" untuk Ali: proyek aktif, sub-stage proyek (tim Ali di atas) dan rutin, inisiatif DAE, orang yang boleh jadi PIC, status awal yang sah, dan aturan tenggat. Baca ini dulu sebelum buat_task.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    baca: true,
+    jalankan: async c => T.teksPilihan(T.susunPilihan(await c.muat(), { sekarang: c.jam() })),
+  },
+  {
     name: 'kirim_pesan', title: 'Kirim pesan sebagai Ali (AI)',
     description: 'Kirim pesan di ruang Komunikasi atas nama Ali; tampil dengan tanda AI. Perlu persetujuan Ali. Untuk membalas pesan tertentu isi balas_ke dengan id pesannya. tanya = orang yang ditunggu jawabannya (nama pendek), hanya kalau memang perlu jawaban.',
     inputSchema: {
@@ -242,6 +250,29 @@ const ALAT = [
       return tersimpan(e, `${t.id}: ${ada.label}.`);
     },
   },
+  {
+    name: 'buat_task', title: 'Buat task sebagai Ali (AI)',
+    description: 'Buat satu task baru untuk mencatat pekerjaan yang sudah dikerjakan Ali (dari rekap kerja harian). Perlu persetujuan Ali. Baca pilihan_task dulu. Jalur proyek butuh proyek + sub-stage ADDIE (ditinjau dulu, jadi status tertinggi Ditinjau dan wajib output); jalur rutin butuh sub-stage R1–R4 (boleh langsung Selesai); pembaruan inisiatif DAE = jalur rutin + isian inisiatif (sub-stage boleh kosong). Diperiksa dengan aturan form Tambah task; yang tidak sah ditolak dengan alasannya. Isi hanya dari fakta yang Ali berikan, jangan mengarang. PIC bawaan Ali; tenggat kosong = hari ini. Pemanggilan ulang dengan isi yang sama di hari yang sama tidak membuat task kedua.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        judul: { ...teks, description: 'judul task (maks. 200 karakter)' },
+        jalur: { type: 'string', enum: ['proyek', 'rutin', 'inisiatif'], description: 'proyek, rutin, atau inisiatif (pembaruan inisiatif, dikirim sebagai rutin)' },
+        proyek: { ...teks, description: 'id proyek, mis. PRJ-1 (wajib untuk jalur proyek)' },
+        inisiatif: { ...teks, description: 'id inisiatif, mis. INI-001 (wajib untuk jalur inisiatif; hanya tanpa proyek)' },
+        sub: { ...teks, description: 'kode sub-stage: ADDIE untuk proyek, R1–R4 untuk rutin (boleh kosong untuk inisiatif)' },
+        pic: { ...teks, description: 'id orang; bawaan Ali. Status selain Antre hanya untuk task yang PIC-nya Ali' },
+        tenggat: { ...teks, description: 'YYYY-MM-DD; bawaan hari ini' },
+        status: { type: 'string', enum: ['Antre', 'Dikerjakan', 'Ditinjau', 'Selesai'], description: 'status awal; proyek: sampai Ditinjau (wajib output), rutin dan inisiatif: sampai Selesai. Bawaan Antre' },
+        deskripsi: { ...teks, description: 'keterangan task' },
+        output: { ...teks, description: 'ringkasan hasil kerja (maks. 200 karakter; wajib untuk status Ditinjau)' },
+        bukti: { type: 'array', items: teks, description: 'hash commit atau path file; ditulis di Keterangan task' },
+        tanggal: { ...teks, description: 'tanggal pekerjaan YYYY-MM-DD; bawaan hari ini' },
+      },
+      required: ['judul', 'jalur'], additionalProperties: false,
+    },
+    jalankan: async (c, a) => T.teksHasilSatu(await T.buatSatu(c, a)),
+  },
 ];
 
 /* ---------- JSON-RPC lewat stdio ---------- */
@@ -258,7 +289,7 @@ async function tangani(p) {
       protocolVersion: VERSI_PROTOKOL.includes(params.protocolVersion) ? params.protocolVersion : VERSI_PROTOKOL[1],
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: 'producttrack', title: 'ProductTrack · agen Ali', version: versi },
-      instructions: 'Alat ProductTrack v2 atas nama Ali (Lead tim Sistem). Mulai dari pekerjaan_saya atau pesan_menunggu. Alat tulis (kirim_pesan, tandai_beres, isi_output, tambah_bukti, tambah_subtask, centang_subtask, aksi_task) menunggu persetujuan Ali dan tampil di ProductTrack dengan tanda AI.',
+      instructions: 'Alat ProductTrack v2 atas nama Ali (Lead tim Sistem). Mulai dari pekerjaan_saya atau pesan_menunggu. Untuk mencatat pekerjaan sebagai task baca pilihan_task dulu, lalu buat_task. Alat tulis (kirim_pesan, tandai_beres, isi_output, tambah_bukti, tambah_subtask, centang_subtask, aksi_task, buat_task) menunggu persetujuan Ali dan tampil di ProductTrack dengan tanda AI.',
     });
   }
   if (typeof method === 'string' && method.startsWith('notifications/')) return;
