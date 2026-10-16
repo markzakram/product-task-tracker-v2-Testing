@@ -28,6 +28,35 @@ Docker), jadi versi aplikasi tidak naik.
 - Fungsinya murni di `agen/tim.js`. Tes baru di `test/agen-tim.test.js` dan
   `test/agen.test.js` (keempat skrip dijalankan terhadap server uji). 272 tes.
 
+## 2.36.0 — Permintaan lanjutan lintas tim; label terlambat per tim di proyek (2026-10-16)
+
+Permintaan user: (1) dari task yang sudah selesai, bisa meminta penambahan task lintas tim
+("Andika telah membuat rancangan, ingin request ke Ali untuk pembuatan prototype"); sesudah
+melihat kanvas sebelum–sesudah, user memilih penerima menerima dulu, semua profil boleh meminta,
+dan permintaan ke siapa pun dengan Lead-nya ikut tahu. (2) Label terlambat di halaman proyek:
+Manager melihat semua; Lead dan timnya hanya kalau tim dan Lead-nya punya yang terlambat.
+
+- **Minta lanjutan** di task yang selesai atau sudah diajukan (kartu Langkah berikutnya dan
+  bagian baru **Permintaan lanjutan**), oleh PIC, Lead-nya, atau Manager: untuk siapa (tim mana
+  pun), yang dibutuhkan, rincian, saran sub-stage (tim penerima di atas), tenggat harapan.
+- **Permintaan masuk** di Hari Ini penerima (dan Lead-nya bila penerimanya staff), dengan
+  **Terima** (PIC, sub-stage, tenggat → task di Antre, di proyek task asal, tertaut ke sana dan
+  menunggunya bila belum disetujui), **Tolak** (alasan wajib), **Tanya** (obrolan task asal,
+  peminta sudah disebut), dan **Alihkan** bagi Lead tim penerima.
+- Peminta melihat statusnya di task asal (menunggu, diterima + task barunya, ditolak + alasan),
+  bisa **Batalkan** dan **Kirim ulang**. Task baru menulis "Diminta … dari PRD-…".
+- Notifikasi baru: diminta, staff Anda diminta, diterima, ditolak, dialihkan.
+- Belum dijawab 2 hari kerja: masuk **Perlu perhatian** Dashboard dan diberi tanda di kartunya.
+- Data: koleksi `permintaan` (ID `MNT-…`) di data real, tab `permintaan` (opsional), tabel
+  `v2_permintaan` (28 tabel). Salinan cepat data real dari versi lama yang belum mengenal
+  koleksi ini disusun ulang dari awal sekali.
+- **Label terlambat/tertahan di kepala proyek** (`Inti.sorotProyek`): Manager semua tim; Lead dan
+  staff hanya timnya (menurut PIC); tak muncul kalau timnya tak punya. Diklik → Task dengan
+  **Tim saya** (staff kini juga punya pilihan ini selagi disaring ke satu proyek), jadi angkanya
+  sama. Contoh data uji: proyek dengan 6 terlambat → Manager 6, Lead/staff LNA 4, Lead CLO 2,
+  Lead RAD tanpa label (dua task di sub-stage RAD dipegang Lead CLO).
+- Panduan baru **Meminta lanjutan ke tim lain**. Tes baru `test/permintaan.test.js` (8). 304 tes.
+
 ## 2.35.1 — Angka terlambat di proyek kini bisa ditelusuri di Task (2026-10-16)
 
 Keluhan user (tangkapan layar): halaman proyek menulis "2 terlambat", tetapi sesudah diklik tab

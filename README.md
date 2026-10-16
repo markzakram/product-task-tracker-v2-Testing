@@ -231,9 +231,13 @@ dengan satu penyederhanaan: tetap empat status.
   task yang melibatkan orang itu: pemberi, peninjau, pendukung, atau yang berkomentar). Halaman
   proyek dan rancangan paket tetap terbuka untuk semua, karena itulah konteks kerja bersama.
   Maka sejak 2.35.1, selagi Task disaring ke satu proyek, Staff dan Lead mendapat pilihan
-  **Semua tim** (semua tim di proyek itu), dan angka di halaman proyek ("2 terlambat",
-  "5 tertahan", "Lihat di Task") membuka Task dengan lingkup itu, supaya angkanya sama.
-  Aturannya `lingkupBoleh`/`lingkupOrang`/`lingkupTask` di `public/inti.js`.
+  **Semua tim** (semua tim di proyek itu); staff juga **Tim saya** (2.36.0). Label terlambat dan
+  tertahan di kepala halaman proyek mengikuti yang melihat (2.36.0, permintaan user): Manager
+  semua tim; Lead dan staff hanya timnya (Lead dan staff-nya, menurut PIC), dan labelnya tak
+  muncul kalau timnya tak punya. Task di sub-stage tim Anda yang dipegang orang tim lain
+  dihitung untuk tim pemegangnya. Diklik, label membuka Task dengan lingkup yang sama (Tim saya;
+  Manager: Semua), jadi angkanya cocok; "Lihat di Task" membuka **Semua tim**.
+  Aturannya `lingkupBoleh`/`lingkupOrang`/`lingkupTask`/`sorotProyek` di `public/inti.js`.
 
 Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tampilan
 (`public/app.js`) hanya meneruskan klik ke aturan itu.
@@ -825,6 +829,42 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   `Inti.inisiatifBaru`, `ubahInisiatif`, `hapusInisiatif`, `tempelInisiatif`,
   `ringkasInisiatif`; tim yang memakainya `Inti.TIM_INISIATIF` (`['SI']`). Diuji di
   `test/inti.test.js`, `test/demo.test.js`, dan `test/sheets.test.js`.
+
+### Permintaan lanjutan lintas tim (2.36.0)
+
+Permintaan user: dari task yang sudah selesai, minta orang lain (lintas tim) membuat task
+lanjutannya; contohnya Andika selesai membuat rancangan lalu meminta Ali membuat prototype.
+Gambaran sebelum–sesudahnya dibuat dulu di kanvas, lalu user memilih: penerima menerima dulu,
+semua profil boleh meminta, dan permintaan boleh ke siapa pun dengan Lead-nya ikut tahu.
+
+- **Meminta.** Di task yang **selesai** atau sudah **diajukan** (Ditinjau), PIC-nya, Lead-nya,
+  atau Manager menekan **Minta lanjutan** (di kartu Langkah berikutnya dan di bagian
+  **Permintaan lanjutan** tab Kerjakan). Isinya: untuk siapa (tim mana pun, tim sendiri juga),
+  yang dibutuhkan, rincian, saran sub-stage (tim penerima di atas; boleh dikosongkan), dan
+  tenggat harapan. Proyek dan tautan ke task asal ikut terlampir.
+- **Penerima** mendapat notifikasi dan kartu **Permintaan masuk** di Hari Ini, lalu memilih:
+  - **Terima**: memilih PIC (Lead boleh langsung memberikannya ke staff timnya), sub-stage, dan
+    tenggat. Task-nya masuk Antre di proyek dan siklus task asal, dengan aturan task baru biasa
+    (staff hanya untuk dirinya dan sub-stage timnya). Kalau task asal belum disetujui, task baru
+    menunggunya. Di detail task baru tertulis "Diminta Andika dari PRD-…".
+  - **Tolak**: alasan wajib, dikirim ke peminta.
+  - **Tanya**: membuka obrolan task asal dengan peminta sudah disebut di kotak tulis.
+- **Lead tim penerima** ikut melihat permintaan untuk staff-nya di Hari Ini (dan notifikasinya),
+  boleh menjawabnya, atau **Alihkan** ke dirinya atau staff lain (penerima lama dan peminta diberi
+  tahu). Permintaan yang 2 hari kerja (Senin–Jumat) belum dijawab muncul di **Perlu perhatian**
+  Dashboard untuk lingkup penerimanya, dan kartunya memberi tanda.
+- **Peminta** melihat semua permintaannya di bagian **Permintaan lanjutan** task asal (menunggu,
+  diterima dengan tautan task barunya, ditolak beserta alasannya), diberi tahu saat dijawab, bisa
+  **Batalkan** selama belum dijawab, dan **Kirim ulang** yang ditolak ke orang lain.
+- **Data**: koleksi `permintaan` (ID `MNT-001`, tak pernah dihapus; status menunggu → diterima,
+  ditolak, atau batal) ikut data real (`KOLEKSI_REAL`), tab `permintaan` (opsional), dan tabel
+  `v2_permintaan` di MySQL (kini 28 tabel). Salinan cepat data real di browser kini mencatat
+  koleksi yang dikenalnya: salinan dari versi lama yang belum mengenal `permintaan` disusun ulang
+  dari awal sekali, supaya permintaan yang dibuat sebelum browser itu diperbarui tak terlewat.
+  Aturannya `Inti.mintaLanjutan`, `terimaPermintaan`, `tolakPermintaan`, `batalkanPermintaan`,
+  `alihkanPermintaan`, `permintaanMasuk`, `mintaLama`; notifikasinya di `Inti.notifikasi`
+  (`minta`, `mintaTim`, `mintaTerima`, `mintaTolak`, `mintaAlih`). Diuji di
+  `test/permintaan.test.js`. Panduan: **Meminta lanjutan ke tim lain** (tab Staff).
 
 ### Alamat, pencarian cepat, dan notifikasi
 
@@ -1497,7 +1537,7 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
    Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 27 tabel berawalan `v2_` di skema
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 28 tabel berawalan `v2_` di skema
    `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
    salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
    dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru

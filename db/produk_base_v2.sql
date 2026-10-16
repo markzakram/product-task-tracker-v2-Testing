@@ -265,6 +265,38 @@ CREATE TABLE IF NOT EXISTS `v2_inisiatif_links` (
 
 
 -- =============================================================================
+--  PERMINTAAN LANJUTAN (2.36.0)
+-- =============================================================================
+
+-- Dari task asal (sumber) yang sudah diajukan atau selesai, satu orang diminta mengerjakan
+-- lanjutannya. Diterima = task baru (kolom task); ditolak = alasan. Tak pernah dihapus, dan tanpa
+-- foreign key ke v2_tasks: task asal boleh dihapus tanpa menghapus jejak permintaannya.
+CREATE TABLE IF NOT EXISTS `v2_permintaan` (
+  `id`           VARCHAR(64)   NOT NULL,
+  `sumber`       VARCHAR(64)   NOT NULL,
+  `dari`         VARCHAR(64)   NOT NULL,
+  `ke`           VARCHAR(64)   NOT NULL,
+  `judul`        VARCHAR(200)  NOT NULL DEFAULT '',
+  `rincian`      TEXT          NULL,
+  `sub`          VARCHAR(16)   NOT NULL DEFAULT '',
+  `due`          DATE          NULL,
+  `status`       VARCHAR(20)   NOT NULL DEFAULT 'menunggu',
+  `alasan`       TEXT          NULL,
+  `task`         VARCHAR(64)   NOT NULL DEFAULT '',
+  `oleh`         VARCHAR(64)   NOT NULL DEFAULT '',
+  `dialihkan`    VARCHAR(64)   NOT NULL DEFAULT '',
+  `dialihkanAt`  DATETIME(3)   NULL,
+  `createdAt`    DATETIME(3)   NULL,
+  `jawabAt`      DATETIME(3)   NULL,
+  `updatedAt`    DATETIME(3)   NULL,
+  `_diubah`      DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_minta_ke` (`ke`, `status`),
+  KEY `ix_minta_sumber` (`sumber`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- =============================================================================
 --  TASK
 -- =============================================================================
 
@@ -508,7 +540,7 @@ CREATE TABLE IF NOT EXISTS `v2_obrolan` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Periksa: harus 25 tabel berawalan v2_ dan penanda app = producttrack-v2.
+-- Periksa: harus 28 tabel berawalan v2_ dan penanda app = producttrack-v2.
 SELECT COUNT(*) AS tabel_v2
   FROM information_schema.TABLES
  WHERE TABLE_SCHEMA = 'produk_base' AND TABLE_NAME LIKE 'v2\_%';

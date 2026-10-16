@@ -231,6 +231,17 @@
         'Tautan Google Sheets, Docs, Slides, Forms, dan Drive tampil sebagai kartu kecil. Beberapa kejadian task berturut-turut (disetujui, dibuka kembali, diajukan) diringkas jadi satu baris; ketuk untuk melihat semuanya.',
       ],
     },
+    {
+      id: 'staff-minta', peran: 'staff', judul: 'Meminta lanjutan ke tim lain', tujuan: 'Meminta orang lain melanjutkan hasil kerja Anda, dan menjawab permintaan yang masuk.',
+      langkah: [
+        'Task Anda sudah **diajukan** atau **selesai**, dan hasilnya perlu dilanjutkan orang lain (mis. rancangan selesai, perlu dibuatkan prototype)? Buka detail task-nya, lalu tekan **Minta lanjutan**.',
+        'Pilih orangnya (tim mana pun), tulis yang dibutuhkan, saran sub-stage, dan tenggat harapan. Proyek dan tautan ke task Anda ikut terlampir. Lead dan Manager juga bisa meminta dari task timnya.',
+        'Permintaan belum jadi task. Penerimanya melihat kartu **Permintaan masuk** di **Hari Ini** dan notifikasi di lonceng. Kalau yang Anda pilih staff, Lead-nya ikut diberi tahu.',
+        'Penerima menekan **Terima** (memilih PIC, sub-stage, dan tenggat; task masuk Antre di proyek yang sama dan tertaut ke task Anda), **Tolak** dengan alasan, atau **Tanya** lewat obrolan task asal.',
+        'Lead tim penerima bisa **Alihkan** permintaan ke anggota timnya. Permintaan yang 2 hari kerja belum dijawab muncul di **Perlu perhatian** Dashboard.',
+        'Status permintaan Anda ada di bagian **Permintaan lanjutan** pada task asal: menunggu, diterima (dengan tautan task barunya), atau ditolak beserta alasannya. Selama belum dijawab Anda bisa **Batalkan**; yang ditolak bisa **Kirim ulang** ke orang lain.',
+      ],
+    },
 
     {
       id: 'lead-antrean', peran: 'lead', judul: 'Memecah langkah jadi task turunan', tujuan: 'Membagi pekerjaan langkah yang Anda pegang ke staff tim, atau ke diri sendiri.', ilustrasi: 'antrean', coba: true,
