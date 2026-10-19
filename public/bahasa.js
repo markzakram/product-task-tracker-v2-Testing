@@ -2443,6 +2443,9 @@
     'Kirim balasan': 'Send reply',
     'Tulis balasannya dulu.': 'Write your reply first.',
     'Balasan terkirim.': 'Reply sent.',
+    /* ----- Urutan target rancangan paket (2.40.0) ----- */
+    'Seret untuk mengubah urutan': 'Drag to reorder',
+    'Ubah urutan target: seret, atau tekan panah atas/bawah': 'Reorder target: drag, or press the up/down arrows',
   };
 
   let kini = 'id';

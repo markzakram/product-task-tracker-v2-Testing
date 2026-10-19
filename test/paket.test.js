@@ -82,3 +82,14 @@ test('elaborasi paket berplatform banyak: proyek dan task memakai platform yang 
   h = I.elaborasiPaket(d, p, { items: ['i1'], platform: 'OJK' }, 'nynda', WAKTU, HARI);
   assert.equal(h.project.platform, 'ASN', 'platform di luar paket diabaikan');
 });
+
+test('urutan target mengikuti urutan baris di form (2.40.0: baris bisa diseret), ID-nya tetap', () => {
+  const d = kosong();
+  const p = I.paketBaru(d, { namaPaket: 'Paket Urut', platform: ['ASN'] }, 'nynda', WAKTU);
+  const baris = nama => ({ kategori: 'Latsol', nama, target: '1', satuan: 'Paket' });
+  I.simpanPaket(d, p, { namaPaket: 'Paket Urut', items: [baris('A'), baris('B'), baris('C')], links: [] }, 'nynda', WAKTU);
+  const [a, b, c] = p.items;
+  // Baris C diseret ke paling atas, lalu disimpan.
+  I.simpanPaket(d, p, { namaPaket: 'Paket Urut', items: [c, a, b].map(x => ({ ...x, target: String(x.target) })), links: [] }, 'nynda', WAKTU + 1);
+  assert.deepEqual(p.items.map(x => [x.nama, x.urutan, x.id]), [['C', 1, c.id], ['A', 2, a.id], ['B', 3, b.id]]);
+});

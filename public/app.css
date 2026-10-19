@@ -812,7 +812,14 @@ table.tabel { width: 100%; border-collapse: collapse; font-size: calc(14px * var
 .form-paket { display: flex; flex-direction: column; gap: 16px; }
 .isian-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: end; }
 .target-daftar { display: flex; flex-direction: column; gap: 6px; }
-.target-form { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr) 72px 72px 130px minmax(0, 1.4fr) 44px; gap: 6px; align-items: center; }
+.target-form { display: grid; grid-template-columns: 28px minmax(0, 1.1fr) minmax(0, 2fr) 72px 72px 130px minmax(0, 1.4fr) 44px; gap: 6px; align-items: center; }
+/* Pegangan urutan target (2.40.0): seret, atau panah atas/bawah saat terfokus. */
+.target-pegangan { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--samar); cursor: grab; touch-action: none; }
+.target-form[data-item] { cursor: grab; }
+.target-form[data-item] .input, .target-form[data-item] button:not(.target-pegangan) { cursor: auto; }
+.target-pegangan:hover, .target-pegangan:focus-visible { background: color-mix(in srgb, var(--tinta) 8%, transparent); color: var(--tinta-2); }
+.target-form.menyeret { position: relative; z-index: 2; border-radius: 10px; background: var(--muka); box-shadow: 0 0 0 2px var(--biru-garis), var(--bayang); }
+body.sedang-menyeret, body.sedang-menyeret * { cursor: grabbing !important; user-select: none; }
 .target-form .input { min-height: 40px; padding: 6px 10px; }
 .isian-angka { display: block; min-width: 0; }
 .isian-angka span { display: none; }
@@ -1541,7 +1548,8 @@ kbd { padding: 2px 6px; border: 1px solid var(--garis-2); border-bottom-width: 2
   .baris-orang-kiri { flex-basis: 100%; }
   .nav-bawah button { font-size: calc(11px * var(--skala-huruf)); }
   .isian-grid, .form-tambah { grid-template-columns: minmax(0, 1fr); }
-  .target-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px; grid-template-areas: "nama nama nama hapus" "awal target satuan satuan" "grup grup catatan catatan"; padding-bottom: 10px; border-bottom: 1px dashed var(--garis-2); }
+  .target-form { grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px; grid-template-areas: "pegang nama nama nama hapus" "pegang awal target satuan satuan" "pegang grup grup catatan catatan"; padding-bottom: 10px; border-bottom: 1px dashed var(--garis-2); }
+  .target-form .target-pegangan { grid-area: pegang; align-self: stretch; height: auto; min-height: 44px; }
   .target-form [name="i-nama"] { grid-area: nama; }
   .target-form { align-items: end; }
   .target-form .ia-awal { grid-area: awal; }

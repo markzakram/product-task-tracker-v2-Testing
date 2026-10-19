@@ -292,7 +292,11 @@ Halaman pendukung, setara v1:
   berbobot / digarap / target / satuan, status dihitung: terpenuhi, digarap, kurang, lebih,
   beserta chip per batch), tautan, proyek pengisi, dan **Salin ke sheet Marsel** (susunan kolom
   sheet Master Marsel; kategori dari Master ikut jadi kolom). Kategori yang dinonaktifkan tetap
-  tampil di paket yang masih berisi item kategori itu. Lead & Manager membuat paket; PIC Produk
+  tampil di paket yang masih berisi item kategori itu. **Urutan target (2.40.0, permintaan
+  user)**: di form Ubah rancangan, tiap baris target punya pegangan ⋮⋮ untuk diseret (tetikus
+  atau jari; sela kosong di baris juga bisa) atau digeser dengan panah atas/bawah saat
+  pegangannya terfokus, di dalam kategorinya. Urutan baris itulah yang tersimpan (`urutan` dari
+  `Inti.simpanPaket`) dan dipakai di tampilan, salinan sheet Marsel, dan elaborasi. Lead & Manager membuat paket; PIC Produk
   dari data v1 boleh menyunting paketnya; membagikan ke Lintas Divisi hanya Lead/Manager;
   menghapus hanya Manager. **Duplikat (2.30.0, permintaan user; izin `paket.buat`)** membuat
   rancangan baru dari paket ini: isi produk, target, catatan per kategori, dan tautan disalin

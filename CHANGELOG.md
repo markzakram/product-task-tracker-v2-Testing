@@ -1,5 +1,19 @@
 # Changelog — ProductTrack v2
 
+## 2.40.0 — Urutan target rancangan paket bisa diseret (2026-10-19)
+
+Permintaan user: daftar target yang sudah dibuat di rancangan paket bisa di-drag supaya
+urutannya sesuai keinginan pembuat rancangan.
+
+- Di form **Ubah rancangan paket**, tiap baris target punya pegangan ⋮⋮ di kiri. Seret dengan
+  tetikus atau jari (sela kosong di baris juga bisa dipegang; isiannya tetap bisa diketik), atau
+  fokuskan pegangannya lalu tekan panah atas/bawah. Barisnya pindah langsung, di dalam
+  kategorinya; halaman ikut bergulir saat diseret ke tepi.
+- Urutan baru tersimpan saat **Simpan rancangan** (urutan baris form = `urutan` target), dan
+  form ditandai berubah sehingga Batal tetap meminta konfirmasi.
+- Di ponsel pegangannya memanjang di sisi kiri kartu target.
+- Tes baru di `test/paket.test.js`.
+
 ## 2.39.0 — Halaman inisiatif sebagai linimasa, dengan tanggapan Manager (2026-10-19)
 
 Permintaan user: halaman detail inisiatif "masih sangat jelek", dan Manager perlu bisa

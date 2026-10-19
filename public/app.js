@@ -4735,6 +4735,7 @@
     const satuan = [...new Set([...I.SATUAN_PAKET, ...(it.satuan ? [it.satuan] : [])])];
     const v = x => esc(x === undefined || x === null ? '' : x);
     return `<div class="target-form" data-item>
+      <button type="button" class="target-pegangan" title="${tr('Seret untuk mengubah urutan')}" aria-label="${tr('Ubah urutan target: seret, atau tekan panah atas/bawah')}">${ikon('pegangan', 16)}</button>
       <input type="hidden" name="i-id" value="${v(it.id)}">
       <input class="input" name="i-grup" placeholder="${tr('Grup (opsional)')}" maxlength="120" value="${v(it.grup)}" aria-label="${tr('Grup')}">
       <input class="input" name="i-nama" placeholder="${tr('Nama target')}" maxlength="200" value="${v(it.nama)}" aria-label="${tr('Nama target')}">
@@ -4765,7 +4766,7 @@
         <div class="blok-kepala"><h2>${esc(label)}</h2></div>
         <label class="isian">${tr('Catatan {kategori}', { kategori: esc(label) })} <small>${tr('Teks bebas untuk kategori ini, mis. bonus angkatan lama.')}</small><textarea name="${kunci}" maxlength="4000">${esc(p[kunci] || '')}</textarea></label>
         <div class="target-daftar">
-          <div class="target-form kepala-target" aria-hidden="true"><span>${tr('Grup')}</span><span>${tr('Nama target')}</span><span>${tr('Ada')}</span><span>${tr('Target')}</span><span>${tr('Satuan')}</span><span>${tr('Catatan')}</span><span></span></div>
+          <div class="target-form kepala-target" aria-hidden="true"><span></span><span>${tr('Grup')}</span><span>${tr('Nama target')}</span><span>${tr('Ada')}</span><span>${tr('Target')}</span><span>${tr('Satuan')}</span><span>${tr('Catatan')}</span><span></span></div>
           ${p.items.filter(i => i.kategori === label).map(barisTargetForm).join('')}
         </div>
         <button type="button" class="tombol kecil" data-aksi="paket-tambah-item">${ikon('tambah', 16)} ${tr('Tambah target {kategori}', { kategori: esc(label) })}</button>
@@ -11453,6 +11454,65 @@
   }
   document.addEventListener('pointerup', e => selesaiSeretBlok(e, false));
   document.addEventListener('pointercancel', e => selesaiSeretBlok(e, true));
+
+  /* ---------- Urutan target rancangan paket (2.40.0, permintaan user) ----------
+     Baris target di form Ubah rancangan paket bisa diseret lewat pegangannya (tetikus atau jari)
+     atau digeser dengan panah atas/bawah, di dalam kategorinya. Urutan baris di form itulah yang
+     disimpan (Inti.simpanPaket memberi `urutan` menurut urutannya), jadi cukup memindah barisnya. */
+  let seretTarget = null;
+  const barisTarget = daftar => $$('[data-item]', daftar);
+  document.addEventListener('pointerdown', e => {
+    // Pegangannya, atau sela kosong di baris itu (bukan isiannya).
+    const pg = e.target.closest && (e.target.closest('.target-pegangan') || (e.target.matches('.target-form[data-item]') ? e.target : null));
+    if (!pg || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault();
+    const baris = pg.closest('[data-item]');
+    seretTarget = { baris, daftar: baris.parentElement, id: e.pointerId, y: e.clientY, aktif: false, awal: barisTarget(baris.parentElement).indexOf(baris) };
+    try { pg.setPointerCapture(e.pointerId); } catch (err) { /* peramban lama: seret tetap jalan tanpa tangkapan */ }
+  });
+  document.addEventListener('pointermove', e => {
+    const s = seretTarget;
+    if (!s || e.pointerId !== s.id) return;
+    if (!s.aktif) {
+      if (Math.abs(e.clientY - s.y) < 5) return;
+      s.aktif = true;
+      s.baris.classList.add('menyeret');
+      document.body.classList.add('sedang-menyeret');
+    }
+    e.preventDefault();
+    // Baris pindah langsung ke depan baris pertama yang titik tengahnya di bawah penunjuk.
+    const lain = barisTarget(s.daftar).filter(b => b !== s.baris);
+    const depan = lain.find(b => { const r = b.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+    if (depan ? s.baris.nextElementSibling !== depan : s.daftar.lastElementChild !== s.baris) {
+      if (depan) s.daftar.insertBefore(s.baris, depan); else s.daftar.appendChild(s.baris);
+    }
+    const d = e.clientY < 60 ? -14 : e.clientY > innerHeight - 60 ? 14 : 0;
+    if (d) window.scrollBy(0, d);
+  });
+  function selesaiSeretTarget(e) {
+    const s = seretTarget;
+    if (!s || e.pointerId !== s.id) return;
+    seretTarget = null;
+    s.baris.classList.remove('menyeret');
+    document.body.classList.remove('sedang-menyeret');
+    if (s.aktif && barisTarget(s.daftar).indexOf(s.baris) !== s.awal) S.pkt.kotor = true;
+  }
+  document.addEventListener('pointerup', selesaiSeretTarget);
+  document.addEventListener('pointercancel', selesaiSeretTarget);
+  document.addEventListener('keydown', e => {
+    const pg = e.target.closest && e.target.closest('.target-pegangan');
+    if (!pg || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const baris = pg.closest('[data-item]');
+    const semua = barisTarget(baris.parentElement);
+    const i = semua.indexOf(baris);
+    const tuju = semua[e.key === 'ArrowUp' ? i - 1 : i + 1];
+    if (!tuju) return;
+    if (e.key === 'ArrowUp') tuju.before(baris); else tuju.after(baris);
+    S.pkt.kotor = true;
+    pg.focus();
+    baris.scrollIntoView({ block: 'nearest' });
+  });
   // Blok yang sedang diketik menampilkan teks mentah; yang ditinggalkan kembali berformat.
   document.addEventListener('focusin', e => {
     const el = e.target;
