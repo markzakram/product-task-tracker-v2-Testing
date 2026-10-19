@@ -38,6 +38,8 @@ const TAB = {
   /* Permintaan lanjutan (2.36.0): dari task asal (sumber) ke satu orang; task = task yang lahir saat diterima. */
   permintaan: ['id', 'sumber', 'dari', 'ke', 'judul', 'rincian', 'sub', 'due', 'status', 'alasan', 'task', 'oleh', 'dialihkan', 'dialihkanAt',
     'createdAt', 'jawabAt', 'updatedAt'],
+  /* Banding perpanjangan tenggat (2.41.0): dari PIC ke pemberi task; dueJadi = tanggal yang disetujui. */
+  perpanjangan: ['id', 'task', 'dari', 'ke', 'dueLama', 'dueBaru', 'alasan', 'status', 'catatan', 'oleh', 'dueJadi', 'createdAt', 'jawabAt', 'updatedAt'],
   dashboards: ['id', 'title', 'deskripsi', 'icon', 'url'],
   links: ['id', 'user', 'folder', 'title', 'url'],
   notes: ['id', 'user', 'folder', 'title', 'body', 'updatedAt'],
@@ -51,7 +53,7 @@ const TAB = {
    terbaca: tab ini dianggap kosong, bukan galat. Begitu juga sebaliknya — versi lama
    mengabaikan tab dan kolom yang tak dikenalnya — jadi impor ulang tak memutus versi
    yang sedang live. */
-const TAB_OPSIONAL = new Set(['setoran', 'nomor', 'inisiatif', 'inisiatif_links', 'permintaan']);
+const TAB_OPSIONAL = new Set(['setoran', 'nomor', 'inisiatif', 'inisiatif_links', 'permintaan', 'perpanjangan']);
 /* Tab bentuk lama. Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
 const USANG = ['gate_log', 'backlog', 'bookmarks'];
 
@@ -298,7 +300,7 @@ function urai(data) {
     isi.inisiatif.push(inti);
     for (const l of links) isi.inisiatif_links.push({ ...l, inisiatif: x.id });
   }
-  for (const k of ['permintaan', 'dashboards', 'links', 'notes', 'setoran', 'nomor', 'log']) for (const x of data[k] || []) isi[k].push(x);
+  for (const k of ['permintaan', 'perpanjangan', 'dashboards', 'links', 'notes', 'setoran', 'nomor', 'log']) for (const x of data[k] || []) isi[k].push(x);
   return Object.fromEntries(Object.entries(isi).map(([t, daftar]) => [t, [TAB[t], ...daftar.map(o => keBaris(t, o))]]));
 }
 
@@ -331,6 +333,7 @@ function rakit(tabs) {
     packages: (tabs.packages || []).map(p => ({ ...p, items: urut(item.get(p.id) || []), links: urut(tautan.get(p.id) || []) })),
     inisiatif: (tabs.inisiatif || []).map(x => ({ ...x, links: urut(tautanIni.get(x.id) || []) })),
     permintaan: tabs.permintaan || [],
+    perpanjangan: tabs.perpanjangan || [],
     dashboards: tabs.dashboards || [],
     links: tabs.links || [],
     notes: tabs.notes || [],

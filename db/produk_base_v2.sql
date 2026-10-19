@@ -297,6 +297,34 @@ CREATE TABLE IF NOT EXISTS `v2_permintaan` (
 
 
 -- =============================================================================
+--  BANDING PERPANJANGAN TENGGAT (2.41.0)
+-- =============================================================================
+
+-- PIC mengajukan tenggat baru ke pemberi task (ke). Disetujui = tenggat task berubah ke dueJadi;
+-- ditolak = catatan. Tanpa foreign key ke v2_tasks supaya jejaknya tetap bila task dihapus.
+CREATE TABLE IF NOT EXISTS `v2_perpanjangan` (
+  `id`         VARCHAR(64)  NOT NULL,
+  `task`       VARCHAR(64)  NOT NULL,
+  `dari`       VARCHAR(64)  NOT NULL,
+  `ke`         VARCHAR(64)  NOT NULL,
+  `dueLama`    DATE         NULL,
+  `dueBaru`    DATE         NULL,
+  `alasan`     TEXT         NULL,
+  `status`     VARCHAR(20)  NOT NULL DEFAULT 'menunggu',
+  `catatan`    TEXT         NULL,
+  `oleh`       VARCHAR(64)  NOT NULL DEFAULT '',
+  `dueJadi`    DATE         NULL,
+  `createdAt`  DATETIME(3)  NULL,
+  `jawabAt`    DATETIME(3)  NULL,
+  `updatedAt`  DATETIME(3)  NULL,
+  `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_panjang_ke` (`ke`, `status`),
+  KEY `ix_panjang_task` (`task`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- =============================================================================
 --  TASK
 -- =============================================================================
 
@@ -542,7 +570,7 @@ CREATE TABLE IF NOT EXISTS `v2_obrolan` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Periksa: harus 28 tabel berawalan v2_ dan penanda app = producttrack-v2.
+-- Periksa: harus 29 tabel berawalan v2_ dan penanda app = producttrack-v2.
 SELECT COUNT(*) AS tabel_v2
   FROM information_schema.TABLES
  WHERE TABLE_SCHEMA = 'produk_base' AND TABLE_NAME LIKE 'v2\_%';

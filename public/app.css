@@ -2533,3 +2533,12 @@ a.ini-chip:hover { border-color: var(--biru-garis); }
   .ini-kepala-tombol .tombol.utama { flex: 1; justify-content: center; }
   .ini-garis { margin-left: 0; padding-left: 10px; }
 }
+
+/* Kepala detail task (2.41.0, permintaan user): sub-stage jadi judul, judul task jadi sub-judul. */
+.detail h2.detail-judul-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.detail h2.detail-judul-sub .chip-sub { font-size: calc(13px * var(--skala-huruf)); }
+.detail-judul-task { margin: 2px 0 0; font-size: calc(15px * var(--skala-huruf)); font-weight: 600; line-height: 1.4; color: var(--tinta-2); overflow-wrap: anywhere; }
+/* Banding perpanjangan tenggat (2.41.0). */
+.banner-panjang { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.banner-panjang p { margin: 0; }
+.detail-chip .tautan-kecil { display: inline-flex; align-items: center; gap: 4px; }

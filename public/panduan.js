@@ -198,6 +198,7 @@
         'Di detail task, tekan **Tandai tertahan** dan tulis alasannya, mis. "menunggu akses SIADU".',
         'Task tertahan tampil merah bagi Lead dan Manager, dan ikut terhitung di Dashboard.',
         'Setelah hambatannya beres, tekan **Lepas tanda tertahan**, lalu lanjutkan.',
+        'Kalau tenggatnya tak terkejar, tekan **Minta perpanjangan tenggat** di samping tenggat (atau **Minta perpanjangan** di baris terlambat pada Hari Ini), pilih tanggal baru, dan tulis alasannya. Pengajuan langsung ke pemberi task; tenggat baru berlaku setelah disetujui.',
       ],
     },
     {

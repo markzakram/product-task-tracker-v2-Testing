@@ -56,7 +56,7 @@ test('riwayat tahap proyek dan penanda pemilik ada', () => {
 test('semua tabel berawalan v2_ — tak satu pun bernama sama dengan tabel salinan v1', () => {
   const V1 = ['users', 'auth_pins', 'options', 'tasks', 'checklists', 'comments', 'activity_log', 'notifications', 'collabs',
     'collab_steps', 'packages', 'package_items', 'package_contribs', 'package_links', 'package_variants', 'user_links', 'user_notes', 'dashboards'];
-  assert.equal(TABEL.size, 28);
+  assert.equal(TABEL.size, 29);
   for (const nama of TABEL.keys()) {
     assert.ok(nama.startsWith('v2_'), nama);
     assert.ok(!V1.includes(nama), nama);

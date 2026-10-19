@@ -1896,6 +1896,14 @@
         out.push({ id: `mintaAlih-${m.id}-${m.dialihkanAt}`, jenis: 'mintaAlih', task: m.sumber, at: m.dialihkanAt, oleh: leadDari(m.ke), ke: m.ke, ...dasar });
       }
     }
+    // Perpanjangan tenggat (2.41.0): pengajuan untuk saya, dan jawabannya untuk pengaju.
+    for (const x of data.perpanjangan || []) {
+      const dasar = { task: x.task, dueLama: x.dueLama, dueBaru: x.dueBaru, panjang: x.id };
+      if (x.ke === me && x.dari !== me) out.push({ id: `panjang-${x.id}`, jenis: 'panjang', at: x.createdAt, oleh: x.dari, teks: x.alasan, ...dasar });
+      if (x.dari === me && x.oleh && x.oleh !== me && (x.status === 'disetujui' || x.status === 'ditolak')) {
+        out.push({ id: `${x.status}-${x.id}`, jenis: x.status === 'disetujui' ? 'panjangSetuju' : 'panjangTolak', at: x.jawabAt, oleh: x.oleh, teks: x.catatan, ...dasar, dueBaru: x.dueJadi || x.dueBaru });
+      }
+    }
     if (orang(me).peran === 'manager') {
       for (const p of data.projects) {
         if (p.arsip || p.decision === 'Hold' || !siklusTutup(data, p)) continue;
@@ -2809,6 +2817,82 @@
   const BATAS_MINTA = 2;
   const umurMinta = (m, hariIni) => hariKerja(isoHari(m.dialihkanAt || m.createdAt), hariIni);
   const mintaLama = (m, hariIni) => m.status === 'menunggu' && umurMinta(m, hariIni) >= BATAS_MINTA;
+
+  /* ---------- Banding perpanjangan tenggat (2.41.0, permintaan user) ----------
+     PIC mengajukan tenggat baru beserta alasannya, langsung ke pemberi task (yang membuat atau
+     menyerahkannya). Task yang dibuat PIC sendiri diajukan ke Lead-nya; Lead yang membuat task
+     sendiri ke Manager. Pemberi menyetujui (boleh dengan tanggal lain) atau menolak dengan alasan;
+     baru setelah disetujui tenggat task berubah. Satu pengajuan menunggu per task; riwayatnya tetap
+     tersimpan (status menunggu → disetujui | ditolak | batal). */
+  const STATUS_PANJANG = ['menunggu', 'disetujui', 'ditolak', 'batal'];
+  function pemberiTask(t) {
+    if (!t) return '';
+    if (t.assignedBy && t.assignedBy !== t.pic && ORANG_PER_ID.has(t.assignedBy)) return t.assignedBy;
+    const lead = leadDari(t.pic);
+    if (lead && lead !== t.pic && ORANG_PER_ID.has(lead)) return lead;
+    return t.pic === MANAGER ? '' : MANAGER;
+  }
+  const daftarPanjang = data => data.perpanjangan || (data.perpanjangan = []);
+  const panjangMenunggu = (data, id) => (data.perpanjangan || []).find(x => x.task === id && x.status === 'menunggu') || null;
+  const panjangTask = (data, id) => (data.perpanjangan || []).filter(x => x.task === id);
+  const bolehAjukanPanjang = (data, t, me) => !!t && aktif(t) && t.pic === me && !!t.due && !!pemberiTask(t) && !panjangMenunggu(data, t.id);
+  /* Yang menjawab: pemberi yang dituju, atau Manager. */
+  const bolehJawabPanjang = (x, me) => !!x && x.status === 'menunggu' && ORANG_PER_ID.has(me) && (x.ke === me || orang(me).peran === 'manager') && x.dari !== me;
+  const isoSah = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(keTanggal(s).getTime());
+  function ajukanPerpanjangan(data, t, f, me, waktu, hariIni) {
+    if (!t || t.pic !== me) throw new Error('Perpanjangan tenggat diajukan PIC task-nya.');
+    if (!aktif(t)) throw new Error('Task ini sudah selesai.');
+    if (!t.due) throw new Error('Task ini belum punya tenggat.');
+    if (panjangMenunggu(data, t.id)) throw new Error('Masih ada pengajuan perpanjangan yang menunggu jawaban.');
+    const ke = pemberiTask(t);
+    if (!ke) throw new Error('Task ini tak punya pemberi untuk dimintai perpanjangan.');
+    const due = teks(f.due);
+    if (!isoSah(due)) throw new Error('Pilih tanggal tenggat baru.');
+    if (due <= t.due) throw new Error('Tenggat baru harus sesudah tenggat sekarang.');
+    if (hariIni && due < hariIni) throw new Error('Tenggat baru sudah lewat.');
+    const alasan = teks(f.alasan);
+    if (alasan.length < 3) throw new Error('Tulis alasannya, supaya pemberi task bisa memutuskan.');
+    if (alasan.length > 1000) throw new Error('Alasan paling panjang 1.000 huruf.');
+    const daftar = daftarPanjang(data);
+    const x = {
+      id: 'PJG-' + String(nomorBerikut(daftar, 'PJG', data)).padStart(3, '0'), task: t.id, dari: me, ke, dueLama: t.due, dueBaru: due,
+      alasan, status: 'menunggu', catatan: '', oleh: '', dueJadi: '', createdAt: waktu, jawabAt: 0, updatedAt: waktu,
+    };
+    daftar.unshift(x);
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Mengajukan perpanjangan tenggat ${t.due} → ${due} ke ${orang(ke).pendek}: ${alasan}`, me, waktu);
+    return x;
+  }
+  /* f = { setuju, due (tanggal yang disetujui; bawaannya yang diminta), catatan (wajib bila ditolak) }. */
+  function jawabPerpanjangan(data, x, f, me, waktu) {
+    if (!bolehJawabPanjang(x, me)) throw new Error('Pengajuan ini sudah dijawab, atau bukan untuk Anda.');
+    const t = data.tasks.find(y => y.id === x.task);
+    if (!t) throw new Error(`Task ${x.task} tidak ditemukan.`);
+    const catatan = teks(f.catatan);
+    if (catatan.length > 1000) throw new Error('Catatan paling panjang 1.000 huruf.');
+    if (!f.setuju) {
+      if (catatan.length < 3) throw new Error('Tulis alasan penolakannya, supaya PIC tahu langkah berikutnya.');
+      Object.assign(x, { status: 'ditolak', catatan, oleh: me, jawabAt: waktu, updatedAt: waktu });
+      catatLog(data, 'update', `${t.id} · ${t.title}`, `Perpanjangan tenggat ke ${x.dueBaru} ditolak ${orang(me).pendek}: ${catatan}`, me, waktu);
+      return x;
+    }
+    const due = teks(f.due) || x.dueBaru;
+    if (!isoSah(due)) throw new Error('Pilih tanggal tenggat yang disetujui.');
+    if (t.due && due <= t.due) throw new Error('Tenggat yang disetujui harus sesudah tenggat sekarang.');
+    Object.assign(x, { status: 'disetujui', catatan, oleh: me, dueJadi: due, jawabAt: waktu, updatedAt: waktu });
+    t.due = due;
+    t.updatedAt = waktu;
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Tenggat diperpanjang ${x.dueLama} → ${due}, disetujui ${orang(me).pendek}`, me, waktu);
+    return x;
+  }
+  function batalkanPerpanjangan(data, x, me, waktu) {
+    if (!x || x.status !== 'menunggu' || x.dari !== me) throw new Error('Hanya pengaju yang membatalkan, selama belum dijawab.');
+    Object.assign(x, { status: 'batal', updatedAt: waktu });
+    const t = data.tasks.find(y => y.id === x.task);
+    if (t) catatLog(data, 'update', `${t.id} · ${t.title}`, 'Pengajuan perpanjangan tenggat dibatalkan', me, waktu);
+    return x;
+  }
+  /* Pengajuan yang menunggu jawaban `me` (pemberi task; Manager melihat yang ditujukan kepadanya). */
+  const panjangMasuk = (data, me) => (data.perpanjangan || []).filter(x => x.status === 'menunggu' && x.ke === me && x.dari !== me);
 
   /* ---------- Duplikat rancangan paket dan proyek (2.30.0, permintaan user) ----------
      Untuk pekerjaan yang berulang. Paket: isi produk, target, catatan per kategori, dan
@@ -3999,7 +4083,7 @@
      Semua browser menerapkan perubahan itu apa adanya (terapkanUbah), tanpa menjalankan aturan
      lagi: perubahan organogram, Master, atau aturan di versi berikutnya tak bisa menggugurkan
      riwayat. Bentuk ini juga yang nanti dipindah ke MySQL (satu baris = satu baris tabel). */
-  const dataKosong = () => ({ projects: [], tasks: [], packages: [], inisiatif: [], permintaan: [], dashboards: [], links: [], notes: [], setoran: [], nomor: [], log: [] });
+  const dataKosong = () => ({ projects: [], tasks: [], packages: [], inisiatif: [], permintaan: [], perpanjangan: [], dashboards: [], links: [], notes: [], setoran: [], nomor: [], log: [] });
   const cariDi = (daftar, id, nama) => {
     const x = (daftar || []).find(y => y.id === id);
     if (!x) throw new Error(`${nama} ${id || '(kosong)'} tidak ditemukan.`);
@@ -4051,6 +4135,10 @@
     tolakPermintaan: (d, x, me, w) => tolakPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), x.alasan, me, w),
     batalkanPermintaan: (d, x, me, w) => batalkanPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), me, w),
     alihkanPermintaan: (d, x, me, w) => alihkanPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), x.ke, me, w),
+    // Perpanjangan tenggat (2.41.0).
+    ajukanPerpanjangan: (d, x, me, w, h) => ajukanPerpanjangan(d, tugas(d, x), x.f || {}, me, w, h),
+    jawabPerpanjangan: (d, x, me, w) => jawabPerpanjangan(d, cariDi(d.perpanjangan, x.perpanjangan, 'Pengajuan perpanjangan'), x.f || {}, me, w),
+    batalkanPerpanjangan: (d, x, me, w) => batalkanPerpanjangan(d, cariDi(d.perpanjangan, x.perpanjangan, 'Pengajuan perpanjangan'), me, w),
   };
   /* Menjalankan satu perintah dengan aturan, lalu menyamakan tahap proyek (seperti sesudah klik
      di aplikasi). Tak pernah melempar: { ok, hasil, pindah } atau { ok: false, galat }. Yang gagal
@@ -4089,8 +4177,8 @@
   }
   /* Koleksi data real. Link Saya dan Catatan Saya tetap pribadi di browser. DEPAN = data baru
      ditaruh di depan, sama dengan fungsi pembuatnya (unshift); selebihnya di belakang (push). */
-  const KOLEKSI_REAL = ['projects', 'tasks', 'packages', 'inisiatif', 'permintaan', 'setoran', 'dashboards', 'nomor'];
-  const DEPAN = new Set(['projects', 'tasks', 'packages', 'inisiatif', 'permintaan']);
+  const KOLEKSI_REAL = ['projects', 'tasks', 'packages', 'inisiatif', 'permintaan', 'perpanjangan', 'setoran', 'dashboards', 'nomor'];
+  const DEPAN = new Set(['projects', 'tasks', 'packages', 'inisiatif', 'permintaan', 'perpanjangan']);
   /* Perubahan dari a ke b: baris yang baru atau berubah (pasang), yang hilang (hapus), dan
      log baru. Membandingkan per baris lewat JSON-nya. */
   function bedaData(a, b) {
@@ -4157,6 +4245,8 @@
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, sorotProyek,
     angkaKerja, jumlahAngka, judulPembaruan, linimasaInisiatif, tanggapanPembaruan, belumDitanggapi,
+    STATUS_PANJANG, pemberiTask, panjangMenunggu, panjangTask, bolehAjukanPanjang, bolehJawabPanjang, ajukanPerpanjangan, jawabPerpanjangan,
+    batalkanPerpanjangan, panjangMasuk,
     STATUS_MINTA, leadDari, peninjauMinta, bolehMinta, bolehJawabMinta, bolehAlihkanMinta, bolehBatalMinta, mintaLanjutan, terimaPermintaan, tolakPermintaan,
     batalkanPermintaan, alihkanPermintaan, permintaanDari, asalPermintaan, permintaanMasuk, hariKerja, umurMinta, mintaLama, BATAS_MINTA, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,

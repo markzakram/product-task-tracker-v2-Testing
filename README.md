@@ -876,6 +876,25 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   `ringkasInisiatif`; tim yang memakainya `Inti.TIM_INISIATIF` (`['SI']`). Diuji di
   `test/inti.test.js`, `test/demo.test.js`, dan `test/sheets.test.js`.
 
+### Banding perpanjangan tenggat (2.41.0)
+
+Permintaan user: fitur mengajukan banding supaya tenggat diperpanjang, langsung ke pemberi task.
+
+- **Mengajukan**: PIC task yang belum selesai dan bertenggat menekan **Minta perpanjangan
+  tenggat** (di samping tenggat pada detail task, dan **Minta perpanjangan** di baris task
+  terlambat pada Hari Ini), memilih tenggat baru (sesudah tenggat sekarang dan tidak lewat), dan
+  menulis alasannya. Satu pengajuan menunggu per task; pengaju bisa membatalkannya.
+- **Ke siapa** (`Inti.pemberiTask`): pemberi task (yang membuat atau menyerahkannya). Task yang
+  dibuat PIC sendiri, atau pemberinya di luar organogram, diajukan ke Lead-nya; Lead yang membuat
+  task sendiri ke Manager. Manager tak perlu mengajukan.
+- **Menjawab**: yang dituju (atau Manager) melihat kartu **Pengajuan perpanjangan tenggat** di Hari
+  Ini, notifikasi, dan spanduk di detail task. **Setujui** boleh dengan tanggal lain dan catatan;
+  tenggat task baru berubah saat disetujui. **Tolak** wajib beralasan. PIC diberi tahu.
+- **Data**: koleksi `perpanjangan` (ID `PJG-001`; status menunggu → disetujui, ditolak, atau batal;
+  `dueJadi` = tanggal yang disetujui) ikut data real, tab `perpanjangan` (opsional), dan tabel
+  `v2_perpanjangan` (29 tabel). Jejaknya juga di Riwayat task. Aturannya `Inti.ajukanPerpanjangan`,
+  `jawabPerpanjangan`, `batalkanPerpanjangan`, `panjangMasuk`; diuji di `test/perpanjangan.test.js`.
+
 ### Permintaan lanjutan lintas tim (2.36.0)
 
 Permintaan user: dari task yang sudah selesai, minta orang lain (lintas tim) membuat task
@@ -1108,7 +1127,9 @@ tetap, susunannya mengikuti "apa yang perlu dilakukan sekarang":
 
 - **Kepala ringkas**: asal (proyek atau inisiatif) sebaris dengan tombol ikon (salin tautan,
   ubah, hapus, tutup), lalu judul, sub-stage dan tim, status dan tenggat, serta PIC dan
-  peninjau, semuanya selebar laci.
+  peninjau, semuanya selebar laci. Sejak 2.41.0 (permintaan user) sub-stage (kode dan namanya)
+  jadi judul besar dan judul task jadi sub-judul di bawahnya; task tanpa sub-stage tetap memakai
+  judul task.
 - **Kartu "Langkah berikutnya"**: apa yang perlu dilakukan dan kenapa, sekali saja (dulu
   banner, daftar Menunggu, dan teks di bawah tombol mengulang alasan yang sama). Isinya menurut
   keadaan: menunggu (dengan tombol **Lihat yang ditunggu** dan **Atur urutan tunggu**), siap
@@ -1591,7 +1612,7 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
    Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 28 tabel berawalan `v2_` di skema
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 29 tabel berawalan `v2_` di skema
    `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
    salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
    dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru

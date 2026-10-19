@@ -1247,6 +1247,11 @@
         ...x, status: I.STATUS_MINTA.includes(x.status) ? x.status : 'menunggu', sub: x.sub || '', due: x.due || '', task: x.task || '',
         dialihkan: x.dialihkan || '', createdAt: angka(x.createdAt), jawabAt: angka(x.jawabAt), dialihkanAt: angka(x.dialihkanAt), updatedAt: angka(x.updatedAt),
       })),
+      // Banding perpanjangan tenggat (2.41.0). Tanpa baris ini koleksinya hilang saat data dimuat ulang.
+      perpanjangan: daftar(d.perpanjangan).map(x => ({
+        ...x, status: I.STATUS_PANJANG.includes(x.status) ? x.status : 'menunggu', catatan: x.catatan || '', oleh: x.oleh || '', dueJadi: x.dueJadi || '',
+        createdAt: angka(x.createdAt), jawabAt: angka(x.jawabAt), updatedAt: angka(x.updatedAt),
+      })),
       packages: daftar(d.packages).map(p => ({
         ...p, namaPaket: p.namaPaket || p.name || '', mirror: !!p.mirror,
         items: daftar(p.items).map(i => ({ ...i, target: angka(i.target), awal: angka(i.awal), satuan: i.satuan || 'Paket' })),
@@ -1940,6 +1945,7 @@
     komentar: 'obrolan', sebut: 'at', tanya: 'tanya', siklus: 'lapis', agenda: 'kalender',
     undang: 'kalender', jadwal: 'kalender', jawab: 'centang', ikut: 'orang', notulen: 'catatan', batal: 'tutup',
     minta: 'serah', mintaTim: 'orang', mintaTerima: 'centang', mintaTolak: 'tutup', mintaAlih: 'serah',
+    panjang: 'kalender', panjangSetuju: 'centang', panjangTolak: 'tutup',
   };
 
   const acaraNotif = n => `<b>${esc(n.judul)}</b> · ${esc(fmtTanggal(n.tanggal))}${n.mulai ? ' ' + esc(n.mulai) : ''}`;
@@ -1977,6 +1983,10 @@
       case 'mintaTerima': return tr('{siapa}menerima permintaan Anda: {judul}', v);
       case 'mintaTolak': return tr('{siapa}menolak permintaan Anda ({minta}).{kutip}', { ...v, minta: esc(n.minta) });
       case 'mintaAlih': return tr('{siapa}mengalihkan permintaan {minta} ke {nama}', { ...v, minta: `<b>${esc(n.minta)}</b>`, nama: nama(n.ke) });
+      // Banding perpanjangan tenggat (2.41.0).
+      case 'panjang': return tr('{siapa}minta perpanjangan tenggat {judul}: {lama} → {baru}.{kutip}', { ...v, lama: esc(fmtTanggal(n.dueLama)), baru: `<b>${esc(fmtTanggal(n.dueBaru))}</b>` });
+      case 'panjangSetuju': return tr('{siapa}menyetujui perpanjangan tenggat {judul} ke {baru}', { ...v, baru: `<b>${esc(fmtTanggal(n.dueBaru))}</b>` });
+      case 'panjangTolak': return tr('{siapa}menolak perpanjangan tenggat {judul}.{kutip}', v);
       default: return judul;
     }
   }
@@ -2140,9 +2150,12 @@
     const undangan = agendaBoleh() ? undanganBaru().length : 0;
     // Permintaan lanjutan (2.36.0): untuk saya, dan bagi Lead juga untuk staff-nya.
     const masuk = I.permintaanMasuk(S.data, S.me);
+    // Banding perpanjangan tenggat untuk saya sebagai pemberi task (2.41.0).
+    const panjangMasuk = I.panjangMasuk(S.data, S.me);
     const chip = (n, teks, kelas, ke) => (n ? `<button type="button" class="chip-aksi ${kelas}" data-aksi="lompat" data-ke="${ke}">${teks}</button>` : '');
     const ringkas = [
       chip(masuk.length, tr('{n} permintaan masuk', { n: masuk.length }), 'biru', 'hari-minta'),
+      chip(panjangMasuk.length, tr('{n} pengajuan perpanjangan', { n: panjangMasuk.length }), 'kuning', 'hari-panjang'),
       chip(telat.length, tr('{n} terlambat', { n: telat.length }), 'merah', 'hari-sekarang'),
       chip(tinjau.length, tr('{n} perlu ditinjau', { n: tinjau.length }), 'kuning', 'hari-sekarang'),
       chip(antrean.length, tr('{n} siap dibagi', { n: antrean.length }), 'biru', 'hari-sekarang'),
@@ -2158,7 +2171,7 @@
     const kerjakan = [
       ...tinjau.map(x => sekarang(x, tr('Tinjau'), 'kuning', `<button type="button" class="tombol kecil utama" data-aksi="buka-task" data-id="${esc(x.t.id)}">${tr('Tinjau')}</button>`)),
       ...antrean.map(x => sekarang(x, tr('Siap dibagi'), 'biru', `${mulai(x.t, tr('Kerjakan sendiri'))}<button type="button" class="tombol kecil utama" data-aksi="bagi-staff" data-id="${esc(x.t.id)}">${tr('Bagi ke staff')}</button>`, '')),
-      ...telat.map(x => sekarang(x, tr('Terlambat'), 'merah', mulai(x.t))),
+      ...telat.map(x => sekarang(x, tr('Terlambat'), 'merah', mulai(x.t) + (I.bolehAjukanPanjang(S.data, x.t, S.me) ? `<button type="button" class="tombol kecil" data-aksi="panjang-ajukan" data-id="${esc(x.t.id)}">${tr('Minta perpanjangan')}</button>` : ''))),
       ...hari.map(x => sekarang(x, tr('Hari ini'), '', mulai(x.t))),
     ];
     const bantu_ = { tinjau: ['lead-tinjau', 'meninjau'], antrean: ['lead-antrean', 'antrean tim'] };
@@ -2176,7 +2189,9 @@
     ];
     const htmlMinta = masuk.length ? `<section class="grup" id="hari-minta"><h2>${tr('Permintaan masuk')} <span class="jumlah">${masuk.length}</span>${tanya('staff-minta', tr('permintaan lanjutan'))}</h2>
       <div class="daftar-kartu-minta">${masuk.map(x => kartuMinta(x.m, x.tim)).join('')}</div></section>` : '';
-    const adaKerja = !!(htmlMinta || htmlSekarang || htmlMinggu || htmlLipat.join(''));
+    const htmlPanjang = panjangMasuk.length ? `<section class="grup" id="hari-panjang"><h2>${tr('Pengajuan perpanjangan tenggat')} <span class="jumlah">${panjangMasuk.length}</span></h2>
+      <div class="daftar-kartu-minta">${panjangMasuk.map(kartuPanjang).join('')}</div></section>` : '';
+    const adaKerja = !!(htmlMinta || htmlPanjang || htmlSekarang || htmlMinggu || htmlLipat.join(''));
     const selesai = kerja.selesaiHariIni.length ? `<details class="ringkas"><summary>${tr('Selesai hari ini ({n})', { n: kerja.selesaiHariIni.length })}</summary>
       <div class="grup">${kerja.selesaiHariIni.map(t => barisTask(t)).join('')}</div></details>` : '';
     const t = S.pilih && S.data.tasks.find(x => x.id === S.pilih);
@@ -2189,6 +2204,7 @@
         <div class="kolom-utama">
           ${ajakanPanduan()}
           ${htmlMinta}
+          ${htmlPanjang}
           ${htmlSekarang}
           ${kartuAgendaHari()}
           ${htmlMinggu}
@@ -3048,6 +3064,62 @@
   const tabDetail = t => (S.detailTab && S.detailTab.id === t.id ? S.detailTab.tab : 'kerjakan');
   /* Kartu "Langkah berikutnya" (2.32.0): apa yang perlu dilakukan sekarang dan kenapa, sekali saja
      (dulu banner kuning, daftar Menunggu, dan teks di bawah tombol mengulang alasan yang sama). */
+  /* ---- Banding perpanjangan tenggat (2.41.0, permintaan user) ----
+     PIC mengajukan tenggat baru ke pemberi task (Inti.pemberiTask); yang dituju menyetujui
+     (boleh dengan tanggal lain) atau menolak dengan alasan. */
+  const cariPanjang = id => (S.data.perpanjangan || []).find(x => x.id === id) || null;
+  const tombolPanjang = x => [
+    I.bolehJawabPanjang(x, S.me) ? `<button type="button" class="tombol kecil utama" data-aksi="panjang-setuju" data-id="${esc(x.id)}">${tr('Setujui')}</button><button type="button" class="tombol kecil" data-aksi="panjang-tolak" data-id="${esc(x.id)}">${tr('Tolak')}</button>` : '',
+    x.status === 'menunggu' && x.dari === S.me ? `<button type="button" class="tombol kecil" data-aksi="panjang-batal" data-id="${esc(x.id)}">${tr('Batalkan pengajuan')}</button>` : '',
+  ].join('');
+  const tambahHariTeks = x => { const n = I.selisihHari(x.dueLama, x.dueBaru); return n > 0 ? tr('+{n} hari', { n }) : ''; };
+  /* Spanduk di detail task selama ada pengajuan yang menunggu. */
+  function bannerPanjang(t) {
+    const x = I.panjangMenunggu(S.data, t.id);
+    if (!x) return '';
+    return `<div class="banner kuning banner-panjang" role="status">
+      <p>${tr('{siapa} mengajukan perpanjangan tenggat {lama} → {baru} ({tambah}) ke {pemberi}.', { siapa: nama(x.dari), lama: esc(fmtTanggal(x.dueLama)), baru: `<b>${esc(fmtTanggal(x.dueBaru))}</b>`, tambah: esc(tambahHariTeks(x)), pemberi: nama(x.ke) })}</p>
+      <p class="hint">“${esc(x.alasan)}”</p>
+      ${tombolPanjang(x) ? `<div class="kartu-langkah-tombol">${tombolPanjang(x)}</div>` : ''}
+    </div>`;
+  }
+  /* Kartu di Hari Ini pemberi task. */
+  function kartuPanjang(x) {
+    const t = perIdKini().get(x.task);
+    return `<article class="kartu-minta untuk-tim">
+      <p class="kartu-minta-oleh">${avatar(x.dari, 'kecil')}<span>${tr('{siapa} minta tenggat diperpanjang', { siapa: `<b>${nama(x.dari)}</b>` })} · ${esc(relatif(x.createdAt))}</span></p>
+      ${t ? `<button type="button" class="kartu-minta-asal" data-aksi="buka-task" data-id="${esc(t.id)}"><b>${esc(t.id)}</b> <span class="kartu-minta-asal-judul">${esc(potong(t.title, 80))}</span> ${pillStatus(t.status)}</button>` : ''}
+      <p class="kartu-minta-meta"><span>${esc(fmtTanggal(x.dueLama))} → <b>${esc(fmtTanggal(x.dueBaru))}</b></span><span>${esc(tambahHariTeks(x))}</span></p>
+      <p class="kartu-minta-rincian teks-panjang">${esc(x.alasan)}</p>
+      <div class="kartu-minta-tombol">${tombolPanjang(x)}</div>
+    </article>`;
+  }
+  function formAjukanPanjang(t) {
+    const min = [I.tambahHari(t.due, 1), hariIni()].sort().pop();
+    const ke = I.pemberiTask(t);
+    const siapa = ke === t.assignedBy ? tr('pemberi task ini') : I.orang(ke).peran === 'manager' ? tr('Manager') : tr('Lead Anda');
+    return `<form data-form="modal" novalidate>
+      <h2>${tr('Minta perpanjangan tenggat')}</h2>
+      <p class="label-tebal">${esc(t.title)}</p>
+      <p class="hint">${tr('Tenggat sekarang {tanggal}. Pengajuan dikirim ke {nama} ({siapa}); tenggat baru berlaku setelah disetujui.', { tanggal: esc(fmtTanggal(t.due)), nama: nama(ke), siapa: esc(siapa) })}</p>
+      <label class="isian">${tr('Tenggat baru')} <input type="date" name="due" required min="${esc(min)}" value="${esc(min)}"></label>
+      <label class="isian">${tr('Alasan')} <textarea name="alasan" required maxlength="1000" rows="3" placeholder="${esc(tr('Mis. menunggu data dari tim lain; ada revisi besar dari peninjau'))}"></textarea></label>
+      ${kakiModal(tr('Kirim pengajuan'))}
+    </form>`;
+  }
+  function formJawabPanjang(x, setuju) {
+    const t = perIdKini().get(x.task);
+    return `<form data-form="modal" novalidate>
+      <h2>${setuju ? tr('Setujui perpanjangan tenggat?') : tr('Tolak perpanjangan tenggat?')}</h2>
+      <p class="label-tebal">${esc(t ? t.title : x.task)}</p>
+      <p class="hint">${tr('{siapa} meminta {lama} → {baru}: “{alasan}”', { siapa: nama(x.dari), lama: esc(fmtTanggal(x.dueLama)), baru: esc(fmtTanggal(x.dueBaru)), alasan: esc(x.alasan) })}</p>
+      ${setuju ? `<label class="isian">${tr('Tenggat yang disetujui')} <input type="date" name="due" required min="${esc(I.tambahHari(x.dueLama, 1))}" value="${esc(x.dueBaru)}"></label>
+      <label class="isian">${tr('Catatan (opsional)')} <textarea name="catatan" maxlength="1000" rows="2"></textarea></label>`
+        : `<label class="isian">${esc(tr('Alasan (wajib, dikirim ke {nama})', { nama: I.orang(x.dari).pendek }))} <textarea name="catatan" required maxlength="1000" rows="3"></textarea></label>`}
+      ${kakiModal(setuju ? tr('Setujui') : tr('Tolak'))}
+    </form>`;
+  }
+
   /* ---- Permintaan lanjutan (2.36.0, permintaan user) ----
      Dari task yang sudah diajukan atau selesai, minta orang lain (tim mana pun) melanjutkannya.
      Penerimanya menerima dulu (jadi task tertaut), menolak dengan alasan, atau bertanya; Lead
@@ -3295,15 +3367,18 @@
             ${diLaci ? `<button type="button" class="ikon-tombol" data-aksi="tutup-detail" aria-label="${tr('Tutup')}">${ikon('tutup', 20)}</button>` : ''}
           </div>
         </div>
-        <h2>${esc(t.title)}</h2>
+        ${s ? `<h2 class="detail-judul-sub">${chipJalur(t)}<span>${esc(s.nama)}</span></h2>
+        <p class="detail-judul-task">${esc(t.title)}</p>` : `<h2>${esc(t.title)}</h2>`}
         ${induk ? `<p class="detail-induk">↳ ${tr('Task turunan dari')} <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
         ${dariMinta ? `<p class="detail-induk">↳ ${tr('Diminta {nama} dari', { nama: nama(dariMinta.dari) })} <button type="button" data-aksi="buka-task" data-id="${esc(dariMinta.sumber)}">${esc(dariMinta.sumber)}${asalMinta ? ' · ' + esc(potong(asalMinta.title, 80)) : ''}</button></p>` : ''}
-        <p class="detail-sub">${s ? `${chipJalur(t)} ${esc(s.nama)}` : `<span class="pill lb-menunggu">${tr('Belum ber-sub-stage')}</span>`}${tim ? ` · ${tr('Tim {tim}', { tim: esc(I.labelTim(tim.kode)) })}` : ''}${s && s.reviewManager ? ' · ' + tr('direview Manager') : ''}${tanya('konsep-kode', tr('sub-stage dan tim'))}</p>
-        <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}</div>
+        <p class="detail-sub">${[s ? '' : `<span class="pill lb-menunggu">${tr('Belum ber-sub-stage')}</span>`, tim ? tr('Tim {tim}', { tim: esc(I.labelTim(tim.kode)) }) : '', s && s.reviewManager ? tr('direview Manager') : ''].filter(Boolean).join(' · ')}${tanya('konsep-kode', tr('sub-stage dan tim'))}</p>
+        <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}
+          ${I.bolehAjukanPanjang(S.data, t, me) ? `<button type="button" class="tautan-kecil" data-aksi="panjang-ajukan" data-id="${esc(t.id)}">${ikon('kalender', 14)} ${tr('Minta perpanjangan tenggat')}</button>` : ''}</div>
         <div class="detail-orang">${avatar(t.pic)} ${tr('PIC')} ${nama(t.pic)}${statusHtml(t.pic)}
           ${t.support.length ? ` · ${tr('bantuan')} ${t.support.map(nama).join(', ')}` : ''}
           · ${tinjau ? tr('ditinjau {nama}', { nama: nama(tinjau) }) + (tinjau === I.peninjauMinta(t) ? ' ' + tr('(tim peminta; Manager memantau)') : '') : jenis === 'proyek' ? tr('tanpa tinjauan') : tr('tanpa tinjauan (di luar proyek)')}</div>
         ${pilihInisiatifTask(t, bisaSub)}
+        ${bannerPanjang(t)}
       </div>
 
       ${kartuLangkah(t, perId, aksi, tunggu)}
@@ -9842,6 +9917,20 @@
           S.pilihTask = null;
           return selesaiUbah(h.setoran ? tr('{n} task dihapus; {s} setoran paket ikut hilang.', { n: h.task, s: h.setoran }) : tr('{n} task dihapus.', { n: h.task }));
         }
+        // Banding perpanjangan tenggat (2.41.0).
+        case 'panjang-ajukan': {
+          const x = ubahData('ajukanPerpanjangan', { task: m.id, f: { due: f.due, alasan: f.alasan } });
+          tutupModal();
+          return selesaiUbah(tr('Pengajuan perpanjangan ke {tanggal} dikirim ke {nama}.', { tanggal: fmtTanggal(x.dueBaru), nama: I.orang(x.ke).pendek }));
+        }
+        case 'panjang-setuju':
+        case 'panjang-tolak': {
+          const setuju = m.jenis === 'panjang-setuju';
+          const x = ubahData('jawabPerpanjangan', { perpanjangan: m.id, f: { setuju, due: f.due, catatan: f.catatan } });
+          tutupModal();
+          return selesaiUbah(setuju ? tr('Tenggat diperpanjang ke {tanggal}. {nama} diberi tahu.', { tanggal: fmtTanggal(x.dueJadi), nama: I.orang(x.dari).pendek })
+            : tr('Pengajuan ditolak. {nama} diberi tahu beserta alasannya.', { nama: I.orang(x.dari).pendek }));
+        }
         // Permintaan lanjutan (2.36.0).
         case 'minta': {
           if (!f.ke) throw new Error(tr('Pilih orang yang diminta.'));
@@ -10412,6 +10501,24 @@
         Object.assign(S.task, { proyek: '', ...SARING_KOSONG, hal: 1 });
         simpanPref('task');
         render();
+        break;
+      /* Banding perpanjangan tenggat (2.41.0). */
+      case 'panjang-ajukan': {
+        const tk = perIdKini().get(d.id);
+        if (tk) bukaModal({ jenis: 'panjang-ajukan', id: tk.id }, formAjukanPanjang(tk));
+        break;
+      }
+      case 'panjang-setuju':
+      case 'panjang-tolak': {
+        const x = cariPanjang(d.id);
+        if (x) bukaModal({ jenis: d.aksi, id: x.id }, formJawabPanjang(x, d.aksi === 'panjang-setuju'));
+        break;
+      }
+      case 'panjang-batal':
+        try {
+          ubahData('batalkanPerpanjangan', { perpanjangan: d.id });
+          selesaiUbah(tr('Pengajuan perpanjangan dibatalkan.'));
+        } catch (err) { toast(err.message, true); }
         break;
       /* Permintaan lanjutan (2.36.0). */
       case 'minta-lanjutan': {

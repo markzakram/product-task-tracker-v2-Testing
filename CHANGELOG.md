@@ -1,5 +1,27 @@
 # Changelog — ProductTrack v2
 
+## 2.41.0 — Banding perpanjangan tenggat; sub-stage jadi judul detail task (2026-10-19)
+
+Permintaan user: (1) di detail task, sub-stage jadi judul dan judul task jadi sub-judulnya
+("ditukar saja"); (2) fitur mengajukan banding supaya tenggat diperpanjang, langsung ke pemberi
+task. (3) Lead harus bisa menjadikan staff-nya PIC lewat Ubah task seperti Andika.
+
+- **Kepala detail task**: kode dan nama sub-stage jadi judul besar, judul task jadi sub-judul,
+  lalu tim pemiliknya. Task tanpa sub-stage tak berubah.
+- **Minta perpanjangan tenggat** (PIC, task belum selesai dan bertenggat): tenggat baru dan alasan,
+  dikirim ke pemberi task (`Inti.pemberiTask`: yang memberi; task buatan sendiri ke Lead-nya;
+  Lead ke Manager). Juga dari baris task terlambat di Hari Ini.
+- Yang dituju (atau Manager) melihat kartu di Hari Ini, notifikasi, dan spanduk di detail task;
+  **Setujui** (boleh tanggal lain, catatan opsional) mengubah tenggat, **Tolak** wajib beralasan;
+  PIC diberi tahu. Pengaju bisa membatalkan selama belum dijawab.
+- Data: koleksi `perpanjangan` di data real, tab opsional `perpanjangan`, tabel `v2_perpanjangan`
+  (29 tabel). Salinan cepat data real dari versi sebelumnya disusun ulang sekali.
+- (3) Tak ada perubahan aturan: dengan organogram bawaan, Ubah task bagi Lead (Alya, Dhea,
+  Andika) sudah menawarkan dirinya dan semua staff timnya (diperiksa lagi di aplikasi dan
+  `test/pic-task.test.js`). Ikon pensil hanya hilang bila profil yang membuka tak dianggap Lead
+  task itu, misalnya perannya di organogram (Mode Dev → Orang) bukan Lead.
+- Tes baru `test/perpanjangan.test.js`. 347 tes.
+
 ## 2.40.0 — Urutan target rancangan paket bisa diseret (2026-10-19)
 
 Permintaan user: daftar target yang sudah dibuat di rancangan paket bisa di-drag supaya
