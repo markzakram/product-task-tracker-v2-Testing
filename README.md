@@ -419,6 +419,9 @@ pesan disimpan ke tab `obrolan` di spreadsheet v2, bukan di browser.
   - Enter mengirim, Shift+Enter membuat baris baru.
   - Format ringan seperti v1: **tebal**, _miring_, ~~coret~~, `kode`, dan tautan otomatis.
   - Ketik **@** untuk menyebut orang (@Kiki) atau peran (@manager, @lead, @staff, @semua).
+    Sejak 2.38.0 (permintaan user) **@all** sama dengan @semua: semua orang yang boleh membuka
+    ruang itu mendapat notifikasi (ruang task dan proyek: semua orang; ruang tim: anggota tim
+    itu dan Manager).
   - **Balasan cepat** menurut peran dan keadaan task (2.35.0): PIC saat dikerjakan ("Sedang saya
     kerjakan"), saat ditinjau ("Sudah saya ajukan", "Mohon dicek ya"), saat revisi ("Siap, saya
     perbaiki"); peninjau ("Sudah saya cek, saya setujui", "Ada revisi kecil"); orang lain dan
@@ -858,6 +861,14 @@ semua profil boleh meminta, dan permintaan boleh ke siapa pun dengan Lead-nya ik
     tenggat. Task-nya masuk Antre di proyek dan siklus task asal, dengan aturan task baru biasa
     (staff hanya untuk dirinya dan sub-stage timnya). Kalau task asal belum disetujui, task baru
     menunggunya. Di detail task baru tertulis "Diminta Andika dari PRD-…".
+  - **Ditinjau tim peminta** (2.38.0, permintaan user): saat task itu diajukan, yang menyetujui
+    atau mengembalikan adalah Lead tim peminta, bukan Lead pengerjanya atau Manager; Manager
+    hanya memantau (tak bisa menyetujuinya). Contoh user: DAE membuat generator dari hasil kerja
+    RAD, maka Andika (RAD) yang menyetujui task Ali. Peminta staff: Lead-nya yang meninjau. Tetap
+    aturan biasa untuk sub-stage yang direview Manager, permintaan di dalam tim sendiri, dan task
+    turunannya. Penandanya kolom `diminta` di task (orang yang meminta; `v2_tasks.diminta` di
+    MySQL), diisi saat diterima; aturannya `Inti.peninjauMinta` di dalam `Inti.peninjau`.
+    Permintaan yang diterima sebelum 2.38.0 tak punya penanda itu, jadi tetap ke peninjau lama.
   - **Tolak**: alasan wajib, dikirim ke peminta.
   - **Tanya**: membuka obrolan task asal dengan peminta sudah disebut di kotak tulis.
 - **Lead tim penerima** ikut melihat permintaan untuk staff-nya di Hari Ini (dan notifikasinya),

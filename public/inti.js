@@ -475,8 +475,20 @@
     if (t.induk && o.peran === 'lead') return null;
     const s = subTahap(t.sub);
     if (s && s.reviewManager) return MANAGER;
+    const minta = peninjauMinta(t);
+    if (minta) return minta;
     if (o.peran === 'lead') return MANAGER;
     return o.lead || MANAGER;
+  }
+  /* Task hasil permintaan lanjutan (2.38.0, permintaan user): ditinjau Lead tim peminta, bukan
+     Lead PIC atau Manager. Contoh user: DAE membuat generator dari hasil kerja RAD, maka yang
+     menyetujui RAD (Andika); Manager hanya memantau. t.diminta = orang yang meminta, diisi saat
+     permintaan diterima. Tak berlaku untuk task turunan, untuk sub-stage yang direview Manager
+     (diperiksa peninjau lebih dulu), dan kalau Lead itu PIC-nya sendiri (permintaan di dalam tim). */
+  function peninjauMinta(t) {
+    if (!t || !t.diminta || t.lane !== 'proyek' || t.induk) return '';
+    const lead = leadDari(t.diminta);
+    return lead && lead !== t.pic && ORANG_PER_ID.has(lead) ? lead : '';
   }
 
   function bolehUbah(t, me) {
@@ -638,7 +650,10 @@
     }
     if (t.status === 'Ditinjau') {
       const daftar = [];
-      if (me === tinjau || orang(me).peran === 'manager') {
+      // Manager boleh menyetujui task siapa pun, kecuali task hasil permintaan lanjutan yang
+      // ditinjau tim peminta: di sana Manager hanya memantau (2.38.0).
+      const pantau = !!tinjau && tinjau !== me && tinjau === peninjauMinta(t);
+      if (me === tinjau || (orang(me).peran === 'manager' && !pantau)) {
         daftar.push({ kunci: 'setujui', label: 'Setujui', utama: true }, { kunci: 'kembalikan', label: 'Kembalikan', perluCatatan: true });
       }
       if (t.pic === me) daftar.push({ kunci: 'tarik', label: 'Tarik dari tinjauan' });
@@ -1670,8 +1685,9 @@
     return { perId, perRuang };
   }
 
-  /* @sebutan: nama pendek (@Kiki) atau peran (@manager, @lead, @staff, @semua). */
-  const PERAN_SEBUT = { manager: 'manager', lead: 'lead', leader: 'lead', staff: 'staff', semua: '*' };
+  /* @sebutan: nama pendek (@Kiki) atau peran (@manager, @lead, @staff, @semua atau @all). */
+  // @all sama dengan @semua: semua orang yang boleh membuka ruangnya (2.38.0, permintaan user).
+  const PERAN_SEBUT = { manager: 'manager', lead: 'lead', leader: 'lead', staff: 'staff', semua: '*', all: '*' };
   function sebutan(isi) {
     const siapa = new Set(), peran = new Set();
     for (const m of String(isi || '').matchAll(/(^|[^A-Za-z0-9_])@([A-Za-z]+)/g)) {
@@ -2677,6 +2693,8 @@
       title: m.judul, project: p ? p.id : '', sub: teks(f.sub) || m.sub, pic: teks(f.pic) || me,
       due: f.due === undefined ? m.due : teks(f.due), detail: m.rincian, platform: asal ? asal.platform : '', deps: tunggu,
     }, me, waktu, hariIni);
+    // Ditinjau tim peminta saat diajukan (peninjauMinta, 2.38.0).
+    t.diminta = m.dari;
     Object.assign(m, { status: 'diterima', task: t.id, oleh: me, jawabAt: waktu, updatedAt: waktu });
     if (asal) catatLog(data, 'update', `${asal.id} · ${asal.title}`, `Permintaan lanjutan diterima ${orang(me).pendek}: jadi ${t.id}`, me, waktu);
     return t;
@@ -4080,7 +4098,7 @@
     namaTahap, SINGKAT_TAHAP, singkatTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, sorotProyek,
-    STATUS_MINTA, leadDari, bolehMinta, bolehJawabMinta, bolehAlihkanMinta, bolehBatalMinta, mintaLanjutan, terimaPermintaan, tolakPermintaan,
+    STATUS_MINTA, leadDari, peninjauMinta, bolehMinta, bolehJawabMinta, bolehAlihkanMinta, bolehBatalMinta, mintaLanjutan, terimaPermintaan, tolakPermintaan,
     batalkanPermintaan, alihkanPermintaan, permintaanDari, asalPermintaan, permintaanMasuk, hariKerja, umurMinta, mintaLama, BATAS_MINTA, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
     terlibat, notifikasi, JENIS_LOG, saringLog,

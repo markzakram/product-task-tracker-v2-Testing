@@ -222,7 +222,7 @@
       langkah: [
         'Buka **Komunikasi**. Kiri: **Belum dibaca**, **Menyebut saya**, **Perlu jawaban**, ruang tim, dan ruang proyek. Tengah: utas. Kanan: percakapan.',
         'Pesan tersimpan bersama di spreadsheet v2: semua orang melihat percakapan yang sama. Di detail task, bagian **Diskusi** memuat utas yang sama.',
-        'Ketik **@** untuk menyebut orang (@Kiki) atau peran (@lead, @semua). Yang disebut mendapat notifikasi di lonceng.',
+        'Ketik **@** untuk menyebut orang (@Kiki) atau peran (@lead, @all atau @semua untuk semua orang). Yang disebut mendapat notifikasi di lonceng.',
         'Arahkan kursor ke pesan (di ponsel: ketuk) untuk memberi reaksi, **membalas** dengan kutipan, atau mengubah dan menghapus pesan sendiri.',
         'Tombol **?** di kotak tulis menandai pesan **perlu jawaban** dari orang yang disebut. Pesan itu ada di **Perlu jawaban** orang itu sampai dibalas atau ditandai beres.',
         'Enter mengirim, Shift+Enter membuat baris baru. Format ringan: **tebal** dengan dua bintang, _miring_ dengan garis bawah.',
@@ -238,6 +238,7 @@
         'Pilih orangnya (tim mana pun), tulis yang dibutuhkan, saran sub-stage, dan tenggat harapan. Proyek dan tautan ke task Anda ikut terlampir. Lead dan Manager juga bisa meminta dari task timnya.',
         'Permintaan belum jadi task. Penerimanya melihat kartu **Permintaan masuk** di **Hari Ini** dan notifikasi di lonceng. Kalau yang Anda pilih staff, Lead-nya ikut diberi tahu.',
         'Penerima menekan **Terima** (memilih PIC, sub-stage, dan tenggat; task masuk Antre di proyek yang sama dan tertaut ke task Anda), **Tolak** dengan alasan, atau **Tanya** lewat obrolan task asal.',
+        'Saat task itu diajukan, yang meninjau adalah Lead tim Anda (tim peminta), bukan Manager. Manager hanya memantau. Pengecualiannya sub-stage yang memang direview Manager, dan permintaan di dalam tim sendiri.',
         'Lead tim penerima bisa **Alihkan** permintaan ke anggota timnya. Permintaan yang 2 hari kerja belum dijawab muncul di **Perlu perhatian** Dashboard.',
         'Status permintaan Anda ada di bagian **Permintaan lanjutan** pada task asal: menunggu, diterima (dengan tautan task barunya), atau ditolak beserta alasannya. Selama belum dijawab Anda bisa **Batalkan**; yang ditolak bisa **Kirim ulang** ke orang lain.',
       ],
@@ -260,6 +261,7 @@
         'Buka task-nya: di tab **Kerjakan**, **Hasil kerja** dan ceklisnya sudah terbuka untuk diperiksa; percakapannya di tab **Diskusi**.',
         'Tekan **Setujui** kalau sudah benar. Kalau langkah itu bercapaian, progres paketnya ikut naik.',
         'Kalau belum, tekan **Kembalikan** dan tulis yang perlu diperbaiki. Task kembali ke PIC dengan label Revisi.',
+        'Task yang lahir dari **permintaan lanjutan** tim Anda (mis. DAE membuat generator dari hasil kerja RAD) ditinjau oleh Anda sebagai Lead tim peminta, bukan oleh Manager atau Lead tim pengerjanya. Manager hanya memantau.',
       ],
     },
     {

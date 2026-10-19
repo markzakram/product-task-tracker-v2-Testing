@@ -302,6 +302,7 @@ CREATE TABLE IF NOT EXISTS `v2_permintaan` (
 
 -- project NULL = jalur rutin (di aplikasi ''). induk = task anak (satu tingkat).
 -- inisiatif NULL = bukan pembaruan inisiatif (di aplikasi ''), 2.31.0.
+-- diminta = orang yang meminta task ini lewat permintaan lanjutan (2.38.0); Lead timnya yang meninjau.
 -- support, deps, dan tunggu adalah larik ID; disimpan JSON karena aplikasi memakainya utuh.
 -- tunggu + lepasFase (2.19.0) = urutan yang diatur Lead tim di tab timnya di halaman proyek.
 CREATE TABLE IF NOT EXISTS `v2_tasks` (
@@ -334,6 +335,7 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   `selesaiAt`      DATETIME(3)  NULL,
   `induk`          VARCHAR(64)  NULL,
   `inisiatif`      VARCHAR(64)  NULL,
+  `diminta`        VARCHAR(64)  NULL,
   `_diubah`        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_task_proyek` (`project`, `cycle`, `stage`),

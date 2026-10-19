@@ -2350,7 +2350,6 @@
     'Masuk Antre di {proyek} · siklus {c}, tertaut ke {id}.': 'Goes to Queued in {proyek} · cycle {c}, linked to {id}.',
     'Masuk Antre sebagai pekerjaan rutin, tertaut ke {id}.': 'Goes to Queued as routine work, linked to {id}.',
     'Menunggu {id} disetujui dulu.': 'Waits for {id} to be approved first.',
-    'Peninjau mengikuti aturan biasa. {nama} diberi tahu.': 'The reviewer follows the usual rules. {nama} is notified.',
     'Terima jadi task': 'Accept as a task',
     'Saya ({nama})': 'Me ({nama})',
     'Terima dan buat task': 'Accept and create the task',
@@ -2389,6 +2388,11 @@
     'Tak bisa dialihkan ke pemintanya sendiri.': 'It can\'t be redirected to the requester.',
     'Sub-stage {kode} tidak ada di Master.': 'Sub-stage {kode} is not in Master Data.',
     'Permintaan ini sudah untuk {nama}.': 'This request is already for {nama}.',
+    /* ----- Peninjau tim peminta (2.38.0) ----- */
+    '(tim peminta; Manager memantau)': '(requesting team; the Manager monitors)',
+    'Saat diajukan, ditinjau {nama} dari tim peminta; Manager hanya memantau.': 'When submitted, it is reviewed by {nama} from the requesting team; the Manager only monitors.',
+    'Peninjau mengikuti aturan biasa.': 'The reviewer follows the usual rules.',
+    '{nama} diberi tahu.': '{nama} is notified.',
   };
 
   let kini = 'id';

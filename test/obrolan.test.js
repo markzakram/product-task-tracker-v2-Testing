@@ -140,6 +140,23 @@ test('notifikasi dari pesan: pertanyaan > sebutan > pesan di task yang melibatka
   assert.equal(I.notifikasi(d, 'kiki', 60, s).find(x => x.pesan === 'm2').task, a.id);
 });
 
+test('@all sama dengan @semua: semua yang boleh membuka ruangnya mendapat notifikasi (2.38.0)', () => {
+  assert.ok(I.menyebut('Rapat jam 3 @all', 'uma'));
+  assert.ok(I.menyebut('@ALL cek ya', 'nynda'));
+  assert.ok(!I.menyebut('kirim ke tim@all.id', 'kiki'), 'alamat email bukan sebutan');
+  const a = task({ title: 'Input Kimia', pic: 'kiki' });
+  const d = data([a]);
+  const s = I.susunObrolan(d, [
+    pesan('m1', 'task:' + a.id, 'alya', 100, '@all versi baru sudah naik'),
+    pesan('m2', 'tim:LA', 'alya', 200, '@all rapat tim jam 3'),
+  ]);
+  const sebut = me => I.notifikasi(d, me, 60, s).filter(x => x.jenis === 'sebut').map(x => x.pesan);
+  assert.deepEqual(sebut('uma'), ['m1'], 'ruang task terbuka untuk semua; ruang tim LNA tidak');
+  assert.deepEqual(sebut('kiki'), ['m2', 'm1']);
+  assert.deepEqual(sebut('nynda'), ['m2', 'm1'], 'Manager membuka semua ruang tim');
+  assert.deepEqual(sebut('alya'), [], 'pengirimnya sendiri tidak');
+});
+
 test('aktivitasTask: tinjauan beserta catatannya dan jejak log task itu, tanpa komentar', () => {
   const t = task({ tinjauan: [{ id: 'r1', by: 'kiki', action: 'Diajukan', note: '', at: 300 }, { id: 'r2', by: 'alya', action: 'Dikembalikan', note: 'No. 7 pecah', at: 400 }] });
   const d = data([t]);

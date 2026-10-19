@@ -1,5 +1,24 @@
 # Changelog — ProductTrack v2
 
+## 2.38.0 — Task hasil permintaan ditinjau tim peminta; sebutan @all (2026-10-19)
+
+Permintaan user: (1) task lanjutan yang diminta divisi 1 ke divisi 2 ditinjau divisi peminta
+("kalau buat generator dari hasil kerja RAD berarti DAE ... yang acc itu RAD bukan manager.
+Manager hanya memantau untuk case ini"). (2) Tag @all supaya masuk ke notifikasi semua user.
+
+- **Peninjau task hasil permintaan** = Lead tim peminta (`Inti.peninjauMinta`, di dalam
+  `Inti.peninjau`): Andika meminta Ali → task Ali ditinjau Andika, bukan Nynda; peminta staff →
+  Lead-nya. Tombol Setujui/Kembalikan hanya untuknya; Manager tak lagi bisa menyetujui task ini
+  (hanya memantau). Pengecualian: sub-stage yang direview Manager, permintaan di dalam tim
+  sendiri, dan task turunan. Detail task menulis "ditinjau Andika (tim peminta; Manager
+  memantau)", dan form Terima memberi tahu peninjaunya sebelum diterima.
+- Kolom baru `diminta` di task (tab `tasks`, `v2_tasks.diminta`), diisi saat permintaan
+  diterima. Permintaan yang diterima sebelum versi ini tetap ke peninjau lama.
+- **@all** = @semua: semua yang boleh membuka ruangnya mendapat notifikasi (ruang task/proyek
+  semua orang; ruang tim anggotanya dan Manager). Muncul di saran saat mengetik @.
+- Panduan **Meninjau hasil kerja** dan **Meminta lanjutan ke tim lain** diperbarui. Tes baru di
+  `test/permintaan.test.js` dan `test/obrolan.test.js`.
+
 ## 2.37.0 — Agen Ali mencatat pekerjaan harian sebagai task (2026-10-16)
 
 Permintaan user: pekerjaan harian Ali (commit, perubahan yang belum di-commit, sesi kerja) dicatat

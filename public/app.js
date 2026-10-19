@@ -1238,7 +1238,7 @@
       tasks: daftar(d.tasks).map(t => ({
         ...t, sub: t.sub || '', support: daftar(t.support), deps: daftar(t.deps), subtasks: daftar(t.subtasks), comments: daftar(t.comments),
         tinjauan: daftar(t.tinjauan), evidence: daftar(t.evidence), output: t.output || '', selesaiAt: Number(t.selesaiAt) || 0,
-        induk: t.induk || '', tunggu: daftar(t.tunggu), lepasFase: !!t.lepasFase, inisiatif: t.inisiatif || '',
+        induk: t.induk || '', tunggu: daftar(t.tunggu), lepasFase: !!t.lepasFase, inisiatif: t.inisiatif || '', diminta: t.diminta || '',
       })),
       inisiatif: daftar(d.inisiatif).map(x => ({ ...x, status: x.status || 'aktif', links: daftar(x.links) })),
       // Permintaan lanjutan (2.36.0). Tanpa baris ini koleksinya hilang saat data dimuat ulang.
@@ -3162,7 +3162,16 @@
     const info = [
       p ? tr('Masuk Antre di {proyek} · siklus {c}, tertaut ke {id}.', { proyek: esc(p.name), c: p.cycle || 1, id: esc(x.sumber) }) : tr('Masuk Antre sebagai pekerjaan rutin, tertaut ke {id}.', { id: esc(x.sumber) }),
       asal && p && !I.selesai(asal) ? tr('Menunggu {id} disetujui dulu.', { id: esc(asal.id) }) : '',
-      tr('Peninjau mengikuti aturan biasa. {nama} diberi tahu.', { nama: nama(x.dari) }),
+      // Peninjau task barunya (2.38.0): Lead tim peminta, kecuali sub-stage direview Manager atau
+      // permintaan di dalam tim sendiri.
+      (() => {
+        const t = { lane: p ? 'proyek' : 'rutin', pic: picAwal, sub: x.sub, induk: '', diminta: x.dari, status: 'Antre' };
+        const tinjau = p ? I.peninjau(t) : null;
+        return tinjau && tinjau === I.peninjauMinta(t)
+          ? tr('Saat diajukan, ditinjau {nama} dari tim peminta; Manager hanya memantau.', { nama: nama(tinjau) })
+          : tr('Peninjau mengikuti aturan biasa.');
+      })(),
+      tr('{nama} diberi tahu.', { nama: nama(x.dari) }),
     ].filter(Boolean);
     return `<form data-form="modal" novalidate>
       <h2>${tr('Terima jadi task')}</h2>
@@ -3292,7 +3301,7 @@
         <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}</div>
         <div class="detail-orang">${avatar(t.pic)} ${tr('PIC')} ${nama(t.pic)}${statusHtml(t.pic)}
           ${t.support.length ? ` · ${tr('bantuan')} ${t.support.map(nama).join(', ')}` : ''}
-          · ${tinjau ? tr('ditinjau {nama}', { nama: nama(tinjau) }) : jenis === 'proyek' ? tr('tanpa tinjauan') : tr('tanpa tinjauan (di luar proyek)')}</div>
+          · ${tinjau ? tr('ditinjau {nama}', { nama: nama(tinjau) }) + (tinjau === I.peninjauMinta(t) ? ' ' + tr('(tim peminta; Manager memantau)') : '') : jenis === 'proyek' ? tr('tanpa tinjauan') : tr('tanpa tinjauan (di luar proyek)')}</div>
         ${pilihInisiatifTask(t, bisaSub)}
       </div>
 
@@ -4716,7 +4725,7 @@
     ['semua', 'Semua utas', 'pesan'],
   ];
 
-  const CALON_PERAN = [['semua', 'Semua orang di divisi'], ['lead', 'Semua Lead'], ['staff', 'Semua staff'], ['manager', 'Manager']];
+  const CALON_PERAN = [['all', 'Semua orang di divisi'], ['semua', 'Semua orang di divisi'], ['lead', 'Semua Lead'], ['staff', 'Semua staff'], ['manager', 'Manager']];
 
   /* ----- Pesan bersama: susunan, tarik, kirim ----- */
 
@@ -5278,7 +5287,7 @@
   function tandaSebut(kata) {
     const k = kata.toLowerCase();
     const o = I.ORANG.find(x => x.pendek.toLowerCase() === k);
-    if (!o && !['semua', 'lead', 'leader', 'staff', 'manager'].includes(k)) return '@' + esc(kata);
+    if (!o && !['all', 'semua', 'lead', 'leader', 'staff', 'manager'].includes(k)) return '@' + esc(kata);
     const kena = I.menyebut('@' + (o ? o.pendek : k), S.me);
     return `<span class="km-sebut ${kena ? 'saya' : ''}" title="${esc(o ? o.nama : CALON_PERAN.reduce((t, [a, b]) => (a === k ? tr(b) : t), tr('Semua {peran}', { peran: k })))}">@${esc(o ? o.pendek : k)}</span>`;
   }

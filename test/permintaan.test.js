@@ -156,3 +156,34 @@ test('label terlambat dan tertahan di kepala proyek mengikuti tim yang melihat (
   assert.deepEqual(I.lingkupTask('kiki', 'tim', 'PRJ-1'), ['alya', 'kiki', 'bilar']);
   assert.deepEqual(I.lingkupTask('kiki', 'tim', ''), ['kiki'], 'tanpa saringan proyek staff kembali ke Saya');
 });
+
+test('task hasil permintaan ditinjau Lead tim peminta, bukan Manager; Manager hanya memantau (2.38.0)', () => {
+  const asal = task({ status: 'Selesai', selesaiAt: WAKTU });
+  const d = data([asal]);
+  // Contoh user: DAE membuat generator dari hasil kerja RAD, maka RAD yang menyetujui.
+  const m = I.mintaLanjutan(d, asal, { ke: 'ali', judul: 'Generator soal dari blueprint', sub: 'DV7' }, 'andika', WAKTU, HARI);
+  const t = I.terimaPermintaan(d, m, { sub: 'DV7' }, 'ali', WAKTU + 1, HARI);
+  assert.equal(t.diminta, 'andika');
+  assert.equal(I.peninjau(t), 'andika', 'bukan Manager, walau PIC-nya Lead');
+  assert.equal(I.peninjauMinta(t), 'andika');
+  const perId = new Map(d.tasks.map(x => [x.id, x]));
+  t.status = 'Ditinjau';
+  const kunci = me => I.aksiUntuk(t, me, perId).map(a => a.kunci);
+  assert.deepEqual(kunci('andika'), ['setujui', 'kembalikan']);
+  assert.deepEqual(kunci('nynda'), [], 'Manager memantau, tak menyetujui');
+  assert.deepEqual(kunci('ali'), ['tarik']);
+  assert.throws(() => I.terapkanAksi(d, t, 'setujui', 'nynda', WAKTU + 2), /tidak tersedia/);
+  I.terapkanAksi(d, t, 'setujui', 'andika', WAKTU + 2);
+  assert.equal(t.status, 'Selesai');
+
+  // Peminta staff: Lead timnya yang meninjau, juga bila pengerjanya staff tim lain.
+  const asal2 = task({ pic: 'uma', status: 'Selesai', selesaiAt: WAKTU });
+  const d2 = data([asal2]);
+  const terima = (ke, sub) => I.terimaPermintaan(d2, I.mintaLanjutan(d2, asal2, { ke, judul: 'Lanjutan ' + sub, sub }, 'uma', WAKTU, HARI), { sub }, ke, WAKTU + 1, HARI);
+  assert.equal(I.peninjau(terima('bilar', 'DV8')), 'andika', 'bukan Alya, Lead pengerjanya');
+  assert.equal(I.peninjau(terima('alya', 'D1')), I.MANAGER, 'sub-stage yang direview Manager tetap ke Manager');
+  assert.equal(I.peninjau(terima('andika', 'D2')), I.MANAGER, 'permintaan di dalam tim sendiri: aturan biasa');
+  // Tanpa permintaan, aturan lama tak berubah.
+  assert.equal(I.peninjau(task({ pic: 'ali', sub: 'DV7' })), I.MANAGER);
+  assert.equal(I.peninjau(task({ pic: 'bilar', sub: 'DV8' })), 'alya');
+});
