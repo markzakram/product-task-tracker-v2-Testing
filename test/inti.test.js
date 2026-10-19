@@ -304,15 +304,16 @@ test('staff menambah task untuk dirinya: rutin, atau proyek di sub-stage timnya;
   assert.deepEqual(tambah('nynda'), []);
 });
 
-test('ubah task: task Lead tak diserahkan ke staff, sub-stage menentukan tahap, batas PIC & jalur', () => {
+test('ubah task: PIC Lead dan staff bisa diganti, sub-stage menentukan tahap, batas PIC & jalur', () => {
   const t = task({ lane: 'proyek', project: 'PRJ-1', stage: 'V', sub: 'DV8', pic: 'alya', assignedBy: 'andika' });
   const d = data([t], [proyek({ lead: '' })]);
   const antrean = I.pekerjaanSaya(d, 'alya', HARI).grup.find(g => g.kunci === 'antrean');
   assert.equal(antrean.isi.length, 1);
   assert.match(antrean.judul + ' ' + antrean.isi[0].alasan, /siap dibagi.*task turunan/);
-  assert.throws(() => I.ubahTask(d, t, { pic: 'kiki' }, 'alya', WAKTU), /Task Lead tak diserahkan ke staff/);
-  assert.throws(() => I.ubahTask(d, t, { pic: 'kiki' }, 'nynda', WAKTU), /Task Lead tak diserahkan ke staff/, 'Manager pun tidak');
-  assert.equal(t.pic, 'alya');
+  I.ubahTask(d, t, { pic: 'kiki' }, 'alya', WAKTU);
+  assert.equal(t.pic, 'kiki', 'Lead bisa menyerahkan task ke staff');
+  I.ubahTask(d, t, { pic: 'bilar' }, 'nynda', WAKTU);
+  assert.equal(t.pic, 'bilar', 'Manager bisa mengganti PIC dalam tim');
   assert.throws(() => I.ubahTask(d, t, { pic: 'uma' }, 'alya', WAKTU), /di luar tim/);
   assert.throws(() => I.ubahTask(d, t, { sub: 'R3' }, 'alya', WAKTU), /ADDIE/);
   assert.throws(() => I.ubahTask(d, t, { title: ' ' }, 'alya', WAKTU), /Judul/);
@@ -533,7 +534,7 @@ test('task turunan: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, 
   I.terapkanAksi(d, anak, 'setujui', 'andika', WAKTU + 5);
   assert.equal(ajukan().nonaktif, false);
 
-  // PIC turunan: Lead induknya sendiri atau staff timnya; induk yang sudah dibagi tetap dipegang PIC-nya; tahap keduanya tetap.
+  // PIC induk dan turunan bisa diganti dalam tim pembaginya; tahap keduanya tetap.
   assert.throws(() => I.ubahTask(d, anak, { pic: 'kiki' }, 'nynda', WAKTU + 6), /Andika sendiri atau staff timnya/);
   I.ubahTask(d, anak, { pic: 'tri' }, 'andika', WAKTU + 6);
   assert.throws(() => I.ubahTask(d, induk, { pic: 'alya' }, 'nynda', WAKTU + 7), /sudah dibagi/);
@@ -816,7 +817,9 @@ test('PIC task turunan boleh dipindah dari Lead ke staff timnya (2.29.0)', () =>
   assert.equal(butir.pic, 'kiki', 'butir ceklis ikut PIC task-nya');
   assert.equal(I.centangSubtask(d, anak, butir.id, true, 'kiki', WAKTU + 2).done, true);
   assert.equal(I.peninjau(anak), 'alya', 'turunan yang dipegang staff ditinjau Lead-nya');
-  assert.throws(() => I.ubahTask(d, induk, { pic: 'bilar' }, 'alya', WAKTU + 3), /tak diserahkan ke staff|sudah dibagi/, 'task Lead yang bukan turunan tetap tak diserahkan');
+  I.ubahTask(d, induk, { pic: 'bilar' }, 'alya', WAKTU + 3);
+  assert.equal(induk.pic, 'bilar', 'PIC induk yang sudah dibagi juga bisa diganti');
+  assert.equal(anak.pic, 'kiki', 'PIC turunan tetap');
 });
 
 test('yang diajukan tak lagi menahan (2.30.0): langkah berikutnya jalan sejajar selagi ditinjau; E12 tetap menunggu', () => {

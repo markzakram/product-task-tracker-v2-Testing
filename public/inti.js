@@ -17,9 +17,8 @@
      bila syaratnya lengkap: output, tautan bukti, ceklis, task turunan, tahap sebelumnya.
      Jalur RUTIN (kode R, di luar proyek) tanpa tinjauan.
    - Sejak 0.15.0 task proyek di tahap ADDIE yang sama dikerjakan PARALEL; yang berurutan
-     hanya tahapnya: task menunggu tahap sebelumnya di siklus itu selesai. Lead tak
-     menyerahkan task-nya ke staff, melainkan membaginya jadi TASK ANAK untuk staff timnya
-     (tampil menjorok di bawah induknya, ditinjau Lead itu).
+     hanya tahapnya: task menunggu tahap sebelumnya di siklus itu selesai. Lead bisa membagi
+     task jadi task turunan untuk timnya, atau mengganti PIC ke staff lewat Ubah task.
    - Proyek tak punya Lead tetap: tanggung jawabnya mengikuti tim pemilik sub-stage.
      Tahap proyek dihitung dari task terbuka paling awal; siklus ditutup oleh task
      E12 yang disetujui, lalu Manager memulai siklus berikutnya.
@@ -470,8 +469,8 @@
     if (o.peran === 'manager') return null;
     // Task turunan ditinjau atasan PIC-nya (Lead yang membaginya), juga untuk sub-stage bertanda Manager.
     if (t.induk && o.peran === 'staff') return o.lead || MANAGER;
-    // Turunan yang dikerjakan Lead itu sendiri (2.21.0) tak ditinjau lagi: induknya tetap ditinjau
-    // Manager, dan baru bisa diajukan setelah semua turunannya selesai.
+    // Turunan yang dikerjakan Lead itu sendiri (2.21.0) tak ditinjau lagi: induknya tetap
+    // mengikuti aturan tinjauan PIC-nya dan menunggu semua turunannya selesai.
     if (t.induk && o.peran === 'lead') return null;
     const s = subTahap(t.sub);
     if (s && s.reviewManager) return MANAGER;
@@ -524,9 +523,9 @@
   const bolehUbahTask = (t, me) => bolehUbah(t, me) && (orang(me).peran !== 'staff' || (t.assignedBy === me && t.pic === me));
 
   /* ---------- Task turunan (0.15.0) ----------
-     Lead tak menyerahkan task yang ia pegang ke staff. Ia membaginya: membuat task turunan untuk
-     staff timnya di bawah task itu. Anak ada di proyek, siklus, dan tahap yang sama dengan
-     induknya, ditinjau Lead itu, dan tak beranak lagi; induknya baru bisa diajukan atau
+     Lead bisa membagi pekerjaan menjadi task turunan untuk staff timnya di bawah task itu.
+     Anak ada di proyek, siklus, dan tahap yang sama dengan induknya, ditinjau Lead itu,
+     dan tak beranak lagi; induknya baru bisa diajukan atau
      ditandai selesai setelah semua turunannya selesai. */
   // Sejak 2.21.0 Lead boleh memegang turunannya sendiri, jadi Lead tanpa staff pun bisa membagi.
   /* Sejak 2.25.0 (permintaan user: task turunan di semua tahap ADDIE, juga sesudah task dibuat)
@@ -559,6 +558,24 @@
     const tim = induk.project ? TIM[timTask(induk)] : null;
     const pembagi = o.peran === 'lead' ? induk.pic : tim && orang(tim.lead).peran === 'lead' ? tim.lead : o.lead;
     return [...new Set([pembagi, ...timDari(pembagi)].filter(Boolean))];
+  }
+  /* Pilihan PIC form Ubah dan validasi server (2.38.1). Lead dan seluruh staff aktif tim
+     pemilik ikut ditawarkan, juga saat PIC sekarang Lead atau task sudah punya turunan.
+     Keluarga task tetap di tim pembaginya; mengganti PIC induk tak mengganti PIC turunannya.
+     PIC lama tetap terbaca walau nonaktif, tetapi tak ditawarkan untuk penugasan baru. */
+  function pilihanPicUbah(t, me, perId, kode = t.sub) {
+    if (!bolehUbahTask(t, me)) return [];
+    if (orang(me).peran === 'staff') return [t.pic];
+    const induk = t.induk ? perId.get(t.induk) : null;
+    const dibagi = anakTask(perId, t.id).length > 0;
+    const pemilik = leadSub(kode) || (timOrang(t.pic) || {}).lead;
+    let daftar = induk ? picTurunan(induk) : dibagi ? picTurunan(t)
+      : [pemilik, ...timDari(pemilik), ...picBoleh(me)];
+    if (dibagi) {
+      const pembagi = picTurunan(t)[0];
+      daftar = daftar.filter(pic => picTurunan({ ...t, sub: kode, pic })[0] === pembagi);
+    }
+    return [...new Set([...daftar.filter(id => ORANG_PER_ID.has(id)), t.pic])];
   }
   function salahInduk(induk, me, anak) {
     if (!induk) return 'Task induk tidak ditemukan.';
@@ -917,8 +934,8 @@
   /* Mengubah task (Lead/Manager; staff hanya task yang ia buat sendiri — selain itu staff
      mengisi output & bukti dari detail). Sub-stage task proyek tetap ADDIE dan tahapnya ikut
      kode; di luar proyek R1–R4, kecuali kode ADDIE task "lepas" warisan v1 yang boleh
-     dipertahankan. Mengganti PIC = mendelegasikan: ke anggota tim sendiri, atau ke Lead tim
-     pemilik sub-stage-nya. Staff tak bisa mengganti PIC. */
+     dipertahankan. Mengganti PIC = mendelegasikan ke anggota tim sendiri atau tim pemilik
+     sub-stage-nya. Induk dan turunan tetap di tim pembaginya. Staff tak bisa mengganti PIC. */
   function ubahTask(data, t, f, me, waktu) {
     if (!bolehUbahTask(t, me)) throw new Error('Hanya Lead atau Manager yang mengubah task ini; staff hanya task yang ia buat sendiri.');
     const ambil = (k, lama) => (f[k] === undefined ? lama : f[k]);
@@ -931,19 +948,17 @@
     if (t.lane === 'proyek' && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
     if (t.lane !== 'proyek' && s && s.tahap !== 'R' && kode !== t.sub) throw new Error('Task di luar proyek memakai sub-stage rutin (kode R).');
     const pic = teks(ambil('pic', t.pic));
-    if (pic !== t.pic && !picSah(me, pic, kode)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
-    // 0.15.0: task Lead tak diserahkan ke staff — dibagi lewat task turunan. Induk dan turunannya
-    // tetap di tahap yang sama, dan induk yang sudah dibagi tetap dipegang PIC-nya.
+    // Pilihan yang ditampilkan browser juga diperiksa di server.
     const anak = data.tasks.filter(x => x.induk === t.id);
     const induk = t.induk ? data.tasks.find(x => x.id === t.induk) || null : null;
-    // Task turunan (2.29.0): PIC-nya boleh dipindah dari Lead ke staff timnya, karena turunan
-    // memang cara membagi pekerjaan Lead; yang tak diserahkan hanya task Lead yang bukan turunan.
-    if (pic !== t.pic && !induk && orang(t.pic).peran === 'lead' && orang(pic).peran === 'staff') {
-      throw new Error('Task Lead tak diserahkan ke staff. Buat task turunan untuk staff dari detail task-nya.');
+    if (pic !== t.pic && !pilihanPicUbah(t, me, indeks(data), kode).includes(pic)) {
+      if (induk) throw new Error(`PIC task turunan: ${orang(picTurunan(induk)[0]).pendek} sendiri atau staff timnya.`);
+      if (anak.length) throw new Error('Task ini sudah dibagi ke task turunan: pilih Lead atau staff aktif di tim yang sama.');
+      throw new Error('PIC itu di luar tim Anda atau tim pemilik sub-stage ini.');
     }
-    if (pic !== t.pic && anak.length) throw new Error('Task ini sudah dibagi ke task turunan, jadi PIC-nya tetap.');
-    if (pic !== t.pic && induk && !picTurunan(induk).includes(pic)) {
-      throw new Error(`PIC task turunan: ${orang(picTurunan(induk)[0]).pendek} sendiri atau staff timnya.`);
+    if (anak.length && (pic !== t.pic || kode !== t.sub)
+      && picTurunan({ ...t, pic, sub: kode })[0] !== picTurunan(t)[0]) {
+      throw new Error('Task ini sudah dibagi ke task turunan: tim pembaginya tetap sama.');
     }
     if (t.lane === 'proyek' && s && s.tahap !== t.stage && (anak.length || induk)) {
       throw new Error(`Task ${induk ? 'turunan' : 'induk'} tetap di tahap ${namaTahap(t.stage)}, sama dengan ${induk ? 'induknya' : 'task turunannya'}.`);
@@ -4091,7 +4106,7 @@
     orang, timDari, inisial, isoHari, selisihHari, tambahHari,
     selesai, aktif, indeks, depsBelum, duplikatPaket, duplikatProyek, waktuKumpul,
     TIM_INISIATIF, STATUS_INISIATIF, bolehLihatInisiatif, bolehKelolaInisiatif, cariInisiatif, inisiatifBaru, ubahInisiatif, hapusInisiatif, tempelInisiatif, ringkasInisiatif, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
-    anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
+    anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, pilihanPicUbah, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,

@@ -67,23 +67,24 @@ dengan satu penyederhanaan: tetap empat status.
   Manager mengaturnya di halaman **Master** (termasuk nama dan singkatan tim), dan form task tak
   lagi memilihkan sub-stage: harus dipilih sendiri.
 - **Task turunan (0.15.0).** Lead memberi task ke timnya sendiri, atau ke Lead tim pemilik
-  sub-stage-nya (mis. Andika memberi DV8 Input ke Alya). Task yang dipegang Lead **tidak
-  diserahkan ke staff**: langkah yang sudah bisa dimulai masuk **Antrean tim** di Hari Ini Lead
-  itu (sejak 2.33.0 bertanda **Siap dibagi** di Kerjakan sekarang), dan ia membaginya dengan
+  sub-stage-nya (mis. Andika memberi DV8 Input ke Alya). Langkah yang sudah bisa dimulai masuk
+  **Antrean tim** di Hari Ini Lead itu (sejak 2.33.0 bertanda **Siap dibagi** di Kerjakan
+  sekarang), dan ia membaginya dengan
   membuat **task turunan** untuk staff timnya, dari bagian Task turunan di detail task atau dari
   kolom **Task induk** di form Tambah task. Task turunan ada di
   proyek, siklus, dan tahap yang sama dengan induknya, tampil menjorok di bawahnya di halaman
   proyek dan di Task, ditinjau Lead itu (juga di sub-stage bertanda Manager), dan tak beranak lagi.
   Induknya baru bisa diajukan atau ditandai selesai setelah semua task turunannya selesai; induk
-  yang masih antre ikut mulai begitu dibagi. Induk yang sudah dibagi tetap dipegang PIC-nya.
+  yang masih antre ikut mulai begitu dibagi. Sejak 2.38.1, PIC induk juga bisa diganti ke Lead
+  atau staff aktif dalam tim yang sama lewat **Ubah task**; PIC masing-masing turunan tetap.
   Sejak 2.21.0 namanya **task turunan** (dulu "task anak"; nama fungsi dan kolom `induk` di data
   tetap). Sejak 2.25.0 bagian Task turunan ada di detail semua task proyek (semua tahap ADDIE),
   dan **Lead tim pemilik task** juga membaginya walau PIC-nya staff timnya (mis. task Design yang
   langsung diberikan ke staff); kalau belum bisa dibagi, alasannya tampil di sana (sudah selesai,
   sedang ditinjau, atau siapa Lead yang membaginya).
   PIC-nya boleh **Lead itu sendiri**: turunan yang ia pegang tak ditinjau lagi dan langsung
-  ditandai selesai, karena induknya tetap ditinjau Manager. Lead tanpa staff pun bisa memecah
-  task-nya.
+  ditandai selesai, karena induknya tetap mengikuti aturan tinjauan PIC-nya. Lead tanpa staff
+  pun bisa memecah task-nya.
 - **ADDIE per tim (2.19.0, keputusan user 13 Okt 2026).** Halaman proyek dibagi per tim: tab
   **DAE · RAD · LNA · CLO** ditambah **Ringkasan**, dan tiap tim menjalankan ADDIE-nya sendiri.
   Sebuah task proyek menunggu (`Inti.ditunggu`):
@@ -130,11 +131,14 @@ dengan satu penyederhanaan: tetap empat status.
   beserta jenisnya.
 - **Ubah task (2.27.0).** Tombol pensil ada di kepala detail task, di samping setiap baris
   task (task utama dan task turunan) di tab tim proyek, dan di daftar task turunan di detail
-  induknya; yang boleh sama dengan sebelumnya (`Inti.bolehUbahTask`). PIC task turunan bisa
-  diganti ke Lead pembaginya atau staff timnya, juga bila induknya dipegang staff. Sejak 2.29.0
-  (perbaikan, permintaan user) juga turunan yang sedang dipegang Lead: dulu ditolak "Task Lead
-  tak diserahkan ke staff". Aturan itu kini hanya untuk task Lead yang **bukan** turunan, karena
-  turunan memang cara Lead membagi pekerjaannya ke staff.
+  induknya; yang boleh sama dengan sebelumnya (`Inti.bolehUbahTask`). Sejak **2.38.1**, dropdown
+  PIC memuat Lead dan seluruh staff aktif tim pemilik, termasuk saat PIC sekarang Lead dan
+  task sudah punya turunan. Task utama tanpa turunan juga mempertahankan pilihan delegasi
+  yang sebelumnya diizinkan. PIC induk dan turunan bisa dipindah dalam tim pembaginya;
+  mengganti PIC induk tidak mengganti PIC tiap turunan, dan tahapnya tetap sama. Ceklis
+  pengerjaan mengikuti PIC task-nya. Daftar pilihan dan validasi server memakai aturan yang
+  sama (`Inti.pilihanPicUbah`), dengan organogram terkini. Staff tetap hanya bisa menyunting
+  task yang ia buat sendiri dan tidak bisa menyerahkannya kepada orang lain.
 - **Ceklis pengerjaan** (dulu "sub-task"; sejak 2.28.0 namanya seperti v1, supaya tak
   tertukar dengan task turunan) bisa ditambah, diubah (judul dan **tautan opsional**), dicentang,
   dan dihapus oleh PIC task, Lead-nya, atau Manager. Sejak 2.29.0 (permintaan user) butir ceklis

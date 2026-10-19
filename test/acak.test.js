@@ -35,13 +35,13 @@ function periksaHirarki(d, langkah) {
     assert.equal(a.project, p.project, `${ket}: proyek sama`);
     assert.equal(a.cycle || 1, p.cycle || 1, `${ket}: siklus sama`);
     if (p.lane === 'proyek') assert.equal(a.stage, p.stage, `${ket}: tahap sama`);
-    // Sejak 2.21.0 turunan dipegang staff tim Lead induknya, atau Lead itu sendiri.
-    assert.ok(a.pic === p.pic || (I.orang(a.pic).peran === 'staff' && I.timDari(p.pic).includes(a.pic)), `${ket}: dipegang ${p.pic} atau staff timnya`);
+    // Induk bisa dipegang Lead atau staff; turunan tetap di tim pembaginya.
+    assert.ok(I.picTurunan(p).includes(a.pic), `${ket}: PIC turunan tetap anggota tim pembagi`);
   }
   for (const p of d.tasks) {
     const anak = I.anakTask(perId, p.id);
     if (!anak.length) continue;
-    assert.equal(I.orang(p.pic).peran, 'lead', `langkah ${langkah}, ${p.id}: induk dipegang Lead`);
+    assert.ok(['lead', 'staff'].includes(I.orang(p.pic).peran), `langkah ${langkah}, ${p.id}: induk dipegang anggota tim`);
     if (p.status === 'Ditinjau' || I.selesai(p)) {
       assert.ok(anak.every(I.selesai), `langkah ${langkah}, ${p.id} ${p.status}: semua task turunannya selesai (${anak.map(x => x.id + ' ' + x.status).join(', ')})`);
     }
@@ -114,8 +114,8 @@ function simulasi(benih, jumlah) {
       const baru = pilih(ORANG);
       if (coba(() => I.ubahTask(d, t, { pic: baru }, pelaku, w), 'pic') && baru !== lama) {
         hitung.pic++;
-        // Sejak 2.29.0 hanya task Lead yang bukan turunan yang tak diserahkan ke staff.
-        assert.ok(t.induk || !(I.orang(lama).peran === 'lead' && I.orang(baru).peran === 'staff'), `${t.id}: task Lead pindah ke staff`);
+        assert.equal(t.pic, baru, `${t.id}: PIC berubah ke pilihan baru`);
+        assert.ok(t.subtasks.every(s => s.pic === baru), `${t.id}: ceklis ikut PIC baru`);
       }
     } else if (jenis < 0.88) {
       if (coba(() => I.ubahTask(d, t, { sub: pilih(I.SUB_TAHAP).kode }, pelaku, w), 'sub')) hitung.sub++;

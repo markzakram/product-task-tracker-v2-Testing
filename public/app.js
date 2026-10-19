@@ -9093,15 +9093,9 @@
     const pemilik = I.orang(S.me).peran === 'lead' ? I.leadSub(kode) : '';
     return [...new Set([...I.picBoleh(S.me), ...(pemilik ? [pemilik] : []), ...(sekarang ? [sekarang] : [])])];
   }
-  /* PIC yang boleh dipilih saat mengubah task (0.15.0): task turunan → staff tim Lead induknya;
-     task yang sudah dibagi ke task turunan → tetap; task Lead → tanpa staff (dibagi lewat task turunan). */
+  /* Daftar yang sama dengan validasi server: Lead dan seluruh staff aktif tim pemilik. */
   function pilihanPicUbah(t, kode) {
-    const perId = perIdKini();
-    const induk = t.induk ? perId.get(t.induk) : null;
-    if (induk) return [...new Set([...I.picTurunan(induk), t.pic])];
-    if (I.anakTask(perId, t.id).length) return [t.pic];
-    const daftar = pilihanPic(kode, t.pic);
-    return I.orang(t.pic).peran === 'lead' ? daftar.filter(id => I.orang(id).peran !== 'staff') : daftar;
+    return I.pilihanPicUbah(t, S.me, perIdKini(), kode);
   }
   /* PIC bawaan task baru: Manager → Lead tim pemilik; Lead → dirinya, atau Lead tim pemilik
      kalau pekerjaan proyek itu milik tim lain (lalu ia yang membaginya ke staff-nya lewat task
@@ -9370,7 +9364,7 @@
       <h2>${tr('Ubah task')}</h2>
       <p class="hint">${t.project ? tr('Proyek§satu') + ' ' + esc(asal(t)) : (lepas ? tr('Lepas') : tr('Rutin')) + ' · ' + esc(t.kategori || tr('Umum'))} · ${esc(t.id)}</p>
       ${induk ? `<p class="hint">${tr('Task turunan dari {id}', { id: esc(induk.id) })} · ${esc(potong(induk.title, 70))}: ${tr('PIC-nya {nama} sendiri atau staff timnya', { nama: esc(I.orang(I.picTurunan(induk)[0]).pendek) })}${tahap ? ', ' + tr('tahapnya tetap {tahap}', { tahap: esc(I.namaTahap(tahap)) }) : ''}.</p>`
-        : dibagi ? `<p class="hint">${tr('Task ini sudah dibagi ke task turunan: PIC-nya tetap')}${tahap ? ' ' + tr('dan tahapnya tetap {tahap}', { tahap: esc(I.namaTahap(tahap)) }) : ''}.</p>` : ''}
+        : dibagi ? `<p class="hint">${tr('PIC task ini bisa diganti ke Lead atau staff timnya. PIC task turunan tetap masing-masing.')}${tahap ? ' ' + tr('Tahapnya tetap {tahap}.', { tahap: esc(I.namaTahap(tahap)) }) : ''}</p>` : ''}
       <label class="isian">${tr('Judul task')} <input name="title" required maxlength="200" value="${esc(t.title)}"></label>
       <label class="isian">${tr('Sub-stage')} <select name="sub" data-sub>${opsiSub(jenis, t.sub, false, tahap)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(t.sub))}</p>

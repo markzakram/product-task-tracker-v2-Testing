@@ -1,5 +1,21 @@
 # Changelog — ProductTrack v2
 
+## 2.38.1 — Edit PIC menampilkan Lead dan seluruh staff tim (2026-10-19)
+
+Permintaan user (screenshot): dropdown PIC task induk yang sudah punya lima task turunan hanya
+menampilkan Lead. Aturan lama mengunci PIC induk dan menyembunyikan staff untuk task milik Lead.
+
+- **Ubah task** menawarkan Lead dan seluruh staff aktif tim pemilik dari organogram terkini,
+  termasuk pada task milik Lead dan task induk yang sudah dibagi. Daftar pilihan dan validasi
+  penyimpanan memakai `Inti.pilihanPicUbah` yang sama di browser dan server.
+- PIC induk dan turunannya bisa diganti dalam tim pembagi. PIC masing-masing turunan tetap;
+  ceklis pengerjaan mengikuti PIC task yang diubah. Tahap induk dan turunan tetap sama, dan
+  induk tetap menunggu semua turunannya selesai sebelum diajukan.
+- Izin penyuntingan tetap berlaku: staff tidak menyerahkan task ke orang lain. Profil nonaktif
+  tidak ditawarkan untuk penugasan baru; PIC lama tetap terbaca sampai diganti.
+- Petunjuk form, terjemahan, dan Panduan diperbarui. Regresi diuji pada induk dengan lima turunan,
+  pergantian Lead/staff, perubahan organogram, batas izin, serta simpan dan sinkron data real.
+
 ## 2.38.0 — Task hasil permintaan ditinjau tim peminta; sebutan @all (2026-10-19)
 
 Permintaan user: (1) task lanjutan yang diminta divisi 1 ke divisi 2 ditinjau divisi peminta

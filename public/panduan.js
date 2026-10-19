@@ -249,8 +249,8 @@
       langkah: [
         'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Kerjakan sekarang** di Hari Ini, bertanda **Siap dibagi**. Tekan **Bagi ke staff** di barisnya (atau di kartu **Perlu perhatian Anda** di halaman proyek): detail task terbuka di bagian **Task turunan**, siap diisi. **Kerjakan sendiri** memulainya tanpa task turunan.',
         'Buka langkahnya. Di bagian **Task turunan**, tulis bagian pekerjaannya, pilih PIC-nya (staff tim, atau **Anda sendiri**) dan tenggat, lalu tekan **Buat task turunan**. Ulangi untuk bagian lain.',
-        'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Langkahnya sendiri tetap Anda pegang: task Lead tidak diserahkan ke staff.',
-        'Setelah semua task turunan disetujui, lengkapi output langkah Anda, lalu ajukan ke Manager. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
+        'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Lewat **Ubah task**, PIC langkah utama juga bisa diganti ke Lead atau staff aktif tim Anda, termasuk sesudah dibagi. PIC tiap task turunan tetap masing-masing.',
+        'Setelah semua task turunan selesai, PIC langkah utama melengkapi output dan mengajukan ke peninjaunya. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
         'Task tim Anda yang PIC-nya staff (di tahap mana pun, mis. Design) juga bisa Anda bagi dari detail task-nya. Task yang sudah selesai atau sedang ditinjau tak bisa ditambah task turunan; alasannya tampil di bagian itu.',
       ],
     },

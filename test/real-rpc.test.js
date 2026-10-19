@@ -106,6 +106,36 @@ test('simpanReal: hanya saat data real aktif, atas nama profil sesi, dan hanya y
   assert.equal((await aksi(nynda, 'simpanReal', { id: 'x', aksi: 'taskBaru', isi: {} })).status, 400, 'perintah yang tak rapi ditolak');
 });
 
+test('simpanReal: PIC induk bisa diganti ke staff lalu Lead; pilihan tim disimpan dan turunan tetap utuh', async () => {
+  const p = sheetV2();
+  const dev = pakai(await aksi(null, 'masukDev', PIN_DEV));
+  await aksi(dev, 'aturSumber', 'real');
+  const biasa = await masuk();
+  const nynda = await sebagai(biasa, 'nynda');
+  const andika = await sebagai(biasa, 'andika');
+  const simpan = async (cookie, nama, isi) => {
+    const r = await aksi(cookie, 'simpanReal', perintah(nama, isi));
+    assert.equal(r.status, 200, r.teks);
+    return r.json.peristiwa;
+  };
+  const proyek = await simpan(nynda, 'proyekBaru', { f: { name: 'Materi OJK' } });
+  const induk = await simpan(nynda, 'taskBaru', { f: { title: 'Develop materi', project: proyek.hasil.id, sub: 'DV1', pic: 'andika' } });
+  const anak = await simpan(andika, 'taskAnak', { induk: induk.hasil.id, f: { title: 'Konsep dasar', pic: 'uma' } });
+  for (const [cookie, pic] of [[andika, 'tri'], [nynda, 'wildan'], [andika, 'andika']]) {
+    await simpan(cookie, 'ubahTask', { task: induk.hasil.id, f: { pic } });
+    const d = I.dataKosong();
+    const hasil = await aksi(nynda, 'sinkron', {});
+    assert.equal(hasil.status, 200, hasil.teks);
+    for (const e of hasil.json.real.peristiwa) I.terapkanUbah(d, e.ubah);
+    assert.equal(d.tasks.find(t => t.id === induk.hasil.id).pic, pic, 'PIC baru terbaca kembali dari server');
+    assert.equal(d.tasks.find(t => t.id === anak.hasil.id).pic, 'uma', 'PIC task turunan tetap');
+  }
+  const jumlah = p.tab('data_real').values.length;
+  const tolak = await aksi(nynda, 'simpanReal', perintah('ubahTask', { task: induk.hasil.id, f: { pic: 'kiki' } }));
+  assert.equal(tolak.status, 400, 'induk tidak dipindahkan ke tim lain');
+  assert.equal(p.tab('data_real').values.length, jumlah, 'penolakan tidak menulis perubahan');
+});
+
 test('sinkron: perubahan bertahap sejak nomor urut, dari awal kalau generasinya lain; obrolan data real terpisah', async () => {
   const p = sheetV2();
   const biasa = await masuk();
