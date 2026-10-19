@@ -2643,12 +2643,55 @@
     const buka = tasks.filter(aktif);
     const beres = tasks.filter(selesai).sort((a, b) => b.selesaiAt - a.selesaiAt);
     const batas = tambahHari(hariIni, -29);
+    const batas7 = tambahHari(hariIni, -6);
     return {
       tasks, buka, beres, telat: buka.filter(t => telat(t, hariIni)).length,
       selesai30: beres.filter(t => isoHari(t.selesaiAt) >= batas).length,
+      // Angka kerja 7 hari terakhir (2.39.0), dan apakah pembaruannya memang mencatat angka itu.
+      angka7: jumlahAngka(beres.filter(t => isoHari(t.selesaiAt) >= batas7)),
+      adaAngka: beres.some(t => { const a = angkaKerja(t.output); return !!(a.commit || a.file || a.sesi); }),
       terakhir: Math.max(x.updatedAt || 0, ...tasks.map(t => Math.max(t.updatedAt || 0, t.selesaiAt || 0))),
     };
   }
+
+  /* ---------- Linimasa pembaruan inisiatif (2.39.0, permintaan user) ----------
+     Halaman inisiatif menampilkan pembaruan per hari, dengan angka kerjanya dan tanggapan
+     (Manager khususnya). Tanggapan = pesan di ruang diskusi task pembaruannya, jadi tak ada
+     jenis data baru; yang dihitung pesan orang selain PIC-nya. */
+  /* Angka kerja dari kolom output yang diisi agen: "7 commit, 1 sesi Claude Code", "2 file disentuh". */
+  function angkaKerja(teks) {
+    const s = String(teks || '');
+    const ambil = pola => { const m = pola.exec(s); return m ? Number(m[1]) : 0; };
+    return { commit: ambil(/(\d+)\s*commit/i), file: ambil(/(\d+)\s*file/i), sesi: ambil(/(\d+)\s*sesi/i) };
+  }
+  const jumlahAngka = tasks => tasks.reduce((n, t) => {
+    const a = angkaKerja(t.output);
+    return { commit: n.commit + a.commit, file: n.file + a.file, sesi: n.sesi + a.sesi };
+  }, { commit: 0, file: 0, sesi: 0 });
+  /* Judul tanpa awalan nama inisiatifnya: "Agent AI: perbaikan audit" di inisiatif
+     "Agent AI (Staff Tim DAE)" → "Perbaikan audit". Awalan lain dibiarkan. */
+  function judulPembaruan(t, x) {
+    const judul = String((t && t.title) || '');
+    const m = /^([^:]{2,40}):\s+(\S[\s\S]*)$/.exec(judul);
+    if (!m || !x || !String(x.nama || '').toLowerCase().startsWith(m[1].trim().toLowerCase())) return judul;
+    return m[2].charAt(0).toUpperCase() + m[2].slice(1);
+  }
+  /* Pembaruan selesai per hari, terbaru dulu, dengan jumlah angka kerja harinya. */
+  function linimasaInisiatif(tasks) {
+    const grup = new Map();
+    for (const t of tasks) {
+      const hari = isoHari(t.selesaiAt);
+      if (!grup.has(hari)) grup.set(hari, []);
+      grup.get(hari).push(t);
+    }
+    return [...grup.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([hari, isi]) => ({ hari, tasks: isi.sort((a, b) => b.selesaiAt - a.selesaiAt), angka: jumlahAngka(isi) }));
+  }
+  /* Tanggapan atas satu pembaruan: pesan di ruangnya dari orang selain PIC (yang belum dihapus). */
+  const tanggapanPembaruan = (t, pesan) => (pesan || []).filter(m => !m.dihapus && m.oleh && m.oleh !== t.pic);
+  /* Pembaruan yang belum ditanggapi `me` (untuk Manager di daftar inisiatif). perRuang = susunObrolan().perRuang. */
+  const belumDitanggapi = (tasks, perRuang, me) => tasks.filter(t => t.pic !== me
+    && !((perRuang && perRuang.get(ruangTask(t.id))) || []).some(m => !m.dihapus && m.oleh === me));
 
   /* ---------- Permintaan lanjutan (2.36.0, permintaan user) ----------
      Dari task yang sudah diajukan atau selesai, PIC-nya (juga Lead-nya atau Manager) meminta
@@ -4113,6 +4156,7 @@
     namaTahap, SINGKAT_TAHAP, singkatTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, sorotProyek,
+    angkaKerja, jumlahAngka, judulPembaruan, linimasaInisiatif, tanggapanPembaruan, belumDitanggapi,
     STATUS_MINTA, leadDari, peninjauMinta, bolehMinta, bolehJawabMinta, bolehAlihkanMinta, bolehBatalMinta, mintaLanjutan, terimaPermintaan, tolakPermintaan,
     batalkanPermintaan, alihkanPermintaan, permintaanDari, asalPermintaan, permintaanMasuk, hariKerja, umurMinta, mintaLama, BATAS_MINTA, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,

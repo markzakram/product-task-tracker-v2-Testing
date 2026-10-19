@@ -839,6 +839,30 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   rutin.
 - **Detail inisiatif**: pembaruan yang sedang berjalan, dan **Riwayat pembaruan** (yang selesai,
   terbaru di atas, dengan output-nya) seperti changelog.
+- **Linimasa dan tanggapan (2.39.0, permintaan user).** User menilai detail inisiatif "masih
+  sangat jelek" dan ingin Manager bisa mengomentari pembaruan. Sesudah kanvas rekomendasi, user
+  memilih Opsi A (linimasa harian) dengan komentar Manager:
+  - kepala ringkas: meta (ID, tim, PIC, status), nama, tujuan (atau ajakan mengisinya), dan tombol
+    berukuran biasa (Ubah, Tambah pembaruan);
+  - empat ubin: pembaruan 30 hari, commit dan sesi kerja 7 hari (kalau pembaruannya mencatat angka
+    itu; selain itu yang berjalan dan telat), dan terakhir diperbarui;
+  - pembaruan selesai dikelompokkan per hari (Hari ini, Kemarin, lalu tanggal) dengan jumlah
+    pembaruan, commit, file, dan sesi hari itu; paling banyak lima per hari sebelum "Tampilkan …
+    lain", dan 40 pembaruan sebelum "lebih lama";
+  - tiap pembaruan: ID dan jam selesai, judul tanpa awalan nama inisiatif ("Agent AI: …" di
+    inisiatif "Agent AI (…)"), ringkasan keterangan, chip angka kerja dari kolom output ("7 commit,
+    1 sesi Claude Code"), tautan bukti, dan tiga pesan terakhir diskusinya;
+  - kolom samping: Tentang (tim, PIC, tanggal deklarasi, tautan), Sedang berjalan, dan Acara;
+  - **Tanggapi**: tanggapan cepat (Bagus, Perlu dibahas, Pertanyaan; ditulis tebal di awal pesan)
+    dan/atau teks, dengan **Perlu jawaban {PIC}** (tercentang sendiri untuk Pertanyaan dan Perlu
+    dibahas). Disimpan sebagai pesan di ruang diskusi task pembaruannya, jadi tak ada jenis data
+    baru: tampil juga di tab Diskusi task dan Komunikasi, PIC diberi tahu lewat notifikasi pesan
+    atau "menunggu jawaban", dan pesan Manager bertanda **Manager**. PIC sendiri hanya melihat
+    **Balas** di pembaruan yang sudah ada pesannya;
+  - saringan **Semua · Ada tanggapan · Belum ditanggapi** (tanggapan = pesan orang selain PIC);
+  - di daftar Inisiatif, Manager melihat **n pembaruan belum Anda tanggapi** (30 hari terakhir).
+  Aturannya `Inti.angkaKerja`, `judulPembaruan`, `linimasaInisiatif`, `tanggapanPembaruan`,
+  `belumDitanggapi`, dan `ringkasInisiatif` (`angka7`, `adaAngka`); diuji di `test/linimasa.test.js`.
 - **Task lama** di luar proyek bisa ditempel ke inisiatif (atau dilepas) dari pilihan
   **Inisiatif** di detail task-nya. Task proyek tak bisa ditempel.
 - **Data**: tab `inisiatif` dan `inisiatif_links` (opsional; spreadsheet lama tetap terbaca) dan

@@ -1,5 +1,25 @@
 # Changelog — ProductTrack v2
 
+## 2.39.0 — Halaman inisiatif sebagai linimasa, dengan tanggapan Manager (2026-10-19)
+
+Permintaan user: halaman detail inisiatif "masih sangat jelek", dan Manager perlu bisa
+mengomentari pembaruan-pembaruannya. Sesudah melihat kanvas rekomendasi (sebelum, tiga opsi,
+alur komentar, ponsel), user memilih Opsi A dengan komentar Manager.
+
+- **Kepala ringkas**: tombol Tambah pembaruan berukuran biasa (dulu selebar halaman), tujuan atau
+  ajakan mengisinya.
+- **Empat ubin**: pembaruan 30 hari, commit dan sesi kerja 7 hari (dibaca dari kolom output yang
+  diisi agen; inisiatif tanpa angka itu menampilkan yang berjalan dan telat), terakhir diperbarui.
+- **Linimasa per hari**: Hari ini/Kemarin/tanggal dengan jumlah pembaruan, commit, file, dan sesi;
+  kartu pembaruan dengan judul tanpa awalan nama inisiatif, ringkasan, chip angka kerja, bukti,
+  dan pesan terakhirnya. Riwayat lama yang tak sejajar (judul merah di tengah) diganti.
+- **Tanggapan**: tombol Tanggapi dengan tanggapan cepat (Bagus, Perlu dibahas, Pertanyaan) dan
+  Perlu jawaban; disimpan di diskusi task pembaruannya (tanpa data baru), bertanda Manager, dan
+  memberi tahu PIC. Saringan Ada tanggapan / Belum ditanggapi; di daftar Inisiatif, Manager melihat
+  berapa pembaruan 30 hari yang belum ia tanggapi.
+- Kolom samping Tentang, Sedang berjalan, dan Acara; di ponsel semuanya bertumpuk.
+- Panduan baru **Memantau dan menanggapi inisiatif** (Manager). Tes baru `test/linimasa.test.js`.
+
 ## 2.38.1 — Edit PIC menampilkan Lead dan seluruh staff tim (2026-10-19)
 
 Permintaan user (screenshot): dropdown PIC task induk yang sudah punya lima task turunan hanya

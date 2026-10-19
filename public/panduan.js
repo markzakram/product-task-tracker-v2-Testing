@@ -331,6 +331,16 @@
       ],
     },
     {
+      id: 'manager-inisiatif', peran: 'manager', judul: 'Memantau dan menanggapi inisiatif', tujuan: 'Membaca pembaruan pekerjaan berkelanjutan dan memberi tanggapan.',
+      langkah: [
+        'Buka **Inisiatif**. Di tiap kartu tertulis berapa pembaruan 30 hari terakhir yang **belum Anda tanggapi**.',
+        'Di halaman inisiatif, empat angka di atas memberi gambaran cepat: pembaruan 30 hari, commit dan sesi kerja 7 hari (kalau dicatat), dan kapan terakhir diperbarui.',
+        'Pembaruan dikelompokkan per hari, terbaru di atas, lengkap dengan ringkasan, angka kerja, dan buktinya. Saringan **Belum ditanggapi** menyisakan yang belum dikomentari siapa pun.',
+        'Tekan **Tanggapi** di pembaruannya: pilih **Bagus**, **Perlu dibahas**, atau **Pertanyaan**, tambahkan teks bila perlu, lalu **Kirim tanggapan**. Centang **Perlu jawaban** supaya PIC diminta menjawab (tercentang sendiri untuk Pertanyaan dan Perlu dibahas).',
+        'Tanggapan tersimpan di diskusi task pembaruannya: PIC diberi tahu, bisa membalas dari halaman ini, tab Diskusi task, atau Komunikasi. Tanggapan Anda bertanda **Manager**.',
+      ],
+    },
+    {
       id: 'manager-paket', peran: 'manager', judul: 'Memantau progres rancangan paket', tujuan: 'Tahu seberapa jauh paket menuju tayang.', ilustrasi: 'progres', coba: true,
       langkah: [
         'Di **Rancangan Paket**, kartu tiap paket menampilkan progres berbobot dan jumlah yang sudah tayang.',
