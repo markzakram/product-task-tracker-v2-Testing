@@ -52,7 +52,8 @@
   const IZIN = [
     { kunci: 'proyek.buat', grup: 'Proyek', label: 'Membuat proyek', aksi: 'membuat proyek', peran: ['manager'] },
     { kunci: 'proyek.ubah', grup: 'Proyek', label: 'Mengubah nama, platform, dan tujuan proyek', aksi: 'mengubah proyek', peran: ['manager'] },
-    { kunci: 'proyek.hapus', grup: 'Proyek', label: 'Menghapus proyek', aksi: 'menghapus proyek', peran: ['manager'] },
+    // Sejak 2.42.0 (permintaan user) Lead juga boleh menghapus proyek.
+    { kunci: 'proyek.hapus', grup: 'Proyek', label: 'Menghapus proyek', aksi: 'menghapus proyek', peran: ['manager', 'lead'] },
     { kunci: 'proyek.arsip', grup: 'Proyek', label: 'Mengarsipkan dan mengaktifkan lagi proyek', aksi: 'mengarsipkan proyek', peran: ['manager'] },
     { kunci: 'proyek.siklus', grup: 'Proyek', label: 'Memulai siklus baru', aksi: 'memulai siklus baru', peran: ['manager'] },
     { kunci: 'proyek.keputusan', grup: 'Proyek', label: 'Mengubah keputusan proyek (Build, Improve, Maintain, Hold)', aksi: 'memutuskan', peran: ['manager'] },

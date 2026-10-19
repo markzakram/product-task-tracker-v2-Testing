@@ -212,14 +212,15 @@ test('menautkan proyek lama ke paket hanya oleh Manager', () => {
   assert.equal(proj.paket, '');
 });
 
-test('hapus proyek (2.22.0): hanya Manager; task, turunan, dan setorannya ikut hilang, target terbuka lagi', () => {
+test('hapus proyek (2.22.0; sejak 2.42.0 Manager dan Lead): staff tidak; task, turunan, dan setorannya ikut hilang, target terbuka lagi', () => {
   const d = data();
   const { project, tasks } = elaborasi(d, { items: ['ITM-A'] });
   const lain = elaborasi(d, { items: ['ITM-C'] });
   const induk = tasks.find(t => t.sub === 'DV1');
   I.taskAnak(d, induk, { title: 'Soal 1–10', pic: 'andika' }, 'andika', WAKTU, HARI);
   assert.equal(target(d, 'ITM-A').digarap, 3);
-  assert.throws(() => I.hapusProyek(d, project, 'andika', WAKTU), /Hanya Manager/);
+  assert.throws(() => I.hapusProyek(d, project, 'uma', WAKTU), /Hanya Lead atau Manager/, 'staff tidak boleh');
+  assert.equal(I.izin('andika', 'proyek.hapus'), true, 'Lead boleh (2.42.0)');
   const r = I.ringkasHapusProyek(d, project);
   assert.deepEqual([r.task, r.turunan, r.terbuka, r.setoran, r.paket], [9, 1, 9, 4, ['PKG-001']]);
 

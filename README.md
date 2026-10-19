@@ -175,7 +175,8 @@ dengan satu penyederhanaan: tetap empat status.
   **arsipkan** (proyek tuntas, pilihan utama kalau semua task beres), **mulai siklus
   berikutnya** (ADDIE diulang dari Analysis untuk perbaikan atau versi berikutnya), atau
   **tahan**. Keputusan proyek: Build, Improve, Maintain, Hold.
-- **Hapus proyek (2.22.0, Manager).** Tombol **Hapus proyek** (menu **⋯** halaman proyek) membuka
+- **Hapus proyek (2.22.0; sejak 2.42.0 Manager dan Lead, permintaan user).** Izinnya
+  `proyek.hapus` (Panel Dev → Izin); staff tidak bisa. Tombol **Hapus proyek** (menu **⋯** halaman proyek) membuka
   ringkasan apa saja yang ikut hilang, lalu ID proyek harus diketik ulang. Yang ikut terhapus:
   - semua task proyek itu di semua siklus, termasuk task turunan, sub-task, komentar, tinjauan,
     dan bukti di dalamnya;

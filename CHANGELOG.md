@@ -1,5 +1,18 @@
 # Changelog — ProductTrack v2
 
+## 2.42.0 — Lead juga bisa menghapus proyek (2026-10-19)
+
+Permintaan user: fitur hapus proyek yang sudah dibuat, hanya untuk Manager dan Lead.
+
+- Hapus proyek sudah ada sejak 2.22.0 (menu **⋯** halaman proyek), tetapi bawaan izinnya hanya
+  Manager. Bawaan izin `proyek.hapus` kini Manager dan Lead; staff tetap tidak bisa. Berlaku di
+  browser dan di server (data real).
+- Pengamannya tetap: ringkasan apa saja yang ikut hilang (task, turunan, setoran paket), ID proyek
+  harus diketik ulang, dan pilihan **arsipkan saja** untuk proyek yang sudah selesai.
+- Kalau Panel Dev → Izin pernah menyimpan pengaturan sendiri untuk "Menghapus proyek", pengaturan
+  itu yang berlaku: centang Lead di sana.
+- Panduan Lead dan Manager diperbarui; tes izin ditambah.
+
 ## 2.41.0 — Banding perpanjangan tenggat; sub-stage jadi judul detail task (2026-10-19)
 
 Permintaan user: (1) di detail task, sub-stage jadi judul dan judul task jadi sub-judulnya
