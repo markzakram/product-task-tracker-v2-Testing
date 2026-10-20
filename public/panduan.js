@@ -342,6 +342,7 @@
         'Pembaruan dikelompokkan per hari, terbaru di atas, lengkap dengan ringkasan, angka kerja, dan buktinya. Saringan **Belum ditanggapi** menyisakan yang belum dikomentari siapa pun.',
         'Tekan **Tanggapi** di pembaruannya: pilih **Bagus**, **Perlu dibahas**, atau **Pertanyaan**, tambahkan teks bila perlu, lalu **Kirim tanggapan**. Centang **Perlu jawaban** supaya PIC diminta menjawab (tercentang sendiri untuk Pertanyaan dan Perlu dibahas).',
         'Tanggapan tersimpan di diskusi task pembaruannya: PIC diberi tahu, bisa membalas dari halaman ini, tab Diskusi task, atau Komunikasi. Tanggapan Anda bertanda **Manager**.',
+        '**Pembaruan proyek**: task rutin tim DAE yang disambungkan ke sebuah proyek tampil di tab **Pembaruan** halaman proyek itu, dengan linimasa dan **Tanggapi** yang sama. Tab itu bertanda bila ada pembaruan 30 hari terakhir yang belum Anda tanggapi.',
       ],
     },
     {
@@ -376,7 +377,7 @@
     ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, ceklis, task turunan (kalau ada), task yang ditunggu sudah diajukan, tertahan, atau selesai, dan tidak tertahan.'],
     ['Serah-terima', 'Task yang diatur menunggu task lain, juga dari tim lain. Begitu task yang ditunggu diajukan untuk ditinjau atau ditandai tertahan, task berikutnya sudah bisa mulai sejajar; E12 tetap menunggu semuanya disetujui.'],
     ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task turunan), Manager untuk task Lead dan kode bertanda Manager.'],
-    ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1). Di form Tambah task dipilih lewat **Task ini untuk apa?**, ditambah **Inisiatif** untuk pembaruan inisiatif.'],
+    ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1). Di form Tambah task dipilih lewat **Task ini untuk apa?**, ditambah **Pembaruan** untuk pembaruan inisiatif atau proyek (tim DAE dan Manager).'],
     ['Fase', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation, dijalankan tiap tim di proyek. Task sefase dalam satu tim dikerjakan bersamaan; fase berikutnya menunggu fase sebelumnya tim itu selesai.'],
     ['Urutan tunggu', 'Yang harus selesai dulu sebelum sebuah task jalan: fase timnya (bawaan), serah-terima yang diatur Lead (boleh dari tim lain), gerbang Manager (A1, A6), dan untuk E12 semua task lain di siklusnya.'],
     ['Siklus', 'Satu putaran ADDIE. Ditutup task E12 yang disetujui; siklus berikutnya opsional.'],
@@ -395,6 +396,7 @@
     ['Status', 'Emoji dan teks singkat (mis. 🏖️ Cuti) di samping nama dan foto Anda, terlihat semua orang, dan hilang sendiri sesudah waktunya.'],
     ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu dan dipasang lewat mode Dev. Berbeda dari PIN aplikasi yang dipakai bersama.'],
     ['Inisiatif', 'Pekerjaan berkelanjutan di luar rancangan paket (mis. ProductTrack v2), sementara khusus tim DAE dan Manager. Dideklarasikan sekali; tiap pembaruannya task biasa tanpa tinjauan yang tetap terhitung di Hari Ini, beban, dan Laporan.'],
+    ['Pembaruan proyek', 'Task rutin yang disambungkan ke proyek yang berjalan terus, lewat **Pembaruan untuk** di form Tambah task atau di detail task-nya. Tetap rutin: tanpa tinjauan dan tak menggeser fase, progres, atau E12. Tampil di tab **Pembaruan** proyeknya, tempat Manager menanggapi. Sementara khusus tim DAE dan Manager.'],
     ['Izin', 'Daftar apa yang boleh dilakukan Manager, Lead, dan Staff, mis. membuat proyek, menghapus paket, atau membuka Laporan. Diatur mode Dev di Panel Dev → Izin dengan centang per peran; yang mengikuti struktur tim dan alur tinjauan tetap.'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],
   ];

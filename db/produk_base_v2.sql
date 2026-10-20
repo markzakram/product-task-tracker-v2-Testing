@@ -334,6 +334,7 @@ CREATE TABLE IF NOT EXISTS `v2_perpanjangan` (
 -- project NULL = jalur rutin (di aplikasi ''). induk = task anak (satu tingkat).
 -- inisiatif NULL = bukan pembaruan inisiatif (di aplikasi ''), 2.31.0.
 -- diminta = orang yang meminta task ini lewat permintaan lanjutan (2.38.0); Lead timnya yang meninjau.
+-- pembaruanProyek = proyek yang diperbarui task rutin ini (2.45.0); task-nya tetap di luar proyek (project NULL).
 -- support, deps, dan tunggu adalah larik ID; disimpan JSON karena aplikasi memakainya utuh.
 -- tunggu + lepasFase (2.19.0) = urutan yang diatur Lead tim di tab timnya di halaman proyek.
 CREATE TABLE IF NOT EXISTS `v2_tasks` (
@@ -367,6 +368,7 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   `induk`          VARCHAR(64)  NULL,
   `inisiatif`      VARCHAR(64)  NULL,
   `diminta`        VARCHAR(64)  NULL,
+  `pembaruanProyek` VARCHAR(64) NULL,
   `_diubah`        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_task_proyek` (`project`, `cycle`, `stage`),
@@ -374,10 +376,12 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   KEY `ix_task_status_due` (`status`, `due`),
   KEY `ix_task_induk` (`induk`),
   KEY `ix_task_inisiatif` (`inisiatif`),
+  KEY `ix_task_pembaruan` (`pembaruanProyek`),
   KEY `ix_task_diubah` (`_diubah`),
   CONSTRAINT `fk_v2_task_proyek` FOREIGN KEY (`project`) REFERENCES `v2_projects` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_v2_task_induk` FOREIGN KEY (`induk`) REFERENCES `v2_tasks` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_v2_task_inisiatif` FOREIGN KEY (`inisiatif`) REFERENCES `v2_inisiatif` (`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_v2_task_inisiatif` FOREIGN KEY (`inisiatif`) REFERENCES `v2_inisiatif` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_v2_task_pembaruan` FOREIGN KEY (`pembaruanProyek`) REFERENCES `v2_projects` (`id`) ON DELETE SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `v2_subtasks` (

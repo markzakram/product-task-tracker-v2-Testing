@@ -830,19 +830,22 @@
     if (!picSah(me, f.pic, f.sub)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
     const pInduk = teks(f.induk) ? data.tasks.find(x => x.id === teks(f.induk)) || null : null;
     const ini = inisiatifUntukTask(data, f.inisiatif, p, me);
+    const pb = proyekUntukPembaruan(data, f.pembaruanProyek, p, me);
+    if (ini && pb) throw new Error('Pembaruan disambungkan ke satu tempat saja: inisiatif atau proyek.');
     if (teks(f.induk)) {
       const salah = salahInduk(pInduk, me, { pic: f.pic, project: p ? p.id : '', cycle: p ? p.cycle || 1 : 1, stage: p ? s.tahap : '' });
       if (salah) throw new Error(salah);
     }
     const t = {
       id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
-      project: p ? p.id : '', lane: p ? 'proyek' : 'rutin', kategori: p ? '' : (s ? s.nama : ini ? ini.nama : f.kategori || 'Umum'),
+      project: p ? p.id : '', lane: p ? 'proyek' : 'rutin', kategori: p ? '' : (s ? s.nama : ini ? ini.nama : pb ? pb.name : f.kategori || 'Umum'),
       title: String(f.title).trim(), platform: f.platform || (p ? p.platform : 'All Platform'),
       stage: p ? s.tahap : '', sub: s ? s.kode : '', detail: String(f.detail || '').trim(),
       pic: f.pic, support: (f.support || []).filter(x => x !== f.pic), priority: f.priority || 'Normal',
       start: hariIni, due: f.due || '', status: 'Antre', tertahan: false, alasanTertahan: '',
       output: String(f.output || '').trim(), deps: (f.deps || []).slice(), tunggu: [], lepasFase: false,
       notes: '', assignedBy: me, cycle: p ? p.cycle || 1 : 1, induk: pInduk ? pInduk.id : '', inisiatif: ini ? ini.id : '',
+      pembaruanProyek: pb ? pb.id : '',
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
       subtasks: [], comments: [], tinjauan: [], evidence: [],
     };
@@ -864,6 +867,7 @@
     return taskBaru(data, {
       title: f.title, project: induk.project, sub: induk.sub, pic: f.pic, due: f.due, priority: f.priority || induk.priority,
       platform: induk.platform, detail: f.detail, kategori: induk.kategori, induk: induk.id, inisiatif: induk.inisiatif || '',
+      pembaruanProyek: induk.pembaruanProyek || '',
     }, me, waktu, hariIni);
   }
 
@@ -2666,6 +2670,7 @@
     const x = inisiatifUntukTask(data, id, t.project, me);
     const lama = cariInisiatif(data, t.inisiatif);
     t.inisiatif = x ? x.id : '';
+    if (x) t.pembaruanProyek = '';   // satu tempat saja: inisiatif atau proyek (2.45.0)
     if (x && !t.sub) t.kategori = x.nama;
     t.updatedAt = waktu;
     catatLog(data, 'update', `${t.id} · ${t.title}`, x ? `Ditempel ke inisiatif ${x.id} · ${x.nama}` : `Dilepas dari inisiatif ${lama ? lama.nama : ''}`.trim(), me, waktu);
@@ -2673,7 +2678,10 @@
   }
   /* Ringkasan satu inisiatif: task terbuka, riwayat pembaruan yang selesai (terbaru di atas). */
   function ringkasInisiatif(data, x, hariIni) {
-    const tasks = data.tasks.filter(t => t.inisiatif === x.id);
+    return ringkasPembaruan(data.tasks.filter(t => t.inisiatif === x.id), hariIni, x.updatedAt);
+  }
+  /* Sejak 2.45.0 dipakai juga untuk pembaruan proyek. awal = waktu terakhir wadahnya diubah. */
+  function ringkasPembaruan(tasks, hariIni, awal = 0) {
     const buka = tasks.filter(aktif);
     const beres = tasks.filter(selesai).sort((a, b) => b.selesaiAt - a.selesaiAt);
     const batas = tambahHari(hariIni, -29);
@@ -2684,9 +2692,48 @@
       // Angka kerja 7 hari terakhir (2.39.0), dan apakah pembaruannya memang mencatat angka itu.
       angka7: jumlahAngka(beres.filter(t => isoHari(t.selesaiAt) >= batas7)),
       adaAngka: beres.some(t => { const a = angkaKerja(t.output); return !!(a.commit || a.file || a.sesi); }),
-      terakhir: Math.max(x.updatedAt || 0, ...tasks.map(t => Math.max(t.updatedAt || 0, t.selesaiAt || 0))),
+      terakhir: Math.max(awal || 0, ...tasks.map(t => Math.max(t.updatedAt || 0, t.selesaiAt || 0))),
     };
   }
+
+  /* ---------- Pembaruan proyek (2.45.0, permintaan user) ----------
+     "Tim DAE sering membuat task rutin yang sebenarnya pembaruan inisiatif atau proyek yang
+     berjalan terus." Task rutin (di luar proyek) bisa disambungkan ke sebuah proyek sebagai
+     pembaruan (t.pembaruanProyek). Task-nya tetap rutin: tanpa sub-stage proyek, tanpa tinjauan,
+     tak terkena fase, progres, maupun E12, karena t.project-nya tetap kosong. Hasil kerja, ceklis,
+     dan diskusinya seperti task lain. Di halaman proyek tampil di tab Pembaruan sebagai linimasa
+     seperti Inisiatif, tempat Manager menanggapi. Satu task disambungkan ke satu tempat:
+     inisiatif atau proyek. Keputusan user: sementara khusus tim DAE dan Manager, sama dengan
+     Inisiatif (TIM_INISIATIF). */
+  const bolehPembaruanProyek = me => bolehLihatInisiatif(me);
+  const tolakPembaruanProyek = () => new Error(`Pembaruan proyek sementara khusus tim ${TIM_INISIATIF.map(singkatTim).join(', ')} dan Manager.`);
+  /* Proyek tujuan pembaruan untuk task baru atau yang disambungkan; null kalau id kosong.
+     proyek = proyek task itu sendiri (task proyek tak disambungkan sebagai pembaruan). */
+  function proyekUntukPembaruan(data, id, proyek, me) {
+    if (!teks(id)) return null;
+    const p = (data.projects || []).find(x => x.id === teks(id));
+    if (!p) throw new Error('Proyek tidak ditemukan.');
+    if (proyek) throw new Error('Task proyek sudah berada di proyeknya. Yang disambungkan sebagai pembaruan adalah task rutin.');
+    if (!bolehPembaruanProyek(me)) throw tolakPembaruanProyek();
+    if (p.arsip) throw new Error(`Proyek ${p.name} sudah diarsipkan. Aktifkan lagi dulu untuk menambah pembaruan.`);
+    return p;
+  }
+  /* Menyambungkan task rutin ke proyek sebagai pembaruan, atau melepasnya (id kosong). */
+  function sambungProyek(data, t, id, me, waktu) {
+    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang menyambungkan task sebagai pembaruan proyek.');
+    const p = proyekUntukPembaruan(data, id, t.project, me);
+    if ((p ? p.id : '') === (t.pembaruanProyek || '')) return t;
+    if (!p && !bolehPembaruanProyek(me)) throw tolakPembaruanProyek();
+    const lama = (data.projects || []).find(x => x.id === t.pembaruanProyek);
+    t.pembaruanProyek = p ? p.id : '';
+    if (p) t.inisiatif = '';
+    if (p && !t.sub) t.kategori = p.name;
+    t.updatedAt = waktu;
+    catatLog(data, 'update', `${t.id} · ${t.title}`, p ? `Disambungkan sebagai pembaruan proyek ${p.id} · ${p.name}` : `Dilepas dari pembaruan proyek ${lama ? lama.name : ''}`.trim(), me, waktu);
+    return t;
+  }
+  const pembaruanProyek = (data, p) => data.tasks.filter(t => t.pembaruanProyek === p.id);
+  const ringkasPembaruanProyek = (data, p, hariIni) => ringkasPembaruan(pembaruanProyek(data, p), hariIni);
 
   /* ---------- Linimasa pembaruan inisiatif (2.39.0, permintaan user) ----------
      Halaman inisiatif menampilkan pembaruan per hari, dengan angka kerjanya dan tanggapan
@@ -3037,6 +3084,8 @@
     return {
       task: tasks.length, turunan: tasks.filter(t => t.induk).length, terbuka: tasks.filter(aktif).length,
       setoran: setoran.length, paket: [...new Set(setoran.map(s => s.paket))],
+      // Pembaruan rutin yang disambungkan (2.45.0) tak ikut terhapus; sambungannya dilepas.
+      pembaruan: data.tasks.filter(t => t.pembaruanProyek === p.id).length,
     };
   }
   function hapusProyek(data, p, me, waktu) {
@@ -3049,7 +3098,8 @@
     data.projects.splice(data.projects.indexOf(p), 1);
     for (let i = data.tasks.length - 1; i >= 0; i--) if (ids.has(data.tasks[i].id)) data.tasks.splice(i, 1);
     if (data.setoran) for (let i = data.setoran.length - 1; i >= 0; i--) if (ids.has(data.setoran[i].task)) data.setoran.splice(i, 1);
-    catatLog(data, 'delete', `${p.id} · ${p.name}`, `Proyek dihapus beserta ${r.task} task${r.setoran ? ` dan ${r.setoran} setoran paket` : ''}`, me, waktu);
+    for (const t of data.tasks) if (t.pembaruanProyek === p.id) { t.pembaruanProyek = ''; t.updatedAt = waktu; }
+    catatLog(data, 'delete', `${p.id} · ${p.name}`, `Proyek dihapus beserta ${r.task} task${r.setoran ? ` dan ${r.setoran} setoran paket` : ''}${r.pembaruan ? `; ${r.pembaruan} pembaruan rutin dilepas` : ''}`, me, waktu);
     return { proyek: p.id, ...r };
   }
 
@@ -4183,6 +4233,8 @@
     ubahInisiatif: (d, x, me, w) => ubahInisiatif(d, cariDi(d.inisiatif, x.inisiatif, 'Inisiatif'), x.f || {}, me, w),
     hapusInisiatif: (d, x, me, w) => hapusInisiatif(d, cariDi(d.inisiatif, x.inisiatif, 'Inisiatif'), me, w),
     tempelInisiatif: (d, x, me, w) => tempelInisiatif(d, tugas(d, x), x.inisiatif || '', me, w),
+    // Pembaruan proyek (2.45.0).
+    sambungProyek: (d, x, me, w) => sambungProyek(d, tugas(d, x), x.proyek || '', me, w),
     duplikatProyek: (d, x, me, w, h) => duplikatProyek(d, proyekX(d, x), x.f || {}, me, w, h),
     simpanPaket: (d, x, me, w) => simpanPaket(d, paketX(d, x), x.f || {}, me, w),
     hapusPaket: (d, x, me, w) => hapusPaket(d, paketX(d, x), me, w),
@@ -4313,6 +4365,7 @@
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, sorotProyek,
     angkaKerja, jumlahAngka, judulPembaruan, linimasaInisiatif, tanggapanPembaruan, belumDitanggapi,
+    ringkasPembaruan, bolehPembaruanProyek, sambungProyek, pembaruanProyek, ringkasPembaruanProyek,
     STATUS_PANJANG, pemberiTask, panjangMenunggu, panjangTask, bolehAjukanPanjang, bolehJawabPanjang, ajukanPerpanjangan, jawabPerpanjangan,
     batalkanPerpanjangan, panjangMasuk, pulihkanTask,
     STATUS_MINTA, leadDari, peninjauMinta, bolehMinta, bolehJawabMinta, bolehAlihkanMinta, bolehBatalMinta, mintaLanjutan, terimaPermintaan, tolakPermintaan,

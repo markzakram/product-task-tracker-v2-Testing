@@ -893,13 +893,47 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   Aturannya `Inti.angkaKerja`, `judulPembaruan`, `linimasaInisiatif`, `tanggapanPembaruan`,
   `belumDitanggapi`, dan `ringkasInisiatif` (`angka7`, `adaAngka`); diuji di `test/linimasa.test.js`.
 - **Task lama** di luar proyek bisa ditempel ke inisiatif (atau dilepas) dari pilihan
-  **Inisiatif** di detail task-nya. Task proyek tak bisa ditempel.
+  **Pembaruan untuk** (dulu **Inisiatif**) di detail task-nya. Task proyek tak bisa ditempel.
 - **Data**: tab `inisiatif` dan `inisiatif_links` (opsional; spreadsheet lama tetap terbaca) dan
   kolom `inisiatif` di tab `tasks`; koleksi `inisiatif` ikut data real; tabel `v2_inisiatif`,
   `v2_inisiatif_links`, dan kolom `v2_tasks.inisiatif` di MySQL (kini 27 tabel). Aturannya
   `Inti.inisiatifBaru`, `ubahInisiatif`, `hapusInisiatif`, `tempelInisiatif`,
   `ringkasInisiatif`; tim yang memakainya `Inti.TIM_INISIATIF` (`['SI']`). Diuji di
   `test/inti.test.js`, `test/demo.test.js`, dan `test/sheets.test.js`.
+
+### Pembaruan proyek (2.45.0)
+
+Permintaan user: tim DAE sering membuat task rutin yang sebenarnya pembaruan inisiatif atau
+proyek yang berjalan terus, dan ingin pilihan menyambungkan task itu sebagai pembaruan, tetap
+dengan hasil kerja, ceklis pengerjaan, dan diskusi supaya Manager bisa mengomentarinya. Untuk
+inisiatif semua itu sudah ada (2.31.0, 2.39.0); yang baru adalah proyek. Pilihan user: **tab
+Pembaruan di proyek**, **sementara khusus tim DAE dan Manager** (sama dengan Inisiatif).
+
+- **Pembaruan untuk**: di form Tambah task, jalur **Inisiatif** kini bernama **Pembaruan**
+  ("Pembaruan inisiatif atau proyek yang berjalan terus"), dan pilihannya berisi dua kelompok:
+  inisiatif yang belum selesai dan proyek yang tak diarsipkan. Pilihan yang sama ada di detail
+  task di luar proyek, untuk menyambungkan task lama, memindahkannya, atau melepasnya. Satu task
+  disambungkan ke satu tempat: inisiatif atau proyek.
+- **Tetap task rutin** (`t.pembaruanProyek` = ID proyek, `t.project` tetap kosong): tanpa
+  sub-stage proyek, tanpa tinjauan (PIC langsung menandai selesai), dan tak menggeser fase,
+  progres siklus, label terlambat proyek, maupun E12. Tetap terhitung di Hari Ini, beban,
+  Dashboard, Laporan, dan telat. Hasil kerja, ceklis, bukti, dan tab Diskusi-nya sama dengan task
+  lain, kecuali setoran ke rancangan paket (seperti pembaruan inisiatif). Kepala detail task
+  menulis "Pembaruan proyek · nama proyek" yang membuka tab Pembaruan.
+- **Tab Pembaruan** di halaman proyek (sesudah tab tim): tampil bila proyek itu sudah punya
+  pembaruan, atau bagi tim DAE dan Manager selama proyeknya tak diarsipkan. Isinya tombol **Tambah
+  pembaruan**, angka terbuka/telat/selesai 30 hari, yang sedang berjalan, dan linimasa per hari
+  yang sama dengan halaman Inisiatif: angka kerja dari output, bukti, tiga pesan terakhir, saringan
+  Ada tanggapan/Belum ditanggapi, dan **Tanggapi** (tanggapan cepat, Perlu jawaban). Bagi Manager,
+  tab itu bertanda bila ada pembaruan 30 hari terakhir yang belum ia tanggapi.
+- **Hapus proyek** tak menghapus pembaruannya: sambungannya dilepas dan task-nya tetap ada
+  (jendela hapus menyebut jumlahnya).
+- **Data**: kolom `pembaruanProyek` di tab `tasks` dan `v2_tasks` (FK ke `v2_projects`, ON DELETE
+  SET NULL). Aturannya `Inti.bolehPembaruanProyek`, `sambungProyek` (aksi data `sambungProyek`),
+  `pembaruanProyek`, `ringkasPembaruanProyek`, dan `ringkasPembaruan` (dipakai bersama
+  `ringkasInisiatif`). Diuji di `test/pembaruan-proyek.test.js`.
+- Membuka untuk tim lain berarti mengubah `Inti.TIM_INISIATIF` (berlaku juga untuk Inisiatif);
+  belum bisa diatur di Panel Dev → Izin, karena izin di sana per peran, bukan per tim.
 
 ### Banding perpanjangan tenggat (2.41.0)
 

@@ -1,5 +1,25 @@
 # Changelog — ProductTrack v2
 
+## 2.45.0 — Task rutin bisa disambungkan sebagai pembaruan proyek (2026-10-20)
+
+Permintaan user: tim DAE sering membuat task rutin yang sebenarnya pembaruan inisiatif atau
+proyek yang berjalan terus; ingin pilihan menyambungkannya sebagai pembaruan, tetap dengan hasil
+kerja, ceklis pengerjaan, dan diskusi supaya Manager bisa mengomentarinya. Pilihan user: tab
+Pembaruan di proyek, sementara khusus tim DAE dan Manager.
+
+- **Pembaruan untuk** (form Tambah task dan detail task di luar proyek): pilih inisiatif atau
+  proyek. Jalur **Inisiatif** di form kini bernama **Pembaruan**. Satu task disambungkan ke satu
+  tempat; memindahkannya ke yang lain melepas yang lama.
+- **Pembaruan proyek tetap task rutin**: tanpa tinjauan, tak menggeser fase, progres, label
+  terlambat proyek, maupun E12; hasil kerja, ceklis, bukti, dan diskusinya seperti task lain.
+  Seperti pembaruan inisiatif, tak menyetor ke rancangan paket.
+- **Tab Pembaruan** di halaman proyek: tombol Tambah pembaruan, yang sedang berjalan, dan
+  linimasa per hari dengan **Tanggapi** seperti halaman Inisiatif. Bagi Manager, tab itu
+  bertanda bila ada pembaruan 30 hari yang belum ia tanggapi.
+- Menghapus proyek melepas pembaruannya, task-nya tetap ada.
+- Data: kolom `pembaruanProyek` di tab `tasks` dan `v2_tasks`. Tes baru
+  `test/pembaruan-proyek.test.js`; panduan Manager dan Istilah diperbarui.
+
 ## 2.44.0 — Pulihkan task yang terhapus sebagai task rutin (2026-10-20)
 
 Permintaan user: task PRD-190 hilang. Riwayat data real menunjukkan task itu ikut terhapus saat

@@ -2527,6 +2527,25 @@
     '{id} dipulihkan sebagai task rutin.': '{id} was restored as a routine task.',
     'Memulihkan task yang terhapus (data real) sebagai task rutin': 'Restore deleted tasks (real data) as routine tasks',
     'memulihkan task yang terhapus': 'restore deleted tasks',
+    /* ----- Pembaruan proyek (2.45.0) ----- */
+    'Pembaruan proyek': 'Project updates',
+    'Task rutin yang disambungkan ke proyek ini': 'Routine tasks connected to this project',
+    'Pembaruan': 'Updates',
+    'Task rutin yang disambungkan ke proyek ini: tanpa tinjauan, dan tak menggeser fase, progres, atau E12. Hasil kerja, ceklis, dan diskusinya seperti task lain; Manager menanggapi di sini.': 'Routine tasks connected to this project: no review, and they don\'t move the phases, progress, or E12. Their work result, checklist, and discussion work like any other task; the Manager responds here.',
+    'Pembaruan untuk': 'Update for',
+    '— pilih inisiatif atau proyek —': '— choose an initiative or project —',
+    'Tetap task rutin tanpa tinjauan; tampil di halaman inisiatif atau di tab Pembaruan proyeknya.': 'Still a routine task without review; it shows on the initiative page or in the project\'s Updates tab.',
+    'Pembaruan inisiatif atau proyek yang berjalan terus': 'An update to an ongoing initiative or project',
+    '{n} pembaruan rutin yang disambungkan ke proyek ini tidak ikut terhapus; sambungannya dilepas.': '{n} routine updates connected to this project are not deleted; they are disconnected.',
+    'Pilih inisiatif atau proyeknya dulu.': 'Choose the initiative or project first.',
+    '{id} ditambahkan untuk {nama} sebagai pembaruan proyek {proyek}.': '{id} added for {nama} as an update to project {proyek}.',
+    'Task disambungkan sebagai pembaruan proyek {nama}.': 'Task connected as an update to project {nama}.',
+    'Task dilepas dari inisiatif atau proyek.': 'Task disconnected from the initiative or project.',
+    'Pembaruan disambungkan ke satu tempat saja: inisiatif atau proyek.': 'An update connects to one place only: an initiative or a project.',
+    'Pembaruan proyek sementara khusus tim DAE dan Manager.': 'Project updates are for now only for team DAE and the Manager.',
+    'Task proyek sudah berada di proyeknya. Yang disambungkan sebagai pembaruan adalah task rutin.': 'A project task already belongs to its project. Only routine tasks are connected as updates.',
+    'Proyek {nama} sudah diarsipkan. Aktifkan lagi dulu untuk menambah pembaruan.': 'Project {nama} is archived. Reactivate it first to add updates.',
+    'Hanya PIC, Lead-nya, atau Manager yang menyambungkan task sebagai pembaruan proyek.': 'Only the owner, their Lead, or the Manager can connect a task as a project update.',
   };
 
   let kini = 'id';
