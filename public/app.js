@@ -1084,11 +1084,13 @@
     // Siap tak perlu ditandai di daftar; Menunggu/Tertahan sudah terbaca dari alasannya.
     const lb = I.labelKeadaan(t, perIdKini());
     const label = lb && lb !== 'Siap' && !String(alasan).startsWith(lb) ? chipLabel(t) : '';
+    // Sejak 2.42.1 (permintaan user), seperti kepala detail task: sub-stage jadi judul baris, judul task di bawahnya.
+    const s = I.subTahap(t.sub);
     return `<button type="button" class="baris ${posisi === 'anak' ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}" data-aksi="${aksi}" data-id="${esc(t.id)}"${aksi === 'buka-task' ? '' : ' tabindex="-1"'}>
       ${pillStatus(t.status)}
       <span class="baris-isi">
-        <span class="baris-judul">${esc(t.title)}</span>
-        <span class="baris-meta">${t.induk && !posisi ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${[S.view === 'proyek' && t.project && t.project === S.proyek ? '' : esc(asal(t)), sub, keluarga].filter(Boolean).join(' · ')} ${label} ${chipSetor(t)} ${chipPenting(t)}</span>
+        ${s ? `<span class="baris-judul">${chipJalur(t)} ${esc(s.nama)}</span><span class="baris-subjudul">${esc(t.title)}</span>` : `<span class="baris-judul">${esc(t.title)}</span>`}
+        <span class="baris-meta">${t.induk && !posisi ? chipInduk(t) + ' ' : ''}${s ? '' : chipJalur(t)} ${[S.view === 'proyek' && t.project && t.project === S.proyek ? '' : esc(asal(t)), sub, keluarga].filter(Boolean).join(' · ')} ${label} ${chipSetor(t)} ${chipPenting(t)}</span>
         ${alasan ? `<span class="baris-alasan ${/^Tertahan/.test(alasan) ? 'merah' : /^Selesai/.test(alasan) && !/lewat tenggat/.test(alasan) ? 'redup' : ''}">${esc(trPola(String(alasan)))}</span>` : ''}
       </span>
       ${chipTenggat(t)}
@@ -1103,9 +1105,11 @@
     const keluarga = ringkasAnak(t);
     // Task proyek menunggu fase timnya, serah-terima, atau gerbang; task lain menunggu deps-nya.
     const tunggu = I.selesai(t) ? '' : I.tungguSingkat(t, perId);
+    const s = I.subTahap(t.sub);
     return `<div class="kartu ${telat ? 'telat' : ''}" draggable="true" data-id="${esc(t.id)}">
       <span class="kartu-atas">${t.induk ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${chipLabel(t, ['Siap', 'Menunggu', 'Tertahan'])} ${chipSetor(t)} <span>${esc(asal(t))}</span></span>
-      <button type="button" class="kartu-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(t.title)}</button>
+      <button type="button" class="kartu-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(s ? s.nama : t.title)}</button>
+      ${s ? `<span class="kartu-subjudul">${esc(t.title)}</span>` : ''}
       ${sub ? `<span class="kartu-sub"><span class="batang"><span style="width:${Math.round(beres / sub * 100)}%"></span></span>${beres}/${sub}</span>` : ''}
       ${keluarga ? `<span class="kartu-anak">${esc(keluarga)}</span>` : ''}
       ${t.tertahan ? `<span class="tanda-tahan">${tr('Tertahan: {alasan}', { alasan: esc(t.alasanTertahan || tr('tanpa alasan')) })}</span>` : tunggu ? `<span class="kartu-tunggu">${esc(trPola(String(tunggu)))}</span>` : ''}

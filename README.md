@@ -1130,7 +1130,9 @@ tetap, susunannya mengikuti "apa yang perlu dilakukan sekarang":
   ubah, hapus, tutup), lalu judul, sub-stage dan tim, status dan tenggat, serta PIC dan
   peninjau, semuanya selebar laci. Sejak 2.41.0 (permintaan user) sub-stage (kode dan namanya)
   jadi judul besar dan judul task jadi sub-judul di bawahnya; task tanpa sub-stage tetap memakai
-  judul task.
+  judul task. Sejak 2.42.1 pola yang sama dipakai baris task (halaman proyek, Hari Ini, dan daftar
+  lain yang memakai baris) dan kartu Kanban; tabel Daftar di halaman Task tetap judul task dulu,
+  karena bisa diurutkan menurut judul.
 - **Kartu "Langkah berikutnya"**: apa yang perlu dilakukan dan kenapa, sekali saja (dulu
   banner, daftar Menunggu, dan teks di bawah tombol mengulang alasan yang sama). Isinya menurut
   keadaan: menunggu (dengan tombol **Lihat yang ditunggu** dan **Atur urutan tunggu**), siap

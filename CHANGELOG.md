@@ -1,5 +1,17 @@
 # Changelog — ProductTrack v2
 
+## 2.42.1 — Sub-stage jadi judul juga di baris dan kartu task (2026-10-20)
+
+Permintaan user (tangkapan layar): detail task sudah benar, tetapi tampilan pratinjau task di
+halaman proyek juga harus memakai sub-stage sebagai judul.
+
+- **Baris task** (halaman proyek, Hari Ini, dan daftar lain yang memakai baris): kode dan nama
+  sub-stage jadi judul ("D2 Kerangka course"), judul task di bawahnya. Task tanpa sub-stage tak
+  berubah.
+- **Kartu Kanban**: nama sub-stage jadi judul kartu (kodenya tetap di baris atas), judul task di
+  bawahnya.
+- Tabel Daftar di halaman Task tetap judul task dulu, karena kolom itu bisa diurutkan menurut judul.
+
 ## 2.42.0 — Lead juga bisa menghapus proyek (2026-10-19)
 
 Permintaan user: fitur hapus proyek yang sudah dibuat, hanya untuk Manager dan Lead.
