@@ -2506,6 +2506,27 @@
     'Urutan ADDIE {nama} dilonggarkan: fase dan gerbang Manager jadi pengingat.': 'ADDIE order of {nama} relaxed: phases and Manager gates are now reminders.',
     'mengatur urutan ADDIE proyek': 'set a project\'s ADDIE order',
     'Mengetatkan atau melonggarkan urutan ADDIE proyek': 'Enforce or relax a project\'s ADDIE order',
+    /* ----- Pulihkan task yang terhapus (2.44.0) ----- */
+    'Pulihkan sebagai task rutin': 'Restore as a routine task',
+    'PIC {pic} · ceklis {a}/{b} selesai · {n} bukti. ID-nya tetap, jadi percakapannya tersambung lagi.': 'Owner {pic} · checklist {a}/{b} done · {n} evidence. It keeps its ID, so its conversation reconnects.',
+    'Dulu di proyek {proyek}. Setelah dipulihkan jadi task rutin di luar proyek, tanpa sub-stage {sub}.': 'It used to be in project {proyek}. Once restored it becomes a routine task outside any project, without sub-stage {sub}.',
+    'Statusnya kembali Dikerjakan, karena task rutin tak ditinjau.': 'Its status goes back to In progress, because routine tasks are not reviewed.',
+    'Tempel ke inisiatif (opsional)': 'Attach to an initiative (optional)',
+    '— tanpa inisiatif —': '— no initiative —',
+    'Task yang ditempel ke inisiatif tampil sebagai pembaruan di halaman inisiatif itu.': 'A task attached to an initiative shows up as an update on that initiative\'s page.',
+    'Task terhapus': 'Deleted task',
+    'Memeriksa riwayat data real…': 'Checking the real data history…',
+    'Task ini tak ada di data real, dan tak ditemukan di riwayat task yang terhapus.': 'This task is not in the real data, and it was not found among deleted tasks.',
+    'Riwayat task yang terhapus gagal dimuat: {galat}': 'Could not load the deleted task history: {galat}',
+    'Dihapus {nama} {waktu} bersama proyek {proyek}.': 'Deleted by {nama} {waktu} together with project {proyek}.',
+    'Dihapus {nama} {waktu}.': 'Deleted by {nama} {waktu}.',
+    'Percakapannya tetap tersimpan di sini.': 'Its conversation is still kept here.',
+    'Lead atau Manager bisa memulihkannya sebagai task rutin.': 'A Lead or the Manager can restore it as a routine task.',
+    'Isi task yang terhapus belum dimuat. Tutup jendela ini, lalu buka lagi utasnya.': 'The deleted task has not loaded yet. Close this window, then open the thread again.',
+    '{id} dipulihkan sebagai task rutin dan ditempel ke inisiatif {nama}.': '{id} was restored as a routine task and attached to initiative {nama}.',
+    '{id} dipulihkan sebagai task rutin.': '{id} was restored as a routine task.',
+    'Memulihkan task yang terhapus (data real) sebagai task rutin': 'Restore deleted tasks (real data) as routine tasks',
+    'memulihkan task yang terhapus': 'restore deleted tasks',
   };
 
   let kini = 'id';

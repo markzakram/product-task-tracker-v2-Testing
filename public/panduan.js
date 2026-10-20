@@ -275,6 +275,7 @@
         'Kalau PIC-nya staff Anda (atau Anda sendiri) dan Anda memegang task di fase yang sama, pilih **Task induk** supaya task ini menjadi task turunannya.',
         'Isi tenggat dan keterangan (prioritas dan output ada di **Lainnya**), lalu tekan **Tambah task**.',
         'Proyek yang salah dibuat bisa dihapus lewat **Hapus proyek** di menu **⋯** halaman proyeknya (Lead dan Manager). Semua task dan setoran paketnya ikut hilang, jadi ID proyeknya harus diketik ulang; untuk proyek yang sudah selesai, pilih **arsipkan saja**.',
+        'Task yang terlanjur ikut terhapus (data real) masih bisa dikembalikan: buka utasnya di **Komunikasi**, lalu tekan **Pulihkan sebagai task rutin**. ID-nya tetap, ceklis dan buktinya ikut, dan boleh langsung ditempel ke inisiatif.',
       ],
     },
     {
@@ -303,7 +304,7 @@
         'Setiap baris menunjukkan tim beserta fasenya (mis. **RAD Dev**, **CLO ✓**; ketuk chip-nya untuk artinya), progres siklus, dan keadaannya: Sesuai rencana, Berisiko, Siklus selesai, dan lainnya.',
         'Kotak **Keputusan siklus** berisi proyek yang task E12-nya sudah disetujui.',
         'Klik proyek untuk melihat **Ringkasan** semua tim dan gerbang Manager, lalu tab tiap tim dengan task per fase ADDIE-nya. Peringatan merah muncul kalau ada task yang saling menunggu.',
-        '**Hapus proyek** (Manager dan Lead; menu **⋯** di halaman proyek, bersama **Ubah proyek** dan **Duplikat proyek**) menghapus proyek beserta semua task dan setoran paketnya, setelah ID proyeknya diketik ulang. Untuk proyek yang sudah selesai, lebih aman **arsipkan**: semuanya tetap ada dan bisa diaktifkan lagi.',
+        '**Hapus proyek** (Manager dan Lead; menu **⋯** di halaman proyek, bersama **Ubah proyek** dan **Duplikat proyek**) menghapus proyek beserta semua task dan setoran paketnya, setelah ID proyeknya diketik ulang. Untuk proyek yang sudah selesai, lebih aman **arsipkan**: semuanya tetap ada dan bisa diaktifkan lagi. Task yang terlanjur terhapus bisa dipulihkan sebagai task rutin dari utasnya di **Komunikasi**.',
       ],
     },
     {

@@ -1,5 +1,29 @@
 # Changelog — ProductTrack v2
 
+## 2.44.0 — Pulihkan task yang terhapus sebagai task rutin (2026-10-20)
+
+Permintaan user: task PRD-190 hilang. Riwayat data real menunjukkan task itu ikut terhapus saat
+proyeknya (PRJ-4) dihapus pada 19 Oktober pukul 17.53; pengajuan perpanjangannya tak pernah
+tersimpan. User minta: "pulihkan saja tetapi buat saja dalam bentuk task rutin yang nantinya
+bakal terhubung dengan task inisiatif (opsional)".
+
+- **Pulihkan sebagai task rutin.** Di **Komunikasi**, utas task yang sudah terhapus dari data real
+  kini menulis "Task terhapus" (bukan "Task di browser lain"), menyebut siapa yang menghapus,
+  kapan, dan bersama proyek apa. Lead dan Manager (izin baru `task.pulihkan`) mendapat tombol
+  **Pulihkan sebagai task rutin**: task kembali dengan **ID yang sama**, jadi percakapannya
+  tersambung lagi.
+- Yang ikut: judul, PIC, pemberi, keterangan, ceklis beserta centangnya, output, bukti, komentar,
+  dan riwayat tinjauan. Yang berubah: jadi task rutin di luar proyek (proyek dan sub-stage-nya
+  dilepas), status **Ditinjau** kembali **Dikerjakan** karena task rutin tak ditinjau.
+- **Tempel ke inisiatif (opsional)** di jendela yang sama: task tampil sebagai pembaruan di
+  halaman inisiatif itu. Inisiatif yang namanya ada di judul task dipilihkan lebih dulu. Tenggat
+  bisa diganti sekaligus.
+- **Isinya diambil server, bukan browser.** Aksi RPC baru `taskTerhapus` membaca isi terakhir task
+  dari riwayat `data_real`; `simpanReal` untuk `pulihkanTask` mengisi ulang isi task dari riwayat
+  itu, apa pun yang dikirim browser. Agen AI tak bisa memulihkan task.
+- Di data contoh tak ada tombol ini (data contoh tersimpan per browser).
+- Tes baru `test/pulihkan.test.js`.
+
 ## 2.43.0 — Urutan ADDIE fleksibel; sub-stage jadi judul di tabel Daftar (2026-10-20)
 
 Permintaan user: (1) "ADDIE dibuat fleksibel saja, jadi ketika statusnya masih di A, V tetap

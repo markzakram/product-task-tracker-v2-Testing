@@ -997,6 +997,8 @@ button.chip-setoran:hover { text-decoration: underline; }
 .km-kepala-isi { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .km-kepala-isi h2 { margin: 0; font-size: calc(16px * var(--skala-huruf)); line-height: 1.3; color: var(--navy); }
 .km-kepala-isi .detail-asal, .km-kepala-isi .hint { margin: 0; }
+/* Tombol Pulihkan di kepala utas task yang terhapus (2.44.0). */
+.km-kepala-tombol { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .km-kepala-alat { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; }
 .km-kepala-alat .ikon-tombol { width: 36px; height: 36px; }
 .km-kepala-alat .ikon-tombol[aria-pressed="true"] { background: var(--biru-muda); color: var(--biru-tua); }

@@ -127,6 +127,29 @@ async function ringkasan(k, id) {
   return { perubahan: sah, diulang: r.peristiwa.length - sah, generasi: r.generasi, rusak: r.rusak, ukuran };
 }
 
+/* Task yang terhapus (2.44.0): isi terakhirnya sebelum dihapus, dari perubahan sah di data_real,
+   beserta siapa yang menghapus, kapan, lewat aksi apa, dan proyek tempatnya dulu. null kalau task
+   itu masih ada atau tak pernah ada. Isi inilah yang dipakai pulihkanTask, bukan kiriman browser. */
+async function taskTerhapus(k, id, tid) {
+  const r = await sheet.bacaReal(k, id, { segar: true });
+  const s = keadaan(k, id, r);
+  if (s.data.tasks.some(t => t.id === tid)) return null;
+  let task = null;
+  let hapus = null;
+  const namaProyek = new Map();
+  r.peristiwa.forEach((e, i) => {
+    if (!s.tanda[i]) return;
+    const u = e.ubah || {};
+    for (const p of (u.projects && u.projects.pasang) || []) namaProyek.set(p.id, p.name);
+    const t = ((u.tasks && u.tasks.pasang) || []).find(x => x.id === tid);
+    if (t) { task = t; hapus = null; }
+    if (((u.tasks && u.tasks.hapus) || []).includes(tid)) hapus = { oleh: e.oleh || '', at: e.at || 0, aksi: e.aksi || '' };
+  });
+  if (!task || !hapus) return null;
+  const proyek = task.project ? { id: task.project, nama: namaProyek.get(task.project) || '' } : null;
+  return { task: structuredClone(task), ...hapus, proyek };
+}
+
 /* Task data real terkini (2.24.0): untuk memeriksa apakah kode sub-stage yang akan dihapus
    masih dipakai. */
 async function tasksKini(k, id) {
@@ -134,4 +157,4 @@ async function tasksKini(k, id) {
   return keadaan(k, id, r).data.tasks;
 }
 
-module.exports = { GalatAturan, MELESET_MAKS, PERCOBAAN_MAKS, simpan, sejak, ringkasan, tasksKini };
+module.exports = { GalatAturan, MELESET_MAKS, PERCOBAAN_MAKS, simpan, sejak, ringkasan, tasksKini, taskTerhapus };

@@ -501,7 +501,9 @@
       for (let p = R.tertunda.find(x => !x.terkirim); p && S.mode === 'real'; p = R.tertunda.find(x => !x.terkirim)) {
         perbaruiStatusReal();
         const { hasilLokal, terkirim, ...perintah } = p;
-        const h = await api('simpanReal', [perintah]);
+        // Isi task yang dipulihkan (2.44.0) diambil server sendiri dari riwayat: tak ikut dikirim.
+        const dikirim = perintah.aksi === 'pulihkanTask' ? { ...perintah, isi: { ...perintah.isi, asal: null } } : perintah;
+        const h = await api('simpanReal', [dikirim]);
         if (h.success) { terimaKonfirmasi(p, h.peristiwa); continue; }
         if (h.kode === 'SUMBER') { R.tertunda = []; simpanCacheReal(); return gantiSumber('contoh'); }
         if (h.http === 400 || (h.http === 403 && h.kode !== 'PERLU_PIN')) {
@@ -827,6 +829,28 @@
   /* Indeks task per ID, dipakai banyak potongan dalam satu kali gambar. Objek task diubah di
      tempat, jadi indeksnya tetap sah sampai jumlah task atau datanya sendiri berganti. */
   let indeksData = null, indeksJumlah = -1, indeksIsi = null;
+  /* Task data real yang terhapus (2.44.0): isi terakhirnya dan siapa yang menghapus, ditarik
+     sekali per ID saat utasnya di Komunikasi dibuka. status: memuat | ada | tidak | galat. */
+  const terhapus = new Map();
+  function infoTerhapus(id) {
+    if (S.mode !== 'real' || S.uji) return null;
+    let x = terhapus.get(id);
+    if (!x) {
+      x = { status: 'memuat' };
+      terhapus.set(id, x);
+      api('taskTerhapus', [id]).then(h => {
+        terhapus.set(id, !h.success ? { status: 'galat', pesan: h.message || '' } : h.terhapus ? { status: 'ada', ...h.terhapus } : { status: 'tidak' });
+        // Hanya kepala utasnya yang bergantung pada info ini: diganti di tempat. Render ulang penuh
+        // ditunda selagi kotak tulis pesan fokus, lalu menelan klik pertama ke tombol Pulihkan.
+        const ruang = I.ruangTask(id);
+        document.querySelectorAll('.km-pesan[data-ruang]').forEach(el => {
+          const kepala = el.dataset.ruang === ruang && el.parentElement ? el.parentElement.querySelector('.km-kepala') : null;
+          if (kepala) kepala.innerHTML = kepalaRuang(ruang, null);
+        });
+      });
+    }
+    return x;
+  }
   function perIdKini() {
     if (indeksData !== S.data || indeksJumlah !== S.data.tasks.length) {
       indeksIsi = I.indeks(S.data);
@@ -3098,6 +3122,27 @@
       <div class="kartu-minta-tombol">${tombolPanjang(x)}</div>
     </article>`;
   }
+  /* Pulihkan task yang terhapus (2.44.0): jadi task rutin dengan ID yang sama, boleh langsung
+     ditempel ke inisiatif. Inisiatif yang namanya ada di judul task dipilihkan lebih dulu. */
+  function formPulihkan(x) {
+    const a = x.task;
+    const ceklis = Array.isArray(a.subtasks) ? a.subtasks : [];
+    const bukti = Array.isArray(a.evidence) ? a.evidence.length : 0;
+    const rapat = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const daftarIni = I.bolehLihatInisiatif(S.me) ? (S.data.inisiatif || []).filter(i => i.status !== 'selesai') : [];
+    const cocok = daftarIni.find(i => rapat(i.nama) && rapat(a.title).includes(rapat(i.nama)));
+    return `<form data-form="modal" novalidate>
+      <h2>${tr('Pulihkan sebagai task rutin')}</h2>
+      <p class="label-tebal">${esc(a.id)} · ${esc(a.title)}</p>
+      <p class="hint">${tr('PIC {pic} · ceklis {a}/{b} selesai · {n} bukti. ID-nya tetap, jadi percakapannya tersambung lagi.', { pic: nama(a.pic), a: ceklis.filter(s => s.done).length, b: ceklis.length, n: bukti })}</p>
+      ${a.project ? `<p class="hint">${tr('Dulu di proyek {proyek}. Setelah dipulihkan jadi task rutin di luar proyek, tanpa sub-stage {sub}.', { proyek: esc(x.proyek && x.proyek.nama ? x.proyek.nama : a.project), sub: esc(a.sub || '—') })}</p>` : ''}
+      ${a.status === 'Ditinjau' ? `<p class="hint">${tr('Statusnya kembali Dikerjakan, karena task rutin tak ditinjau.')}</p>` : ''}
+      ${daftarIni.length ? `<label class="isian">${tr('Tempel ke inisiatif (opsional)')} <select name="inisiatif">${opsiHtml([['', tr('— tanpa inisiatif —')], ...daftarIni.map(i => [i.id, i.nama])], cocok ? cocok.id : '')}</select></label>
+      <p class="hint">${tr('Task yang ditempel ke inisiatif tampil sebagai pembaruan di halaman inisiatif itu.')}</p>` : ''}
+      <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(a.due || '')}"></label>
+      ${kakiModal(tr('Pulihkan'))}
+    </form>`;
+  }
   function formAjukanPanjang(t) {
     const min = [I.tambahHari(t.due, 1), hariIni()].sort().pop();
     const ke = I.pemberiTask(t);
@@ -5269,7 +5314,9 @@
     const cuplik = m ? `<b>${siapa}:</b> ${m.dihapus ? `<i>${tr('pesan dihapus')}</i>` : esc(potong(teksPolos(m.teks), 90))}` : `<i>${tr('Belum ada pesan. Mulai diskusi.')}</i>`;
     const bendera = (x.tanya ? `<span class="km-tanda tanya" title="${tr('Menunggu jawaban Anda')}">${ikon('tanya', 13)}</span>` : '')
       + (x.sebutBaru ? `<span class="km-tanda sebut" title="${tr('Menyebut Anda')}">${ikon('at', 13)}</span>` : '');
-    const sub = x.jenis === 'task' ? `${esc(x.p ? x.p.name : x.t ? asal(x.t) : tr('Task di browser lain'))} · ${esc(x.id)}` : x.jenis === 'proyek' ? tr('Ruang proyek') : tr('Ruang tim');
+    // Di data real, task yang tak ada lagi berarti sudah dihapus (2.44.0).
+    const hilang = S.mode === 'real' && !S.uji ? tr('Task terhapus') : tr('Task di browser lain');
+    const sub = x.jenis === 'task' ? `${esc(x.p ? x.p.name : x.t ? asal(x.t) : hilang)} · ${esc(x.id)}` : x.jenis === 'proyek' ? tr('Ruang proyek') : tr('Ruang tim');
     return `<button type="button" class="km-utas-item ${S.kom.pilih === x.ruang ? 'dipilih' : ''} ${x.baru ? 'baru' : ''}" data-aksi="kom-buka" data-ruang="${esc(x.ruang)}">
         <span class="km-utas-ikon ${x.jenis}">${tanda}</span>
         <span class="km-utas-isi">
@@ -5295,8 +5342,30 @@
     const kembali = `<button type="button" class="ikon-tombol km-kembali" data-aksi="kom-tutup" aria-label="${tr('Kembali ke daftar utas')}">${ikon('kiri', 20)}</button>`;
     const salin = `<button type="button" class="ikon-tombol" data-aksi="salin-tautan" data-alamat="#/komunikasi/${esc(alamatRuang(ruang))}" title="${tr('Salin tautan ruang ini')}" aria-label="${tr('Salin tautan ruang')}">${ikon('tautan', 18)}</button>`;
     if (jenis === 'task' && !t) {
-      return `${kembali}<div class="km-kepala-isi"><p class="detail-asal">${tr('Task di browser lain')} · ${esc(id)}</p><h2>${esc(judulRuang(ruang))}</h2>
-        <p class="hint">${tr('Task ini tak ada di data contoh browser Anda, tetapi percakapannya tetap terbagi.')}</p></div>`;
+      // Data real (2.44.0): task yang tak ada lagi sudah dihapus; isinya masih ada di riwayat dan
+      // bisa dipulihkan sebagai task rutin dengan ID yang sama.
+      const x = infoTerhapus(id);
+      if (!x) {
+        return `${kembali}<div class="km-kepala-isi"><p class="detail-asal">${tr('Task di browser lain')} · ${esc(id)}</p><h2>${esc(judulRuang(ruang))}</h2>
+          <p class="hint">${tr('Task ini tak ada di data contoh browser Anda, tetapi percakapannya tetap terbagi.')}</p></div>`;
+      }
+      let isi = '';
+      let tombol = '';
+      if (x.status === 'memuat') isi = tr('Memeriksa riwayat data real…');
+      else if (x.status === 'tidak') isi = tr('Task ini tak ada di data real, dan tak ditemukan di riwayat task yang terhapus.');
+      else if (x.status === 'galat') {
+        isi = esc(tr('Riwayat task yang terhapus gagal dimuat: {galat}', { galat: trPola(x.pesan || '') }));
+        tombol = `<button type="button" class="tombol kecil" data-aksi="terhapus-ulang" data-id="${esc(id)}">${ikon('ulang', 16)} ${tr('Coba lagi')}</button>`;
+      } else {
+        const waktu = `<span title="${esc(fmtWaktu(x.at))}">${esc(relatif(x.at))}</span>`;
+        isi = (x.proyek ? tr('Dihapus {nama} {waktu} bersama proyek {proyek}.', { nama: nama(x.oleh), waktu, proyek: esc(x.proyek.nama || x.proyek.id) })
+          : tr('Dihapus {nama} {waktu}.', { nama: nama(x.oleh), waktu })) + ' ' + tr('Percakapannya tetap tersimpan di sini.');
+        if (I.izin(S.me, 'task.pulihkan')) tombol = `<button type="button" class="tombol kecil utama" data-aksi="pulihkan-task" data-id="${esc(id)}">${ikon('ulang', 16)} ${tr('Pulihkan sebagai task rutin')}</button>`;
+        else isi += ' ' + tr('Lead atau Manager bisa memulihkannya sebagai task rutin.');
+      }
+      return `${kembali}<div class="km-kepala-isi"><p class="detail-asal">${x.status === 'ada' ? tr('Task terhapus') : tr('Task')} · ${esc(id)}</p>
+          <h2>${esc(x.status === 'ada' ? x.task.title : judulRuang(ruang))}</h2>
+          <p class="hint">${isi}</p>${tombol ? `<div class="km-kepala-tombol">${tombol}</div>` : ''}</div>`;
     }
     if (jenis === 'task') {
       /* Kepala ringkas (2.35.0): sub-stage, status, PIC → peninjau, dan tenggat sekali saja. Aksi
@@ -9936,6 +10005,16 @@
           S.pilihTask = null;
           return selesaiUbah(h.setoran ? tr('{n} task dihapus; {s} setoran paket ikut hilang.', { n: h.task, s: h.setoran }) : tr('{n} task dihapus.', { n: h.task }));
         }
+        // Pulihkan task yang terhapus (2.44.0).
+        case 'pulihkan-task': {
+          const x = terhapus.get(m.id);
+          if (!x || x.status !== 'ada') throw new Error(tr('Isi task yang terhapus belum dimuat. Tutup jendela ini, lalu buka lagi utasnya.'));
+          const t = ubahData('pulihkanTask', { task: m.id, asal: x.task, inisiatif: f.inisiatif || '', due: f.due || '' });
+          terhapus.delete(m.id);
+          tutupModal();
+          return selesaiUbah(t.inisiatif ? tr('{id} dipulihkan sebagai task rutin dan ditempel ke inisiatif {nama}.', { id: t.id, nama: t.kategori })
+            : tr('{id} dipulihkan sebagai task rutin.', { id: t.id }));
+        }
         // Banding perpanjangan tenggat (2.41.0).
         case 'panjang-ajukan': {
           const x = ubahData('ajukanPerpanjangan', { task: m.id, f: { due: f.due, alasan: f.alasan } });
@@ -10521,6 +10600,13 @@
         simpanPref('task');
         render();
         break;
+      /* Pulihkan task yang terhapus (2.44.0), dari kepala utasnya di Komunikasi. */
+      case 'pulihkan-task': {
+        const x = terhapus.get(d.id);
+        if (x && x.status === 'ada') bukaModal({ jenis: 'pulihkan-task', id: d.id }, formPulihkan(x));
+        break;
+      }
+      case 'terhapus-ulang': terhapus.delete(d.id); render(); break;
       /* Banding perpanjangan tenggat (2.41.0). */
       case 'panjang-ajukan': {
         const tk = perIdKini().get(d.id);

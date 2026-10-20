@@ -28,6 +28,7 @@
      POST /api/rpc  { action: 'jawabAcara' | 'simpanNotulen' | 'tandaiTindak' | 'sibukAcara' }  acara bersama (2.33.0)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
      POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
+     POST /api/rpc  { action: 'taskTerhapus', args: ['PRD-…'] }  isi terakhir task data real yang terhapus (2.44.0)
      POST /api/rpc  { action: 'simpanReal', args: [perintah] }  satu perubahan data real (lihat _real.js)
      POST /api/rpc  { action: 'sinkron', args: [{ obrolanSejak, realSejak, generasi, uji }] }
                                                    sumber data aktif + obrolan & perubahan data real terbaru
@@ -282,12 +283,31 @@ const AKSI = {
     if (this.agen && !Inti.AKSI_AGEN.includes(bersih.aksi)) {
       throw new GalatIzin(`Agen AI tidak boleh melakukan "${bersih.aksi}". Itu dikerjakan ${Inti.orang(me).pendek} sendiri di aplikasi.`);
     }
+    // Pulihkan task (2.44.0): isinya dari riwayat data real di server, bukan dari browser.
+    if (bersih.aksi === 'pulihkanTask') {
+      const tid = String(bersih.isi.task || '');
+      const x = /^PRD-\d+$/.test(tid) ? await dataReal.taskTerhapus(k, id, tid) : null;
+      if (!x) throw new GalatIsian(`${tid || 'Task itu'} tidak ada di riwayat task yang terhapus, atau sudah dipulihkan.`);
+      bersih.isi.asal = x.task;
+    }
     try {
       return { peristiwa: await dataReal.simpan(k, id, bersih, me, { ai: !!this.agen }) };
     } catch (err) {
       if (err instanceof dataReal.GalatAturan) throw new GalatIsian(err.message);
       throw err;
     }
+  },
+  /* Task yang terhapus di data real (2.44.0): isi terakhirnya dan siapa yang menghapus, untuk
+     tombol Pulihkan. Siapa pun yang sudah memilih profil boleh membacanya, seperti data real. */
+  async taskTerhapus(tid) {
+    const k = await sheet.klien();
+    const id = sheet.idSpreadsheet();
+    if (await sheet.sumberData(k, id) !== 'real') return { terhapus: null };
+    const me = await meSah(this, k);
+    if (!me && !this.dev) throw new GalatIzin('Pilih profil dulu.');
+    const t = String(tid || '');
+    if (!/^PRD-\d+$/.test(t)) throw new GalatIsian('ID task tidak valid.');
+    return { terhapus: await dataReal.taskTerhapus(k, id, t) };
   },
   /* Mode Dev: sumber data untuk semua pengguna. */
   async aturSumber(sumber) {

@@ -201,6 +201,16 @@ dengan satu penyederhanaan: tetap empat status.
   tersimpan. Untuk proyek yang sudah selesai, **arsipkan saja** (tautan di jendela yang sama):
   semuanya tetap ada dan bisa diaktifkan lagi. Aturannya `Inti.hapusProyek`; di data real
   perubahannya hanya daftar baris yang dihapus. Paketnya bisa langsung dielaborasi ulang.
+- **Pulihkan task yang terhapus (2.44.0, permintaan user).** Di data real, task yang terhapus
+  (sendiri atau bersama proyeknya) masih bisa dikembalikan. Utasnya di **Komunikasi** menulis
+  "Task terhapus" beserta siapa yang menghapus, kapan, dan bersama proyek apa; Lead dan Manager
+  (izin `task.pulihkan`) menekan **Pulihkan sebagai task rutin**. Task kembali dengan ID yang
+  sama (percakapannya tersambung lagi), sebagai task rutin di luar proyek: ceklis, output,
+  bukti, komentar, dan riwayat tinjauannya ikut; yang sedang ditinjau kembali Dikerjakan.
+  Jendelanya menawarkan **Tempel ke inisiatif (opsional)** dan tenggat baru. Isi task diambil
+  server dari riwayat `data_real` (aksi RPC `taskTerhapus`, `api/_real.js`), dan `simpanReal`
+  untuk aksi data `pulihkanTask` memakai isi itu, bukan kiriman browser. Aturannya
+  `Inti.pulihkanTask`; agen AI tak memakainya. Di data contoh tak tersedia.
 - **Ubah proyek (2.28.0, Manager).** Tombol **Ubah proyek** (menu **⋯**) mengganti nama,
   platform, dan tujuan proyek yang sudah dibuat; ID, siklus, tahap, dan task-nya tetap
   (`Inti.ubahProyek`, aksi data `ubahProyek`). Riwayat Aktivitas mencatat apa yang diubah.

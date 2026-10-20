@@ -52,8 +52,8 @@
   const IZIN = [
     { kunci: 'proyek.buat', grup: 'Proyek', label: 'Membuat proyek', aksi: 'membuat proyek', peran: ['manager'] },
     { kunci: 'proyek.ubah', grup: 'Proyek', label: 'Mengubah nama, platform, dan tujuan proyek', aksi: 'mengubah proyek', peran: ['manager'] },
-    // Sejak 2.42.0 (permintaan user) Lead juga boleh menghapus proyek.
     { kunci: 'proyek.urutan', grup: 'Proyek', label: 'Mengetatkan atau melonggarkan urutan ADDIE proyek', aksi: 'mengatur urutan ADDIE proyek', peran: ['manager', 'lead'] },
+    // Sejak 2.42.0 (permintaan user) Lead juga boleh menghapus proyek.
     { kunci: 'proyek.hapus', grup: 'Proyek', label: 'Menghapus proyek', aksi: 'menghapus proyek', peran: ['manager', 'lead'] },
     { kunci: 'proyek.arsip', grup: 'Proyek', label: 'Mengarsipkan dan mengaktifkan lagi proyek', aksi: 'mengarsipkan proyek', peran: ['manager'] },
     { kunci: 'proyek.siklus', grup: 'Proyek', label: 'Memulai siklus baru', aksi: 'memulai siklus baru', peran: ['manager'] },
@@ -65,6 +65,8 @@
     { kunci: 'paket.elaborasi', grup: 'Rancangan Paket', label: 'Mengelaborasi paket jadi proyek', aksi: 'mengelaborasi paket', peran: ['manager', 'lead'] },
     { kunci: 'paket.setoran', grup: 'Rancangan Paket', label: 'Mengatur setoran task ke paket (pada task yang boleh ia ubah)', aksi: 'mengatur setoran', peran: ['manager', 'lead'] },
     { kunci: 'task.hapusSemua', grup: 'Task', label: 'Menghapus task siapa pun', aksi: 'menghapus task siapa pun', peran: ['manager'] },
+    // 2.44.0: yang boleh menghapus proyek juga bisa mengembalikan task yang ikut terhapus.
+    { kunci: 'task.pulihkan', grup: 'Task', label: 'Memulihkan task yang terhapus (data real) sebagai task rutin', aksi: 'memulihkan task yang terhapus', peran: ['manager', 'lead'] },
     { kunci: 'task.urutanSemua', grup: 'Task', label: 'Mengatur urutan tunggu task tim mana pun', aksi: 'mengatur urutan tunggu semua tim', peran: ['manager'] },
     { kunci: 'master.ubah', grup: 'Pengaturan', label: 'Mengubah Master (sub-stage, kategori, platform, label)', aksi: 'bisa mengubah Master', peran: ['manager', 'lead'] },
     { kunci: 'tautanTim.kelola', grup: 'Pengaturan', label: 'Mengelola Tautan tim', aksi: 'mengelola tautan tim', peran: ['manager'] },
@@ -2918,6 +2920,44 @@
   /* Pengajuan yang menunggu jawaban `me` (pemberi task; Manager melihat yang ditujukan kepadanya). */
   const panjangMasuk = (data, me) => (data.perpanjangan || []).filter(x => x.status === 'menunggu' && x.ke === me && x.dari !== me);
 
+  /* ---------- Pulihkan task yang terhapus (2.44.0, permintaan user) ----------
+     Task yang terhapus, sendiri atau bersama proyeknya, dikembalikan dengan ID yang sama, supaya
+     percakapannya di Komunikasi tersambung lagi. f.asal = isi terakhirnya sebelum dihapus; di data
+     real server mengisinya sendiri dari riwayat (api/_real.js taskTerhapus), apa pun yang dikirim
+     browser. Dipulihkan sebagai task rutin di luar proyek (proyeknya bisa sudah tak ada), boleh
+     langsung ditempel ke inisiatif supaya pembaruannya tampil di sana. Ceklis, output, bukti,
+     komentar, dan riwayat tinjauannya ikut; yang sedang ditinjau kembali Dikerjakan, karena task
+     rutin tak ditinjau. f = { task, asal, inisiatif, due }. */
+  function pulihkanTask(data, f, me, waktu) {
+    wajibIzin(me, 'task.pulihkan');
+    const id = teks(f.task);
+    if (!/^PRD-\d+$/.test(id)) throw new Error('ID task tidak valid.');
+    const a = f.asal;
+    if (!a || typeof a !== 'object' || a.id !== id) throw new Error(`Isi ${id} tidak ditemukan di riwayat task yang terhapus.`);
+    if (data.tasks.some(t => t.id === id)) throw new Error(`${id} masih ada, jadi tak perlu dipulihkan.`);
+    const ini = inisiatifUntukTask(data, f.inisiatif, null, me);
+    const due = teks(f.due) || teks(a.due);
+    if (due && !isoSah(due)) throw new Error('Tanggal tenggat tidak valid.');
+    const daftar = x => (Array.isArray(x) ? x : []);
+    const ada = new Set(data.tasks.map(t => t.id));
+    const status = a.status === 'Selesai' || a.status === 'Antre' ? a.status : 'Dikerjakan';
+    const asalProyek = teks(a.project);
+    const t = {
+      ...a,
+      project: '', lane: 'rutin', stage: '', sub: '', cycle: 1, induk: '', tunggu: [], lepasFase: false, diminta: '',
+      kategori: ini ? ini.nama : teks(a.kategori) || 'Umum', inisiatif: ini ? ini.id : '',
+      title: teks(a.title) || id, pic: teks(a.pic) || me, assignedBy: teks(a.assignedBy) || me,
+      support: daftar(a.support).filter(x => x !== a.pic), deps: daftar(a.deps).filter(x => ada.has(x)),
+      due, status, tertahan: status !== 'Selesai' && !!a.tertahan, alasanTertahan: status !== 'Selesai' && a.tertahan ? teks(a.alasanTertahan) : '',
+      selesaiAt: status === 'Selesai' ? Number(a.selesaiAt) || waktu : 0, createdAt: Number(a.createdAt) || waktu, updatedAt: waktu,
+      subtasks: daftar(a.subtasks), comments: daftar(a.comments), tinjauan: daftar(a.tinjauan), evidence: daftar(a.evidence),
+    };
+    data.tasks.unshift(t);
+    catatLog(data, 'create', `${t.id} · ${t.title}`,
+      `Dipulihkan sebagai task rutin${asalProyek ? ` (sebelumnya di proyek ${asalProyek})` : ''}${ini ? ` · inisiatif ${ini.nama}` : ''}`, me, waktu);
+    return t;
+  }
+
   /* ---------- Duplikat rancangan paket dan proyek (2.30.0, permintaan user) ----------
      Untuk pekerjaan yang berulang. Paket: isi produk, target, catatan per kategori, dan
      tautannya disalin dengan ID baru; jadwal pendaftaran dikosongkan, tak dibagikan ke Lintas
@@ -4161,6 +4201,8 @@
     batalkanPermintaan: (d, x, me, w) => batalkanPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), me, w),
     alihkanPermintaan: (d, x, me, w) => alihkanPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), x.ke, me, w),
     aturUrutanProyek: (d, x, me, w) => aturUrutanProyek(d, proyekX(d, x), !!x.ketat, me, w),
+    // Pulihkan task yang terhapus (2.44.0).
+    pulihkanTask: (d, x, me, w) => pulihkanTask(d, x, me, w),
     // Perpanjangan tenggat (2.41.0).
     ajukanPerpanjangan: (d, x, me, w, h) => ajukanPerpanjangan(d, tugas(d, x), x.f || {}, me, w, h),
     jawabPerpanjangan: (d, x, me, w) => jawabPerpanjangan(d, cariDi(d.perpanjangan, x.perpanjangan, 'Pengajuan perpanjangan'), x.f || {}, me, w),
@@ -4272,7 +4314,7 @@
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, sorotProyek,
     angkaKerja, jumlahAngka, judulPembaruan, linimasaInisiatif, tanggapanPembaruan, belumDitanggapi,
     STATUS_PANJANG, pemberiTask, panjangMenunggu, panjangTask, bolehAjukanPanjang, bolehJawabPanjang, ajukanPerpanjangan, jawabPerpanjangan,
-    batalkanPerpanjangan, panjangMasuk,
+    batalkanPerpanjangan, panjangMasuk, pulihkanTask,
     STATUS_MINTA, leadDari, peninjauMinta, bolehMinta, bolehJawabMinta, bolehAlihkanMinta, bolehBatalMinta, mintaLanjutan, terimaPermintaan, tolakPermintaan,
     batalkanPermintaan, alihkanPermintaan, permintaanDari, asalPermintaan, permintaanMasuk, hariKerja, umurMinta, mintaLama, BATAS_MINTA, kolomPapan, bebanOrang, laporan, cari,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
