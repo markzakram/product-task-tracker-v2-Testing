@@ -196,6 +196,8 @@ CREATE TABLE IF NOT EXISTS `v2_package_links` (
 --  PROYEK
 -- =============================================================================
 
+-- ketat (2.43.0): urutan ADDIE proyek diketatkan; fase dan gerbang Manager kembali menahan.
+-- Bawaannya FALSE: fase dan gerbang hanya pengingat.
 CREATE TABLE IF NOT EXISTS `v2_projects` (
   `id`         VARCHAR(64)  NOT NULL,
   `name`       VARCHAR(300) NOT NULL DEFAULT '',
@@ -207,6 +209,7 @@ CREATE TABLE IF NOT EXISTS `v2_projects` (
   `lead`       VARCHAR(64)  NOT NULL DEFAULT '',
   `arsip`      BOOLEAN      NOT NULL DEFAULT FALSE,
   `paket`      VARCHAR(64)  NULL,
+  `ketat`      BOOLEAN      NOT NULL DEFAULT FALSE,
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_proyek_paket` (`paket`),

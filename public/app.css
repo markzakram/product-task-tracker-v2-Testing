@@ -351,7 +351,7 @@ svg { flex: 0 0 auto; }
 .baris-judul { font-size: calc(15px * var(--skala-huruf)); font-weight: 600; color: var(--tinta); }
 /* Sub-stage jadi judul baris dan kartu, judul task di bawahnya (2.42.1). */
 .baris-judul .chip-sub { margin-right: 2px; vertical-align: 1px; }
-.baris-subjudul { font-size: calc(13px * var(--skala-huruf)); line-height: 1.4; color: var(--tinta-2); overflow-wrap: anywhere; }
+.baris-task-sub { display: block; font-size: calc(13px * var(--skala-huruf)); line-height: 1.4; color: var(--tinta-2); overflow-wrap: anywhere; }
 .kartu-subjudul { display: block; font-size: calc(12px * var(--skala-huruf)); line-height: 1.4; color: var(--tinta-2); overflow-wrap: anywhere; }
 .baris-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
 .baris-alasan { font-size: calc(13px * var(--skala-huruf)); color: var(--kuning); }
@@ -699,6 +699,7 @@ table.tabel { width: 100%; border-collapse: collapse; font-size: calc(14px * var
 .tabel-task td { vertical-align: top; }
 .tabel-task td.kecil { font-size: calc(12px * var(--skala-huruf)); color: var(--redup); white-space: nowrap; }
 .tabel-task .baris-meta { margin-top: 3px; }
+.tabel-task .tautan-task-sub .chip-sub { margin-right: 2px; vertical-align: 1px; }
 .tabel-task tr.dipilih td { background: var(--biru-muda); }
 .tabel-task tbody tr:hover td { background: var(--dasar-2); }
 .tabel th .urut { border: 0; padding: 0; background: transparent; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; }

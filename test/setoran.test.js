@@ -34,7 +34,8 @@ const target = (d, id) => {
   const p = paket(d);
   return I.hitungTarget(p.items.find(i => i.id === id), I.setoranPaket(d, p).get(id));
 };
-const elaborasi = (d, f = {}, me = 'nynda') => I.elaborasiPaket(d, paket(d), { items: SEMUA, ...f }, me, WAKTU, HARI);
+// Proyek hasil elaborasi diketatkan (2.43.0), supaya capaian yang mengikuti urutan tim tetap teruji.
+const elaborasi = (d, f = {}, me = 'nynda') => { const h = I.elaborasiPaket(d, paket(d), { items: SEMUA, ...f }, me, WAKTU, HARI); h.project.ketat = true; return h; };
 
 /* Satu langkah sampai lolos gate: PIC mengerjakan, melengkapi syarat, mengajukan; peninjau menyetujui. */
 function lolos(d, t, w = WAKTU) {

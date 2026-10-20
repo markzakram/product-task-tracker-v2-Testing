@@ -53,6 +53,7 @@
     { kunci: 'proyek.buat', grup: 'Proyek', label: 'Membuat proyek', aksi: 'membuat proyek', peran: ['manager'] },
     { kunci: 'proyek.ubah', grup: 'Proyek', label: 'Mengubah nama, platform, dan tujuan proyek', aksi: 'mengubah proyek', peran: ['manager'] },
     // Sejak 2.42.0 (permintaan user) Lead juga boleh menghapus proyek.
+    { kunci: 'proyek.urutan', grup: 'Proyek', label: 'Mengetatkan atau melonggarkan urutan ADDIE proyek', aksi: 'mengatur urutan ADDIE proyek', peran: ['manager', 'lead'] },
     { kunci: 'proyek.hapus', grup: 'Proyek', label: 'Menghapus proyek', aksi: 'menghapus proyek', peran: ['manager', 'lead'] },
     { kunci: 'proyek.arsip', grup: 'Proyek', label: 'Mengarsipkan dan mengaktifkan lagi proyek', aksi: 'mengarsipkan proyek', peran: ['manager'] },
     { kunci: 'proyek.siklus', grup: 'Proyek', label: 'Memulai siklus baru', aksi: 'memulai siklus baru', peran: ['manager'] },
@@ -325,7 +326,10 @@
 
   const selesai = t => t.status === 'Selesai';
   const aktif = t => !selesai(t);
-  const indeks = data => new Map(data.tasks.map(t => [t.id, t]));
+  /* Indeks task per ID. Sejak 2.43.0 juga membawa daftar proyeknya (rujukan, bukan salinan),
+     supaya aturan tunggu tahu proyek mana yang urutan ADDIE-nya diketatkan. */
+  const indeks = data => { const m = new Map(data.tasks.map(t => [t.id, t])); m.proyekDaftar = data.projects || []; return m; };
+  const proyekKetat = (perId, id) => !!(perId && perId.proyekDaftar && id && perId.proyekDaftar.some(p => p.id === id && p.ketat));
   /* Kelompok per indeks — task per proyek, anak per induk — dihitung sekali per indeks. Indeks
      dibuat ulang setiap jumlah task berubah, dan proyek atau induk sebuah task tak berubah
      sesudah dibuat; statusnya tetap dibaca langsung dari objek task-nya. */
@@ -352,6 +356,10 @@
        atur    — task yang dipilih Lead timnya (t.tunggu), boleh dari tim lain: serah-terima;
        gerbang — task Manager di Analysis (A1, A6): Design dan sesudahnya di tiap tim menunggunya;
        tutup   — E12 menunggu semua task lain di siklusnya.
+     Sejak 2.43.0 (permintaan user: "ADDIE dibuat fleksibel, ketika masih di A, V tetap bisa
+     dikerjakan") fase dan gerbang hanya PENGINGAT (saran: true): tetap terdaftar dan tampil, tapi
+     tak menahan. Yang diatur dan tutup tetap menahan. Proyek yang diketatkan (p.ketat) kembali
+     memakai fase dan gerbang sebagai penahan.
      Tim yang berbeda tak saling menunggu kecuali lewat gerbang atau yang diatur. Task turunan
      mengikuti induknya. Task yang diatur menunggu task setim di fase lebih lambat (mis. I4 tayang
      menunggu QC E4–E6) berdiri di fase itu (faseUrut), sehingga task fase itu tak balik
@@ -391,7 +399,8 @@
     const siklus = sesiklus(akar, perId);
     const out = [];
     const ada = new Set([t.id, akar.id]);
-    const tambah = (x, jenis) => { if (!ada.has(x.id)) { ada.add(x.id); out.push({ t: x, jenis }); } };
+    const tambah = (x, jenis, saran = false) => { if (!ada.has(x.id)) { ada.add(x.id); out.push(saran ? { t: x, jenis, saran: true } : { t: x, jenis }); } };
+    const saran = !proyekKetat(perId, akar.project);
     if (akar.sub === 'E12') {
       for (const x of siklus) if (x.sub !== 'E12') tambah(x, 'tutup');
       return out;
@@ -402,10 +411,10 @@
     }
     const tim = timTask(akar);
     const fase = urutFase(akar.stage);
-    if (tim !== 'MG' && fase > 0) for (const x of siklus) if (x.stage === 'A' && timJalur(x, perId) === 'MG') tambah(x, 'gerbang');
+    if (tim !== 'MG' && fase > 0) for (const x of siklus) if (x.stage === 'A' && timJalur(x, perId) === 'MG') tambah(x, 'gerbang', saran);
     if (!akar.lepasFase) {
       const memo = new Map();
-      for (const x of siklus) if (timJalur(x, perId) === tim && faseUrut(x, perId, memo) < fase) tambah(x, 'fase');
+      for (const x of siklus) if (timJalur(x, perId) === tim && faseUrut(x, perId, memo) < fase) tambah(x, 'fase', saran);
     }
     return out;
   }
@@ -415,7 +424,17 @@
      ditandai tertahan: hambatannya tak ikut menghentikan langkah berikutnya. E12 tetap menunggu
      semua task lain benar-benar selesai (disetujui), supaya siklus tak tertutup sebelum
      tinjauannya beres. */
-  const masihMenahan = x => aktif(x.t) && (x.jenis === 'tutup' || (x.t.status !== 'Ditinjau' && !x.t.tertahan));
+  const masihMenahan = x => !x.saran && aktif(x.t) && (x.jenis === 'tutup' || (x.t.status !== 'Ditinjau' && !x.t.tertahan));
+  /* Pengingat urutan ADDIE (2.43.0): fase dan gerbang yang belum beres, tapi tak menahan. */
+  const pengingatFase = (t, perId) => ditunggu(t, perId).filter(x => x.saran && aktif(x.t) && x.t.status !== 'Ditinjau' && !x.t.tertahan);
+  /* Mengetatkan (fase dan gerbang kembali menahan) atau melonggarkan urutan ADDIE satu proyek. */
+  function aturUrutanProyek(data, p, ketat, me, waktu) {
+    wajibIzin(me, 'proyek.urutan');
+    if (!!p.ketat === !!ketat) return p;
+    p.ketat = !!ketat;
+    catatLog(data, 'gate', `${p.id} · ${p.name}`, ketat ? 'Urutan ADDIE diketatkan: fase dan gerbang Manager kembali menahan' : 'Urutan ADDIE dilonggarkan: fase dan gerbang Manager jadi pengingat', me, waktu);
+    return p;
+  }
   const tungguBelum = (t, perId) => ditunggu(t, perId).filter(masihMenahan);
   /* Kapan task terakhir diajukan (0 bila tak sedang ditinjau). */
   const waktuDiajukan = t => (t.status === 'Ditinjau' ? Math.max(0, ...(t.tinjauan || []).filter(r => r.action === 'Diajukan').map(r => r.at || 0)) : 0);
@@ -1384,10 +1403,13 @@
   /* ---------- Daftar task (Task List, Timeline, Kalender) ---------- */
 
   const URUT_STATUS = new Map(STATUS.map((s, i) => [s, i]));
+  const urutSubDaftar = t => { const s = subTahap(t.sub); return !s ? 10 : s.tahap === 'R' ? 9 : URUT_TAHAP.indexOf(s.tahap); };
   const PEMBANDING = {
     due: (a, b) => (a.due || '9999').localeCompare(b.due || '9999'),
     id: (a, b) => a.id.localeCompare(b.id, 'id', { numeric: true }),
-    title: (a, b) => a.title.localeCompare(b.title, 'id'),
+    // Kolom Task menampilkan sub-stage sebagai judul (2.43.0): urut menurut tahap ADDIE dan kode
+    // sub-stage-nya, lalu judul task; yang tanpa sub-stage di belakang, menurut judulnya.
+    title: (a, b) => urutSubDaftar(a) - urutSubDaftar(b) || (a.sub || '').localeCompare(b.sub || '', 'id', { numeric: true }) || a.title.localeCompare(b.title, 'id'),
     status: (a, b) => URUT_STATUS.get(a.status) - URUT_STATUS.get(b.status),
     pic: (a, b) => orang(a.pic).pendek.localeCompare(orang(b.pic).pendek, 'id'),
     platform: (a, b) => (a.platform || '').localeCompare(b.platform || '', 'id'),
@@ -1837,7 +1859,8 @@
       if (t.pic === me && t.status === 'Antre' && tungguTahap(t)) {
         // Yang ditunggunya baru tuntas (atau, sejak 2.30.0, diajukan; sejak 2.34.2, ditandai
         // tertahan): task ini siap dimulai (kecuali sudah siap sejak dibuat).
-        const sebelum = ditunggu(t, perId);
+        // Hanya yang menahan: pengingat fase (2.43.0) tak membuat task "baru siap".
+        const sebelum = ditunggu(t, perId).filter(x => !x.saran);
         const at = Math.max(0, ...sebelum.map(x => x.t.selesaiAt || waktuDiajukan(x.t) || sejakTertahan(x.t)));
         if (sebelum.length && !sebelum.some(masihMenahan) && at > (t.createdAt || 0)) tambah('siap', t, at, '');
       } else if (t.pic === me && t.status === 'Antre' && (t.deps || []).length) {
@@ -2925,6 +2948,7 @@
   function duplikatProyek(data, p, f, me, waktu, hariIni) {
     wajibIzin(me, 'proyek.buat');
     const baru = proyekBaru(data, { name: teks(f.name) || `${p.name} (salinan)`, platform: p.platform, goal: p.goal }, me, waktu);
+    if (p.ketat) baru.ketat = true;   // urutan ADDIE ketat ikut tersalin (2.43.0)
     const tasks = [];
     if (f.tasks !== false) {
       const asal = tugasSiklus(data, p);
@@ -4136,6 +4160,7 @@
     tolakPermintaan: (d, x, me, w) => tolakPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), x.alasan, me, w),
     batalkanPermintaan: (d, x, me, w) => batalkanPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), me, w),
     alihkanPermintaan: (d, x, me, w) => alihkanPermintaan(d, cariDi(d.permintaan, x.permintaan, 'Permintaan'), x.ke, me, w),
+    aturUrutanProyek: (d, x, me, w) => aturUrutanProyek(d, proyekX(d, x), !!x.ketat, me, w),
     // Perpanjangan tenggat (2.41.0).
     ajukanPerpanjangan: (d, x, me, w, h) => ajukanPerpanjangan(d, tugas(d, x), x.f || {}, me, w, h),
     jawabPerpanjangan: (d, x, me, w) => jawabPerpanjangan(d, cariDi(d.perpanjangan, x.perpanjangan, 'Pengajuan perpanjangan'), x.f || {}, me, w),
@@ -4271,7 +4296,7 @@
     kejadianBerikut, bentrokAcara, periksaPeserta, gabungAcara, jawabAcara, ubahNotulen, tandaiTindak, notifAcara,
     tautanGoogle, icsAgenda, teksKalender, wajibIzin, tolakIzin,
     platformPaket, rapikanPlatform, jadwalDaftar, daftarBeririsan, ubahNamaPaket,
-    SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, tungguBelum, masihMenahan, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
+    SINGKAT_TIM, singkatTim, labelTim, TIM_PROYEK, tugasSiklus, timJalur, ditunggu, tungguBelum, masihMenahan, pengingatFase, aturUrutanProyek, proyekKetat, putaranTunggu, tungguSingkat, faseTim, gerbangProyek, putaranProyek,
     bolehAturTunggu, aturTunggu, ringkasHapusProyek, hapusProyek, ubahProyek, tabAwalProyek, SUB_TERKUNCI, kodeSubBerikut, salahHapusSub, pindahSub, bolehHapusTask, ringkasHapusTask, hapusTask, MAKS_HAPUS_TASK,
   };
 }));

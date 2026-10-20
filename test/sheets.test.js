@@ -243,7 +243,7 @@ test('menyerah setelah jatah ulang habis, dan galat lain tak diulang sama sekali
 const { urai } = require('../api/_skema');
 
 const contoh = () => ({
-  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, paket: 'PKG-002', history: [] }],
+  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, paket: 'PKG-002', ketat: false, history: [] }],
   tasks: [
     {
       id: 'PRD-001', project: '', lane: 'rutin', kategori: 'RnD', title: 'Task lepas', platform: 'ASN', stage: '', sub: '', detail: '',

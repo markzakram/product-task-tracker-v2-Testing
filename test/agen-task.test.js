@@ -253,6 +253,8 @@ test('peringatan: tenggat yang sudah lewat, tenggat sebelum tanggal rekap, dan b
 
 test('status yang tak bisa dicapai ditolak sebelum menulis; pemeriksaan butir berurutan memakai keadaan yang sudah menerima butir sebelumnya', () => {
   const { k } = keadaanUji();
+  // Proyek dengan urutan ADDIE ketat (2.43.0); bawaannya fleksibel, lihat test/addie-fleksibel.test.js.
+  k.data.projects.find(p => p.id === 'PRJ-1').ketat = true;
   // PRJ-1 belum punya task Design milik DAE: DV7 boleh Dikerjakan.
   assert.equal(satu(k, proyek({ sub: 'DV7', status: 'Dikerjakan' })).status, 'sah');
   // D4 (Design, DAE) dibuat dulu di Antre: DV7 sesudahnya menunggu fase Design timnya.

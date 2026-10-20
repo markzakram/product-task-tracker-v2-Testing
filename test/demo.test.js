@@ -19,8 +19,8 @@ test('skenario contoh: proyek berjalan per tim ADDIE — task turunan, gate, cap
   const tTka = d.tasks.filter(t => t.project === tka.id);
   assert.equal(tka.stage, 'V');
   assert.ok(tTka.filter(t => t.stage === 'D').every(I.selesai), 'Design tuntas');
-  assert.ok(tTka.filter(t => ['I', 'E'].includes(t.stage)).every(t => t.status === 'Antre' && I.depsBelum(t, perId).length),
-    'Implementation & Evaluation menunggu fase Development timnya');
+  assert.ok(tTka.filter(t => ['I', 'E'].includes(t.stage)).every(t => t.status === 'Antre' && I.pengingatFase(t, perId).length),
+    'Implementation & Evaluation diingatkan fase Development timnya (2.43.0: pengingat, tak menahan)');
   assert.ok(tTka.some(t => t.sub === 'DV8' && t.status === 'Antre' && I.depsBelum(t, perId).some(x => x.sub === 'DV1')),
     'input LNA menunggu soal RAD (serah-terima)');
   const h = id => I.hitungTarget(per('PKG-001').items.find(i => i.id === id), I.setoranPaket(d, per('PKG-001')).get(id));
@@ -93,7 +93,7 @@ test('skenario contoh PAPI Kostick (2.29.1, 2.30.0): proyek tanpa paket, serah-t
   assert.equal(I.peninjau(sub('D2')), I.MANAGER);
   assert.deepEqual(sub('DV7').tunggu, [sub('D2').id], 'Ali memasang serah-terima');
   assert.deepEqual(I.depsBelum(sub('DV7'), perId).map(x => x.id), [sub('D2').id], 'prototype hanya menunggu blueprint RAD');
-  assert.ok(I.depsBelum(sub('DV1'), perId).some(x => x.id === sub('D2').id), 'produksi butir RAD menunggu fase Design RAD');
+  assert.ok(I.pengingatFase(sub('DV1'), perId).some(x => x.t.id === sub('D2').id), 'produksi butir RAD diingatkan fase Design RAD (2.43.0)');
   assert.ok(tP.some(t => t.induk === sub('A2').id && t.pic === 'uma' && I.selesai(t)), 'riset dibagi ke Uma');
   assert.ok(tP.filter(t => !t.induk).every(t => I.orang(t.pic).peran !== 'staff'));
   // Andika mengajukan blueprint (2.30.0): prototype Ali terbuka dan ia diberi tahu, selagi
@@ -103,7 +103,7 @@ test('skenario contoh PAPI Kostick (2.29.1, 2.30.0): proyek tanpa paket, serah-t
   assert.equal(sub('D2').status, 'Ditinjau');
   assert.deepEqual(I.depsBelum(sub('DV7'), kini), []);
   assert.ok(I.notifikasi(d, 'ali').some(n => n.jenis === 'siap' && n.task === sub('DV7').id), 'notifikasi siap untuk Ali');
-  assert.ok(I.depsBelum(sub('I5'), kini).some(x => x.id === sub('DV7').id), 'uji coba menunggu prototype (fase DAE)');
+  assert.ok(I.pengingatFase(sub('I5'), kini).some(x => x.t.id === sub('DV7').id), 'uji coba diingatkan prototype (fase DAE, 2.43.0)');
 });
 
 test('skenario contoh Inisiatif (2.31.0): empat inisiatif DAE, pembaruannya task rutin tanpa tinjauan', () => {

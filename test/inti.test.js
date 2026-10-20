@@ -15,7 +15,9 @@ function task(o) {
     createdAt: WAKTU, updatedAt: WAKTU, selesaiAt: 0, subtasks: [], comments: [], tinjauan: [], evidence: [], ...o,
   };
 }
-const proyek = o => ({ id: 'PRJ-1', name: 'Paket Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', history: [], ...o });
+/* Proyek uji memakai urutan ADDIE ketat (2.43.0: bawaan proyek kini fleksibel), supaya aturan
+   fase dan gerbang yang menahan tetap teruji di sini; yang fleksibel diuji di test/addie-fleksibel.test.js. */
+const proyek = o => ({ id: 'PRJ-1', name: 'Paket Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', history: [], ketat: true, ...o });
 const data = (tasks, projects = []) => ({ tasks, projects, log: [], packages: [], setoran: [], dashboards: [], links: [], notes: [] });
 /* Task proyek yang syarat ajukannya lengkap: output dan tautan bukti terisi. */
 const siap = o => task({ lane: 'proyek', output: 'Hasil kerja', evidence: [{ id: 'e1', label: 'Bukti', url: 'https://contoh.id/bukti' }], ...o });

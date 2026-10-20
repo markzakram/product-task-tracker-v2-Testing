@@ -2488,6 +2488,24 @@
     'Pilih tanggal tenggat yang disetujui.': 'Pick the approved due date.',
     'Tenggat yang disetujui harus sesudah tenggat sekarang.': 'The approved due date must be after the current one.',
     'Hanya pengaju yang membatalkan, selama belum dijawab.': 'Only the requester can cancel, while it is unanswered.',
+    /* ----- Urutan ADDIE fleksibel (2.43.0) ----- */
+    '+ {n} lainnya': '+ {n} more',
+    'Boleh dimulai sekarang, mendahului urutan ADDIE: {daftar} belum selesai.': 'You can start now, ahead of the ADDIE order: {daftar} not finished yet.',
+    'Lihat pengingat ({n})': 'See reminders ({n})',
+    'pengingat urutan ADDIE, tak menahan': 'ADDIE order reminder, not blocking',
+    '{n} pengingat': '{n} reminders',
+    'Urutan ADDIE proyek ini fleksibel: fase sebelumnya dan gerbang Manager hanya pengingat. Lead atau Manager bisa mengetatkannya di menu ⋯ proyek.': 'This project\'s ADDIE order is flexible: earlier phases and Manager gates are only reminders. A Lead or the Manager can make it strict from the project\'s ⋯ menu.',
+    'Longgarkan urutan ADDIE': 'Relax ADDIE order',
+    'Ketatkan urutan ADDIE': 'Enforce ADDIE order',
+    'Fase sebelumnya dan gerbang Manager menahan task berikutnya.': 'Earlier phases and Manager gates block the next tasks.',
+    'Fase sebelumnya dan gerbang Manager hanya pengingat; task berikutnya boleh mendahului.': 'Earlier phases and Manager gates are only reminders; later tasks may go ahead.',
+    'Urutan ADDIE ketat': 'Strict ADDIE order',
+    'Urutan ADDIE fleksibel': 'Flexible ADDIE order',
+    'Urutan ADDIE proyek ini fleksibel: urutan fase hanya pengingat. Task yang dicentang di bawah tetap menahan.': 'This project\'s ADDIE order is flexible: the phase order is only a reminder. Tasks ticked below still block.',
+    'Urutan ADDIE {nama} diketatkan: fase dan gerbang Manager kembali menahan.': 'ADDIE order of {nama} enforced: phases and Manager gates block again.',
+    'Urutan ADDIE {nama} dilonggarkan: fase dan gerbang Manager jadi pengingat.': 'ADDIE order of {nama} relaxed: phases and Manager gates are now reminders.',
+    'mengatur urutan ADDIE proyek': 'set a project\'s ADDIE order',
+    'Mengetatkan atau melonggarkan urutan ADDIE proyek': 'Enforce or relax a project\'s ADDIE order',
   };
 
   let kini = 'id';

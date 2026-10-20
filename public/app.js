@@ -1089,7 +1089,7 @@
     return `<button type="button" class="baris ${posisi === 'anak' ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}" data-aksi="${aksi}" data-id="${esc(t.id)}"${aksi === 'buka-task' ? '' : ' tabindex="-1"'}>
       ${pillStatus(t.status)}
       <span class="baris-isi">
-        ${s ? `<span class="baris-judul">${chipJalur(t)} ${esc(s.nama)}</span><span class="baris-subjudul">${esc(t.title)}</span>` : `<span class="baris-judul">${esc(t.title)}</span>`}
+        ${s ? `<span class="baris-judul">${chipJalur(t)} ${esc(s.nama)}</span><span class="baris-task-sub">${esc(t.title)}</span>` : `<span class="baris-judul">${esc(t.title)}</span>`}
         <span class="baris-meta">${t.induk && !posisi ? chipInduk(t) + ' ' : ''}${s ? '' : chipJalur(t)} ${[S.view === 'proyek' && t.project && t.project === S.proyek ? '' : esc(asal(t)), sub, keluarga].filter(Boolean).join(' · ')} ${label} ${chipSetor(t)} ${chipPenting(t)}</span>
         ${alasan ? `<span class="baris-alasan ${/^Tertahan/.test(alasan) ? 'merah' : /^Selesai/.test(alasan) && !/lewat tenggat/.test(alasan) ? 'redup' : ''}">${esc(trPola(String(alasan)))}</span>` : ''}
       </span>
@@ -3280,10 +3280,17 @@
     } else if (t.status === 'Antre' && I.depsBelum(t, perId).length) {
       kelas = 'kuning'; judul = tr('Menunggu');
       isi = esc(trPola(tunggu));
-      const semua = I.ditunggu(t, perId);
+      const semua = I.ditunggu(t, perId).filter(x => !x.saran);   // pengingat urutan ADDIE (2.43.0) bukan yang ditunggu
       const menahan = semua.filter(I.masihMenahan).length;
       if (I.tungguTahap(t)) tombol = `<button type="button" class="tombol kecil" data-aksi="detail-tab" data-id="${esc(t.id)}" data-nilai="riwayat">${tr('Lihat yang ditunggu ({a} menahan, {b} beres)', { a: menahan, b: semua.length - menahan })}</button>`;
       if (I.bolehAturTunggu(t, S.me, perId)) tombol += `<button type="button" class="tombol kecil" data-aksi="atur-tunggu" data-id="${esc(t.id)}">${ikon('timeline', 14)} ${tr('Atur urutan tunggu')}</button>`;
+    } else if (t.status === 'Antre' && I.pengingatFase(t, perId).length) {
+      // Urutan ADDIE fleksibel (2.43.0): boleh mendahului, tapi diingatkan yang belum beres.
+      const ingat = I.pengingatFase(t, perId);
+      const sebut = ingat.slice(0, 3).map(x => esc(x.t.sub || x.t.id)).join(', ') + (ingat.length > 3 ? ' ' + tr('+ {n} lainnya', { n: ingat.length - 3 }) : '');
+      judul = tr('Siap dimulai');
+      isi = tr('Boleh dimulai sekarang, mendahului urutan ADDIE: {daftar} belum selesai.', { daftar: sebut });
+      if (I.tungguTahap(t)) tombol = `<button type="button" class="tombol kecil" data-aksi="detail-tab" data-id="${esc(t.id)}" data-nilai="riwayat">${tr('Lihat pengingat ({n})', { n: ingat.length })}</button>`;
     } else if (t.status === 'Antre') {
       judul = tr('Siap dimulai');
       isi = tr('Tak ada yang ditunggu lagi. Mulai kerjakan bila sudah siap.');
@@ -3429,14 +3436,18 @@
     const belum = semua.filter(I.masihMenahan).length;
     const diajukan = x => !I.masihMenahan(x) && !I.selesai(x.t) && x.t.status === 'Ditinjau';
     const tertahan = x => !I.masihMenahan(x) && !I.selesai(x.t) && !!x.t.tertahan && x.t.status !== 'Ditinjau';
+    // Fase dan gerbang di proyek yang urutan ADDIE-nya fleksibel (2.43.0): pengingat, tak menahan.
+    const ingat = x => !!x.saran && !I.selesai(x.t) && x.t.status !== 'Ditinjau' && !x.t.tertahan;
+    const nIngat = semua.filter(ingat).length;
     const buka = semua.filter(x => !I.selesai(x.t)).sort((a, b) => I.masihMenahan(b) - I.masihMenahan(a));
     const beres = semua.filter(x => I.selesai(x.t));
     const baris = x => `<li class="${I.masihMenahan(x) ? '' : 'beres'}">${ikon(I.selesai(x.t) ? 'centang' : diajukan(x) ? 'mata' : tertahan(x) ? 'jeda' : 'bulat', 14)}
       <button type="button" class="tautan-kecil" data-aksi="buka-task" data-id="${esc(x.t.id)}">${esc(x.t.id)} · ${esc(potong(x.t.title, 70))}</button>
       <small>${chipTim(I.timJalur(x.t, perId))} ${esc(jenisTunggu(x.jenis))} · ${nama(x.t.pic)}${diajukan(x) ? ' · ' + tr('diajukan, sedang ditinjau {nama}', { nama: nama(I.peninjau(x.t) || I.MANAGER) })
-        : tertahan(x) ? ' · ' + tr('tertahan, tak menahan task ini') : ''}</small></li>`;
+        : tertahan(x) ? ' · ' + tr('tertahan, tak menahan task ini') : ingat(x) ? ' · ' + tr('pengingat urutan ADDIE, tak menahan') : ''}</small></li>`;
     // Yang masih berjalan di atas; yang sudah beres dilipat (2.32.0).
-    return `<section><p class="subjudul">${tr('Menunggu')} ${semua.length ? '· ' + (belum ? tr('{n} masih menahan', { n: belum }) : tr('tak ada yang menahan')) : ''}</p>
+    return `<section><p class="subjudul">${tr('Menunggu')} ${semua.length ? '· ' + (belum ? tr('{n} masih menahan', { n: belum }) : tr('tak ada yang menahan')) : ''}${nIngat ? ' · ' + tr('{n} pengingat', { n: nIngat }) : ''}</p>
+      ${nIngat ? `<p class="hint">${tr('Urutan ADDIE proyek ini fleksibel: fase sebelumnya dan gerbang Manager hanya pengingat. Lead atau Manager bisa mengetatkannya di menu ⋯ proyek.')}</p>` : ''}
       ${buka.length ? `<ul class="daftar-tunggu">${buka.slice(0, 12).map(baris).join('')}</ul>${buka.length > 12 ? `<p class="hint">${tr('dan {n} task lain.', { n: buka.length - 12 })}</p>` : ''}` : ''}
       ${beres.length ? `<details class="lipat-kecil" id="dt-beres-${esc(t.id)}"><summary>${tr('{n} sudah beres', { n: beres.length })}</summary><ul class="daftar-tunggu">${beres.slice(0, 40).map(baris).join('')}</ul></details>` : ''}
       ${!semua.length ? `<p class="hint">${tr('Tak menunggu task lain.')}</p>` : ''}
@@ -3699,8 +3710,9 @@
     const tabel = `<div class="tabel-gulir kartu-polos rapat"><table class="tabel tabel-task"><thead><tr>${kepala}</tr></thead><tbody>${isi.map(({ t, anak }) => `
       <tr class="${anak ? 'anak' : ''} ${S.pilih === t.id ? 'dipilih' : ''}">
         <td class="kecil">${esc(t.id)}</td>
-        <td><button type="button" class="tautan-task" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(t.title)}</button>
-          <span class="baris-meta">${t.induk && !anak ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${esc(asal(t))}${ringkasAnak(t) ? ' · ' + ringkasAnak(t) : ''} ${chipLabel(t, ['Siap'])} ${chipPenting(t)}</span></td>
+        <td>${I.subTahap(t.sub) ? `<button type="button" class="tautan-task tautan-task-sub" data-aksi="buka-task" data-id="${esc(t.id)}">${chipJalur(t)} ${esc(I.subTahap(t.sub).nama)}</button>
+          <span class="baris-task-sub">${esc(t.title)}</span>` : `<button type="button" class="tautan-task" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(t.title)}</button>`}
+          <span class="baris-meta">${t.induk && !anak ? chipInduk(t) + ' ' : ''}${I.subTahap(t.sub) ? '' : chipJalur(t)} ${esc(asal(t))}${ringkasAnak(t) ? ' · ' + ringkasAnak(t) : ''} ${chipLabel(t, ['Siap'])} ${chipPenting(t)}</span></td>
         <td class="nowrap">${avatar(t.pic, 'kecil')} ${nama(t.pic)}</td>
         <td>${pillStatus(t.status)}</td>
         <td>${chipTenggat(t)}</td>
@@ -4205,6 +4217,7 @@
     const menuProyek = [
       iz('proyek.ubah') ? `<button type="button" data-aksi="ubah-proyek" data-id="${esc(p.id)}">${ikon('sunting', 16)}<span>${tr('Ubah proyek')}</span></button>` : '',
       iz('proyek.buat') ? `<button type="button" data-aksi="duplikat-proyek" data-id="${esc(p.id)}">${ikon('salin', 16)}<span>${tr('Duplikat proyek')}</span></button>` : '',
+      iz('proyek.urutan') && !p.arsip ? `<button type="button" data-aksi="urutan-proyek" data-id="${esc(p.id)}" data-nilai="${p.ketat ? '' : '1'}">${ikon('timeline', 16)}<span>${p.ketat ? tr('Longgarkan urutan ADDIE') : tr('Ketatkan urutan ADDIE')}</span></button>` : '',
       iz('proyek.hapus') ? `<button type="button" class="bahaya" data-aksi="hapus-proyek" data-id="${esc(p.id)}">${ikon('hapus', 16)}<span>${tr('Hapus proyek')}</span></button>` : '',
     ].join('');
     const keputusan = iz('proyek.keputusan') && !p.arsip
@@ -4216,7 +4229,8 @@
       <div class="dua-kolom" style="margin-top:8px">
         <div class="kolom-utama">
           <div class="kepala-proyek kartu-polos">
-            <div><p class="detail-asal">${esc(p.platform)} · ${tr('Siklus {c}', { c: siklus })} · ${esc(p.id)}</p>
+            <div><p class="detail-asal">${esc(p.platform)} · ${tr('Siklus {c}', { c: siklus })} · ${esc(p.id)}
+                · <span title="${esc(p.ketat ? tr('Fase sebelumnya dan gerbang Manager menahan task berikutnya.') : tr('Fase sebelumnya dan gerbang Manager hanya pengingat; task berikutnya boleh mendahului.'))}">${p.ketat ? tr('Urutan ADDIE ketat') : tr('Urutan ADDIE fleksibel')}</span></p>
               <h1 class="judul-besar">${esc(p.name)}</h1>
               <p class="baris-tim" style="margin-top:6px">${tr('Tim:')} ${timHtml(p)}</p>
               ${p.goal ? `<p class="teks-panjang" style="margin-top:8px">${teksBertaut(p.goal)}</p>` : ''}</div>
@@ -9546,6 +9560,7 @@
       <p class="hint">${esc(t.id)} · ${esc(potong(t.title, 90))} — ${tr('tim {tim}', { tim: esc(I.labelTim(tim)) })}</p>
       <label class="calon-tunggu ikut-fase"><input type="checkbox" name="ikutFase" value="ya" ${t.lepasFase ? '' : 'checked'}>
         <span><b>${tr('Ikut urutan fase {tim}', { tim: esc(I.singkatTim(tim)) })}</b><small>${tr('Bawaan: menunggu task {tim} di fase sebelum {tahap}', { tim: esc(I.singkatTim(tim)), tahap: esc(I.namaTahap(t.stage)) })} ${bawaan.length ? tr('(sekarang {n} task)', { n: bawaan.length }) : tr('(sekarang tak ada)')}. ${tr('Matikan supaya task ini bisa jalan lebih dulu.')}</small></span></label>
+      ${p && !p.ketat ? `<p class="hint">${tr('Urutan ADDIE proyek ini fleksibel: urutan fase hanya pengingat. Task yang dicentang di bawah tetap menahan.')}</p>` : ''}
       <p class="subjudul">${tr('Juga menunggu task ini selesai')}${dipilih.size ? ' · ' + tr('{n} dipilih', { n: dipilih.size }) : ''}</p>
       <input class="input" id="tunggu-cari" type="search" placeholder="${tr('Cari ID, kode, atau judul…')}" aria-label="${tr('Cari task')}" autocomplete="off">
       <div class="pilih-tunggu">${grup.map(g => `<fieldset><legend>${chipTim(g.kode)} ${esc(I.TIM[g.kode].nama)}</legend>${g.isi.map(pilihan).join('')}</fieldset>`).join('')
@@ -10722,6 +10737,17 @@
         try {
           ubahData('setKeputusan', { proyek: p.id, keputusan: d.aksi === 'tahan-proyek' ? 'Hold' : 'Build' });
           selesaiUbah(d.aksi === 'tahan-proyek' ? tr('Proyek ditahan.') : tr('Proyek dilanjutkan.'));
+        } catch (err) { toast(err.message, true); }
+        break;
+      }
+      case 'urutan-proyek': {
+        const p = proyekDari(d.id);
+        if (!p) return;
+        const ketat = d.nilai === '1';
+        try {
+          ubahData('aturUrutanProyek', { proyek: p.id, ketat });
+          selesaiUbah(ketat ? tr('Urutan ADDIE {nama} diketatkan: fase dan gerbang Manager kembali menahan.', { nama: p.name })
+            : tr('Urutan ADDIE {nama} dilonggarkan: fase dan gerbang Manager jadi pengingat.', { nama: p.name }));
         } catch (err) { toast(err.message, true); }
         break;
       }

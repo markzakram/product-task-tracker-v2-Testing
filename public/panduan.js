@@ -140,8 +140,9 @@
       id: 'konsep-tahap', peran: 'konsep', judul: 'ADDIE per tim dan siklus', tujuan: 'Tahu siapa menunggu siapa di sebuah proyek.', ilustrasi: 'tahap', coba: true,
       langkah: [
         'Halaman proyek dibagi per tim: tab **DAE · RAD · LNA · CLO** (tiap tab menulis fase tim itu sekarang), ditambah **Ringkasan**. Tiap tim menjalankan **ADDIE-nya sendiri**: task masuk tab tim pemilik sub-stage-nya.',
-        'Fase tim **dihitung**: fase task terbuka tim itu yang paling awal. Di dalam satu tim, task baru bisa dimulai setelah task tim itu di fase yang lebih awal selesai; yang sefase dikerjakan **bersamaan**.',
-        'Tim yang berbeda **tidak saling menunggu**, kecuali lewat **serah-terima** yang diatur Lead (mis. input LNA menunggu soal dari RAD) dan **gerbang Manager**: task Manager di Analysis (A1, A6) ditunggu fase Design dan sesudahnya di semua tim.',
+        'Fase tim **dihitung**: fase task terbuka tim itu yang paling awal. Urutan ADDIE **fleksibel** secara bawaan: task Development boleh dimulai walau Analysis timnya belum selesai. Yang belum beres tampil sebagai **pengingat** di kartu **Langkah berikutnya** dan di tab Riwayat task, tanpa menahan.',
+        'Tim yang berbeda **tidak saling menunggu**, kecuali lewat **serah-terima** yang diatur Lead (mis. input LNA menunggu soal dari RAD). Task Manager di Analysis (A1, A6) adalah **gerbang Manager**; di proyek yang fleksibel gerbang ini juga hanya pengingat. Serah-terima yang diatur dan **E12** tetap menahan.',
+        '**Urutan ketat**: Lead atau Manager bisa memilih **Ketatkan urutan ADDIE** di menu **⋯** proyek. Di proyek yang diketatkan, task baru bisa dimulai setelah task timnya di fase lebih awal selesai, dan fase Design dan sesudahnya menunggu gerbang Manager. **Longgarkan urutan ADDIE** mengembalikannya. Keadaannya tertulis di kepala proyek.',
         '**Lead mengatur urutan timnya** lewat tombol **Atur urutan tunggu** (di tab tim atau detail task): task mana yang ditunggu, termasuk dari tim lain, dan apakah ikut urutan fase timnya. Elaborasi paket sudah memasang serah-terima antartim dan urutan alurnya (mis. tayang menunggu QC). Urutan yang membuat task saling menunggu ditolak.',
         'Klik fase di jalur **A D V I E** sebuah tim untuk membuka task fase itu di tab timnya.',
         'Proyek selalu terbuka di **tab tim Anda**; Manager di **Ringkasan**.',

@@ -19,7 +19,7 @@
    ========================================================================== */
 
 const TAB = {
-  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket'],
+  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket', 'ketat'],
   tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
     'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'tunggu', 'lepasFase', 'notes', 'assignedBy',
     'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk', 'inisiatif', 'diminta'],
@@ -115,7 +115,7 @@ const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
 const DAFTAR = new Set(['support', 'deps', 'tunggu']);
 const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah', 'n']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at', 'jawabAt', 'dialihkanAt']);
-const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror', 'lepasFase']);
+const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror', 'lepasFase', 'ketat']);
 
 function keSel(kolom, nilai) {
   if (nilai === undefined || nilai === null) return '';

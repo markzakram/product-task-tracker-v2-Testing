@@ -97,6 +97,20 @@ dengan satu penyederhanaan: tetap empat status.
   - **tutup** — **E12** menunggu semua task lain di siklusnya, supaya siklus tak tertutup
     selagi masih ada pekerjaan.
 
+  **Urutan ADDIE fleksibel (2.43.0, permintaan user: "ketika statusnya masih di A, V tetap bisa
+  dikerjakan").** Sejak versi ini **fase** dan **gerbang** hanya *pengingat* di semua proyek:
+  tetap tercatat di `Inti.ditunggu` (bertanda `saran: true`), tetapi tak menahan task untuk
+  dimulai atau diajukan. **atur** dan **tutup** tetap menahan. Pengingatnya (`Inti.pengingatFase`)
+  tampil di kartu **Langkah berikutnya** ("Boleh dimulai sekarang, mendahului urutan ADDIE: A2
+  belum selesai") dan di bagian **Menunggu** tab Riwayat ("pengingat urutan ADDIE, tak
+  menahan"); label Menunggu, notifikasi "siap", dan hitungan yang menahan tak menghitungnya.
+  Lead atau Manager (izin `proyek.urutan`) bisa memilih **Ketatkan urutan ADDIE** di menu ⋯
+  proyek: proyek itu (`p.ketat`, kolom `ketat` di tab projects dan `v2_projects`) kembali memakai
+  fase dan gerbang sebagai penahan, seperti sebelum 2.43.0. **Longgarkan urutan ADDIE**
+  mengembalikannya; keduanya tercatat di Riwayat Aktivitas, dan keadaannya tertulis di kepala
+  proyek ("Urutan ADDIE fleksibel/ketat"). Duplikat proyek ikut menyalin pengaturan ini. Skenario
+  contoh tetap mengerjakan langkah-langkahnya menurut urutan ADDIE, supaya riwayatnya wajar.
+
   **Yang sudah diajukan tak lagi menahan (2.30.0, permintaan user).** Task yang ditunggu
   dianggap cukup begitu PIC-nya mengajukannya (status Ditinjau), bukan baru saat disetujui:
   langkah berikutnya, di tim sendiri maupun tim lain, bisa mulai sejajar selagi Lead atau Manager
@@ -1131,8 +1145,9 @@ tetap, susunannya mengikuti "apa yang perlu dilakukan sekarang":
   peninjau, semuanya selebar laci. Sejak 2.41.0 (permintaan user) sub-stage (kode dan namanya)
   jadi judul besar dan judul task jadi sub-judul di bawahnya; task tanpa sub-stage tetap memakai
   judul task. Sejak 2.42.1 pola yang sama dipakai baris task (halaman proyek, Hari Ini, dan daftar
-  lain yang memakai baris) dan kartu Kanban; tabel Daftar di halaman Task tetap judul task dulu,
-  karena bisa diurutkan menurut judul.
+  lain yang memakai baris) dan kartu Kanban, dan sejak 2.43.0 juga tabel Daftar di halaman Task.
+  Kolom Task di tabel itu kini diurutkan menurut tahap ADDIE dan kode sub-stage (A2, DV2, E2,
+  E12, lalu rutin R1–R4), kemudian judul task; task tanpa sub-stage di belakang, menurut judulnya.
 - **Kartu "Langkah berikutnya"**: apa yang perlu dilakukan dan kenapa, sekali saja (dulu
   banner, daftar Menunggu, dan teks di bawah tombol mengulang alasan yang sama). Isinya menurut
   keadaan: menunggu (dengan tombol **Lihat yang ditunggu** dan **Atur urutan tunggu**), siap

@@ -1,5 +1,34 @@
 # Changelog — ProductTrack v2
 
+## 2.43.0 — Urutan ADDIE fleksibel; sub-stage jadi judul di tabel Daftar (2026-10-20)
+
+Permintaan user: (1) "ADDIE dibuat fleksibel saja, jadi ketika statusnya masih di A, V tetap
+bisa dikerjakan" — dipilih untuk semua proyek, termasuk gerbang Manager; (2) tabel Daftar juga
+memakai sub-stage sebagai judul.
+
+- **Fase dan gerbang Manager kini pengingat, bukan penahan.** Task di fase lebih akhir boleh
+  dimulai dan diajukan walau task timnya di fase lebih awal, atau A1/A6 Manager, belum selesai.
+  Kartu **Langkah berikutnya** tetap **Siap dimulai**, ditambah keterangan "Boleh dimulai
+  sekarang, mendahului urutan ADDIE: A2 belum selesai" dan tombol **Lihat pengingat**. Bagian
+  **Menunggu** di tab Riwayat menandainya "pengingat urutan ADDIE, tak menahan".
+- **Yang tetap menahan:** urutan yang diatur Lead lewat **Atur urutan tunggu** (serah-terima
+  antartim, mis. input LNA menunggu soal RAD) dan **E12** yang menutup siklus.
+- **Ketatkan urutan ADDIE** (menu ⋯ proyek, Lead dan Manager; izin baru `proyek.urutan`):
+  proyek itu kembali memakai fase dan gerbang sebagai penahan, seperti sebelumnya.
+  **Longgarkan urutan ADDIE** mengembalikannya. Tercatat di Riwayat Aktivitas; kepala proyek
+  menulis "Urutan ADDIE fleksibel" atau "Urutan ADDIE ketat". Duplikat proyek ikut menyalinnya.
+- Notifikasi "siap", label Menunggu, dan hitungan yang menahan hanya memakai yang benar-benar
+  menahan. Agen AI Ali ikut aturan yang sama (status Dikerjakan tak ditolak karena fase di proyek
+  yang fleksibel).
+- **Tabel Daftar** (halaman Task): kolom Task memakai kode dan nama sub-stage sebagai judul,
+  judul task di bawahnya. Urutan kolom itu menurut tahap ADDIE dan kode sub-stage (A2, DV2, E2,
+  E12, lalu rutin), kemudian judul task; task tanpa sub-stage di belakang.
+- Perbaikan 2.42.1: kelas judul task di bawah sub-stage bertabrakan dengan kepala bagian Diskusi
+  (`baris-subjudul`), kini `baris-task-sub`.
+- Data: kolom `ketat` di tab `projects` (spreadsheet) dan tabel `v2_projects` (MySQL).
+- Skenario contoh tetap mengerjakan langkahnya menurut urutan ADDIE. Tes lama untuk fase dan
+  gerbang memakai proyek yang diketatkan; tes baru `test/addie-fleksibel.test.js`.
+
 ## 2.42.1 — Sub-stage jadi judul juga di baris dan kartu task (2026-10-20)
 
 Permintaan user (tangkapan layar): detail task sudah benar, tetapi tampilan pratinjau task di

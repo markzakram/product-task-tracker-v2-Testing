@@ -250,7 +250,8 @@ function skenarioOjk(data, sekarang) {
   let w = mulaiBatch + 4 * JAM;
   for (let putaran = 0; putaran < 20; putaran++) {
     const perId = Inti.indeks(data);
-    const siap = tasks.filter(t => t.status === 'Antre' && !Inti.depsBelum(t, perId).length);
+    // Sejak 2.43.0 fase dan gerbang hanya pengingat; tim contoh ini tetap mengikuti urutannya.
+    const siap = tasks.filter(t => t.status === 'Antre' && !Inti.depsBelum(t, perId).length && !Inti.pengingatFase(t, perId).length);
     if (!siap.length) break;
     let akhir = w;
     siap.forEach((t, j) => {

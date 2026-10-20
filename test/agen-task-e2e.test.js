@@ -395,6 +395,8 @@ test('buat-task.js: butir yang menunggu fase sebelumnya ditolak dengan alasannya
   const folder = folderSementara();
   try {
     const env = { PT_ALAMAT: alamat, AGEN_KUNCI: KUNCI, AGEN_DATA: path.join(folder, 'data') };
+    // Proyek diketatkan (2.43.0: bawaannya fleksibel, fase hanya pengingat).
+    await kirimPerintah(nynda, 'aturUrutanProyek', { proyek: 'PRJ-1', ketat: true });
     // D4 (Design) dibuat dulu di Antre; sesudahnya DV6 yang ingin Dikerjakan harus menunggu fase Design timnya.
     const berkas = tulisBerkas(folder, 'u.json', { tanggal: HARI, butir: [
       { id: 'a-implementasi', judul: 'Implementasi sebelum rancangan', jalur: 'proyek', proyek: 'PRJ-1', sub: 'DV7', status: 'Dikerjakan' },
