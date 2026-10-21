@@ -2478,6 +2478,7 @@ button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua)
 .pill.mt-ditanya, .pill.mt-dikerjakan { background: var(--info-muda); color: var(--info-tua); }
 .pill.mt-ditinjau { background: var(--ungu-muda); color: var(--ungu); }
 .pill.mt-revisi { background: var(--kuning-muda); color: var(--kuning); }
+.kotak-minta-info.peringatan { background: var(--kuning-muda); border-color: var(--kuning); color: var(--kuning); }
 .pill.mt-selesai { background: var(--hijau-muda); color: var(--hijau); }
 
 /* Pilihan Jenis di form: segmen yang boleh turun baris (di ponsel 2 × 2). */

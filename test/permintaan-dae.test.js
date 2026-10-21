@@ -43,10 +43,10 @@ const isi = (o = {}) => ({
   bahan: [{ label: 'Blueprint soal OJK', url: 'https://contoh.id/blueprint' }, { label: '', url: 'https://contoh.id/rekap' }], ...o,
 });
 const kirim = (d, p, dari = 'andika', f = isi(), w = jam(0)) => I.kirimMintaDae(d, p, f, dari, w, I.isoHari(w));
-/* Permintaan RAD yang sudah diterima Ali sebagai PIC: [m, task]. */
+/* Permintaan RAD yang sudah diterima Ali sebagai PIC: [m, task]. o.dari = pengirimnya (bawaan Andika). */
 function diterima(o = {}) {
   const b = dasar();
-  const m = kirim(b.d, b.p);
+  const m = kirim(b.d, b.p, o.dari || 'andika');
   const t = I.terimaMintaDae(b.d, m, { inisiatif: b.ini['Generator Soal'].id, pic: o.pic || 'ali', due: DUE }, 'ali', jam(1), HARI);
   return { ...b, m, t };
 }
@@ -71,15 +71,24 @@ test('izin baru: terima dan peta bawaannya Lead saja (Manager tidak), kirim dan 
   galat(() => I.tolakMintaDae({ permintaanDae: [], tasks: [], log: [] }, { status: 'menunggu' }, 'tidak cocok', 'andika', 1), 'Permintaan ke tim DAE diterima anggota tim DAE.');
 });
 
-test('izin diatur Panel Dev: staff DAE bisa diberi izin terima; tim lain tetap tak bisa; Manager hanya bila dicentang', () => {
+test('izin diatur Panel Dev: staff DAE bisa diberi izin terima; tim lain tetap tak bisa; Manager tidak pernah, berapa pun dicentang', () => {
   I.aturOrang([DAE_STAFF]);
   assert.equal(I.bolehKelolaMintaDae('rio'), false, 'staff tanpa izin');
   I.aturMaster([I.periksaMaster('izin', { kunci: 'permintaan.terima', peran: ['lead', 'staff'] })]);
   assert.equal(I.bolehKelolaMintaDae('rio'), true);
   assert.equal(I.bolehKelolaMintaDae('uma'), false, 'staff RAD bukan anggota DAE');
   assert.equal(I.bolehKelolaMintaDae('nynda'), false, 'Manager tetap tidak');
+  // Butir 3a (perbaikan QA): Manager hanya mengawasi, jadi centang Manager dibuang, bukan dihormati.
+  assert.deepEqual(I.periksaMaster('izin', { kunci: 'permintaan.terima', peran: ['manager', 'lead'] }).peran, ['lead'], 'dibuang saat disimpan');
   I.aturMaster([I.periksaMaster('izin', { kunci: 'permintaan.terima', peran: ['manager', 'lead'] })]);
-  assert.equal(I.bolehKelolaMintaDae('nynda'), true, 'Manager boleh kalau Dev mencentangnya');
+  assert.equal(I.bolehKelolaMintaDae('nynda'), false, 'Manager tak pernah menerima, walau Dev mencentangnya');
+  // Baris lama di tab master yang sudah mencentang Manager (sebelum perbaikan) dibaca tanpa Manager.
+  I.aturMaster([{ jenis: 'izin', kunci: 'permintaan.terima', peran: 'manager,lead,staff', aktif: true }, { jenis: 'izin', kunci: 'permintaan.peta', peran: 'manager,lead', aktif: true }]);
+  assert.deepEqual([I.izinPeran('permintaan.terima'), I.izinPeran('permintaan.peta')], [['lead', 'staff'], ['lead']]);
+  assert.deepEqual(['nynda', 'ali', 'rio'].map(me => [I.bolehKelolaMintaDae(me), I.bolehAturPetaMintaDae(me)]), [[false, false], [true, true], [true, false]]);
+  assert.ok(I.IZIN.filter(x => x.tanpaManager).map(x => x.kunci).sort().join() === 'permintaan.peta,permintaan.terima', 'hanya dua izin ini yang tanpa Manager');
+  galat(() => I.aturPetaMintaDae(I.dataKosong(), {}, 'nynda', 1), 'Hanya Lead yang mengatur peta jenis permintaan.');
+  galat(() => I.tolakMintaDae({ permintaanDae: [], tasks: [], log: [] }, { status: 'menunggu' }, 'tidak cocok', 'nynda', 1), 'Hanya Staff atau Lead yang menerima permintaan ke tim DAE.');
   I.aturMaster([I.periksaMaster('izin', { kunci: 'permintaan.terima', peran: [] })]);
   assert.equal(I.bolehKelolaMintaDae('ali'), false);
   assert.equal(I.bolehKelolaMintaDae(I.DEV), true);
@@ -205,12 +214,20 @@ test('PIC bisa staff DAE; tanpa orang sah yang bisa meninjau selain PIC, permint
   I.aturOrang([DAE_STAFF]);
   const { d, m, t } = diterima({ pic: 'rio' });
   assert.deepEqual([t.pic, t.assignedBy, I.peninjau(t)], ['rio', 'ali', 'andika']);
-  // Pengirim yang ternyata anggota DAE (pindah tim) dan sekaligus PIC: tak ada Lead lain yang bisa meninjau.
+  // Pengirim yang ternyata anggota DAE (tim peminta = DAE) dan sekaligus PIC: bukan Lead, bukan Manager, bukan PIC yang meninjau.
+  I.aturOrang([]);
   const { d: d2, p: p2, ini } = dasar();
   const m2 = kirim(d2, p2);
-  m2.dari = 'ali';
+  Object.assign(m2, { dari: 'ali', timPeminta: 'SI' });
   galat(() => I.terimaMintaDae(d2, m2, { inisiatif: ini['Generator Soal'].id, pic: 'ali' }, 'ali', jam(1), HARI), /Tak ada orang di tim peminta yang bisa meninjau/);
-  assert.equal(I.terimaMintaDae(d2, m2, { inisiatif: ini['Generator Soal'].id, pic: 'rio' }, 'ali', jam(1), HARI).pic, 'rio', 'PIC lain: pengirim meninjau');
+  assert.equal(m2.status, 'menunggu', 'yang ditolak tak meninggalkan task');
+  // Ada staff DAE lain yang aktif: dialah peninjau cadangan (butir 6, anggota aktif lain tim peminta).
+  I.aturOrang([DAE_STAFF]);
+  const t2 = I.terimaMintaDae(d2, m2, { inisiatif: ini['Generator Soal'].id, pic: 'ali' }, 'ali', jam(1), HARI);
+  assert.deepEqual([t2.pic, I.peninjau(t2, I.indeks(d2))], ['ali', 'rio']);
+  const m3 = kirim(d2, p2, 'andika', isi(), jam(2));
+  Object.assign(m3, { dari: 'ali', timPeminta: 'SI' });
+  assert.equal(I.terimaMintaDae(d2, m3, { inisiatif: ini['Generator Soal'].id, pic: 'rio' }, 'ali', jam(3), HARI).pic, 'rio', 'PIC lain: pengirim meninjau');
   assert.ok(m.id);
   assert.equal(d.tasks.length, 4);
 });
@@ -221,22 +238,22 @@ test('peninjau = pengirim; pengirim tak aktif atau sekaligus PIC digantikan Lead
   assert.equal(I.peninjauDae(t), 'andika');
   const baru = peminta => ({ permintaanDae: 'MDA-001', peminta, pic: 'ali' });
   assert.equal(I.peninjauDae(baru('uma')), 'uma', 'staff RAD meninjau permintaannya sendiri');
-  assert.equal(I.peninjauDae({ permintaanDae: 'MDA-001', peminta: 'ali', pic: 'ali' }), I.DEV, 'pengirim = PIC dan Lead-nya PIC juga: jatuh ke Dev');
+  assert.equal(I.peninjauDae({ permintaanDae: 'MDA-001', peminta: 'ali', pic: 'ali' }), '', 'pengirim = PIC dan Lead-nya PIC juga: tak ada peninjau (tak pernah Dev)');
   assert.equal(I.peninjauDae({ permintaanDae: 'MDA-001', peminta: 'uma', pic: 'uma' }), 'andika', 'pengirim = PIC: Lead tim peminta');
-  assert.equal(I.peninjauDae({ permintaanDae: 'MDA-001', peminta: 'nynda', pic: 'ali' }), I.DEV, 'Manager tak pernah jadi gerbang');
+  assert.equal(I.peninjauDae({ permintaanDae: 'MDA-001', peminta: 'nynda', pic: 'ali' }), '', 'Manager tak pernah jadi gerbang, dan tak pernah Dev');
   assert.equal(I.peninjauDae({ permintaanDae: '', peminta: 'uma', pic: 'ali' }), '', 'bukan task dari permintaan');
   // Pengirim yang juga PIC tak bisa menyetujui task-nya sendiri; Lead timnya yang bisa.
   const sendiri = { lane: 'rutin', status: 'Ditinjau', permintaanDae: 'MDA-001', peminta: 'uma', pic: 'uma', tinjauan: [], subtasks: [], evidence: [] };
   const kosong = I.indeks(I.dataKosong());
   assert.deepEqual([I.aksiUntuk(sendiri, 'uma', kosong), I.aksiUntuk(sendiri, 'andika', kosong), I.aksiUntuk(sendiri, 'nynda', kosong)].map(a => a.map(x => x.kunci)), [['tarik'], ['setujui', 'kembalikan'], []]);
-  // Pengirim dinonaktifkan: Lead timnya. Lead yang dinonaktifkan: Lead penggantinya, atau Dev kalau tak ada.
+  // Pengirim dinonaktifkan: Lead timnya. Lead yang dinonaktifkan: Lead penggantinya, lalu anggota aktif lain timnya; tak ada = kosong (tak pernah Dev atau Manager).
   I.aturOrang([{ id: 'uma', nama: 'Uma', pendek: 'Uma', peran: 'staff', jabatan: 'Akademik', lead: 'andika', aktif: false }]);
   assert.equal(I.peninjauDae(baru('uma')), 'andika');
-  // Lead yang dinonaktifkan (stafnya dipindah dulu, kalau tidak organogram ditolak): Lead pengganti timnya, atau Dev kalau tim itu dipegang Manager.
+  // Lead yang dinonaktifkan (stafnya dipindah dulu, kalau tidak organogram ditolak): Lead pengganti timnya, atau tak ada kalau tim itu dipegang Manager.
   const andikaMati = { id: 'andika', nama: 'Andika', pendek: 'Andika', peran: 'lead', jabatan: 'Riset', lead: 'nynda', tim: 'AK', aktif: false };
   const staf = lead => ['uma', 'tri', 'wildan'].map(id => ({ id, nama: id, pendek: id[0].toUpperCase() + id.slice(1), peran: 'staff', jabatan: 'Akademik', lead, aktif: true }));
   assert.equal(I.aturOrang([andikaMati, ...staf('alya')]), '');
-  assert.equal(I.peninjauDae(baru('andika')), I.DEV, 'tim RAD sementara dipegang Manager: Dev, bukan Manager');
+  assert.equal(I.peninjauDae(baru('andika')), '', 'tim RAD sementara dipegang Manager dan tak punya anggota: kosong, bukan Manager, bukan Dev');
   assert.equal(I.aturOrang([andikaMati, { id: 'rani', nama: 'Rani', pendek: 'Rani', peran: 'lead', jabatan: 'Akademik', lead: 'nynda', tim: 'AK', aktif: true }, ...staf('rani')]), '');
   assert.equal(I.peninjauDae(baru('andika')), 'rani', 'Lead pengganti tim RAD');
 });
@@ -317,7 +334,7 @@ test('task dari permintaan tetap di inisiatifnya (boleh pindah ke inisiatif lain
   assert.match(I.aksiUntuk(t, 'ali', I.indeks(d)).find(a => a.kunci === 'ajukan').alasan, /task turunan/);
 });
 
-test('task dihapus selagi dikerjakan: permintaan kembali Menunggu dan bisa diterima lagi; pemulihan melepas tautannya', () => {
+test('task dihapus selagi dikerjakan: permintaan kembali Menunggu dan bisa diterima lagi; pemulihan mempertahankan tautannya', () => {
   const { d, p, m, t, ini } = diterima();
   I.terapkanAksi(d, t, 'mulai', 'ali', jam(2));
   I.hapusTask(d, [t.id], 'ali', jam(3));
@@ -335,10 +352,311 @@ test('task dihapus selagi dikerjakan: permintaan kembali Menunggu dan bisa diter
   assert.equal(m.status, 'selesai');
   assert.equal(I.langkahMintaDae(d, m).kunci, 'selesai');
   assert.equal(I.taskMintaDae(d, m), null);
-  // Pulihkan: jadi rutin biasa, tanpa tautan ke permintaan.
-  const pulih = I.pulihkanTask(d, { task: t2.id, asal: { ...t2 }, inisiatif: ini['Generator Soal'].id }, 'ali', jam(10));
-  assert.deepEqual([pulih.permintaanDae, pulih.peminta, I.peninjau(pulih)], ['', '', null]);
+  // Pulihkan (perbaikan QA 2.46.0): tetap tertaut ke permintaannya dan tetap ditinjau pengirim, tak lagi jadi rutin biasa.
+  const pulih = I.pulihkanTask(d, { task: t2.id, asal: JSON.parse(JSON.stringify(t2)), inisiatif: ini['Generator Soal'].id }, 'ali', jam(10));
+  assert.deepEqual([pulih.permintaanDae, pulih.peminta, I.peninjau(pulih), pulih.status, m.status, m.task], [m.id, 'andika', 'andika', 'Selesai', 'selesai', t2.id]);
+  assert.equal(I.taskMintaDae(d, m), pulih);
   assert.ok(p.id);
+});
+
+/* ---------- Perbaikan temuan QA (2.46.0) ---------- */
+
+/* Task sudah diterima, dikerjakan, dan diajukan ke pengirim: mengembalikan {d, m, t, ...}. */
+function diajukan(o = {}) {
+  const b = diterima(o);
+  I.terapkanAksi(b.d, b.t, 'mulai', 'ali', jam(2));
+  I.isiOutput(b.d, b.t, 'hasil jadi', 'ali', jam(3));
+  I.terapkanAksi(b.d, b.t, 'ajukan', 'ali', jam(4));
+  return b;
+}
+const salinTask = t => JSON.parse(JSON.stringify(t));
+const umaMati = { id: 'uma', nama: 'Uma', pendek: 'Uma', peran: 'staff', jabatan: 'Akademik', lead: 'andika', aktif: false };
+const staf = (lead, ids = ['uma', 'tri', 'wildan']) => ids.map(id => ({ id, nama: id, pendek: id[0].toUpperCase() + id.slice(1), peran: 'staff', jabatan: 'Akademik', lead, aktif: true }));
+const andikaMati = { id: 'andika', nama: 'Andika', pendek: 'Andika', peran: 'lead', jabatan: 'Riset', lead: 'nynda', tim: 'AK', aktif: false };
+
+test('butir 1: hapus lalu Pulihkan task yang sedang ditinjau tetap tertaut, tetap Ditinjau, dan hanya pengirim yang bisa menyetujui', () => {
+  const { d, m, t, ini } = diajukan({ dari: 'uma' });
+  I.hapusTask(d, [t.id], 'ali', jam(5));
+  assert.deepEqual([m.status, m.task], ['menunggu', '']);
+  const pulih = I.pulihkanTask(d, { task: t.id, asal: salinTask(t), inisiatif: ini['Generator Soal'].id }, 'ali', jam(6));
+  // Tertaut lagi, dibaca dari permintaannya; tetap Ditinjau, dan peninjaunya pengirim.
+  assert.deepEqual([pulih.permintaanDae, pulih.peminta, pulih.lane, pulih.status, pulih.inisiatif], [m.id, 'uma', 'rutin', 'Ditinjau', ini['Generator Soal'].id]);
+  assert.deepEqual([I.peninjau(pulih), I.perluTinjau(pulih)], ['uma', true]);
+  assert.deepEqual([aksi(pulih, 'ali', d), aksi(pulih, 'uma', d), aksi(pulih, 'nynda', d), aksi(pulih, 'andika', d)], [['tarik'], ['setujui', 'kembalikan'], [], []]);
+  galat(() => I.terapkanAksi(d, pulih, 'selesai', 'ali', jam(7)), 'Aksi ini tidak tersedia untuk Anda.');
+  // Permintaannya sejalan: Diterima lagi dengan task yang sama, dikabari ke pengirim lewat utas.
+  assert.deepEqual([m.status, m.task, m.pic, m.inisiatif, m.oleh, m.dueTerima, m.selesaiAt], ['diterima', t.id, 'ali', ini['Generator Soal'].id, 'ali', DUE, 0]);
+  assert.deepEqual(I.langkahMintaDae(d, m), { kunci: 'ditinjau', no: 4, tambahan: '' });
+  assert.equal(m.utas.at(-1).jenis, 'catatan');
+  assert.match(m.utas.at(-1).teks, new RegExp(`Task ${t.id} dipulihkan Ali; permintaan kembali Diterima`));
+  // Alur selanjutnya normal: pengirim menyetujui → permintaan Selesai; dibuka kembali → Diterima lagi.
+  I.terapkanAksi(d, pulih, 'setujui', 'uma', jam(8));
+  assert.deepEqual([pulih.status, m.status], ['Selesai', 'selesai']);
+  I.terapkanAksi(d, pulih, 'buka', 'ali', jam(9));
+  assert.deepEqual([pulih.status, m.status, I.langkahMintaDae(d, m).kunci], ['Dikerjakan', 'diterima', 'dikerjakan']);
+});
+
+test('butir 1: Pulihkan ditolak bila permintaannya sudah diterima lagi dengan task lain, sudah ditolak, atau tak ada; tanpa inisiatif memakai yang lama', () => {
+  const { d, m, t, ini } = diajukan({ dari: 'uma' });
+  const asal = salinTask(t);
+  I.hapusTask(d, [t.id], 'ali', jam(5));
+  // Tanpa inisiatif di form: inisiatif lamanya dipakai (task dari permintaan tetap di sebuah inisiatif).
+  const salinan = salinTask(d);
+  const baru = I.pulihkanTask(salinan, { task: t.id, asal: salinTask(asal) }, 'ali', jam(6));
+  assert.equal(baru.inisiatif, ini['Generator Soal'].id);
+  // Inisiatif yang tak dikenal atau sudah selesai ditolak.
+  galat(() => I.pulihkanTask(salinTask(d), { task: t.id, asal: { ...asal, inisiatif: 'INI-099' } }, 'ali', jam(6)), /harus kembali ke sebuah inisiatif/);
+  const selesaiIni = salinTask(d);
+  I.ubahInisiatif(selesaiIni, selesaiIni.inisiatif.find(x => x.id === ini['Generator Soal'].id), { status: 'selesai' }, 'ali', jam(5));
+  galat(() => I.pulihkanTask(selesaiIni, { task: t.id, asal: salinTask(asal) }, 'ali', jam(6)), /sudah selesai/);
+  // Sudah diterima lagi dengan task lain: Pulihkan ditolak, tak ada dua task untuk satu permintaan.
+  const t2 = I.terimaMintaDae(d, m, { inisiatif: ini['Generator Soal'].id, pic: 'ali' }, 'ali', jam(6), HARI);
+  galat(() => I.pulihkanTask(d, { task: t.id, asal: salinTask(asal) }, 'ali', jam(7)), new RegExp(`Permintaan ${m.id} sudah punya task lain \\(${t2.id}\\), jadi ${t.id} tidak dipulihkan`));
+  assert.deepEqual([d.tasks.filter(x => x.permintaanDae === m.id).length, m.task], [1, t2.id], 'tetap satu task');
+  // Sudah ditolak sesudah task-nya terhapus: tidak dihidupkan lagi.
+  const lain = diajukan({ dari: 'uma' });
+  const asal2 = salinTask(lain.t);
+  I.hapusTask(lain.d, [lain.t.id], 'ali', jam(5));
+  I.tolakMintaDae(lain.d, lain.m, 'Sudah tidak perlu lagi.', 'ali', jam(6));
+  galat(() => I.pulihkanTask(lain.d, { task: lain.t.id, asal: asal2 }, 'ali', jam(7)), new RegExp(`Permintaan ${lain.m.id} sudah ditolak, jadi ${lain.t.id} tidak dipulihkan`));
+  assert.equal(lain.d.tasks.length, 3, 'tak ada task yang kembali');
+  // Permintaannya tak ada (data rusak): ditolak, bukan dipulihkan tanpa tautan.
+  galat(() => I.pulihkanTask(lain.d, { task: lain.t.id, asal: { ...asal2, permintaanDae: 'MDA-404' } }, 'ali', jam(7)), /berasal dari permintaan ke tim DAE yang tidak ditemukan/);
+  // Task rutin biasa (tanpa permintaan) tetap dipulihkan seperti sebelumnya.
+  const biasa = I.taskBaru(lain.d, { title: 'Rutin biasa', pic: 'ali' }, 'ali', jam(8), HARI);
+  const asalBiasa = salinTask(biasa);
+  I.hapusTask(lain.d, [biasa.id], 'ali', jam(9));
+  const pulihBiasa = I.pulihkanTask(lain.d, { task: biasa.id, asal: asalBiasa }, 'ali', jam(10));
+  assert.deepEqual([pulihBiasa.permintaanDae, pulihBiasa.peminta, I.peninjau(pulihBiasa)], ['', '', null]);
+});
+
+test('butir 2: permintaan dan task selalu sejalan sesudah hapus, Pulihkan, dan Buka kembali', () => {
+  const { d, m, t } = diajukan({ dari: 'uma' });
+  I.terapkanAksi(d, t, 'setujui', 'uma', jam(5));
+  assert.deepEqual([m.status, I.langkahMintaDae(d, m).kunci], ['selesai', 'selesai']);
+  const asal = salinTask(t);
+  I.hapusTask(d, [t.id], 'ali', jam(6));
+  assert.deepEqual([m.status, m.task], ['selesai', t.id], 'yang sudah disetujui tetap selesai walau task-nya terhapus');
+  const pulih = I.pulihkanTask(d, { task: t.id, asal, inisiatif: t.inisiatif }, 'ali', jam(7));
+  assert.deepEqual([pulih.status, m.status, m.selesaiAt > 0], ['Selesai', 'selesai', true]);
+  I.terapkanAksi(d, pulih, 'buka', 'ali', jam(8));
+  assert.deepEqual([pulih.status, m.status, m.selesaiAt, I.langkahMintaDae(d, m).kunci], ['Dikerjakan', 'diterima', 0, 'dikerjakan'], 'dulu: permintaan Selesai tapi task Dikerjakan');
+  // Dan sebaliknya: dihapus lagi selagi Diterima → Menunggu; dipulihkan → Diterima lagi, tak pernah selesai tanpa persetujuan.
+  const asal2 = salinTask(pulih);
+  I.hapusTask(d, [pulih.id], 'ali', jam(9));
+  assert.equal(m.status, 'menunggu');
+  const pulih2 = I.pulihkanTask(d, { task: pulih.id, asal: asal2, inisiatif: pulih.inisiatif }, 'ali', jam(10));
+  assert.deepEqual([pulih2.status, m.status, m.task], ['Dikerjakan', 'diterima', pulih.id]);
+  // Isi lama yang tak sejalan (Selesai padahal permintaannya masih terbuka) tak dipulihkan sebagai Selesai.
+  const b2 = diterima({ dari: 'uma' });
+  const asalSelesai = { ...salinTask(b2.t), status: 'Selesai', selesaiAt: jam(3) };
+  I.hapusTask(b2.d, [b2.t.id], 'ali', jam(4));
+  const pulih3 = I.pulihkanTask(b2.d, { task: b2.t.id, asal: asalSelesai, inisiatif: b2.t.inisiatif }, 'ali', jam(5));
+  assert.deepEqual([pulih3.status, b2.m.status], ['Dikerjakan', 'diterima']);
+});
+
+test('butir 3b: banding perpanjangan task dari permintaan diputuskan pengirim, bukan Manager; fallback seperti peninjau', () => {
+  const { d, t } = diterima({ dari: 'uma' });
+  const x = I.ajukanPerpanjangan(d, t, { due: I.tambahHari(DUE, 7), alasan: 'sumber data telat' }, 'ali', jam(3), HARI);
+  assert.deepEqual([x.ke, x.permintaanDae, I.pemberiTask(t)], ['uma', t.permintaanDae, 'uma']);
+  assert.deepEqual(['uma', 'nynda', 'andika', 'ali', I.DEV].map(me => I.bolehJawabPanjang(x, me)), [true, false, false, false, false], 'Manager hanya mengawasi');
+  assert.deepEqual(I.panjangMasuk(d, 'nynda'), []);
+  assert.equal(I.panjangMasuk(d, 'uma').length, 1);
+  galat(() => I.jawabPerpanjangan(d, x, { setuju: true }, 'nynda', jam(4)), 'Pengajuan ini sudah dijawab, atau bukan untuk Anda.');
+  I.jawabPerpanjangan(d, x, { setuju: true, due: I.tambahHari(DUE, 5) }, 'uma', jam(4));
+  assert.deepEqual([x.status, x.oleh, t.due], ['disetujui', 'uma', I.tambahHari(DUE, 5)]);
+  // Pengirim tak aktif: Lead tim peminta; tak ada siapa pun: tak bisa diajukan (bukan jatuh ke Manager).
+  I.aturOrang([{ id: 'uma', nama: 'Uma', pendek: 'Uma', peran: 'staff', jabatan: 'Akademik', lead: 'andika', aktif: false }]);
+  const y = I.ajukanPerpanjangan(d, t, { due: I.tambahHari(DUE, 12), alasan: 'masih menunggu' }, 'ali', jam(5), HARI);
+  assert.deepEqual([y.ke, I.bolehJawabPanjang(y, 'andika'), I.bolehJawabPanjang(y, 'nynda')], ['andika', true, false]);
+  I.batalkanPerpanjangan(d, y, 'ali', jam(6));
+  I.aturOrang([andikaMati, { ...umaMati, lead: 'alya' }, ...staf('alya', ['tri', 'wildan'])]);
+  assert.equal(I.pemberiTask(t, I.indeks(d)), '');
+  assert.equal(I.bolehAjukanPanjang(d, t, 'ali'), false);
+  galat(() => I.ajukanPerpanjangan(d, t, { due: I.tambahHari(DUE, 12), alasan: 'masih menunggu' }, 'ali', jam(7), HARI), /Belum ada pengirim permintaan atau anggota aktif tim peminta/);
+  // Task biasa: Manager tetap bisa menjawab (tak berubah).
+  I.aturOrang([]);
+  const biasa = I.taskBaru(d, { title: 'Rutin', pic: 'ali', due: DUE }, 'ali', jam(8), HARI);
+  const z = I.ajukanPerpanjangan(d, biasa, { due: I.tambahHari(DUE, 3), alasan: 'butuh waktu' }, 'ali', jam(9), HARI);
+  assert.deepEqual([z.ke, z.permintaanDae, I.bolehJawabPanjang(z, 'nynda')], ['nynda', '', true]);
+});
+
+test('butir 4: PIC dan inisiatif permintaan ikut task-nya; hitungan permintaan terbuka benar', () => {
+  I.aturOrang([DAE_STAFF]);
+  const { d, m, t, ini } = diterima();
+  I.ubahTask(d, t, { pic: 'rio' }, 'ali', jam(2));
+  assert.deepEqual([m.pic, t.pic, m.updatedAt], ['rio', 'rio', jam(2)]);
+  I.tempelInisiatif(d, t, ini['Otomasi operasional'].id, 'ali', jam(3));
+  assert.deepEqual([m.inisiatif, t.inisiatif], [ini['Otomasi operasional'].id, ini['Otomasi operasional'].id]);
+  assert.deepEqual([I.mintaDaeTerbuka(d, ini['Generator Soal']), I.mintaDaeTerbuka(d, ini['Otomasi operasional'])], [0, 1]);
+  // Ubah detail tanpa mengganti PIC atau inisiatif tak menyentuh permintaan.
+  const sebelum = m.updatedAt;
+  I.ubahTask(d, t, { title: 'Judul baru' }, 'ali', jam(4));
+  assert.equal(m.updatedAt, sebelum);
+  assert.deepEqual([m.pic, m.inisiatif], ['rio', ini['Otomasi operasional'].id]);
+  // Lewat perintah data real: perubahannya ikut tersimpan.
+  const a = salinTask(d);
+  const r = I.jalankanPerintah(a, { id: 'p000001', aksi: 'ubahTask', isi: { task: t.id, f: { pic: 'ali' } }, oleh: 'ali', at: jam(6), hari: HARI });
+  assert.ok(r.ok, r.galat);
+  assert.equal(a.permintaanDae[0].pic, 'ali');
+});
+
+test('butir 5: peta jenis tak bisa menunjuk inisiatif yang tidak Aktif; pesannya jelas; tak ada perubahan setengah jalan', () => {
+  const { d, ini } = dasar();
+  const g = ini['Generator Soal'], s = ini['Scraper dan data kompetitor'];
+  I.ubahInisiatif(d, g, { status: 'ditunda' }, 'ali', jam(1));
+  galat(() => I.aturPetaMintaDae(d, { generator: g.id, scraper: s.id, dashboard: ini['Dashboard dan laporan'].id }, 'ali', jam(2)),
+    'Inisiatif Generator Soal sedang ditunda, jadi tidak menerima permintaan. Pilih inisiatif yang aktif, atau aktifkan dulu.');
+  assert.deepEqual([g.menerima, s.menerima, ini['Dashboard dan laporan'].menerima, ini['Otomasi operasional'].menerima], [['generator'], ['scraper'], ['dashboard'], ['lainnya']], 'tak ada yang berubah');
+  // Yang tadinya terpetakan lalu ditunda: tak jadi bawaan form Terima; menyimpan peta tanpanya melepasnya.
+  assert.deepEqual(I.petaMintaDae(d), { scraper: s.id, dashboard: ini['Dashboard dan laporan'].id, lainnya: ini['Otomasi operasional'].id });
+  I.aturPetaMintaDae(d, I.petaMintaDae(d), 'ali', jam(3));
+  assert.deepEqual(g.menerima, [], 'petanya dilepas saat disimpan');
+  // Aktif lagi: bisa dipetakan; selesai tetap ditolak dengan pesannya sendiri.
+  I.ubahInisiatif(d, g, { status: 'aktif' }, 'ali', jam(4));
+  I.aturPetaMintaDae(d, { generator: g.id }, 'ali', jam(5));
+  assert.deepEqual(I.petaMintaDae(d), { generator: g.id });
+  I.ubahInisiatif(d, g, { status: 'selesai' }, 'ali', jam(6));
+  galat(() => I.aturPetaMintaDae(d, { generator: g.id }, 'ali', jam(7)), /sudah selesai/);
+});
+
+test('butir 6: peninjau = pengirim → Lead tim peminta → anggota aktif lain tim peminta (yang terlibat di proyek asal dulu); tak pernah Dev, Manager, atau PIC', () => {
+  const { d, p, m, t } = diterima({ dari: 'uma' });
+  const tinjau = () => I.peninjau(t, I.indeks(d));
+  assert.equal(tinjau(), 'uma');
+  // Pengirim tak aktif → Lead (andika).
+  I.aturOrang([{ id: 'uma', nama: 'Uma', pendek: 'Uma', peran: 'staff', jabatan: 'Akademik', lead: 'andika', aktif: false }]);
+  assert.equal(tinjau(), 'andika');
+  // Lead juga tak aktif (stafnya dipindah ke Manager sementara): anggota aktif lain tim RAD, bukan Manager.
+  I.aturOrang([andikaMati, { ...umaMati, lead: 'nynda' }, ...staf('nynda', ['tri', 'wildan'])]);
+  assert.equal(I.indeks(d).sumber, d);
+  assert.equal(tinjau(), 'tri', 'urutan organogram bila tak ada yang terlibat di proyek asal');
+  // Yang terlibat di proyek asal (PIC atau pendukung salah satu task-nya) didahulukan.
+  const task = d.tasks.find(x => x.project === p.id);
+  task.support = ['wildan'];
+  assert.equal(tinjau(), 'wildan');
+  assert.equal(I.peninjau(t), 'tri', 'tanpa indeks, urutan organogram saja');
+  task.support = [];
+  // Tak ada anggota aktif tim RAD sama sekali: kosong — tak pernah Dev, Manager, atau PIC.
+  I.aturOrang([andikaMati, { ...umaMati, lead: 'alya' }, ...staf('alya', ['tri', 'wildan'])]);
+  assert.equal(tinjau(), '');
+  assert.ok(![I.DEV, 'nynda', t.pic].includes(tinjau()));
+  assert.equal(m.timPeminta, 'AK');
+});
+
+test('butir 6: tanpa peninjau aktif task tetap Ditinjau dengan peringatan; Lead DAE dan Manager memantau tapi tak bisa menyetujui', () => {
+  const { d, m, t } = diterima({ dari: 'andika' });
+  I.terapkanAksi(d, t, 'mulai', 'ali', jam(2));
+  I.isiOutput(d, t, 'hasil', 'ali', jam(3));
+  // Pengirim dan Lead tim RAD tak aktif SESUDAH permintaan diterima, dan tak ada anggota aktif lain di tim itu.
+  I.aturOrang([andikaMati, ...staf('alya')]);
+  const perId = I.indeks(d);
+  assert.deepEqual([I.peninjau(t, perId), I.perluTinjau(t, perId)], ['', true]);
+  // Mengajukan tetap bisa (dengan labelnya), dan "Tandai selesai" tidak pernah tersedia.
+  const ajukan = I.aksiUntuk(t, 'ali', perId).find(a => a.kunci === 'ajukan');
+  assert.deepEqual([ajukan.label, ajukan.nonaktif], ['Ajukan untuk ditinjau', false]);
+  assert.ok(!aksi(t, 'ali', d).includes('selesai'));
+  assert.equal(I.aksiPindah(t, 'Selesai', 'ali', perId).galat, 'Task ini perlu ditinjau dulu. Pindahkan ke Ditinjau.');
+  I.terapkanAksi(d, t, 'ajukan', 'ali', jam(4));
+  assert.equal(t.status, 'Ditinjau');
+  // Tak ada yang bisa menyetujui: bukan Lead DAE, bukan Manager, bukan Dev, bukan PIC, bukan anggota tim lain.
+  for (const me of ['nynda', 'ali', I.DEV, 'alya', 'dhea', 'uma', 'tri']) {
+    assert.ok(!aksi(t, me, d).includes('setujui') && !aksi(t, me, d).includes('kembalikan'), me);
+    assert.ok(I.aksiPindah(t, 'Selesai', me, perId).galat, me);
+  }
+  assert.deepEqual(aksi(t, 'ali', d), ['tarik']);
+  // Peringatannya jelas, di semua tempat yang menjelaskan keadaan task.
+  assert.match(I.peringatanPeninjauDae(t, perId), /^Belum ada peninjau aktif di tim RAD\./);
+  assert.equal(I.alasanTunggu(t, perId), 'Menunggu peninjau: belum ada peninjau aktif di tim RAD');
+  assert.deepEqual(I.mintaDaeTanpaPeninjau(d).map(x => x.id), [t.id]);
+  // Lead DAE dan Manager melihatnya sebagai bahan pengawasan (Hari Ini); orang lain tidak.
+  const pantau = me => ((I.pekerjaanSaya(d, me, HARI).grup.find(g => g.kunci === 'pantau') || { isi: [] }).isi).map(x => x.t.id);
+  assert.deepEqual(['ali', 'nynda', 'alya', 'uma', I.DEV].map(pantau), [[t.id], [t.id], [], [], []]);
+  assert.match(I.pekerjaanSaya(d, 'nynda', HARI).grup.find(g => g.kunci === 'pantau').isi[0].alasan, /Belum ada peninjau aktif di tim RAD/);
+  assert.deepEqual(['ali', 'nynda', 'andika', 'alya'].map(me => I.perhatian(d, null, me, HARI).tinjau), [0, 0, 0, 0], 'bukan "perlu Anda tinjau" bagi siapa pun');
+  assert.ok(!jenisNotif(d, 'nynda').includes('tinjau') && !jenisNotif(d, 'ali').includes('tinjau'));
+  // Begitu ada anggota aktif di tim peminta, peninjaunya muncul (dihitung ulang, bukan ditetapkan saat Terima).
+  I.aturOrang([andikaMati, ...staf('nynda')]);
+  const perId2 = I.indeks(d);
+  assert.deepEqual([I.peninjau(t, perId2), aksi(t, 'uma', d), aksi(t, 'tri', d)], ['uma', ['setujui', 'kembalikan'], []]);
+  assert.equal(I.peringatanPeninjauDae(t, perId2), '');
+  assert.deepEqual(I.mintaDaeTanpaPeninjau(d), []);
+  assert.ok(jenisNotif(d, 'uma').includes('tinjau'));
+  I.terapkanAksi(d, t, 'setujui', 'uma', jam(6));
+  assert.deepEqual([t.status, m.status], ['Selesai', 'selesai']);
+});
+
+test('butir 6: peninjau dihitung saat diajukan dan saat ditinjau, tak terkunci pada saat Terima', () => {
+  const { d, t } = diterima({ dari: 'uma' });
+  I.terapkanAksi(d, t, 'mulai', 'ali', jam(2));
+  I.isiOutput(d, t, 'hasil', 'ali', jam(3));
+  assert.equal(I.aksiUntuk(t, 'ali', I.indeks(d)).find(a => a.kunci === 'ajukan').label, 'Ajukan tinjau ke Uma');
+  // Uma dinonaktifkan sebelum PIC mengajukan: label dan peninjau sudah Andika.
+  I.aturOrang([{ id: 'uma', nama: 'Uma', pendek: 'Uma', peran: 'staff', jabatan: 'Akademik', lead: 'andika', aktif: false }]);
+  assert.equal(I.aksiUntuk(t, 'ali', I.indeks(d)).find(a => a.kunci === 'ajukan').label, 'Ajukan tinjau ke Andika');
+  I.terapkanAksi(d, t, 'ajukan', 'ali', jam(4));
+  assert.deepEqual([aksi(t, 'andika', d), aksi(t, 'uma', d)], [['setujui', 'kembalikan'], []]);
+  assert.ok(jenisNotif(d, 'andika').includes('tinjau'));
+  // Uma aktif lagi sesudah diajukan: ia peninjau lagi (pengirim didahulukan).
+  I.aturOrang([]);
+  assert.deepEqual([aksi(t, 'uma', d), aksi(t, 'andika', d)], [['setujui', 'kembalikan'], []]);
+});
+
+test('butir 7: pengirim diberi tahu saat task-nya dihapus (permintaan kembali Menunggu), dipulihkan, dan saat task yang ia setujui dibuka kembali', () => {
+  const { d, m, t, ini } = diajukan({ dari: 'uma' });
+  const notif = jenis => I.notifikasi(d, 'uma', 300).filter(n => n.jenis === jenis);
+  assert.deepEqual(notif('daeUbah'), []);
+  I.hapusTask(d, [t.id], 'ali', jam(5));
+  assert.equal(m.status, 'menunggu');
+  const hapus = notif('daeUbah');
+  assert.equal(hapus.length, 1);
+  assert.deepEqual([hapus[0].oleh, hapus[0].mintaDae, hapus[0].proyek, hapus[0].at, hapus[0].minta], ['ali', m.id, m.proyek, jam(5), m.judul]);
+  assert.match(hapus[0].teks, new RegExp(`Task ${t.id} dihapus Ali; permintaan kembali menunggu`));
+  // Pemulihan juga dikabarkan; hanya ke pengirim (bukan Lead DAE, Manager, atau tim lain).
+  const pulih = I.pulihkanTask(d, { task: t.id, asal: salinTask(t), inisiatif: ini['Generator Soal'].id }, 'ali', jam(6));
+  assert.deepEqual(notif('daeUbah').map(n => n.at), [jam(6), jam(5)]);
+  assert.match(notif('daeUbah')[0].teks, /dipulihkan Ali; permintaan kembali Diterima/);
+  assert.deepEqual(['ali', 'nynda', 'andika', 'alya', I.DEV].map(me => jenisNotif(d, me).includes('daeUbah')), [false, false, false, false, false]);
+  // Disetujui lalu dibuka kembali: pengirim diberi tahu, dan permintaan kembali Diterima.
+  I.terapkanAksi(d, pulih, 'setujui', 'uma', jam(7));
+  const sebelum = notif('daeUbah').length;
+  I.terapkanAksi(d, pulih, 'buka', 'ali', jam(8));
+  assert.equal(m.status, 'diterima');
+  const buka = notif('daeUbah');
+  assert.equal(buka.length, sebelum + 1);
+  assert.deepEqual([buka[0].oleh, buka[0].at], ['ali', jam(8)]);
+  assert.match(buka[0].teks, new RegExp(`Task ${t.id} dibuka kembali Ali; permintaan kembali Diterima sampai disetujui lagi`));
+  // Menyunting permintaan oleh pengirim (catatan miliknya sendiri) tak menjadi notifikasi baginya.
+  const lain = kirim(d, d.projects[0], 'uma', isi({ judul: 'Lain' }), jam(9));
+  I.ubahMintaDae(d, lain, { kebutuhan: 'Lebih rinci' }, 'uma', jam(10), HARI);
+  assert.equal(notif('daeUbah').length, buka.length);
+});
+
+test('butir 8: satu pengajuan tinjau = satu notifikasi, juga sesudah revisi dan tarik; tinjauan task proyek tak berubah', () => {
+  const { d, t } = diterima({ dari: 'uma' });
+  I.terapkanAksi(d, t, 'mulai', 'ali', jam(2));
+  I.isiOutput(d, t, 'v1', 'ali', jam(3));
+  I.terapkanAksi(d, t, 'ajukan', 'ali', jam(4));
+  const tinjau = (me = 'uma') => I.notifikasi(d, me, 300).filter(n => n.jenis === 'tinjau');
+  assert.deepEqual(tinjau().map(n => [n.at, n.oleh]), [[jam(4), 'ali']]);
+  I.terapkanAksi(d, t, 'kembalikan', 'uma', jam(5), 'revisi');
+  assert.deepEqual(tinjau(), [], 'dikembalikan: tak ada lagi yang perlu ditinjau');
+  I.terapkanAksi(d, t, 'ajukan', 'ali', jam(6));
+  assert.deepEqual(tinjau().map(n => n.at), [jam(6)], 'satu, bukan dua');
+  I.terapkanAksi(d, t, 'tarik', 'ali', jam(7));
+  I.terapkanAksi(d, t, 'ajukan', 'ali', jam(8));
+  assert.deepEqual(tinjau().map(n => n.at), [jam(8)], 'ditarik lalu diajukan lagi: tetap satu');
+  // Task proyek: satu pengajuan tetap satu notifikasi untuk Lead-nya; sesudah revisi pun satu.
+  const b = dasar();
+  const x = b.d.tasks.find(y => y.sub === 'A2');
+  I.terapkanAksi(b.d, x, 'mulai', 'andika', jam(1));
+  I.isiOutput(b.d, x, 'v1', 'andika', jam(2));
+  I.terapkanAksi(b.d, x, 'ajukan', 'andika', jam(3));
+  const pm = () => I.notifikasi(b.d, I.peninjau(x), 300).filter(n => n.jenis === 'tinjau');
+  assert.deepEqual(pm().map(n => [n.id, n.at, n.oleh, n.task]), [[`tinjau-${x.id}-${jam(3)}`, jam(3), 'andika', x.id]], 'id dan isinya sama dengan sebelumnya');
+  I.terapkanAksi(b.d, x, 'kembalikan', I.peninjau(x), jam(4), 'revisi');
+  I.terapkanAksi(b.d, x, 'ajukan', 'andika', jam(5));
+  assert.deepEqual(pm().map(n => n.at), [jam(5)]);
 });
 
 test('komentar: pengirim, anggota DAE, dan Manager (pengawas) boleh; tim lain tidak; status tak berubah', () => {
@@ -522,7 +840,9 @@ test('skema spreadsheet: tab permintaan_dae beserta bahan dan utasnya tertulis d
     const m = kirim(b.d, b.p);
     I.tanyaMintaDae(b.d, m, 'Berapa?', 'ali', jam(1));
     I.balasMintaDae(b.d, m, '200', 'andika', jam(2));
-    return { ...b, t: I.terimaMintaDae(b.d, m, { inisiatif: b.ini['Generator Soal'].id, pic: 'ali' }, 'ali', jam(3), HARI) };
+    const t = I.terimaMintaDae(b.d, m, { inisiatif: b.ini['Generator Soal'].id, pic: 'ali' }, 'ali', jam(3), HARI);
+    I.ajukanPerpanjangan(b.d, t, { due: I.tambahHari(DUE, 4), alasan: 'sumber data telat' }, 'ali', jam(4), HARI);
+    return { ...b, t };
   })();
   const p = sheetPalsu([{ title: 'Sheet1', sheetId: 0 }]);
   const ID = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcd';
@@ -530,6 +850,8 @@ test('skema spreadsheet: tab permintaan_dae beserta bahan dan utasnya tertulis d
   assert.deepEqual([tulis.jumlah.permintaan_dae, tulis.jumlah.permintaan_dae_links, tulis.jumlah.permintaan_dae_utas], [1, 2, 2]);
   const baca = (await sheet.bacaContoh(p.k, ID)).data;
   assert.deepEqual(baca.permintaanDae, d.permintaanDae);
+  assert.deepEqual(baca.perpanjangan, d.perpanjangan, 'kolom permintaanDae di perpanjangan ikut tersimpan');
+  assert.deepEqual([baca.perpanjangan[0].permintaanDae, baca.perpanjangan[0].ke], ['MDA-001', 'andika']);
   assert.deepEqual(baca.inisiatif.map(x => x.menerima).sort(), d.inisiatif.map(x => x.menerima).sort());
   const tb = baca.tasks.find(x => x.id === t.id);
   assert.deepEqual([tb.permintaanDae, tb.peminta, tb.inisiatif, tb.lane, tb.pic], [t.permintaanDae, 'andika', t.inisiatif, 'rutin', 'ali'], 'tautan task ke permintaan ikut tersimpan');

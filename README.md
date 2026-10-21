@@ -946,13 +946,20 @@ Permintaan user: fitur mengajukan banding supaya tenggat diperpanjang, langsung 
   menulis alasannya. Satu pengajuan menunggu per task; pengaju bisa membatalkannya.
 - **Ke siapa** (`Inti.pemberiTask`): pemberi task (yang membuat atau menyerahkannya). Task yang
   dibuat PIC sendiri, atau pemberinya di luar organogram, diajukan ke Lead-nya; Lead yang membuat
-  task sendiri ke Manager. Manager tak perlu mengajukan.
+  task sendiri ke Manager. Manager tak perlu mengajukan. **Task hasil permintaan ke tim DAE
+  (2.46.0)** diajukan ke **pengirim permintaannya**, dengan rantai cadangan yang sama dengan
+  peninjau (pengirim → Lead tim peminta → anggota aktif lain tim peminta); tak pernah ke
+  Manager. Kalau tak ada siapa pun, pengajuan ditolak dengan pesan jelas. Pengajuan yang sudah
+  menunggu tetap ke penerima awalnya; kalau ia keburu tak aktif, pengaju membatalkannya dan
+  mengajukan lagi.
 - **Menjawab**: yang dituju (atau Manager) melihat kartu **Pengajuan perpanjangan tenggat** di Hari
   Ini, notifikasi, dan spanduk di detail task. **Setujui** boleh dengan tanggal lain dan catatan;
-  tenggat task baru berubah saat disetujui. **Tolak** wajib beralasan. PIC diberi tahu.
+  tenggat task baru berubah saat disetujui. **Tolak** wajib beralasan. PIC diberi tahu. Pengajuan
+  untuk task hasil permintaan ke DAE (`perpanjangan.permintaanDae`) **hanya dijawab yang dituju**:
+  Manager hanya mengawasi, jadi tak ikut menjawab.
 - **Data**: koleksi `perpanjangan` (ID `PJG-001`; status menunggu → disetujui, ditolak, atau batal;
-  `dueJadi` = tanggal yang disetujui) ikut data real, tab `perpanjangan` (opsional), dan tabel
-  `v2_perpanjangan` (29 tabel). Jejaknya juga di Riwayat task. Aturannya `Inti.ajukanPerpanjangan`,
+  `dueJadi` = tanggal yang disetujui; `permintaanDae` sejak 2.46.0) ikut data real, tab
+  `perpanjangan` (opsional), dan tabel `v2_perpanjangan` (29 tabel). Jejaknya juga di Riwayat task. Aturannya `Inti.ajukanPerpanjangan`,
   `jawabPerpanjangan`, `batalkanPerpanjangan`, `panjangMasuk`; diuji di `test/perpanjangan.test.js`.
 
 ### Permintaan lanjutan lintas tim (2.36.0)
@@ -1031,8 +1038,9 @@ hasil kerja DAE **wajib ditinjau pengirim permintaan**, dan **Manager hanya meng
    **Menerima permintaan** di Tentang inisiatif dan jadi bawaan saat menerima.
 4. **Pengerjaan dan tinjauan oleh peminta.** Task dari permintaan memakai syarat ajukan seperti
    task proyek (output terisi, ceklis, task turunan, tidak tertahan) dan **tidak bisa langsung
-   ditandai selesai**: PIC mengajukan, peninjaunya pengirim permintaan (`Inti.peninjauDae`).
-   Pengirim diberi tahu dan task masuk **Hari Ini**-nya ("Perlu Anda tinjau"). Pilihannya:
+   ditandai selesai**: PIC mengajukan, peninjaunya pengirim permintaan (`Inti.peninjauDae`; kalau
+   pengirim tak bisa, lihat "Siapa yang meninjau" di bawah). Pengirim diberi tahu dan task masuk
+   **Hari Ini**-nya ("Perlu Anda tinjau"). Pilihannya:
    - **Setujui**: task **Selesai**, permintaan **selesai**, output dan tautan bukti PIC tampil di
      blok proyek asal.
    - **Kembalikan untuk revisi**: catatan wajib; task kembali **Dikerjakan** dengan label Revisi dan
@@ -1046,7 +1054,9 @@ hasil kerja DAE **wajib ditinjau pengirim permintaan**, dan **Manager hanya meng
    **Revisi** (dengan catatan terakhir), atau **Ditolak** (dengan alasan); PIC DAE, tenggat,
    inisiatif, hasil kerja, dan tombol **Balas**, **Sunting**, **Setujui**, **Kembalikan untuk
    revisi**. Langkah dihitung dari task-nya (`Inti.langkahMintaDae`), jadi tak mungkin
-   menyimpang dari status task.
+   menyimpang dari status task. PIC dan inisiatif yang tampil mengikuti task-nya: diserahkan ke
+   orang lain atau dipindah inisiatif, permintaannya ikut (`m.pic`, `m.inisiatif`), begitu juga
+   hitungan "N permintaan terbuka".
 6. **Di inisiatif**: task dari permintaan bertanda **Diminta dari <proyek> · <tim>** (tertaut ke
    proyek) di Sedang berjalan, riwayat pembaruan, dan kepala detail task; kartu inisiatif
    menampilkan **N permintaan terbuka** (belum dijawab dan dipetakan ke sana, ditambah yang
@@ -1055,27 +1065,67 @@ hasil kerja DAE **wajib ditinjau pengirim permintaan**, dan **Manager hanya meng
    inisiatif lain).
 7. **Notifikasi** (lonceng, dihitung dari data): `daeBaru` (Lead DAE), `daeTanya` (pengirim),
    `daeBalas` (Lead DAE), `daeKomentar` (pengirim dan Lead DAE), `daeTolak`, `daeTerima`
-   (pengirim), `daeSelesai` (Lead yang menerima dan pengirim, selain penyetujunya dan PIC); siap
+   (pengirim), `daeSelesai` (Lead yang menerima dan pengirim, selain penyetujunya dan PIC),
+   `daeUbah` (pengirim: task-nya dihapus sehingga permintaan kembali Menunggu, dipulihkan, atau
+   yang sudah ia setujui dibuka kembali; berasal dari butir *catatan* di diskusi permintaan); siap
    ditinjau, revisi, dan disetujui memakai `tinjau`, `kembali`, dan `setuju` yang sudah ada.
+   `tinjau` kini **satu notifikasi per pengajuan**: hanya pengajuan terakhir yang sedang ditinjau
+   (dulu, sesudah satu putaran revisi peninjau menerima dua; perbaikan ini berlaku untuk semua
+   tinjauan, task proyek termasuk, dan satu pengajuan tetap menghasilkan notifikasi yang sama).
+8. **Pengawasan.** Hasil permintaan yang menunggu tinjauan tapi belum punya peninjau aktif (lihat di
+   bawah) tampil sebagai **Menunggu peninjau · dipantau** di **Hari Ini** Lead DAE dan Manager,
+   dan sebagai peringatan "Belum ada peninjau aktif di tim X" di detail task, kartu proyek asal,
+   dan halaman Permintaan. Keduanya hanya melihat: tombol Setujui/Kembalikan tidak ada bagi siapa
+   pun selama peninjaunya kosong.
 
 **Izin** (Panel Dev → Izin, grup *Permintaan ke DAE*): `permintaan.terima` dan `permintaan.peta`
 bisa diatur, bawaannya **Lead**, dan hanya berlaku bagi anggota DAE (Lead tim lain punya peran
-Lead tetapi bukan anggota DAE; Manager baru berlaku bila Dev mencentangnya). `permintaan.kirim`
-dan `permintaan.tinjau` tetap: mengikuti struktur tim dan alur tinjauan.
+Lead tetapi bukan anggota DAE). **Manager tidak pernah** menerima, bertanya, menolak, atau
+memetakan: kedua izin itu bertanda `tanpaManager`, kolom Manager-nya tak bisa dicentang di Panel
+Dev, dan centangnya dibuang saat disimpan maupun dibaca dari baris lama di tab master.
+`permintaan.kirim` dan `permintaan.tinjau` tetap: mengikuti struktur tim dan alur tinjauan.
 
 **Keputusan yang diambil sendiri**
 
-- *Siapa yang meninjau kalau pengirim tak aktif atau dihapus:* **Lead tim pengirim** (usulan
-  user; pengirim yang dinonaktifkan tetap dikenali timnya, dan Lead yang dinonaktifkan digantikan
-  Lead baru timnya). Kalau tak ada yang sah (pengirim = PIC dan Lead-nya PIC juga, atau tim itu
-  dipegang Manager), tinjauan jatuh ke **akun Dev**, bukan Manager. Saat menerima, PIC yang
-  membuat tak ada peninjau sah selain Dev ditolak ("Pilih PIC lain").
+- *Siapa yang meninjau (diubah sesudah QA):* rantainya **pengirim → Lead tim peminta → anggota
+  aktif lain tim peminta**, yang terlibat di proyek asal (PIC atau pendukung salah satu task
+  proyek itu) didahulukan, selebihnya menurut urutan organogram. **Tidak pernah Dev, Manager,
+  atau PIC task itu sendiri.** Dulu rantai terakhirnya akun Dev, tetapi di data real akun Dev
+  tak bisa menulis, jadi tinjauannya buntu. Peninjau **dihitung ulang setiap dibaca**, jadi
+  mengikuti organogram saat task diajukan dan saat ditinjau, tak hanya saat Terima (pengirim atau
+  Lead yang dinonaktifkan sesudah diterima tidak menjebak task-nya). Tim peminta = tim yang
+  tercatat di permintaan saat dikirim. Saat menerima, PIC yang membuat tak ada peninjau sah
+  tetap ditolak ("Pilih PIC lain").
+- *Kalau tak ada peninjau sama sekali:* task **tetap bisa diajukan dan tetap Ditinjau**, tidak
+  pernah bisa ditandai selesai begitu saja, dan tak ada yang bisa menyetujuinya. Tampil
+  peringatan jelas "Belum ada peninjau aktif di tim X" (detail task, kartu di proyek asal,
+  halaman Permintaan), dan **Lead DAE serta Manager melihatnya di Hari Ini sebagai bahan
+  pengawasan**, tanpa tombol menyetujui. Begitu ada anggota aktif di tim peminta (mis. Dev
+  mengaktifkan lagi atau menambah orang), peninjaunya muncul sendiri dan task masuk Hari Ini-nya.
 - *Output wajib sebelum diajukan:* pengirim meninjau hasilnya, jadi keterangan hasil harus ada.
 - *Permintaan tak dibatalkan atau dihapus oleh pengirim:* ia menyunting selama belum dijawab;
   yang salah ditolak Lead DAE. Permintaan tak pernah dihapus.
 - *Task yang dihapus:* permintaan yang masih berjalan kembali **menunggu** (dengan catatan di
-  diskusinya) dan bisa diterima lagi; yang sudah selesai tetap selesai. Task yang dipulihkan
-  (2.44.0) menjadi rutin biasa tanpa tautan ke permintaan.
+  diskusinya, dan pengirim diberi tahu) dan bisa diterima lagi; yang sudah selesai tetap selesai.
+- *Task yang dipulihkan (diubah sesudah QA):* **tetap tertaut ke permintaannya dan tetap wajib
+  ditinjau pengirim**, tidak lagi menjadi rutin biasa (dulu itu melewati tinjauan: Lead DAE
+  bisa menandainya selesai sendiri). Ia kembali ke inisiatif semula (atau yang dipilih), yang
+  sedang ditinjau tetap Ditinjau, dan permintaannya disejajarkan: permintaan yang tadi
+  menunggu kembali **Diterima** dengan task yang sama (pengirim diberi tahu), yang sudah selesai
+  tetap selesai. **Pulihkan ditolak** dengan pesan jelas bila permintaannya sudah diterima lagi
+  dengan task lain (supaya tak ada dua task untuk satu permintaan) atau sudah ditolak; untuk itu
+  terima ulang atau kirim permintaan baru. Tombol Pulihkan di Komunikasi memakai aturan yang
+  sama. Buka kembali, hapus, dan pulihkan semuanya menyejajarkan permintaan, sehingga permintaan
+  tak lagi "selesai" selagi task-nya Dikerjakan.
+- *Peta jenis ke inisiatif yang Ditunda (diubah sesudah QA):* **ditolak saat disimpan** ("sedang
+  ditunda, jadi tidak menerima permintaan"), karena form Terima hanya menawarkan inisiatif Aktif
+  dan petanya akan diam-diam tak berlaku. Dialog peta hanya menawarkan inisiatif Aktif; jenis yang
+  tadinya terpetakan ke inisiatif yang kemudian ditunda tampil kosong dengan keterangannya dan
+  dilepas saat disimpan. Aktif lagi: bisa dipetakan lagi.
+- *Manager bukan gerbang (diubah sesudah QA):* izin terima dan peta tak pernah berlaku bagi
+  Manager (lihat Izin), dan banding perpanjangan tenggat task hasil permintaan diputuskan
+  pengirim, bukan Manager. Satu hal yang sengaja tidak diubah: Manager tetap bisa **Buka kembali**
+  task selesai (aturan umum ProductTrack); pengirimnya diberi tahu dan permintaan kembali Diterima.
 - *Agen AI (`agen/`) tak berubah:* task dari permintaan memakai aturan aksi yang sama, jadi agen
   pun hanya bisa mengajukan, dan peninjaunya tampil di detail task.
 
@@ -1090,7 +1140,8 @@ dan `permintaan.tinjau` tetap: mengikuti struktur tim dan alur tinjauan.
   terbaca dengan daftar kosong) dan kolom baru di `tasks` dan `inisiatif`. Dibuat otomatis oleh
   impor berikutnya; tak ada yang rusak bila tak diimpor ulang.
 - MySQL: `v2_permintaan_dae`, `v2_permintaan_dae_links`, `v2_permintaan_dae_utas` (kini 32 tabel),
-  `v2_tasks.permintaanDae` dan `peminta`, `v2_inisiatif.menerima`.
+  `v2_tasks.permintaanDae` dan `peminta`, `v2_inisiatif.menerima`, `v2_perpanjangan.permintaanDae`
+  (kolom opsional: sheet lama tanpa kolom itu tetap terbaca).
 - Salinan cepat data real di browser (dan agen) yang belum mengenal `permintaanDae` disusun
   ulang dari awal **sekali** (`cacheRealKenal`), jadi tak ada permintaan yang terlewat.
 
@@ -1102,7 +1153,9 @@ sendiri saat menerima).
 
 Aturannya `Inti.kirimMintaDae`, `ubahMintaDae`, `terimaMintaDae`, `tolakMintaDae`,
 `tanyaMintaDae`, `balasMintaDae`, `komentariMintaDae`, `aturPetaMintaDae`, `peninjauDae`,
-`langkahMintaDae`, `mintaDaeTerbuka`; aksi data dengan nama yang sama. Diuji di
+`perluTinjau`, `peringatanPeninjauDae`, `mintaDaeTanpaPeninjau`, `alasanTakBisaPulihMintaDae`,
+`langkahMintaDae`, `mintaDaeTerbuka`; aksi data dengan nama yang sama. Peninjau memerlukan
+`Inti.indeks(data)` (`peninjau(t, perId)`) agar semua tempat memilih orang yang sama. Diuji di
 `test/permintaan-dae.test.js` (aturan, transisi, izin, notifikasi, data contoh, skema, dan jalur
 server data real). Panduan: **Meminta tim DAE membangun sesuatu** (Staff), **Menerima permintaan
 ke tim DAE** (Lead), **Mengawasi permintaan ke tim DAE** (Manager).

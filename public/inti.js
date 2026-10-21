@@ -47,7 +47,9 @@
      diatur Dev di Panel Dev → Izin (centang per peran), tersimpan di tab master (jenis izin) dan
      berlaku di browser dan server. Yang "tetap" mengikuti struktur tim dan alur tinjauan (siapa
      Lead tim pemiliknya, siapa peninjaunya), jadi hanya ditampilkan supaya daftarnya lengkap.
-     aksi = sisa kalimat penolakan: "Hanya Manager yang <aksi>." */
+     aksi = sisa kalimat penolakan: "Hanya Manager yang <aksi>."
+     tanpaManager (2.46.0): izin yang tak pernah berlaku bagi Manager, berapa pun centangnya; kolom
+     Manager-nya tak bisa dicentang di Panel Dev dan dibuang saat disimpan atau dibaca. */
   const PERAN_IZIN = ['manager', 'lead', 'staff'];
   const IZIN = [
     { kunci: 'proyek.buat', grup: 'Proyek', label: 'Membuat proyek', aksi: 'membuat proyek', peran: ['manager'] },
@@ -73,9 +75,9 @@
     { kunci: 'halaman.laporan', grup: 'Halaman', label: 'Membuka Laporan', aksi: 'membuka Laporan', peran: ['manager', 'lead'] },
     { kunci: 'halaman.riwayat', grup: 'Halaman', label: 'Membuka Riwayat Aktivitas', aksi: 'membuka Riwayat Aktivitas', peran: ['manager'] },
     { kunci: 'inisiatif.kelola', grup: 'Inisiatif', label: 'Mendeklarasikan, mengubah, dan menghapus inisiatif timnya (sementara hanya tim DAE)', aksi: 'mengelola inisiatif', peran: ['manager', 'lead'] },
-    // 2.46.0: Manager hanya mengawasi permintaan ke DAE, jadi bawaannya hanya Lead (yang di tim DAE).
-    { kunci: 'permintaan.terima', grup: 'Permintaan ke DAE', label: 'Menerima (jadi task), bertanya, dan menolak permintaan ke tim DAE (Lead DAE)', aksi: 'menerima permintaan ke tim DAE', peran: ['lead'] },
-    { kunci: 'permintaan.peta', grup: 'Permintaan ke DAE', label: 'Mengatur peta jenis permintaan → inisiatif DAE (Lead DAE)', aksi: 'mengatur peta jenis permintaan', peran: ['lead'] },
+    // 2.46.0: Manager hanya mengawasi permintaan ke DAE: tak pernah menerima atau memetakan (tanpaManager); bawaannya Lead (yang di tim DAE).
+    { kunci: 'permintaan.terima', grup: 'Permintaan ke DAE', label: 'Menerima (jadi task), bertanya, dan menolak permintaan ke tim DAE (Lead DAE)', aksi: 'menerima permintaan ke tim DAE', peran: ['lead'], tanpaManager: true },
+    { kunci: 'permintaan.peta', grup: 'Permintaan ke DAE', label: 'Mengatur peta jenis permintaan → inisiatif DAE (Lead DAE)', aksi: 'mengatur peta jenis permintaan', peran: ['lead'], tanpaManager: true },
     { kunci: 'acara.undang', grup: 'Kalender', label: 'Membuat acara bersama: mengundang peserta dari tim mana pun, atau membukanya untuk semua orang', aksi: 'membuat acara bersama', peran: ['manager', 'lead', 'staff'] },
     // Tetap: mengikuti struktur tim dan alur tinjauan.
     { kunci: 'task.buat', grup: 'Task', label: 'Menambah task (staff: untuk dirinya sendiri)', peran: ['manager', 'lead', 'staff'], tetap: true },
@@ -86,14 +88,18 @@
     { kunci: 'task.hapusTim', grup: 'Task', label: 'Menghapus task di tab timnya sendiri', peran: ['lead'], tetap: true },
     { kunci: 'task.urutanTim', grup: 'Task', label: 'Mengatur urutan tunggu task timnya sendiri', peran: ['lead'], tetap: true },
     { kunci: 'permintaan.kirim', grup: 'Permintaan ke DAE', label: 'Mengirim permintaan ke tim DAE dari proyek timnya (Lead dan staff tim lain; Manager hanya mengawasi)', peran: ['lead', 'staff'], tetap: true },
-    { kunci: 'permintaan.tinjau', grup: 'Permintaan ke DAE', label: 'Meninjau hasil permintaannya sendiri: menyetujui atau mengembalikan untuk revisi (Lead tim peminta bila pengirimnya tak aktif)', peran: ['lead', 'staff'], tetap: true },
+    { kunci: 'permintaan.tinjau', grup: 'Permintaan ke DAE', label: 'Meninjau hasil permintaannya sendiri: menyetujui atau mengembalikan untuk revisi (bila pengirimnya tak aktif: Lead tim peminta, lalu anggota aktif lain tim itu)', peran: ['lead', 'staff'], tetap: true },
     { kunci: 'kalender.saya', grup: 'Ruang Saya', label: 'Kalender Saya, Link Saya, Catatan Saya, dan tampilan pribadi', peran: ['manager', 'lead', 'staff'], tetap: true },
     { kunci: 'dev.atur', grup: 'Pengaturan', label: 'Orang, PIN profil, sumber data, dan izin ini (hanya mode Dev)', peran: [], tetap: true },
   ];
   const IZIN_PER = new Map(IZIN.map(x => [x.kunci, x]));
   /* Peran yang sedang berlaku per izin yang bisa diatur (dari tab master; kosong = bawaan). */
   const IZIN_KINI = new Map();
-  const izinPeran = kunci => IZIN_KINI.get(kunci) || (IZIN_PER.get(kunci) || {}).peran || [];
+  function izinPeran(kunci) {
+    const x = IZIN_PER.get(kunci);
+    const peran = IZIN_KINI.get(kunci) || (x || {}).peran || [];
+    return x && x.tanpaManager ? peran.filter(p => p !== 'manager') : peran;
+  }
   // Dev (akun teknis) selalu boleh: dialah yang mengatur izin ini.
   const izin = (me, kunci) => me === DEV || izinPeran(kunci).includes(orang(me).peran);
   /* Galat penolakan: "Hanya Lead atau Manager yang membuat paket." (urutan staff, lead, manager). */
@@ -334,8 +340,10 @@
   const selesai = t => t.status === 'Selesai';
   const aktif = t => !selesai(t);
   /* Indeks task per ID. Sejak 2.43.0 juga membawa daftar proyeknya (rujukan, bukan salinan),
-     supaya aturan tunggu tahu proyek mana yang urutan ADDIE-nya diketatkan. */
-  const indeks = data => { const m = new Map(data.tasks.map(t => [t.id, t])); m.proyekDaftar = data.projects || []; return m; };
+     supaya aturan tunggu tahu proyek mana yang urutan ADDIE-nya diketatkan. Sejak 2.46.0 juga
+     membawa datanya (rujukan), supaya peninjau task hasil permintaan ke DAE bisa mencari
+     permintaan dan proyek asalnya (peninjauDae). */
+  const indeks = data => { const m = new Map(data.tasks.map(t => [t.id, t])); m.proyekDaftar = data.projects || []; m.sumber = data; return m; };
   const proyekKetat = (perId, id) => !!(perId && perId.proyekDaftar && id && perId.proyekDaftar.some(p => p.id === id && p.ketat));
   /* Kelompok per indeks — task per proyek, anak per induk — dihitung sekali per indeks. Indeks
      dibuat ulang setiap jumlah task berubah, dan proyek atau induk sebuah task tak berubah
@@ -489,9 +497,10 @@
      Task rutin tak perlu ditinjau; yang terlanjur Ditinjau (bawaan "Review PM"
      dari v1) diputuskan Manager. Sub-stage bertanda Manager (A1, A6, D1, I8, E12)
      selalu direview Manager; selainnya output staff oleh Lead-nya, output Lead oleh
-     Manager. */
-  function peninjau(t) {
-    if (t.permintaanDae) return peninjauDae(t);
+     Manager. perId (indeks(data)) hanya dipakai task hasil permintaan ke DAE (peninjauDae); sebaiknya
+     selalu dilewatkan supaya semua tempat memilih peninjau yang sama. */
+  function peninjau(t, perId) {
+    if (t.permintaanDae) return peninjauDae(t, perId);
     if (t.lane !== 'proyek') return t.status === 'Ditinjau' ? MANAGER : null;
     const o = orang(t.pic);
     if (o.peran === 'manager') return null;
@@ -518,18 +527,44 @@
     return lead && lead !== t.pic && ORANG_PER_ID.has(lead) ? lead : '';
   }
   /* Task hasil permintaan ke tim DAE (2.46.0, permintaan user): WAJIB ditinjau pengirim
-     permintaannya (t.peminta), bukan Lead DAE dan bukan Manager. Pengirim yang tak bisa meninjau,
-     yaitu tak lagi aktif atau ternyata PIC task-nya sendiri, digantikan Lead tim pengirim itu
-     (leadDari tetap terbaca untuk orang yang dinonaktifkan). Kalau itu pun tak ada, tinjauan
-     jatuh ke akun Dev, tidak pernah ke Manager: Manager hanya mengawasi. Peninjau tak pernah
-     PIC task itu sendiri. */
-  function peninjauDae(t) {
+     permintaannya (t.peminta), bukan Lead DAE dan bukan Manager. Rantainya, dihitung ulang setiap
+     dibaca (jadi mengikuti organogram saat task diajukan dan saat ditinjau, tak hanya saat Terima):
+       1. pengirim, kalau masih aktif dan bukan PIC task-nya;
+       2. Lead tim peminta (leadDari tetap terbaca untuk orang yang dinonaktifkan);
+       3. anggota aktif lain tim peminta: yang terlibat di proyek asal dulu (PIC atau pendukung salah
+          satu task proyek itu), selebihnya menurut urutan organogram.
+     Tak pernah PIC task itu sendiri, Manager, atau Dev (akun Dev tak bisa menulis data real, jadi
+     tinjauan yang jatuh ke Dev buntu). '' = belum ada peninjau aktif di tim peminta: task tetap
+     Ditinjau dengan peringatannya (peringatanPeninjauDae) sampai ada anggota tim itu yang aktif;
+     Lead DAE dan Manager hanya memantau, tak bisa menyetujui. perId (indeks(data)) memberi tahu
+     permintaan dan proyek asalnya; tanpa itu langkah 3 hanya menurut urutan organogram. */
+  function timPemintaDae(t, perId) {
+    const m = perId && perId.sumber ? cariMintaDae(perId.sumber, t.permintaanDae) : null;
+    if (m && TIM[m.timPeminta]) return m.timPeminta;
+    const o = orang(t.peminta);
+    return (o.peran === 'lead' && TIM[o.tim] ? o.tim : (timOrang(t.peminta) || {}).kode) || '';
+  }
+  function peninjauDae(t, perId) {
     if (!t || !t.permintaanDae) return '';
     const sah = id => !!id && id !== t.pic && ORANG_PER_ID.has(id) && orang(id).peran !== 'manager';
     if (sah(t.peminta)) return t.peminta;
-    const o = orang(t.peminta);
-    const lead = o.peran === 'lead' && TIM[o.tim] ? TIM[o.tim].lead : leadDari(t.peminta);
-    return sah(lead) ? lead : DEV;
+    const kode = timPemintaDae(t, perId);
+    const lead = kode ? TIM[kode].lead : leadDari(t.peminta);
+    if (sah(lead)) return lead;
+    const lain = kode ? anggotaTimKode(kode).filter(sah) : [];
+    if (lain.length < 2) return lain[0] || '';
+    const m = perId && perId.sumber ? cariMintaDae(perId.sumber, t.permintaanDae) : null;
+    const terlibat = new Set();
+    for (const x of m ? kelompok(perId).proyek.get(m.proyek) || [] : []) for (const id of [x.pic, ...(x.support || [])]) terlibat.add(id);
+    return lain.find(id => terlibat.has(id)) || lain[0];
+  }
+  /* Task ini wajib lewat tinjauan sebelum selesai: ada peninjaunya, atau lahir dari permintaan ke DAE
+     (yang peninjaunya bisa saja belum ada, lalu tak boleh ditandai selesai begitu saja). */
+  const perluTinjau = (t, perId) => !!t && (!!t.permintaanDae || !!peninjau(t, perId));
+  /* Peringatan "belum ada peninjau aktif" untuk task hasil permintaan ke DAE yang menunggu tinjauan ('' bila ada). */
+  function peringatanPeninjauDae(t, perId) {
+    if (!t || !t.permintaanDae || selesai(t) || peninjauDae(t, perId)) return '';
+    return `Belum ada peninjau aktif di tim ${singkatTim(timPemintaDae(t, perId)) || 'peminta'}. Hasilnya tetap menunggu tinjauan; Lead DAE dan Manager hanya memantau.`;
   }
 
   function bolehUbah(t, me) {
@@ -651,7 +686,12 @@
       return `Menunggu ${sebut(sejenis[0])}${dan}`;
     }
     if (d.length) return 'Menunggu ' + d.map(x => `${x.t.id} "${potong(x.t.title, 48)}" (${orang(x.t.pic).pendek})`).join(', ');
-    if (t.status === 'Ditinjau') return 'Menunggu tinjauan ' + orang(peninjau(t) || MANAGER).pendek;
+    if (t.status === 'Ditinjau') {
+      const tinjau = peninjau(t, perId);
+      // Hasil permintaan ke DAE tanpa peninjau aktif: bukan "Manager" (yang hanya memantau).
+      if (!tinjau && t.permintaanDae) return 'Menunggu peninjau: belum ada peninjau aktif di tim ' + (singkatTim(timPemintaDae(t, perId)) || 'peminta');
+      return 'Menunggu tinjauan ' + orang(tinjau || MANAGER).pendek;
+    }
     return '';
   }
   /* Versi singkat untuk kartu kanban: "Menunggu RAD · PRD-12", "Menunggu fase Design LNA", … */
@@ -699,7 +739,7 @@
 
   /* Daftar aksi yang tersedia bagi `me`, sudah dengan alasan kalau nonaktif. */
   function aksiUntuk(t, me, perId) {
-    const tinjau = peninjau(t);
+    const tinjau = peninjau(t, perId);
     if (selesai(t)) {
       if (!bolehUbah(t, me)) return [];
       // Task turunan tak dibuka lagi selagi induknya sedang ditinjau atau sudah selesai.
@@ -713,8 +753,9 @@
       // Manager boleh menyetujui task siapa pun, kecuali task hasil permintaan lanjutan yang
       // ditinjau tim peminta (2.38.0) dan task hasil permintaan ke tim DAE yang ditinjau
       // pengirimnya (2.46.0): di sana Manager hanya memantau.
-      const pantau = !!tinjau && tinjau !== me && (tinjau === peninjauMinta(t) || !!t.permintaanDae);
-      if (me === tinjau || (orang(me).peran === 'manager' && !pantau)) {
+      // Tanpa peninjau aktif pun (peninjauDae kosong), tak ada yang boleh menyetujuinya, Manager dan Dev termasuk.
+      const pantau = !!t.permintaanDae || (!!tinjau && tinjau !== me && tinjau === peninjauMinta(t));
+      if ((!!tinjau && me === tinjau) || (orang(me).peran === 'manager' && !pantau)) {
         daftar.push({ kunci: 'setujui', label: 'Setujui', utama: true }, { kunci: 'kembalikan', label: 'Kembalikan', perluCatatan: true });
       }
       if (t.pic === me) daftar.push({ kunci: 'tarik', label: 'Tarik dari tinjauan' });
@@ -736,8 +777,8 @@
         const buka = anakTask(perId, t.id).filter(aktif);
         if (buka.length) alasan = 'Selesaikan dulu task turunannya: ' + buka.map(x => x.id).join(', ');
       }
-      daftar.push(tinjau
-        ? { kunci: 'ajukan', label: 'Ajukan tinjau ke ' + orang(tinjau).pendek, utama: true, nonaktif: !!alasan, alasan }
+      daftar.push(perluTinjau(t, perId)
+        ? { kunci: 'ajukan', label: tinjau ? 'Ajukan tinjau ke ' + orang(tinjau).pendek : 'Ajukan untuk ditinjau', utama: true, nonaktif: !!alasan, alasan }
         : { kunci: 'selesai', label: 'Tandai selesai', utama: true, nonaktif: !!alasan, alasan });
     }
     daftar.push(t.tertahan
@@ -782,7 +823,7 @@
     t.updatedAt = waktu;
     catatLog(data, ['ajukan', 'setujui', 'kembalikan', 'tarik'].includes(kunci) ? 'tinjau' : 'update',
       `${t.id} · ${t.title}`, DESKRIPSI[kunci] + (teks ? ': ' + teks : ''), me, waktu);
-    if (t.permintaanDae) selaraskanMintaDae(data, t, kunci, waktu);
+    if (t.permintaanDae) selaraskanMintaDae(data, t, kunci, me, waktu);
   }
 
   /* Pindah kolom di papan → aksi yang setara. */
@@ -791,13 +832,16 @@
     const peta = {
       'Antre>Dikerjakan': 'mulai',
       'Dikerjakan>Ditinjau': 'ajukan',
-      'Dikerjakan>Selesai': peninjau(t) ? null : 'selesai',
+      'Dikerjakan>Selesai': perluTinjau(t, perId) ? null : 'selesai',
       'Ditinjau>Selesai': 'setujui',
-      'Ditinjau>Dikerjakan': t.pic === me && me !== peninjau(t) ? 'tarik' : 'kembalikan',
+      'Ditinjau>Dikerjakan': t.pic === me && me !== peninjau(t, perId) ? 'tarik' : 'kembalikan',
       'Selesai>Dikerjakan': 'buka',
     };
     const kunci = peta[dari + '>' + ke];
-    if (kunci === null) return { galat: 'Task proyek perlu ditinjau ' + orang(peninjau(t)).pendek + ' dulu. Pindahkan ke Ditinjau.' };
+    if (kunci === null) {
+      const tinjau = peninjau(t, perId);
+      return { galat: tinjau ? 'Task proyek perlu ditinjau ' + orang(tinjau).pendek + ' dulu. Pindahkan ke Ditinjau.' : 'Task ini perlu ditinjau dulu. Pindahkan ke Ditinjau.' };
+    }
     if (!kunci) return { galat: `Tidak bisa memindah dari ${dari} ke ${ke}.` };
     const a = aksiUntuk(t, me, perId).find(x => x.kunci === kunci);
     if (!a) return { galat: 'Anda tidak bisa memindah task ini.' };
@@ -1035,6 +1079,7 @@
     });
     t.support = (t.support || []).filter(x => x !== t.pic);
     catatLog(data, 'update', `${t.id} · ${t.title}`, ubah.length ? 'Diubah: ' + ubah.join(', ') : 'Detail task diubah', me, waktu);
+    ikutiTaskMintaDae(data, t, waktu);
     return t;
   }
 
@@ -1212,7 +1257,7 @@
     const batasMinggu = tambahHari(hariIni, 7);
 
     const grup = [
-      ['tinjau', 'Perlu Anda tinjau', data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t) === me).map(t => mau(t, 'Dari ' + orang(t.pic).pendek))],
+      ['tinjau', 'Perlu Anda tinjau', data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t, perId) === me).map(t => mau(t, 'Dari ' + orang(t.pic).pendek))],
       ['antrean', 'Antrean tim · siap dibagi', antrean.map(t => mau(t, `${namaSub(t.sub)} siap. Kerjakan sendiri, atau bagi ke staff lewat task turunan di detail task.`))],
       ['telat', 'Terlambat', jalan.filter(t => t.due && t.due < hariIni).map(t => mau(t))],
       ['hari', 'Hari ini', jalan.filter(t => t.due === hariIni).map(t => mau(t))],
@@ -1220,6 +1265,8 @@
       ['nanti', 'Nanti', jalan.filter(t => !t.due || t.due > batasMinggu).map(t => mau(t))],
       ['tunggu', 'Belum bisa dikerjakan', tunggu.map(t => mau(t, alasanTunggu(t, perId)))],
       ['bantu', 'Saya bantu', data.tasks.filter(t => aktif(t) && t.pic !== me && (t.support || []).includes(me)).map(t => mau(t, 'PIC: ' + orang(t.pic).pendek))],
+      // Pengawasan (2.46.0): hasil permintaan ke DAE yang menunggu peninjau tapi tak ada peninjau aktif; hanya dilihat, tak bisa disetujui.
+      ['pantau', 'Menunggu peninjau · dipantau', pengawasDae(me) ? mintaDaeTanpaPeninjau(data, perId).map(t => mau(t, peringatanPeninjauDae(t, perId))) : []],
     ];
     const selesaiHariIni = data.tasks.filter(t => t.pic === me && selesai(t) && isoHari(t.selesaiAt) === hariIni);
     return {
@@ -1231,8 +1278,9 @@
   /* Ringkasan untuk Lead (timnya) dan Manager (seluruh divisi). */
   function perhatian(data, ids, me, hariIni) {
     const dalam = t => !ids || ids.includes(t.pic);
+    const perId = indeks(data);
     return {
-      tinjau: data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t) === me).length,
+      tinjau: data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t, perId) === me).length,
       tertahan: data.tasks.filter(t => dalam(t) && ditandaiTertahan(t)).length,
       telat: data.tasks.filter(t => dalam(t) && telat(t, hariIni) && !t.tertahan).length,
       aktif: data.tasks.filter(t => dalam(t) && aktif(t)).length,
@@ -1296,7 +1344,7 @@
       && (!f.fokus
         || (f.fokus === 'telat' && telat(t, hariIni) && !t.tertahan)
         || (f.fokus === 'tertahan' && ditandaiTertahan(t))
-        || (f.fokus === 'tinjau' && t.status === 'Ditinjau' && peninjau(t) === f.me)));
+        || (f.fokus === 'tinjau' && t.status === 'Ditinjau' && peninjau(t, perId) === f.me)));
   }
 
   /* Kolom Selesai hanya 7 hari terakhir; yang lebih lama adalah arsip (Laporan). */
@@ -1355,7 +1403,7 @@
       for (const pic of new Set(depsBelum(t, perId).map(d => d.pic))) ditahan.set(pic, (ditahan.get(pic) || 0) + 1);
     }
     const ditahanOleh = id => ditahan.get(id) || 0;
-    const tinjauanOleh = id => data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t) === id).length;
+    const tinjauanOleh = id => data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t, perId) === id).length;
     return {
       kpi: {
         aktif: aktifSemua.length,
@@ -1446,7 +1494,7 @@
 
   /* f: saringan papan + status ('' | 'aktif' | salah satu STATUS), q, urut, arah (1 | -1). */
   function daftarTask(data, f, hariIni) {
-    const isi = saring(data, f, hariIni).filter(t => !f.status || (f.status === 'aktif' ? aktif(t) : t.status === f.status));
+    const isi = saring(data, f, hariIni, indeks(data)).filter(t => !f.status || (f.status === 'aktif' ? aktif(t) : t.status === f.status));
     const banding = PEMBANDING[f.urut] || PEMBANDING.due;
     const arah = f.arah === -1 ? -1 : 1;
     return isi.sort((a, b) => arah * banding(a, b) || a.id.localeCompare(b.id, 'id', { numeric: true }));
@@ -1780,8 +1828,8 @@
 
   /* Orang yang terlibat di sebuah task: PIC, pendukung, pemberi, peninjau, yang ikut berdiskusi,
      dan yang disebut atau ditanya di utasnya. pesan = pesan ruang task itu (bila sudah disusun). */
-  function terlibat(t, me, pesan) {
-    if (t.pic === me || (t.support || []).includes(me) || t.assignedBy === me || peninjau(t) === me) return true;
+  function terlibat(t, me, pesan, perId) {
+    if (t.pic === me || (t.support || []).includes(me) || t.assignedBy === me || peninjau(t, perId) === me) return true;
     const daftar = pesan || (t.comments || []).map(k => ({ oleh: k.author, teks: String(k.text || ''), tanya: [] }));
     return daftar.some(m => m.oleh === me || m.tanya.includes(me) || menyebut(m.teks, me));
   }
@@ -1813,7 +1861,7 @@
     const proyekPer = new Map(data.projects.map(p => [p.id, p]));
     const l = lingkup === 'terlibat' ? 'terlibat' : lingkupKom(me, lingkup);
     const ids = l === 'tim' ? lingkupOrang(me, 'tim') : null;
-    const masukLingkup = (t, pesan) => l === 'semua' || terlibat(t, me, pesan) || (l === 'tim' && ids.includes(t.pic));
+    const masukLingkup = (t, pesan) => l === 'semua' || terlibat(t, me, pesan, perIdTask) || (l === 'tim' && ids.includes(t.pic));
     const cocok = (teksCari, pesan) => !kata || teksCari.toLowerCase().includes(kata)
       || pesan.some(m => !m.dihapus && m.teks.toLowerCase().includes(kata));
     const hasil = [];
@@ -1896,9 +1944,12 @@
         const dep = t.deps.map(id => perId.get(id)).filter(Boolean);
         if (dep.length && dep.every(selesai)) tambah('siap', t, Math.max(...dep.map(d => d.selesaiAt || 0)), '');
       }
+      // Satu pengajuan = satu notifikasi tinjau (2.46.0): hanya pengajuan terakhir yang sedang ditinjau.
+      // Pengajuan lama yang sudah dikembalikan atau ditarik bukan lagi sesuatu yang perlu ditinjau.
+      const aju = t.status === 'Ditinjau' ? (t.tinjauan || []).reduce((a, r) => (r.action === 'Diajukan' && (!a || r.at >= a.at) ? r : a), null) : null;
       for (const r of t.tinjauan || []) {
         if (r.by === me) continue;
-        if (r.action === 'Diajukan' && t.status === 'Ditinjau' && peninjau(t) === me) tambah('tinjau', t, r.at, r.by, '', r.ai);
+        if (r === aju && peninjau(t, perId) === me) tambah('tinjau', t, r.at, r.by, '', r.ai);
         if (t.pic === me && r.action === 'Dikembalikan') tambah('kembali', t, r.at, r.by, r.note, r.ai);
         if (t.pic === me && r.action === 'Disetujui') tambah('setuju', t, r.at, r.by, '', r.ai);
       }
@@ -1909,7 +1960,7 @@
       if (!bolehRuang(me, ruang)) continue;
       const { jenis, id } = bacaRuang(ruang);
       const t = jenis === 'task' ? perId.get(id) : null;
-      const ikut = !!t && terlibat(t, me, pesan);
+      const ikut = !!t && terlibat(t, me, pesan, perId);
       for (const m of pesan) {
         if (m.oleh === me || m.dihapus || !m.at || m.tertunda || m.gagal) continue;
         const j = m.tanya.includes(me) ? 'tanya' : menyebut(m.teks, me) ? 'sebut' : ikut ? 'komentar' : '';
@@ -1959,7 +2010,8 @@
     }
     // Permintaan ke tim DAE (2.46.0). Siap ditinjau, revisi, dan "disetujui" untuk PIC memakai tinjau/kembali/setuju
     // di atas (peninjaunya pengirim permintaan); di sini yang lain: baru (untuk pengelola DAE), ditanya, dibalas,
-    // komentar, ditolak, diterima, dan selesai. Dev tak diberi tahu soal permintaan.
+    // komentar, ditolak, diterima, selesai, dan berubah (task dihapus, dipulihkan, atau dibuka kembali; untuk pengirim).
+    // Dev tak diberi tahu soal permintaan.
     const kelolaDae = me !== DEV && bolehKelolaMintaDae(me);
     for (const m of data.permintaanDae || []) {
       const dasar = { minta: m.judul, mintaDae: m.id, proyek: m.proyek };
@@ -1970,6 +2022,9 @@
         if (u.jenis === 'tanya' && m.dari === me) out.push({ ...kunci, jenis: 'daeTanya' });
         else if (u.jenis === 'balas' && kelolaDae) out.push({ ...kunci, jenis: 'daeBalas' });
         else if (u.jenis === 'komentar' && (m.dari === me || kelolaDae)) out.push({ ...kunci, jenis: 'daeKomentar' });
+        // Catatan sistem dari orang lain: task-nya dihapus (permintaan kembali Menunggu), dipulihkan, atau
+        // dibuka kembali sesudah disetujui. Pengirim berhak tahu keadaan permintaannya berubah.
+        else if (u.jenis === 'catatan' && m.dari === me) out.push({ ...kunci, jenis: 'daeUbah' });
       }
       if (m.dari === me && m.status === 'ditolak' && m.oleh && m.oleh !== me && m.jawabAt) {
         out.push({ id: `daeTolak-${m.id}`, jenis: 'daeTolak', task: '', at: m.jawabAt, oleh: m.oleh, ...dasar, teks: m.alasan });
@@ -2725,6 +2780,7 @@
     if (x && !t.sub) t.kategori = x.nama;
     t.updatedAt = waktu;
     catatLog(data, 'update', `${t.id} · ${t.title}`, x ? `Ditempel ke inisiatif ${x.id} · ${x.nama}` : `Dilepas dari inisiatif ${lama ? lama.nama : ''}`.trim(), me, waktu);
+    ikutiTaskMintaDae(data, t, waktu);
     return t;
   }
   /* Ringkasan satu inisiatif: task terbuka, riwayat pembaruan yang selesai (terbaru di atas). */
@@ -2967,8 +3023,9 @@
   const timDae = me => ORANG_PER_ID.has(me) && orang(me).peran !== 'manager' && (timOrang(me) || {}).kode === TIM_DAE;
   /* Halaman Permintaan: anggota DAE, Manager (mengawasi), dan Dev. */
   const bolehLihatMintaDae = me => me === DEV || orang(me).peran === 'manager' || timDae(me);
-  /* Terima, tanya, dan tolak: izin permintaan.terima (bawaan Lead) bagi anggota DAE; Manager hanya bila Dev mencentangnya. */
-  const pengelolaDae = me => me === DEV || orang(me).peran === 'manager' || timDae(me);
+  /* Terima, tanya, dan tolak: izin permintaan.terima (bawaan Lead) bagi anggota DAE. Manager tidak pernah
+     (2.46.0): izinnya tanpaManager, dan Manager bukan anggota DAE; Manager hanya melihat dan berkomentar. */
+  const pengelolaDae = me => me === DEV || timDae(me);
   const bolehKelolaMintaDae = me => izin(me, 'permintaan.terima') && pengelolaDae(me);
   const bolehAturPetaMintaDae = me => izin(me, 'permintaan.peta') && pengelolaDae(me);
   const tolakKelolaMintaDae = me => (izin(me, 'permintaan.terima') ? new Error('Permintaan ke tim DAE diterima anggota tim DAE.') : tolakIzin('permintaan.terima'));
@@ -3064,7 +3121,8 @@
     if (!anggotaDae().includes(pic)) throw new Error(`PIC adalah anggota tim ${singkatTim(TIM_DAE)}.`);
     const due = f.due === undefined ? m.due : teks(f.due);
     if (due && !isoSah(due)) throw new Error('Tanggal tenggat tidak valid.');
-    if (peninjauDae({ permintaanDae: m.id, peminta: m.dari, pic }) === DEV) {
+    // Peninjau dihitung ulang tiap kali dibaca; di sini hanya mencegah task yang sejak lahir tak punya peninjau.
+    if (!peninjauDae({ permintaanDae: m.id, peminta: m.dari, pic }, indeks(data))) {
       throw new Error('Tak ada orang di tim peminta yang bisa meninjau hasilnya selain PIC ini. Pilih PIC lain.');
     }
     const p = (data.projects || []).find(x => x.id === m.proyek) || null;
@@ -3111,23 +3169,62 @@
     catatLog(data, 'update', `${m.id} · ${m.judul}`, `${orang(me).pendek} berkomentar: ${potong(s, 100)}`, me, waktu);
     return m;
   }
+  /* Permintaan yang kini berpasangan dengan task ini (m.task === t.id), atau null. Task yang tertaut
+     tapi bukan pasangan terkininya (mis. permintaannya sudah diterima lagi dengan task lain) tak
+     mengubah permintaan itu. */
+  function mintaDaeAktif(data, t) {
+    const m = t && t.permintaanDae ? cariMintaDae(data, t.permintaanDae) : null;
+    return m && m.task === t.id ? m : null;
+  }
+  /* PIC dan inisiatif permintaan mengikuti task-nya (2.46.0): task diserahkan ke orang lain atau dipindah
+     inisiatif, dan blok proyek asal serta hitungan "permintaan terbuka" ikut benar. */
+  function ikutiTaskMintaDae(data, t, waktu) {
+    const m = mintaDaeAktif(data, t);
+    if (m && (m.pic !== t.pic || m.inisiatif !== t.inisiatif)) Object.assign(m, { pic: t.pic, inisiatif: t.inisiatif, updatedAt: waktu });
+  }
   /* Tinjauan task mengikuti ke permintaannya: disetujui = selesai, dikembalikan = satu putaran
-     revisi lagi, dibuka kembali = diterima lagi. */
-  function selaraskanMintaDae(data, t, kunci, waktu) {
-    const m = cariMintaDae(data, t.permintaanDae);
-    if (!m || m.task !== t.id) return;
+     revisi lagi, dibuka kembali = diterima lagi (pengirim diberi tahu). Dipanggil dari semua jalur yang
+     mengubah status task: terapkanAksi di sini; hapusTask lewat kembalikanMintaDae; pulihkanTask lewat
+     tautkanUlangMintaDae. */
+  function selaraskanMintaDae(data, t, kunci, me, waktu) {
+    const m = mintaDaeAktif(data, t);
+    if (!m) return;
     m.updatedAt = waktu;
     if (kunci === 'setujui') Object.assign(m, { status: 'selesai', selesaiAt: waktu });
     else if (kunci === 'kembalikan') m.revisi = (m.revisi || 0) + 1;
-    else if (kunci === 'buka' && m.status === 'selesai') Object.assign(m, { status: 'diterima', selesaiAt: 0 });
+    else if (kunci === 'buka' && m.status === 'selesai') {
+      Object.assign(m, { status: 'diterima', selesaiAt: 0 });
+      catatUtas(m, 'catatan', `Task ${t.id} dibuka kembali ${orang(me).pendek}; permintaan kembali Diterima sampai disetujui lagi.`, me, waktu);
+    }
   }
-  /* Task-nya terhapus selagi dikerjakan: permintaan kembali menunggu dan bisa diterima lagi. */
+  /* Task-nya terhapus selagi dikerjakan: permintaan kembali menunggu dan bisa diterima lagi (pengirim diberi tahu). */
   function kembalikanMintaDae(data, t, me, waktu) {
-    const m = cariMintaDae(data, t.permintaanDae);
-    if (!m || m.task !== t.id || m.status !== 'diterima') return;
+    const m = mintaDaeAktif(data, t);
+    if (!m || m.status !== 'diterima') return;
     Object.assign(m, { status: 'menunggu', task: '', inisiatif: '', pic: '', dueTerima: '', oleh: '', jawabAt: 0 });
     catatUtas(m, 'catatan', `Task ${t.id} dihapus ${orang(me).pendek}; permintaan kembali menunggu untuk diterima lagi.`, me, waktu);
     catatLog(data, 'update', `${m.id} · ${m.judul}`, `Task ${t.id} dihapus; permintaan kembali menunggu`, me, waktu);
+  }
+  /* Pulihkan task hasil permintaan (2.46.0): kenapa TIDAK boleh ('' = boleh). Task pulih tetap tertaut ke
+     permintaannya dan tetap wajib ditinjau pengirim. Boleh bila permintaannya masih menunggu task
+     (dihapus, belum diterima lagi) atau memang masih berpasangan dengan task ini (sudah selesai, task-nya
+     dihapus). Ditolak bila permintaannya sudah punya task lain: satu permintaan tak boleh punya dua task. */
+  function alasanTakBisaPulihMintaDae(m, id) {
+    if (!m) return `${id} berasal dari permintaan ke tim DAE yang tidak ditemukan, jadi tidak dipulihkan.`;
+    if (m.task === id || (!m.task && bukaMintaDae(m))) return '';
+    if (m.status === 'ditolak') return `Permintaan ${m.id} sudah ditolak, jadi ${id} tidak dipulihkan. Kirim permintaan baru bila masih perlu.`;
+    return `Permintaan ${m.id} sudah punya task lain (${m.task || '—'}), jadi ${id} tidak dipulihkan supaya satu permintaan tidak punya dua task.`;
+  }
+  /* Task yang baru dipulihkan (t) berpasangan lagi dengan permintaannya. kembaliTerima = permintaannya tadi
+     menunggu (task-nya terhapus), jadi kembali Diterima dan pengirim diberi tahu. */
+  function tautkanUlangMintaDae(data, m, t, kembaliTerima, me, waktu) {
+    Object.assign(m, { status: selesai(t) ? 'selesai' : 'diterima', task: t.id, inisiatif: t.inisiatif, pic: t.pic, updatedAt: waktu });
+    if (selesai(t)) m.selesaiAt = t.selesaiAt || waktu;
+    else m.selesaiAt = 0;
+    if (!kembaliTerima) return;
+    Object.assign(m, { dueTerima: t.due, oleh: teks(t.assignedBy) || me, jawabAt: Number(t.createdAt) || waktu, alasan: '' });
+    catatUtas(m, 'catatan', `Task ${t.id} dipulihkan ${orang(me).pendek}; permintaan kembali Diterima.`, me, waktu);
+    catatLog(data, 'update', `${m.id} · ${m.judul}`, `Task ${t.id} dipulihkan; permintaan kembali Diterima`, me, waktu);
   }
 
   /* Peta jenis → inisiatif disimpan di inisiatifnya (inisiatif.menerima: daftar jenis), jadi ikut
@@ -3149,6 +3246,9 @@
       const x = cariInisiatif(data, id);
       if (!x) throw new Error(`Inisiatif ${id} tidak ditemukan.`);
       if (x.status === 'selesai') throw new Error(`Inisiatif ${x.nama} sudah selesai. Pilih inisiatif yang aktif.`);
+      // Inisiatif yang Ditunda tak jadi bawaan form Terima (petaMintaDae hanya yang Aktif), jadi petanya
+      // ditolak saat disimpan, bukan diterima lalu diam-diam tak berlaku (2.46.0).
+      if (x.status !== 'aktif') throw new Error(`Inisiatif ${x.nama} sedang ditunda, jadi tidak menerima permintaan. Pilih inisiatif yang aktif, atau aktifkan dulu.`);
       pilih[k] = x.id;
     }
     const ubah = [];
@@ -3189,16 +3289,26 @@
     const peta = petaMintaDae(data);
     return (data.permintaanDae || []).filter(m => (bukaMintaDae(m) && peta[m.jenis] === x.id) || (m.status === 'diterima' && m.inisiatif === x.id)).length;
   }
+  /* Task hasil permintaan ke DAE yang menunggu tinjauan tapi belum punya peninjau aktif (2.46.0). Tak ada yang
+     bisa menyetujuinya; Lead DAE dan Manager melihatnya sebagai bahan pengawasan (Hari Ini, halaman Permintaan). */
+  function mintaDaeTanpaPeninjau(data, perId = indeks(data)) {
+    return data.tasks.filter(t => t.permintaanDae && t.status === 'Ditinjau' && !peninjauDae(t, perId));
+  }
+  const pengawasDae = me => me !== DEV && ORANG_PER_ID.has(me) && (orang(me).peran === 'manager' || (TIM[TIM_DAE] || {}).lead === me);
 
   /* ---------- Banding perpanjangan tenggat (2.41.0, permintaan user) ----------
      PIC mengajukan tenggat baru beserta alasannya, langsung ke pemberi task (yang membuat atau
      menyerahkannya). Task yang dibuat PIC sendiri diajukan ke Lead-nya; Lead yang membuat task
      sendiri ke Manager. Pemberi menyetujui (boleh dengan tanggal lain) atau menolak dengan alasan;
      baru setelah disetujui tenggat task berubah. Satu pengajuan menunggu per task; riwayatnya tetap
-     tersimpan (status menunggu → disetujui | ditolak | batal). */
+     tersimpan (status menunggu → disetujui | ditolak | batal).
+     Task hasil permintaan ke tim DAE (2.46.0): pemberinya pengirim permintaan (peminta), dengan rantai
+     cadangan yang sama dengan peninjau (peninjauDae); tak pernah Manager, yang hanya mengawasi, dan
+     Manager juga tak bisa menjawabnya (pengajuannya menyimpan permintaanDae). */
   const STATUS_PANJANG = ['menunggu', 'disetujui', 'ditolak', 'batal'];
-  function pemberiTask(t) {
+  function pemberiTask(t, perId) {
     if (!t) return '';
+    if (t.permintaanDae) return peninjauDae(t, perId);
     if (t.assignedBy && t.assignedBy !== t.pic && ORANG_PER_ID.has(t.assignedBy)) return t.assignedBy;
     const lead = leadDari(t.pic);
     if (lead && lead !== t.pic && ORANG_PER_ID.has(lead)) return lead;
@@ -3207,17 +3317,18 @@
   const daftarPanjang = data => data.perpanjangan || (data.perpanjangan = []);
   const panjangMenunggu = (data, id) => (data.perpanjangan || []).find(x => x.task === id && x.status === 'menunggu') || null;
   const panjangTask = (data, id) => (data.perpanjangan || []).filter(x => x.task === id);
-  const bolehAjukanPanjang = (data, t, me) => !!t && aktif(t) && t.pic === me && !!t.due && !!pemberiTask(t) && !panjangMenunggu(data, t.id);
-  /* Yang menjawab: pemberi yang dituju, atau Manager. */
-  const bolehJawabPanjang = (x, me) => !!x && x.status === 'menunggu' && ORANG_PER_ID.has(me) && (x.ke === me || orang(me).peran === 'manager') && x.dari !== me;
+  const bolehAjukanPanjang = (data, t, me) => !!t && aktif(t) && t.pic === me && !!t.due && !!pemberiTask(t, indeks(data)) && !panjangMenunggu(data, t.id);
+  /* Yang menjawab: pemberi yang dituju, atau Manager. Pengajuan untuk task hasil permintaan ke DAE hanya
+     dijawab pemberi yang dituju (pengirim permintaan): Manager hanya mengawasi. */
+  const bolehJawabPanjang = (x, me) => !!x && x.status === 'menunggu' && ORANG_PER_ID.has(me) && (x.ke === me || (orang(me).peran === 'manager' && !x.permintaanDae)) && x.dari !== me;
   const isoSah = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(keTanggal(s).getTime());
   function ajukanPerpanjangan(data, t, f, me, waktu, hariIni) {
     if (!t || t.pic !== me) throw new Error('Perpanjangan tenggat diajukan PIC task-nya.');
     if (!aktif(t)) throw new Error('Task ini sudah selesai.');
     if (!t.due) throw new Error('Task ini belum punya tenggat.');
     if (panjangMenunggu(data, t.id)) throw new Error('Masih ada pengajuan perpanjangan yang menunggu jawaban.');
-    const ke = pemberiTask(t);
-    if (!ke) throw new Error('Task ini tak punya pemberi untuk dimintai perpanjangan.');
+    const ke = pemberiTask(t, indeks(data));
+    if (!ke) throw new Error(t.permintaanDae ? 'Belum ada pengirim permintaan atau anggota aktif tim peminta yang bisa memutuskan perpanjangan ini.' : 'Task ini tak punya pemberi untuk dimintai perpanjangan.');
     const due = teks(f.due);
     if (!isoSah(due)) throw new Error('Pilih tanggal tenggat baru.');
     if (due <= t.due) throw new Error('Tenggat baru harus sesudah tenggat sekarang.');
@@ -3228,7 +3339,7 @@
     const daftar = daftarPanjang(data);
     const x = {
       id: 'PJG-' + String(nomorBerikut(daftar, 'PJG', data)).padStart(3, '0'), task: t.id, dari: me, ke, dueLama: t.due, dueBaru: due,
-      alasan, status: 'menunggu', catatan: '', oleh: '', dueJadi: '', createdAt: waktu, jawabAt: 0, updatedAt: waktu,
+      alasan, status: 'menunggu', catatan: '', oleh: '', dueJadi: '', permintaanDae: t.permintaanDae || '', createdAt: waktu, jawabAt: 0, updatedAt: waktu,
     };
     daftar.unshift(x);
     catatLog(data, 'update', `${t.id} · ${t.title}`, `Mengajukan perpanjangan tenggat ${t.due} → ${due} ke ${orang(ke).pendek}: ${alasan}`, me, waktu);
@@ -3273,7 +3384,11 @@
      browser. Dipulihkan sebagai task rutin di luar proyek (proyeknya bisa sudah tak ada), boleh
      langsung ditempel ke inisiatif supaya pembaruannya tampil di sana. Ceklis, output, bukti,
      komentar, dan riwayat tinjauannya ikut; yang sedang ditinjau kembali Dikerjakan, karena task
-     rutin tak ditinjau. f = { task, asal, inisiatif, due }. */
+     rutin tak ditinjau. f = { task, asal, inisiatif, due }.
+     Pengecualian (2.46.0): task hasil permintaan ke tim DAE tetap tertaut ke permintaannya, tetap
+     di sebuah inisiatif (bawaannya yang lama), tetap wajib ditinjau pengirim (yang sedang ditinjau
+     tetap Ditinjau), dan permintaannya disejajarkan kembali (Diterima lagi bila tadi menunggu).
+     Ditolak bila permintaannya sudah punya task lain atau sudah ditolak (alasanTakBisaPulihMintaDae). */
   function pulihkanTask(data, f, me, waktu) {
     wajibIzin(me, 'task.pulihkan');
     const id = teks(f.task);
@@ -3281,18 +3396,32 @@
     const a = f.asal;
     if (!a || typeof a !== 'object' || a.id !== id) throw new Error(`Isi ${id} tidak ditemukan di riwayat task yang terhapus.`);
     if (data.tasks.some(t => t.id === id)) throw new Error(`${id} masih ada, jadi tak perlu dipulihkan.`);
-    const ini = inisiatifUntukTask(data, f.inisiatif, null, me);
+    const idMinta = teks(a.permintaanDae);
+    const m = idMinta ? cariMintaDae(data, idMinta) : null;
+    if (idMinta) {
+      const alasan = alasanTakBisaPulihMintaDae(m, id);
+      if (alasan) throw new Error(alasan);
+    }
+    const kembaliTerima = !!m && bukaMintaDae(m);
+    let ini;
+    if (m) {
+      ini = cariInisiatif(data, teks(f.inisiatif) || teks(a.inisiatif));
+      if (!ini) throw new Error('Task dari permintaan ke tim DAE harus kembali ke sebuah inisiatif. Pilih inisiatif tujuannya.');
+      if (ini.status === 'selesai') throw new Error(`Inisiatif ${ini.nama} sudah selesai. Pilih inisiatif yang aktif.`);
+    } else ini = inisiatifUntukTask(data, f.inisiatif, null, me);
     const due = teks(f.due) || teks(a.due);
     if (due && !isoSah(due)) throw new Error('Tanggal tenggat tidak valid.');
     const daftar = x => (Array.isArray(x) ? x : []);
     const ada = new Set(data.tasks.map(t => t.id));
-    const status = a.status === 'Selesai' || a.status === 'Antre' ? a.status : 'Dikerjakan';
+    // Task hasil permintaan tetap Ditinjau bila tadi ditinjau; yang Selesai tak mungkin bila permintaannya masih terbuka.
+    let status = ['Selesai', 'Antre', ...(m ? ['Ditinjau'] : [])].includes(a.status) ? a.status : 'Dikerjakan';
+    if (kembaliTerima && status === 'Selesai') status = 'Dikerjakan';
     const asalProyek = teks(a.project);
     const t = {
       ...a,
       project: '', lane: 'rutin', stage: '', sub: '', cycle: 1, induk: '', tunggu: [], lepasFase: false, diminta: '',
-      // Tautan ke permintaan ke tim DAE dilepas (2.46.0): permintaannya sudah dikembalikan ke antrean saat task ini terhapus.
-      permintaanDae: '', peminta: '',
+      // Tautan ke permintaan ke tim DAE dipertahankan (2.46.0), dibaca dari permintaannya, bukan dari isi lama.
+      permintaanDae: m ? m.id : '', peminta: m ? m.dari : '',
       kategori: ini ? ini.nama : teks(a.kategori) || 'Umum', inisiatif: ini ? ini.id : '',
       title: teks(a.title) || id, pic: teks(a.pic) || me, assignedBy: teks(a.assignedBy) || me,
       support: daftar(a.support).filter(x => x !== a.pic), deps: daftar(a.deps).filter(x => ada.has(x)),
@@ -3302,7 +3431,8 @@
     };
     data.tasks.unshift(t);
     catatLog(data, 'create', `${t.id} · ${t.title}`,
-      `Dipulihkan sebagai task rutin${asalProyek ? ` (sebelumnya di proyek ${asalProyek})` : ''}${ini ? ` · inisiatif ${ini.nama}` : ''}`, me, waktu);
+      `Dipulihkan sebagai task rutin${asalProyek ? ` (sebelumnya di proyek ${asalProyek})` : ''}${ini ? ` · inisiatif ${ini.nama}` : ''}${m ? ` · tetap tertaut ke permintaan ${m.id}` : ''}`, me, waktu);
+    if (m) tautkanUlangMintaDae(data, m, t, kembaliTerima, me, waktu);
     return t;
   }
 
@@ -3788,7 +3918,7 @@
     if (!t) return { keadaan: '', isi: BALASAN_UMUM };
     const pic = t.pic === me;
     if (selesai(t)) return { keadaan: 'Selesai', isi: ['Terima kasih 🙏', 'Mantap, sudah beres ✅'] };
-    if (t.status === 'Ditinjau' && peninjau(t) === me) return { keadaan: 'Ditinjau', isi: ['Sudah saya cek, saya setujui ✅', 'Ada revisi kecil', 'Saya cek besok pagi'] };
+    if (t.status === 'Ditinjau' && peninjau(t, perId) === me) return { keadaan: 'Ditinjau', isi: ['Sudah saya cek, saya setujui ✅', 'Ada revisi kecil', 'Saya cek besok pagi'] };
     if (pic && t.status === 'Ditinjau') return { keadaan: 'Ditinjau', isi: ['Sudah saya ajukan', 'Mohon dicek ya 🙏', 'Ada yang perlu saya ubah?'] };
     if (pic && t.tertahan) return { keadaan: 'Tertahan', isi: ['Masih tertahan, nanti saya kabari', 'Butuh bantuan untuk ini'] };
     if (pic) {
@@ -4240,7 +4370,8 @@
         const iz = IZIN_PER.get(kunci);
         if (!iz || iz.tetap) return salah('Izin tidak dikenal atau tak bisa diatur.');
         const daftar = Array.isArray(x.peran) ? x.peran : String(x.peran || '').split(',');
-        return { kunci, peran: PERAN_IZIN.filter(p => daftar.map(teksM).includes(p)), aktif: true };
+        // Manager hanya mengawasi permintaan ke DAE (2.46.0): centangnya dibuang, juga dari baris lama di tab.
+        return { kunci, peran: PERAN_IZIN.filter(p => daftar.map(teksM).includes(p) && !(iz.tanpaManager && p === 'manager')), aktif: true };
       }
       default:
         return salah('Jenis master tidak dikenal.');
@@ -4683,7 +4814,7 @@
     batalkanPerpanjangan, panjangMasuk, pulihkanTask,
     STATUS_MINTA, leadDari, peninjauMinta, bolehMinta, bolehJawabMinta, bolehAlihkanMinta, bolehBatalMinta, mintaLanjutan, terimaPermintaan, tolakPermintaan,
     batalkanPermintaan, alihkanPermintaan, permintaanDari, asalPermintaan, permintaanMasuk, hariKerja, umurMinta, mintaLama, BATAS_MINTA, kolomPapan, bebanOrang, laporan, cari,
-    TIM_DAE, JENIS_MINTA_DAE, STATUS_MINTA_DAE, LANGKAH_MINTA_DAE, labelJenisMinta, peninjauDae, anggotaDae, bolehLihatMintaDae, bolehKelolaMintaDae,
+    TIM_DAE, JENIS_MINTA_DAE, perluTinjau, peringatanPeninjauDae, timPemintaDae, mintaDaeTanpaPeninjau, pengawasDae, alasanTakBisaPulihMintaDae, STATUS_MINTA_DAE, LANGKAH_MINTA_DAE, labelJenisMinta, peninjauDae, anggotaDae, bolehLihatMintaDae, bolehKelolaMintaDae,
     bolehAturPetaMintaDae, bolehKomentarMintaDae, bolehUbahMintaDae, bukaMintaDae, timPemilikProyek, alasanTakBisaMintaDae, bolehMintaDae, kirimMintaDae,
     ubahMintaDae, terimaMintaDae, tolakMintaDae, tanyaMintaDae, balasMintaDae, komentariMintaDae, aturPetaMintaDae, petaMintaDae, cariMintaDae,
     mintaDaeProyek, asalMintaDae, taskMintaDae, mintaDaeMenunggu, langkahMintaDae, mintaDaeTerbuka, keteranganMintaDae, revisiTerakhir,

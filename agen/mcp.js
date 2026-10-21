@@ -69,7 +69,7 @@ function teksDetail(k, id) {
   const out = [
     `${t.id} · ${t.title}`,
     `Status: ${t.status}${label ? ` (${label})` : ''}${t.tertahan ? ' · tertahan' : ''} · jalur ${t.lane || 'rutin'}${t.sub ? ` · ${I.namaSub(t.sub)}` : ''}`,
-    `Proyek: ${proyek ? `${proyek.id} ${proyek.name}` : '-'} · PIC: ${nama(t.pic)} · Peninjau: ${nama(I.peninjau(t))} · Tenggat: ${t.due ? K.tglPanjang(t.due) : '-'} · Prioritas: ${t.priority || '-'}`,
+    `Proyek: ${proyek ? `${proyek.id} ${proyek.name}` : '-'} · PIC: ${nama(t.pic)} · Peninjau: ${nama(I.peninjau(t, k.perId))} · Tenggat: ${t.due ? K.tglPanjang(t.due) : '-'} · Prioritas: ${t.priority || '-'}`,
   ];
   if ((t.support || []).length) out.push(`Pendukung: ${t.support.map(nama).join(', ')}`);
   if (induk) out.push(`Task induk: ${K.barisTask(induk, k)}`);

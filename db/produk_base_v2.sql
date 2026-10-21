@@ -306,6 +306,7 @@ CREATE TABLE IF NOT EXISTS `v2_permintaan` (
 
 -- PIC mengajukan tenggat baru ke pemberi task (ke). Disetujui = tenggat task berubah ke dueJadi;
 -- ditolak = catatan. Tanpa foreign key ke v2_tasks supaya jejaknya tetap bila task dihapus.
+-- permintaanDae (2.46.0) = permintaan ke tim DAE yang melahirkan task-nya; pemberinya pengirim permintaan, bukan Manager.
 CREATE TABLE IF NOT EXISTS `v2_perpanjangan` (
   `id`         VARCHAR(64)  NOT NULL,
   `task`       VARCHAR(64)  NOT NULL,
@@ -321,6 +322,7 @@ CREATE TABLE IF NOT EXISTS `v2_perpanjangan` (
   `createdAt`  DATETIME(3)  NULL,
   `jawabAt`    DATETIME(3)  NULL,
   `updatedAt`  DATETIME(3)  NULL,
+  `permintaanDae` VARCHAR(64) NULL,
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_panjang_ke` (`ke`, `status`),

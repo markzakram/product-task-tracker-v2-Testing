@@ -16,6 +16,12 @@
 const I = require('../public/inti.js');
 const K = require('./klien');
 
+/* "ditinjau X", atau (hasil permintaan ke DAE yang belum punya peninjau aktif, 2.46.0) peringatannya, bukan "Manager". */
+const ditinjauOleh = (t, k) => {
+  const p = I.peninjau(t, k.perId);
+  return p ? `ditinjau ${K.pendek(p)}` : t.permintaanDae ? 'belum ada peninjau aktif' : `ditinjau ${K.pendek(I.MANAGER)}`;
+};
+
 const NAMA_FASE = { ...Object.fromEntries(I.TAHAP.map(x => [x.id, x.nama])), R: 'Rutin' };
 const URUT_FASE = ['A', 'D', 'V', 'I', 'E', 'R', ''];
 const urutTenggat = (a, b) => (a.due || '9999').localeCompare(b.due || '9999') || a.id.localeCompare(b.id, 'id', { numeric: true });
@@ -75,7 +81,7 @@ function rekapTim(k) {
   w.bagian('Terlambat', telat, t => barisPic(t, k));
   w.bagian('Tertahan', tertahan, t => barisPic(t, k, t.alasanTertahan ? `"${K.potong(t.alasanTertahan, 80)}"` : 'tanpa alasan'));
   w.bagian('Dikembalikan untuk direvisi', revisi, t => barisPic(t, k));
-  w.bagian('Menunggu tinjauan', ditinjau, t => barisPic(t, k, `ditinjau ${K.pendek(I.peninjau(t) || I.MANAGER)}`));
+  w.bagian('Menunggu tinjauan', ditinjau, t => barisPic(t, k, ditinjauOleh(t, k)));
 
   // Per proyek (siklus berjalan) lalu per fase ADDIE: berapa yang selesai, dan yang masih jalan.
   for (const p of k.data.projects.filter(x => !x.arsip)) {
@@ -241,7 +247,7 @@ function laporanMingguan(k, kunci = 'minggu') {
     { judul: 'Per orang', tabel: { kolom: ['Orang', 'Selesai', 'Tepat waktu', 'Baru', 'Aktif', 'Telat'],
       baris: lp.baris.filter(b => !l.nonaktif.includes(b.id) || b.aktif || b.selesai.length).map(b => [K.pendek(b.id) + (l.nonaktif.includes(b.id) ? ' (nonaktif)' : ''), String(b.selesai.length), String(b.tepat), String(b.baru), String(b.aktif), String(b.telat.length)]) } },
     { judul: 'Selesai', daftar: selesai.map(t => `${t1(t)} (${K.pendek(t.pic)}, ${K.tglPendek(I.isoHari(t.selesaiAt))})`), kosong: 'Belum ada task yang selesai di periode ini.' },
-    { judul: 'Diajukan, menunggu tinjauan', daftar: diajukan.filter(x => x.t.status === 'Ditinjau').map(x => `${t1(x.t)} (${K.pendek(x.r.by)}, ditinjau ${K.pendek(I.peninjau(x.t) || I.MANAGER)})`), kosong: 'Tidak ada.' },
+    { judul: 'Diajukan, menunggu tinjauan', daftar: diajukan.filter(x => x.t.status === 'Ditinjau').map(x => `${t1(x.t)} (${K.pendek(x.r.by)}, ${ditinjauOleh(x.t, k)})`), kosong: 'Tidak ada.' },
     { judul: `Tinjauan oleh ${K.pendek(k.me)}`, daftar: ditinjauSaya.map(x => `${t1(x.t)}: ${x.r.action.toLowerCase()}${x.r.note ? ` ("${K.potong(x.r.note, 90)}")` : ''}`), kosong: 'Tidak ada tinjauan di periode ini.' },
     { judul: 'Terlambat & tertahan', daftar: [
       ...telat.map(t => `${t1(t)} (${K.pendek(t.pic)}, tenggat ${K.tglPendek(t.due)}, telat ${K.selisihHari(t.due, k.hari)} hari)`),

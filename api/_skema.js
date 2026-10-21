@@ -46,8 +46,10 @@ const TAB = {
     'dueTerima', 'oleh', 'revisi', 'createdAt', 'jawabAt', 'selesaiAt', 'updatedAt'],
   permintaan_dae_links: ['id', 'permintaan', 'urutan', 'label', 'url'],
   permintaan_dae_utas: ['id', 'permintaan', 'oleh', 'at', 'jenis', 'teks'],
-  /* Banding perpanjangan tenggat (2.41.0): dari PIC ke pemberi task; dueJadi = tanggal yang disetujui. */
-  perpanjangan: ['id', 'task', 'dari', 'ke', 'dueLama', 'dueBaru', 'alasan', 'status', 'catatan', 'oleh', 'dueJadi', 'createdAt', 'jawabAt', 'updatedAt'],
+  /* Banding perpanjangan tenggat (2.41.0): dari PIC ke pemberi task; dueJadi = tanggal yang disetujui.
+     permintaanDae (2.46.0) = permintaan ke tim DAE yang melahirkan task-nya: pemberinya pengirim permintaan,
+     dan Manager (yang hanya mengawasi) tak bisa menjawabnya. */
+  perpanjangan: ['id', 'task', 'dari', 'ke', 'dueLama', 'dueBaru', 'alasan', 'status', 'catatan', 'oleh', 'dueJadi', 'createdAt', 'jawabAt', 'updatedAt', 'permintaanDae'],
   dashboards: ['id', 'title', 'deskripsi', 'icon', 'url'],
   links: ['id', 'user', 'folder', 'title', 'url'],
   notes: ['id', 'user', 'folder', 'title', 'body', 'updatedAt'],

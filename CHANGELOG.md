@@ -20,13 +20,18 @@ permintaan**, dan Manager hanya mengawasi.
     membalas atau menyunting permintaannya.
   - **Tolak**: alasan wajib. Pengirim diberi tahu pada ketiganya.
 - **Peta jenis → inisiatif** (tombol di halaman Permintaan, izin `permintaan.peta`, bawaan Lead
-  DAE). Disimpan di inisiatifnya (kolom `menerima`) dan tampil di Tentang inisiatif.
+  DAE). Disimpan di inisiatifnya (kolom `menerima`) dan tampil di Tentang inisiatif. Hanya
+  inisiatif Aktif yang bisa dipetakan: yang Ditunda ditolak saat disimpan ("sedang ditunda, jadi
+  tidak menerima permintaan"), karena form Terima hanya menawarkan yang Aktif.
 - **Tinjauan wajib oleh pengirim.** Task dari permintaan tidak bisa langsung ditandai selesai: PIC
   mengisi output lalu mengajukan, pengirim menyetujui (task dan permintaan Selesai, output tampil
   di proyek asal) atau mengembalikan untuk revisi (catatan wajib, putaran dihitung, bisa
   berulang). PIC tak bisa menyetujui task-nya sendiri; Manager tak bisa menyetujui atau meninjau,
-  hanya melihat dan berkomentar. Pengirim yang tak aktif atau ternyata PIC-nya digantikan Lead
-  tim pengirim; kalau itu pun tak ada, akun Dev (tidak pernah Manager).
+  hanya melihat dan berkomentar. Peninjau: pengirim, lalu Lead tim peminta, lalu anggota aktif lain
+  tim peminta (yang terlibat di proyek asal didahulukan); tak pernah Dev, Manager, atau PIC.
+  Dihitung ulang saat diajukan dan saat ditinjau. Kalau tak ada siapa pun, task tetap Ditinjau
+  dengan peringatan "Belum ada peninjau aktif di tim X"; Lead DAE dan Manager melihatnya di Hari Ini
+  sebagai bahan pengawasan, tanpa bisa menyetujui.
 - **Blok Permintaan ke tim lain** di proyek asal: langkah Dikirim → Diterima → Dikerjakan →
   Ditinjau → Selesai (ditambah Ditanya, Revisi, Ditolak), PIC DAE, tenggat, inisiatif, hasil kerja,
   dan tombol Setujui / Kembalikan untuk revisi bagi pengirim.
@@ -34,18 +39,29 @@ permintaan**, dan Manager hanya mengawasi.
   pembaruan dan detail task), kartu menampilkan jumlah permintaan terbuka, dan Tentang memuat jenis
   yang diterimanya.
 - **Notifikasi** (lonceng): permintaan baru (Lead DAE), ditanya, dibalas, komentar, ditolak,
-  diterima, siap ditinjau, revisi, dan selesai.
+  diterima, siap ditinjau, revisi, selesai, dan **berubah** (pengirim: task-nya dihapus sehingga
+  permintaan kembali Menunggu, dipulihkan, atau yang sudah ia setujui dibuka kembali).
 - **Izin baru** di Panel Dev → Izin: `permintaan.terima` dan `permintaan.peta` (bisa diatur,
-  bawaan Lead), `permintaan.kirim` dan `permintaan.tinjau` (tetap).
+  bawaan Lead; **Manager tak pernah**, kolomnya tak bisa dicentang), `permintaan.kirim` dan
+  `permintaan.tinjau` (tetap).
+- **Hapus, Pulihkan, dan Buka kembali.** Task yang dihapus mengembalikan permintaan ke Menunggu.
+  Task yang dipulihkan **tetap tertaut ke permintaannya dan tetap ditinjau pengirim** (bukan task
+  rutin biasa), dan permintaannya disejajarkan; Pulihkan ditolak bila permintaannya sudah diterima
+  lagi dengan task lain atau sudah ditolak. PIC dan inisiatif permintaan mengikuti task-nya.
+- **Banding perpanjangan tenggat** task dari permintaan diputuskan pengirim (rantai cadangan seperti
+  peninjau), bukan Manager; kolom `permintaanDae` di `perpanjangan`.
+- Perbaikan dari 2.45.0 yang ikut: pengajuan tinjau yang dikembalikan lalu diajukan lagi tak lagi
+  memberi peninjau **dua** notifikasi "tinjau" (juga untuk task proyek).
 - **Data**: koleksi `permintaanDae` (ID `MDA-001`) ikut data real tanpa tab atau langkah baru;
   untuk data contoh tab `permintaan_dae`, `permintaan_dae_links`, `permintaan_dae_utas` (opsional;
-  sheet lama tetap terbaca), kolom `menerima` di `inisiatif`, dan `permintaanDae` + `peminta` di
-  `tasks`; tiga tabel dan tiga kolom yang sama di `db/produk_base_v2.sql` (kini 32 tabel).
+  sheet lama tetap terbaca), kolom `menerima` di `inisiatif`, `permintaanDae` + `peminta` di
+  `tasks`, dan `permintaanDae` di `perpanjangan`; tiga tabel dan empat kolom yang sama di
+  `db/produk_base_v2.sql` (kini 32 tabel).
 - **Data contoh**: enam inisiatif (Generator Soal menggantikan "AI Generate Soal", Dashboard dan
   laporan menggantikan "Dashboard internal", ditambah Scraper dan data kompetitor serta Otomasi
   operasional) dan empat permintaan yang meniru pratinjau. Tampil setelah `npm run impor:v1 -- --demo`
   dijalankan lagi.
-- Tes baru `test/permintaan-dae.test.js` (23 tes); tes lama yang disesuaikan: `test/demo.test.js`
+- Tes baru `test/permintaan-dae.test.js` (34 tes, termasuk satu tes per butir perbaikan QA); tes lama yang disesuaikan: `test/demo.test.js`
   (daftar inisiatif contoh), `test/skema-mysql.test.js` (jumlah tabel), `test/sheets.test.js`
   (fixture). Panduan: Staff, Lead, Manager, dan Istilah; terjemahan Inggris ditambah.
 ## 2.45.0 — Task rutin bisa disambungkan sebagai pembaruan proyek (2026-10-20)

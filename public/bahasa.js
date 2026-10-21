@@ -378,6 +378,7 @@
     'Atur urutan tunggu {id}': 'Set waiting order of {id}',
     'Mulai kerjakan': 'Start working',
     'Ajukan tinjau ke {nama}': 'Submit for review to {nama}',
+    'Ajukan untuk ditinjau': 'Submit for review',
     'Tandai selesai': 'Mark done',
     'Setujui': 'Approve',
     'Kembalikan': 'Return',
@@ -2643,7 +2644,6 @@
     'Buka proyek asal permintaan': 'Open the request\'s source project',
     'Buka proyek asal': 'Open source project',
     'Dari permintaan {id}: {nama} ({tim}) meminta tim DAE untuk {proyek}.': 'From request {id}: {nama} ({tim}) asked team DAE for {proyek}.',
-    'Tak ada pengirim atau Lead tim peminta yang bisa meninjau, jadi Dev yang meninjau.': 'No sender or requesting-team Lead can review, so Dev reviews.',
     'Hasilnya wajib ditinjau {nama}, pengirim permintaan. Manager hanya memantau.': 'The result must be reviewed by {nama}, the request sender. The Manager only monitors.',
 
     /* ----- Pesan singkat dan jendela (2.46.0) ----- */
@@ -2669,7 +2669,7 @@
     'Menerima (jadi task), bertanya, dan menolak permintaan ke tim DAE (Lead DAE)': 'Accept (become a task), ask, and decline requests to team DAE (DAE Lead)',
     'Mengatur peta jenis permintaan → inisiatif DAE (Lead DAE)': 'Set the request type → DAE initiative map (DAE Lead)',
     'Mengirim permintaan ke tim DAE dari proyek timnya (Lead dan staff tim lain; Manager hanya mengawasi)': 'Send requests to team DAE from their team\'s project (Leads and staff of other teams; the Manager only oversees)',
-    'Meninjau hasil permintaannya sendiri: menyetujui atau mengembalikan untuk revisi (Lead tim peminta bila pengirimnya tak aktif)': 'Review the result of their own request: approve or return it for revision (the requesting team\'s Lead if the sender is inactive)',
+    'Meninjau hasil permintaannya sendiri: menyetujui atau mengembalikan untuk revisi (bila pengirimnya tak aktif: Lead tim peminta, lalu anggota aktif lain tim itu)': 'Review the result of their own request: approve or return it for revision (if the sender is inactive: the requesting team\'s Lead, then another active member of that team)',
     'menerima permintaan ke tim DAE': 'accept requests to team DAE',
     'mengatur peta jenis permintaan': 'set the request type map',
     'Tulis yang diminta.': 'Write what you are asking for.',
@@ -2693,6 +2693,32 @@
     'Tak ada orang di tim peminta yang bisa meninjau hasilnya selain PIC ini. Pilih PIC lain.': 'Nobody on the requesting team except this owner can review the result. Choose another owner.',
     'Task dari permintaan ke tim DAE tetap berada di sebuah inisiatif. Pindahkan ke inisiatif lain saja.': 'A task from a request to team DAE stays in an initiative. Only move it to another initiative.',
     'Task dari permintaan ke tim DAE tetap berada di inisiatifnya, tak disambungkan sebagai pembaruan proyek.': 'A task from a request to team DAE stays in its initiative and is not connected as a project update.',
+
+    /* ----- Perbaikan QA permintaan ke DAE (2.46.0): Manager hanya mengawasi, peninjau cadangan, pulihkan, peta ----- */
+    'Manager hanya mengawasi, jadi kolom Manager tak bisa dicentang': 'The Manager only oversees, so the Manager column cannot be ticked',
+    'Belum ada peninjau aktif di tim {tim}. Hasilnya tetap menunggu tinjauan; Lead DAE dan Manager hanya memantau.': 'No active reviewer in team {tim}. The result keeps waiting for review; the DAE Lead and the Manager only monitor.',
+    'Semua syarat terpenuhi. Ajukan untuk ditinjau; belum ada peninjau aktif di tim peminta, jadi hasilnya menunggu sampai ada.': 'All requirements are met. Submit it for review; the requesting team has no active reviewer yet, so the result waits until there is one.',
+    'belum ada peninjau aktif': 'no active reviewer yet',
+    'Task kembali ke Dikerjakan, dan task yang menunggunya kembali menunggu sampai diajukan lagi.': 'The task goes back to In progress, and tasks waiting for it wait again until it is submitted once more.',
+    'Hasilnya ditinjau {nama}, dari tim peminta; Manager hanya memantau.': 'The result is reviewed by {nama}, from the requesting team; the Manager only monitors.',
+    'Hasilnya wajib ditinjau {nama}, dari tim peminta (pengirimnya tak bisa meninjau). Manager hanya memantau.': 'The result must be reviewed by {nama}, from the requesting team (the sender cannot review). The Manager only monitors.',
+    '{n} tanpa peninjau aktif': '{n} without an active reviewer',
+    'Menunggu peninjau · dipantau': 'Waiting for a reviewer · monitored',
+    'pengirim permintaan': 'the request sender',
+    'tim peminta': 'the requesting team',
+    'Task ini lahir dari permintaan {id} ke tim DAE. Dipulihkan, ia tetap tertaut ke permintaannya dan tetap ditinjau pengirimnya. Pulihkan ditolak bila permintaannya sudah diterima lagi dengan task lain.': 'This task came from request {id} to team DAE. When restored it stays linked to its request and is still reviewed by its sender. Restoring is refused if the request was accepted again with another task.',
+    'Kembali ke inisiatif': 'Back to initiative',
+    'Hanya inisiatif yang Aktif yang bisa dipilih. Inisiatif yang ditunda atau selesai tidak menerima permintaan.': 'Only Active initiatives can be chosen. Paused or finished initiatives do not accept requests.',
+    '{nama} tidak aktif, jadi tidak menerima {jenis}. Petakan jenis itu ke inisiatif aktif, atau biarkan kosong.': '{nama} is not active, so it does not accept {jenis}. Map that type to an active initiative, or leave it empty.',
+    '{siapa}mengubah keadaan permintaan Anda {minta}:{kutip}': '{siapa}changed the state of your request {minta}:{kutip}',
+    'Inisiatif {nama} sedang ditunda, jadi tidak menerima permintaan. Pilih inisiatif yang aktif, atau aktifkan dulu.': 'Initiative {nama} is paused, so it does not accept requests. Choose an active initiative, or activate it first.',
+    'Menunggu peninjau: belum ada peninjau aktif di tim {tim}': 'Waiting for a reviewer: no active reviewer in team {tim}',
+    '{id} berasal dari permintaan ke tim DAE yang tidak ditemukan, jadi tidak dipulihkan.': '{id} came from a request to team DAE that cannot be found, so it is not restored.',
+    'Permintaan {minta} sudah ditolak, jadi {id} tidak dipulihkan. Kirim permintaan baru bila masih perlu.': 'Request {minta} was already declined, so {id} is not restored. Send a new request if it is still needed.',
+    'Permintaan {minta} sudah punya task lain ({task}), jadi {id} tidak dipulihkan supaya satu permintaan tidak punya dua task.': 'Request {minta} already has another task ({task}), so {id} is not restored, to keep one request from having two tasks.',
+    'Task dari permintaan ke tim DAE harus kembali ke sebuah inisiatif. Pilih inisiatif tujuannya.': 'A task from a request to team DAE must go back into an initiative. Choose the target initiative.',
+    'Task ini perlu ditinjau dulu. Pindahkan ke Ditinjau.': 'This task needs a review first. Move it to In review.',
+    'Belum ada pengirim permintaan atau anggota aktif tim peminta yang bisa memutuskan perpanjangan ini.': 'There is no request sender or active requesting-team member who can decide on this extension.',
   };
 
   let kini = 'id';
