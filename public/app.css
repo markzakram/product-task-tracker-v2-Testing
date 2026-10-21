@@ -2489,6 +2489,10 @@ button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua)
 .minta-keluar-kepala { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
 .minta-keluar-judul { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
 .minta-keluar-judul b { font-size: calc(15px * var(--skala-huruf)); }
+/* Lima langkah di kolom sempit: nama langkah diperkecil supaya "Dikerjakan" tak terpotong. */
+.minta-keluar .jalur-tahap { gap: 2px; }
+.minta-keluar .jalur-tahap .nama { font-size: calc(10px * var(--skala-huruf)); letter-spacing: -0.02em; text-overflow: clip; }
+.minta-keluar .jalur-tahap .kini .nama { font-weight: 600; }
 .minta-hasil { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px dashed var(--garis-2); border-radius: 10px; background: var(--dasar); font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
 .minta-hasil svg { flex: none; margin-top: 2px; }
 .minta-hasil-isi { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; color: var(--tinta); }
