@@ -249,7 +249,7 @@ const contoh = () => ({
       id: 'PRD-001', project: '', lane: 'rutin', kategori: 'RnD', title: 'Task lepas', platform: 'ASN', stage: '', sub: '', detail: '',
       pic: 'andika', support: ['uma'], priority: 'High', start: '2026-07-01', due: '2026-07-05', status: 'Selesai',
       tertahan: false, alasanTertahan: '', output: '1 laporan', deps: [], tunggu: [], lepasFase: false, notes: '', assignedBy: 'nynda', cycle: 1,
-      createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedAt: Date.parse('2026-07-05T01:00:00Z'), selesaiAt: Date.parse('2026-07-05T01:00:00Z'), induk: '', inisiatif: 'INI-001', diminta: '', pembaruanProyek: '',
+      createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedAt: Date.parse('2026-07-05T01:00:00Z'), selesaiAt: Date.parse('2026-07-05T01:00:00Z'), induk: '', inisiatif: 'INI-001', diminta: '', pembaruanProyek: '', permintaanDae: '', peminta: '',
       subtasks: [{ id: 's1', title: 'Kumpulkan data', pic: 'uma', due: '', done: true, link: 'https://docs.google.com/spreadsheets/d/contoh' }],
       comments: [{ id: 'k1', author: 'nynda', text: 'Mantap, lanjut', at: Date.parse('2026-07-04T02:00:00Z') }],
       tinjauan: [{ id: 'r1', by: 'nynda', action: 'Disetujui', note: 'Ditandai selesai di v1', at: Date.parse('2026-07-05T01:00:00Z') }],
@@ -259,7 +259,7 @@ const contoh = () => ({
       id: 'PRD-646', project: 'PRJ-3', lane: 'proyek', kategori: 'QC', title: 'Langkah 2', platform: 'PCPM', stage: 'V',
       sub: '3.2 Learning Content Implementation', detail: '', pic: 'kiki', support: [], priority: 'Normal', start: '2026-07-20', due: '',
       status: 'Antre', tertahan: true, alasanTertahan: 'Menunggu tabel konversi', output: '', deps: ['PRD-001'], tunggu: ['PRD-001'], lepasFase: true, notes: '', assignedBy: 'nynda', cycle: 1,
-      createdAt: Date.parse('2026-07-20T04:00:00Z'), updatedAt: Date.parse('2026-07-20T04:00:00Z'), selesaiAt: 0, induk: 'PRD-001', inisiatif: '', diminta: 'andika', pembaruanProyek: '',
+      createdAt: Date.parse('2026-07-20T04:00:00Z'), updatedAt: Date.parse('2026-07-20T04:00:00Z'), selesaiAt: 0, induk: 'PRD-001', inisiatif: '', diminta: 'andika', pembaruanProyek: '', permintaanDae: 'MDA-001', peminta: 'andika',
       subtasks: [], comments: [], tinjauan: [], evidence: [],
     },
   ],
@@ -275,7 +275,19 @@ const contoh = () => ({
   }],
   inisiatif: [{ id: 'INI-001', nama: 'ProductTrack v2', tujuan: 'Task tracker ADDIE', tim: 'SI', pic: 'ali', status: 'aktif', createdBy: 'ali',
     createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedBy: 'ali', updatedAt: Date.parse('2026-07-02T01:00:00Z'),
-    links: [{ id: 'il1', urutan: 1, label: 'Repo', url: 'https://contoh.id/repo' }] }],
+    links: [{ id: 'il1', urutan: 1, label: 'Repo', url: 'https://contoh.id/repo' }], menerima: ['generator', 'lainnya'] }],
+  permintaanDae: [{
+    id: 'MDA-001', proyek: 'PRJ-3', timPeminta: 'AK', dari: 'andika', judul: 'Generator uji', jenis: 'generator', kebutuhan: 'Baris satu\nBaris dua', due: '2026-10-30',
+    status: 'diterima', alasan: '', task: 'PRD-646', inisiatif: 'INI-001', pic: 'ali', dueTerima: '2026-10-31', oleh: 'ali', revisi: 2,
+    createdAt: Date.parse('2026-10-20T01:00:00Z'), jawabAt: Date.parse('2026-10-20T03:00:00Z'), selesaiAt: 0, updatedAt: Date.parse('2026-10-21T01:00:00Z'),
+    bahan: [{ id: 'MDA-001-b1', urutan: 1, label: 'Blueprint', url: 'https://contoh.id/blueprint' }, { id: 'MDA-001-b2', urutan: 2, label: 'Rekap', url: 'https://contoh.id/rekap' }],
+    utas: [{ id: 'MDA-001-u1', oleh: 'ali', at: Date.parse('2026-10-20T02:00:00Z'), jenis: 'tanya', teks: 'Berapa soal per tipe?' },
+      { id: 'MDA-001-u2', oleh: 'andika', at: Date.parse('2026-10-20T02:30:00Z'), jenis: 'balas', teks: '50 soal per tipe' }],
+  }, {
+    id: 'MDA-002', proyek: 'PRJ-3', timPeminta: 'LA', dari: 'alya', judul: 'Scraper uji', jenis: 'scraper', kebutuhan: '', due: '',
+    status: 'menunggu', alasan: '', task: '', inisiatif: '', pic: '', dueTerima: '', oleh: '', revisi: 0,
+    createdAt: Date.parse('2026-10-21T01:00:00Z'), jawabAt: 0, selesaiAt: 0, updatedAt: Date.parse('2026-10-21T01:00:00Z'), bahan: [], utas: [],
+  }],
   dashboards: [{ id: 'd2', title: 'Proyek Freelance', deskripsi: 'Rekap', icon: 'timeline', url: 'https://contoh.id/a' }],
   links: [{ id: 'u2', user: 'ali', folder: 'Kerja', title: 'Bank soal', url: 'https://contoh.id/bank' }],
   notes: [{ id: 'n1', user: 'ali', folder: '', title: 'Ide', body: 'Baris satu\nBaris dua', updatedAt: Date.parse('2026-10-07T03:00:00Z') }],
@@ -296,6 +308,7 @@ test('tulisContoh lalu bacaContoh mengembalikan data yang sama persis', async ()
   assert.deepEqual(baca.data.projects, asli.projects);
   assert.deepEqual(baca.data.packages, asli.packages);
   assert.deepEqual(baca.data.inisiatif, asli.inisiatif);
+  assert.deepEqual(baca.data.permintaanDae, asli.permintaanDae);
   assert.deepEqual(baca.data.dashboards, asli.dashboards);
   assert.deepEqual(baca.data.links, asli.links);
   assert.deepEqual(baca.data.notes, asli.notes);

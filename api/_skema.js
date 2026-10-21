@@ -8,6 +8,7 @@
      task  → subtasks, comments, tinjauan, evidence   (kolom `task`)
      paket → package_items, package_links             (kolom `paket`)
      inisiatif → inisiatif_links                       (kolom `inisiatif`, 2.31.0)
+     permintaan_dae → permintaan_dae_links, permintaan_dae_utas   (kolom `permintaan`, 2.46.0)
    Setoran (task → target paket) berdiri sendiri di tab `setoran`, karena ia menaut
    dua induk sekaligus.
    Larik sederhana (support, deps) ditulis dipisah koma dalam satu sel.
@@ -22,7 +23,7 @@ const TAB = {
   projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket', 'ketat'],
   tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
     'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'tunggu', 'lepasFase', 'notes', 'assignedBy',
-    'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk', 'inisiatif', 'diminta', 'pembaruanProyek'],
+    'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk', 'inisiatif', 'diminta', 'pembaruanProyek', 'permintaanDae', 'peminta'],
   subtasks: ['id', 'task', 'title', 'pic', 'due', 'done', 'link'],
   comments: ['id', 'task', 'author', 'text', 'at'],
   tinjauan: ['id', 'task', 'by', 'action', 'note', 'at'],
@@ -33,11 +34,18 @@ const TAB = {
   package_items: ['id', 'paket', 'urutan', 'kategori', 'grup', 'nama', 'target', 'satuan', 'awal', 'catatan'],
   package_links: ['id', 'paket', 'urutan', 'label', 'url'],
   /* Inisiatif (2.31.0): pekerjaan berkelanjutan di luar paket & ADDIE; task-nya menaut lewat kolom tasks.inisiatif. */
-  inisiatif: ['id', 'nama', 'tujuan', 'tim', 'pic', 'status', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt'],
+  inisiatif: ['id', 'nama', 'tujuan', 'tim', 'pic', 'status', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt', 'menerima'],
   inisiatif_links: ['id', 'inisiatif', 'urutan', 'label', 'url'],
   /* Permintaan lanjutan (2.36.0): dari task asal (sumber) ke satu orang; task = task yang lahir saat diterima. */
   permintaan: ['id', 'sumber', 'dari', 'ke', 'judul', 'rincian', 'sub', 'due', 'status', 'alasan', 'task', 'oleh', 'dialihkan', 'dialihkanAt',
     'createdAt', 'jawabAt', 'updatedAt'],
+  /* Permintaan ke tim DAE (2.46.0): dari anggota tim lain (dari, timPeminta) lewat proyek asal; task = task DAE yang lahir saat
+     diterima (ditinjau pengirim lewat tasks.permintaanDae/peminta); revisi = jumlah putaran dikembalikan. Bahan riset dan utas
+     tanya-jawab ada di tab sendiri. */
+  permintaan_dae: ['id', 'proyek', 'timPeminta', 'dari', 'judul', 'jenis', 'kebutuhan', 'due', 'status', 'alasan', 'task', 'inisiatif', 'pic',
+    'dueTerima', 'oleh', 'revisi', 'createdAt', 'jawabAt', 'selesaiAt', 'updatedAt'],
+  permintaan_dae_links: ['id', 'permintaan', 'urutan', 'label', 'url'],
+  permintaan_dae_utas: ['id', 'permintaan', 'oleh', 'at', 'jenis', 'teks'],
   /* Banding perpanjangan tenggat (2.41.0): dari PIC ke pemberi task; dueJadi = tanggal yang disetujui. */
   perpanjangan: ['id', 'task', 'dari', 'ke', 'dueLama', 'dueBaru', 'alasan', 'status', 'catatan', 'oleh', 'dueJadi', 'createdAt', 'jawabAt', 'updatedAt'],
   dashboards: ['id', 'title', 'deskripsi', 'icon', 'url'],
@@ -53,7 +61,7 @@ const TAB = {
    terbaca: tab ini dianggap kosong, bukan galat. Begitu juga sebaliknya — versi lama
    mengabaikan tab dan kolom yang tak dikenalnya — jadi impor ulang tak memutus versi
    yang sedang live. */
-const TAB_OPSIONAL = new Set(['setoran', 'nomor', 'inisiatif', 'inisiatif_links', 'permintaan', 'perpanjangan']);
+const TAB_OPSIONAL = new Set(['setoran', 'nomor', 'inisiatif', 'inisiatif_links', 'permintaan', 'perpanjangan', 'permintaan_dae', 'permintaan_dae_links', 'permintaan_dae_utas']);
 /* Tab bentuk lama. Dihapus saat impor ulang supaya tak tertinggal jadi tab yatim. */
 const USANG = ['gate_log', 'backlog', 'bookmarks'];
 
@@ -112,8 +120,8 @@ function pribadiDariBaris(judul, baris) {
 const TAB_PIN = 'pin';
 const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
 
-const DAFTAR = new Set(['support', 'deps', 'tunggu']);
-const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah', 'n']);
+const DAFTAR = new Set(['support', 'deps', 'tunggu', 'menerima']);
+const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah', 'n', 'revisi']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at', 'jawabAt', 'dialihkanAt']);
 const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror', 'lepasFase', 'ketat']);
 
@@ -300,6 +308,12 @@ function urai(data) {
     isi.inisiatif.push(inti);
     for (const l of links) isi.inisiatif_links.push({ ...l, inisiatif: x.id });
   }
+  for (const x of data.permintaanDae || []) {
+    const { bahan = [], utas = [], ...inti } = x;
+    isi.permintaan_dae.push(inti);
+    for (const l of bahan) isi.permintaan_dae_links.push({ ...l, permintaan: x.id });
+    for (const u of utas) isi.permintaan_dae_utas.push({ ...u, permintaan: x.id });
+  }
   for (const k of ['permintaan', 'perpanjangan', 'dashboards', 'links', 'notes', 'setoran', 'nomor', 'log']) for (const x of data[k] || []) isi[k].push(x);
   return Object.fromEntries(Object.entries(isi).map(([t, daftar]) => [t, [TAB[t], ...daftar.map(o => keBaris(t, o))]]));
 }
@@ -320,6 +334,7 @@ function rakit(tabs) {
   const tj = kelompok(tabs.tinjauan, 'task'), ev = kelompok(tabs.evidence, 'task');
   const item = kelompok(tabs.package_items, 'paket'), tautan = kelompok(tabs.package_links, 'paket');
   const tautanIni = kelompok(tabs.inisiatif_links, 'inisiatif');
+  const bahanMinta = kelompok(tabs.permintaan_dae_links, 'permintaan'), utasMinta = kelompok(tabs.permintaan_dae_utas, 'permintaan');
   const urut = daftar => daftar.sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
   return {
     projects: (tabs.projects || []).map(p => ({ ...p, history: [] })),
@@ -333,6 +348,7 @@ function rakit(tabs) {
     packages: (tabs.packages || []).map(p => ({ ...p, items: urut(item.get(p.id) || []), links: urut(tautan.get(p.id) || []) })),
     inisiatif: (tabs.inisiatif || []).map(x => ({ ...x, links: urut(tautanIni.get(x.id) || []) })),
     permintaan: tabs.permintaan || [],
+    permintaanDae: (tabs.permintaan_dae || []).map(m => ({ ...m, bahan: urut(bahanMinta.get(m.id) || []), utas: (utasMinta.get(m.id) || []).sort((a, b) => (a.at || 0) - (b.at || 0)) })),
     perpanjangan: tabs.perpanjangan || [],
     dashboards: tabs.dashboards || [],
     links: tabs.links || [],

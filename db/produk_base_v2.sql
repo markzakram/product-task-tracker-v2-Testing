@@ -249,6 +249,7 @@ CREATE TABLE IF NOT EXISTS `v2_inisiatif` (
   `createdAt`  DATETIME(3)  NULL,
   `updatedBy`  VARCHAR(64)  NOT NULL DEFAULT '',
   `updatedAt`  DATETIME(3)  NULL,
+  `menerima`   JSON         NOT NULL DEFAULT (JSON_ARRAY()),   -- jenis permintaan ke tim DAE yang diterima inisiatif ini (2.46.0)
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_inisiatif_tim` (`tim`, `status`)
@@ -328,6 +329,73 @@ CREATE TABLE IF NOT EXISTS `v2_perpanjangan` (
 
 
 -- =============================================================================
+--  PERMINTAAN KE TIM DAE (2.46.0)
+-- =============================================================================
+
+-- Anggota tim lain (dari, timPeminta) meminta tim DAE membangun sesuatu, lewat proyek asal.
+-- Lead DAE menerima (jadi task DAE di sebuah inisiatif: kolom task + inisiatif + pic), bertanya
+-- (status ditanya, utasnya di v2_permintaan_dae_utas), atau menolak (alasan). Task yang lahir wajib
+-- ditinjau pengirimnya (v2_tasks.permintaanDae + peminta); revisi = jumlah putaran dikembalikan.
+-- Tak pernah dihapus, dan tanpa foreign key ke v2_projects/v2_tasks: proyek atau task asal boleh
+-- dihapus tanpa menghapus jejak permintaannya.
+CREATE TABLE IF NOT EXISTS `v2_permintaan_dae` (
+  `id`           VARCHAR(64)   NOT NULL,
+  `proyek`       VARCHAR(64)   NOT NULL,
+  `timPeminta`   VARCHAR(10)   NOT NULL DEFAULT '',
+  `dari`         VARCHAR(64)   NOT NULL,
+  `judul`        VARCHAR(200)  NOT NULL DEFAULT '',
+  `jenis`        VARCHAR(20)   NOT NULL DEFAULT '',
+  `kebutuhan`    TEXT          NULL,
+  `due`          DATE          NULL,
+  `status`       VARCHAR(20)   NOT NULL DEFAULT 'menunggu',
+  `alasan`       TEXT          NULL,
+  `task`         VARCHAR(64)   NOT NULL DEFAULT '',
+  `inisiatif`    VARCHAR(64)   NOT NULL DEFAULT '',
+  `pic`          VARCHAR(64)   NOT NULL DEFAULT '',
+  `dueTerima`    DATE          NULL,
+  `oleh`         VARCHAR(64)   NOT NULL DEFAULT '',
+  `revisi`       INT           NOT NULL DEFAULT 0,
+  `createdAt`    DATETIME(3)   NULL,
+  `jawabAt`      DATETIME(3)   NULL,
+  `selesaiAt`    DATETIME(3)   NULL,
+  `updatedAt`    DATETIME(3)   NULL,
+  `_diubah`      DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_mdae_status` (`status`, `jenis`),
+  KEY `ix_mdae_proyek` (`proyek`),
+  KEY `ix_mdae_dari` (`dari`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- Bahan riset permintaan: tautan berjudul, berurutan.
+CREATE TABLE IF NOT EXISTS `v2_permintaan_dae_links` (
+  `id`         VARCHAR(64)   NOT NULL,
+  `permintaan` VARCHAR(64)   NOT NULL,
+  `urutan`     DOUBLE        NOT NULL DEFAULT 0,
+  `label`      VARCHAR(300)  NOT NULL DEFAULT '',
+  `url`        VARCHAR(2048) NOT NULL DEFAULT '',
+  `_diubah`    DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_mdae_link` (`permintaan`, `urutan`),
+  CONSTRAINT `fk_v2_mdae_link` FOREIGN KEY (`permintaan`) REFERENCES `v2_permintaan_dae` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- Utas tanya-jawab dan komentar. jenis: tanya (Lead DAE), balas (pengirim), komentar (siapa pun
+-- yang boleh melihat, mis. Manager), catatan (dari sistem).
+CREATE TABLE IF NOT EXISTS `v2_permintaan_dae_utas` (
+  `id`         VARCHAR(64)  NOT NULL,
+  `permintaan` VARCHAR(64)  NOT NULL,
+  `oleh`       VARCHAR(64)  NOT NULL DEFAULT '',
+  `at`         DATETIME(3)  NULL,
+  `jenis`      VARCHAR(20)  NOT NULL DEFAULT '',
+  `teks`       TEXT         NULL,
+  `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `ix_mdae_utas` (`permintaan`, `at`),
+  CONSTRAINT `fk_v2_mdae_utas` FOREIGN KEY (`permintaan`) REFERENCES `v2_permintaan_dae` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- =============================================================================
 --  TASK
 -- =============================================================================
 
@@ -335,6 +403,7 @@ CREATE TABLE IF NOT EXISTS `v2_perpanjangan` (
 -- inisiatif NULL = bukan pembaruan inisiatif (di aplikasi ''), 2.31.0.
 -- diminta = orang yang meminta task ini lewat permintaan lanjutan (2.38.0); Lead timnya yang meninjau.
 -- pembaruanProyek = proyek yang diperbarui task rutin ini (2.45.0); task-nya tetap di luar proyek (project NULL).
+-- permintaanDae = permintaan ke tim DAE yang melahirkan task ini (2.46.0); peminta = pengirimnya, yang wajib meninjau hasilnya.
 -- support, deps, dan tunggu adalah larik ID; disimpan JSON karena aplikasi memakainya utuh.
 -- tunggu + lepasFase (2.19.0) = urutan yang diatur Lead tim di tab timnya di halaman proyek.
 CREATE TABLE IF NOT EXISTS `v2_tasks` (
@@ -369,6 +438,8 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   `inisiatif`      VARCHAR(64)  NULL,
   `diminta`        VARCHAR(64)  NULL,
   `pembaruanProyek` VARCHAR(64) NULL,
+  `permintaanDae`  VARCHAR(64)  NULL,
+  `peminta`        VARCHAR(64)  NULL,
   `_diubah`        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_task_proyek` (`project`, `cycle`, `stage`),
@@ -377,6 +448,7 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   KEY `ix_task_induk` (`induk`),
   KEY `ix_task_inisiatif` (`inisiatif`),
   KEY `ix_task_pembaruan` (`pembaruanProyek`),
+  KEY `ix_task_mdae` (`permintaanDae`),
   KEY `ix_task_diubah` (`_diubah`),
   CONSTRAINT `fk_v2_task_proyek` FOREIGN KEY (`project`) REFERENCES `v2_projects` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_v2_task_induk` FOREIGN KEY (`induk`) REFERENCES `v2_tasks` (`id`) ON DELETE SET NULL,

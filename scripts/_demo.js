@@ -30,10 +30,16 @@
    lalu membuat prototype yang menunggu rancangan RAD (serah-terima lewat Atur urutan tunggu).
    Rancangan RAD masih dikerjakan: begitu Andika mengajukannya, prototype Ali terbuka (2.30.0:
    yang diajukan tak lagi menahan), sementara Manager meninjau rancangannya.
-   Ditambah empat Inisiatif tim DAE (2.31.0): pekerjaan berkelanjutan Ali di luar paket
-   (ProductTrack v2, Product Knowledge, AI Generate Soal, Dashboard internal). Task lama v1 Ali
-   di luar proyek ditempel ke inisiatifnya menurut judul, ditambah satu pembaruan yang selesai
-   dan satu yang sedang berjalan di ProductTrack v2.
+   Ditambah enam Inisiatif tim DAE (2.31.0, 2.46.0): pekerjaan berkelanjutan Ali di luar paket
+   (ProductTrack v2, Product Knowledge, Generator Soal, Scraper dan data kompetitor, Dashboard
+   dan laporan, Otomasi operasional). Task lama v1 Ali di luar proyek ditempel ke inisiatifnya
+   menurut judul, ditambah satu pembaruan yang selesai dan satu yang sedang berjalan di
+   ProductTrack v2. Empat inisiatif terakhir menerima permintaan ke tim DAE menurut jenisnya.
+   Ditambah empat Permintaan ke tim DAE (2.46.0): RAD (Andika) meminta "Generator OJK Tahap 1"
+   dari proyek OJK, sudah diterima Ali dan sedang dikerjakan di Generator Soal; LNA (Alya)
+   meminta scraper dari proyek TKA dan masih menunggu; CLO (Bagas) ditolak dengan alasan; dan CLO
+   (Dhea) meminta dashboard rekap, sudah dikerjakan Ali dan kini menunggu tinjauan Dhea setelah
+   satu putaran revisi. Manager (Nynda) meninggalkan satu komentar.
    Ditambah beberapa Catatan Saya dan Link Saya contoh (folder "Contoh") memakai tautan
    Dashboard Lain dan tautan paket yang memang sudah ada di data contoh.
    Ditambah lima Acara bersama (2.33.0): rapat mingguan Manager dengan semua Lead (Terbuka),
@@ -315,9 +321,13 @@ function skenarioPapi(data, sekarang) {
 const INISIATIF_CONTOH = [
   ['ProductTrack v2', 'Task tracker Divisi Produk berbasis siklus ADDIE per tim: proyek, rancangan paket, Hari Ini, Komunikasi, dan agen AI.', /producttrack/i],
   ['Product Knowledge', 'Basis pengetahuan produk untuk tim: isi paket, fitur, dan jawaban pertanyaan yang sering muncul.', /produk knowledge|product knowledge/i],
-  ['AI Generate Soal', 'Produksi soal dengan AI dari prompt tim akademik dan hasil scraping.', /\bai\b.*soal|generate soal/i],
-  ['Dashboard internal', 'Dashboard pemantauan divisi: task management, guru freelance, dan jadwal momentum.', /dashboard/i],
+  ['Generator Soal', 'Produksi soal dengan generator AI dari kisi-kisi, bahan riset, dan prompt tim akademik, termasuk antrean QC ke tim RAD.', /\bai\b.*soal|generate soal|generator soal/i],
+  ['Dashboard dan laporan', 'Dashboard internal dan laporan otomatis: task management, guru freelance, dan rekap produksi.', /dashboard/i],
+  ['Scraper dan data kompetitor', 'Scraper soal dan data kompetitor sebagai bahan riset tim akademik dan produk.', /scraper|scraping/i],
+  ['Otomasi operasional', 'Skrip dan alat otomasi pekerjaan rutin tim: rekap, show/hide, dan pemeliharaan data.', /otomasi/i],
 ];
+/* Jenis permintaan ke tim DAE yang diterima tiap inisiatif (2.46.0). */
+const PETA_MINTA_CONTOH = { generator: 'Generator Soal', scraper: 'Scraper dan data kompetitor', dashboard: 'Dashboard dan laporan', lainnya: 'Otomasi operasional' };
 function inisiatifContoh(data, sekarang) {
   if (!Inti.ORANG.some(o => o.id === 'ali')) return [];
   const awal = sekarang - 20 * HARI;
@@ -337,7 +347,61 @@ function inisiatifContoh(data, sekarang) {
   Inti.terapkanAksi(data, beres, 'selesai', 'ali', sekarang - 2 * HARI - 3 * JAM);
   const jalan = Inti.taskBaru(data, { title: 'Halaman Inisiatif untuk tim DAE', pic: 'ali', due: hari(sekarang + 3 * HARI), inisiatif: v2 }, 'ali', sekarang - HARI, hari(sekarang - HARI));
   Inti.terapkanAksi(data, jalan, 'mulai', 'ali', sekarang - 20 * JAM);
+  // Peta jenis permintaan → inisiatif (2.46.0), diatur Lead DAE lewat aturan yang sama dengan tombolnya.
+  Inti.aturPetaMintaDae(data, Object.fromEntries(Object.entries(PETA_MINTA_CONTOH).map(([jenis, nama]) => [jenis, daftar.find(x => x.nama === nama).id])), 'ali', awal + 3 * JAM);
   return daftar;
+}
+
+/* Permintaan ke tim DAE (2.46.0): empat keadaan dengan aturan yang sama dengan tombolnya
+   (kirimMintaDae, terimaMintaDae, tolakMintaDae, tinjauan pengirim). Pengirim harus anggota tim
+   yang punya task di proyeknya, jadi proyek OJK dan TKA (keduanya melibatkan RAD, LNA, dan CLO) dipakai. */
+function permintaanDaeContoh(data, sekarang, inisiatif) {
+  const ada = id => Inti.ORANG.some(o => o.id === id && o.aktif !== false);
+  const ojk = data.projects.find(p => p.paket === 'PKG-004');
+  const tka = data.projects.find(p => p.paket === 'PKG-001');
+  const ini = nama => inisiatif.find(x => x.nama === nama);
+  if (!ojk || !tka || !ini('Generator Soal') || !ini('Dashboard dan laporan') || !['ali', 'andika', 'alya', 'dhea', 'bagas', MANAGER].every(ada)) return [];
+  const hari = w => Inti.isoHari(w);
+  const kirim = (proyek, dari, f, w) => Inti.kirimMintaDae(data, proyek, f, dari, w, hari(w));
+  const terima = (m, inisiatifNama, w, due) => Inti.terimaMintaDae(data, m, { inisiatif: ini(inisiatifNama).id, pic: 'ali', due }, 'ali', w, hari(w));
+  const tautan = daftar => daftar.map(([label, url]) => ({ label, url }));
+
+  // 1. RAD: Generator OJK Tahap 1. Diterima Ali, dikerjakan di Generator Soal; Manager memberi satu komentar.
+  const m1 = kirim(ojk, 'andika', {
+    judul: 'Generator OJK Tahap 1', jenis: 'generator', due: hari(sekarang + 16 * HARI),
+    kebutuhan: 'Riset OJK sudah selesai (A2, A4, D2). Butuh generator soal TPA dan TBI yang mengikuti blueprint D2: tipe soal numerik dan verbal, kunci jawaban tunggal, dan pembahasan singkat.\nTarget tahap 1: 200 soal untuk bank soal TO 1–3.',
+    bahan: tautan([['Blueprint soal OJK', 'https://contoh.id/blueprint-ojk'], ['Rekap pola soal 2023–2025', 'https://contoh.id/rekap-pola-soal'], ['Kisi-kisi resmi OJK', 'https://contoh.id/kisi-kisi-ojk']]),
+  }, sekarang - 3 * HARI);
+  const t1 = terima(m1, 'Generator Soal', sekarang - 3 * HARI + 2 * JAM, m1.due);
+  Inti.terapkanAksi(data, t1, 'mulai', 'ali', sekarang - 2 * HARI);
+  Inti.komentariMintaDae(data, m1, 'Prioritaskan TPA dulu; TBI boleh menyusul di tahap 2.', MANAGER, sekarang - 2 * HARI + 3 * JAM);
+
+  // 2. LNA: scraper bank soal TKA. Masih menunggu Lead DAE.
+  const m2 = kirim(tka, 'alya', {
+    judul: 'Scraper bank soal TKA SMA', jenis: 'scraper', due: hari(sekarang + 12 * HARI),
+    kebutuhan: 'Butuh kumpulan soal latihan TKA dari sumber publik sebagai bahan input.\nFormat keluaran: tabel dengan kolom soal, opsi, kunci, dan sumber; duplikat sudah dibersihkan.',
+    bahan: tautan([['Daftar sumber soal TKA', 'https://contoh.id/sumber-soal-tka']]),
+  }, sekarang - 5 * JAM);
+
+  // 3. CLO: ditolak dengan alasan.
+  const m3 = kirim(tka, 'bagas', {
+    judul: 'Rapikan 200 PDF materi lama', jenis: 'lainnya', due: hari(sekarang + 5 * HARI),
+    kebutuhan: 'Samakan margin, header, dan nama berkas pada 200 PDF materi lama.', bahan: tautan([['Folder materi 2025', 'https://contoh.id/folder-materi-2025']]),
+  }, sekarang - 5 * HARI);
+  Inti.tolakMintaDae(data, m3, 'Lebih cocok dikerjakan tim CLO dengan template baru; DAE bisa bantu skrip rename bila perlu. Ajukan lagi dengan cakupan itu.', 'ali', sekarang - 5 * HARI + 4 * JAM);
+
+  // 4. CLO: dashboard rekap pendaftar. Dikerjakan Ali, satu putaran revisi, kini menunggu tinjauan Dhea.
+  const m4 = kirim(ojk, 'dhea', {
+    judul: 'Dashboard rekap pendaftar tryout', jenis: 'dashboard', due: hari(sekarang + 4 * HARI),
+    kebutuhan: 'Rekap pendaftar dan kehadiran tryout per hari, supaya tim CLO tidak menyalin angka dari spreadsheet.',
+    bahan: tautan([['Contoh rekap manual TO Perdana', 'https://contoh.id/rekap-manual-to-perdana']]),
+  }, sekarang - 7 * HARI);
+  const t4 = terima(m4, 'Dashboard dan laporan', sekarang - 7 * HARI + 3 * JAM, m4.due);
+  kerjakan(data, t4, sekarang - 6 * HARI, sekarang - 3 * HARI);
+  Inti.terapkanAksi(data, t4, 'kembalikan', 'dhea', sekarang - 2 * HARI, 'Kolom kehadiran per hari belum ada; tolong tambahkan dan beri filter tanggal.');
+  Inti.isiOutput(data, t4, 'Dashboard rekap pendaftar dan kehadiran per hari, dengan filter tanggal', 'ali', sekarang - 6 * JAM);
+  Inti.terapkanAksi(data, t4, 'ajukan', 'ali', sekarang - 4 * JAM);
+  return [m1, m2, m3, m4];
 }
 
 /* Catatan Saya & Link Saya contoh, di folder "Contoh". Link-nya hanya tautan yang sudah ada
@@ -447,6 +511,7 @@ function tambahDemo(data, sekarang = Date.now()) {
   if (utbk && !utbk.items.length) beriTarget(utbk, TARGET_CONTOH['PKG-006'], sekarang - 2 * HARI);
   const ruang = ruangSayaContoh(data, sekarang);
   const inisiatif = inisiatifContoh(data, sekarang);
+  const mintaDae = permintaanDaeContoh(data, sekarang, inisiatif);
   const acara = acaraContoh(data, sekarang, papi, inisiatif);
   Inti.segarkanTahap(data);
   // Langkah alur di atas dicatat dengan waktu lampau; riwayat harus tetap terbaru di atas.
@@ -458,6 +523,7 @@ function tambahDemo(data, sekarang = Date.now()) {
     task: proyek.reduce((n, x) => n + x.semua.length, 0),
     setoran: data.setoran.length,
     inisiatif: inisiatif.length,
+    permintaanDae: mintaDae.length,
     acara,
     ...ruang,
   };
