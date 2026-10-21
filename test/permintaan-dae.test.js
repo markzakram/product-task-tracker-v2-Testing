@@ -225,6 +225,10 @@ test('peninjau = pengirim; pengirim tak aktif atau sekaligus PIC digantikan Lead
   assert.equal(I.peninjauDae({ permintaanDae: 'MDA-001', peminta: 'uma', pic: 'uma' }), 'andika', 'pengirim = PIC: Lead tim peminta');
   assert.equal(I.peninjauDae({ permintaanDae: 'MDA-001', peminta: 'nynda', pic: 'ali' }), I.DEV, 'Manager tak pernah jadi gerbang');
   assert.equal(I.peninjauDae({ permintaanDae: '', peminta: 'uma', pic: 'ali' }), '', 'bukan task dari permintaan');
+  // Pengirim yang juga PIC tak bisa menyetujui task-nya sendiri; Lead timnya yang bisa.
+  const sendiri = { lane: 'rutin', status: 'Ditinjau', permintaanDae: 'MDA-001', peminta: 'uma', pic: 'uma', tinjauan: [], subtasks: [], evidence: [] };
+  const kosong = I.indeks(I.dataKosong());
+  assert.deepEqual([I.aksiUntuk(sendiri, 'uma', kosong), I.aksiUntuk(sendiri, 'andika', kosong), I.aksiUntuk(sendiri, 'nynda', kosong)].map(a => a.map(x => x.kunci)), [['tarik'], ['setujui', 'kembalikan'], []]);
   // Pengirim dinonaktifkan: Lead timnya. Lead yang dinonaktifkan: Lead penggantinya, atau Dev kalau tak ada.
   I.aturOrang([{ id: 'uma', nama: 'Uma', pendek: 'Uma', peran: 'staff', jabatan: 'Akademik', lead: 'andika', aktif: false }]);
   assert.equal(I.peninjauDae(baru('uma')), 'andika');

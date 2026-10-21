@@ -823,6 +823,7 @@ Paket, Task, Pengaturan, Halaman, Ruang Saya) dengan kolom Manager, Lead, dan St
   | Membuka Laporan | Lead, Manager |
   | Membuka Riwayat Aktivitas | Manager |
   | Mengelola Inisiatif (sementara hanya tim DAE) | Lead, Manager |
+  | Menerima, bertanya, dan menolak permintaan ke tim DAE; mengatur peta jenis → inisiatif (2.46.0; hanya anggota DAE) | Lead |
   | Membuat acara bersama: mengundang peserta, atau membukanya untuk semua (2.33.0) | Staff, Lead, Manager |
 
 - **Tetap** (tampil abu-abu, tak bisa dicentang): yang ditentukan struktur tim dan alur
@@ -997,6 +998,114 @@ semua profil boleh meminta, dan permintaan boleh ke siapa pun dengan Lead-nya ik
   `alihkanPermintaan`, `permintaanMasuk`, `mintaLama`; notifikasinya di `Inti.notifikasi`
   (`minta`, `mintaTim`, `mintaTerima`, `mintaTolak`, `mintaAlih`). Diuji di
   `test/permintaan.test.js`. Panduan: **Meminta lanjutan ke tim lain** (tab Staff).
+
+### Permintaan ke tim DAE (2.46.0)
+
+Permintaan user: anggota tim lain butuh DAE membangun generator soal, scraper, atau dashboard dari
+hasil proyeknya, tetapi tak ada jalurnya. Rancangan disetujui lewat pratinjau; tambahan user:
+hasil kerja DAE **wajib ditinjau pengirim permintaan**, dan **Manager hanya mengawasi**.
+
+**Alur**
+
+1. **Mengirim.** Di detail proyek, **Minta ke tim DAE** (di bawah judul). Boleh: Lead dan staff
+   sebuah tim yang punya task di proyek itu (semua siklus dan status; gerbang Manager tak
+   dihitung), selama proyeknya tak diarsipkan. Tidak boleh: anggota DAE (membuat task biasa),
+   Manager, dan Dev. Isian: yang diminta, jenis (Generator soal, Scraper, Dashboard, Lainnya),
+   kebutuhan, bahan riset (`Judul | https://…` satu per baris), tenggat yang diharapkan. Tercatat
+   `MDA-nnn` dengan proyek asal, tim peminta, pengirim, dan status **menunggu**.
+2. **Halaman Permintaan** (Pekerjaan, di bawah Inisiatif): untuk anggota DAE, Manager, dan Dev,
+   dengan lencana jumlah yang menunggu dan saringan Menunggu (termasuk Ditanya) · Diterima
+   (termasuk Selesai) · Ditolak. Panel detail memuat kebutuhan, bahan riset, proyek asal, dan
+   diskusi. Yang berizin `permintaan.terima` melihat tiga aksi:
+   - **Terima, buat task**: inisiatif (terisi dari peta jenis, hanya yang **Aktif**, boleh
+     diganti; jenis yang belum dipetakan = kosong dan wajib dipilih), PIC (anggota DAE), tenggat
+     (bawaan: tenggat yang diharapkan). Terbentuk task DAE di jalur rutin yang menempel ke
+     inisiatif itu, berjudul sama dengan permintaan, berketerangan kebutuhan + bahan riset,
+     bertaut ke permintaan (`t.permintaanDae`) dan proyek asal (lewat permintaannya).
+   - **Tanya dulu**: butir **tanya** di diskusi permintaan; status **ditanya** sampai pengirim
+     membalas (kembali **menunggu**). Selama menunggu atau ditanya, pengirim bisa **Sunting**.
+   - **Tolak**: alasan wajib; pengirim diberi tahu. Tak ada yang bisa dilakukan sesudahnya.
+3. **Peta jenis → inisiatif**: tombol **Peta jenis → inisiatif** di halaman Permintaan (izin
+   `permintaan.peta`). Disimpan di inisiatifnya (`inisiatif.menerima`, daftar jenis), satu jenis
+   satu inisiatif, jadi ikut data contoh dan real tanpa tempat penyimpanan lain. Tampil sebagai
+   **Menerima permintaan** di Tentang inisiatif dan jadi bawaan saat menerima.
+4. **Pengerjaan dan tinjauan oleh peminta.** Task dari permintaan memakai syarat ajukan seperti
+   task proyek (output terisi, ceklis, task turunan, tidak tertahan) dan **tidak bisa langsung
+   ditandai selesai**: PIC mengajukan, peninjaunya pengirim permintaan (`Inti.peninjauDae`).
+   Pengirim diberi tahu dan task masuk **Hari Ini**-nya ("Perlu Anda tinjau"). Pilihannya:
+   - **Setujui**: task **Selesai**, permintaan **selesai**, output dan tautan bukti PIC tampil di
+     blok proyek asal.
+   - **Kembalikan untuk revisi**: catatan wajib; task kembali **Dikerjakan** dengan label Revisi dan
+     catatannya di kartu Langkah berikutnya, PIC dikabari, `revisi` pada permintaan bertambah.
+     Bisa berulang.
+   PIC **tidak** bisa menyetujui task-nya sendiri. Manager **tidak** meninjau dan tidak
+   menyetujui (tombolnya tak tersedia, juga lewat Kanban); ia hanya melihat dan **berkomentar**
+   di permintaan. Dibuka kembali (`Buka kembali`), permintaan kembali ke Diterima sampai disetujui lagi.
+5. **Pemantauan peminta.** Blok **Permintaan ke tim lain** di proyek asal (semua permintaan
+   proyek itu): langkah Dikirim → Diterima → Dikerjakan → Ditinjau → Selesai, ditambah **Ditanya**,
+   **Revisi** (dengan catatan terakhir), atau **Ditolak** (dengan alasan); PIC DAE, tenggat,
+   inisiatif, hasil kerja, dan tombol **Balas**, **Sunting**, **Setujui**, **Kembalikan untuk
+   revisi**. Langkah dihitung dari task-nya (`Inti.langkahMintaDae`), jadi tak mungkin
+   menyimpang dari status task.
+6. **Di inisiatif**: task dari permintaan bertanda **Diminta dari <proyek> · <tim>** (tertaut ke
+   proyek) di Sedang berjalan, riwayat pembaruan, dan kepala detail task; kartu inisiatif
+   menampilkan **N permintaan terbuka** (belum dijawab dan dipetakan ke sana, ditambah yang
+   diterima ke sana dan belum selesai) bagi inisiatif yang menerima jenis permintaan. Task dari
+   permintaan tak bisa dilepas dari inisiatif atau disambungkan ke proyek (boleh dipindah ke
+   inisiatif lain).
+7. **Notifikasi** (lonceng, dihitung dari data): `daeBaru` (Lead DAE), `daeTanya` (pengirim),
+   `daeBalas` (Lead DAE), `daeKomentar` (pengirim dan Lead DAE), `daeTolak`, `daeTerima`
+   (pengirim), `daeSelesai` (Lead yang menerima dan pengirim, selain penyetujunya dan PIC); siap
+   ditinjau, revisi, dan disetujui memakai `tinjau`, `kembali`, dan `setuju` yang sudah ada.
+
+**Izin** (Panel Dev → Izin, grup *Permintaan ke DAE*): `permintaan.terima` dan `permintaan.peta`
+bisa diatur, bawaannya **Lead**, dan hanya berlaku bagi anggota DAE (Lead tim lain punya peran
+Lead tetapi bukan anggota DAE; Manager baru berlaku bila Dev mencentangnya). `permintaan.kirim`
+dan `permintaan.tinjau` tetap: mengikuti struktur tim dan alur tinjauan.
+
+**Keputusan yang diambil sendiri**
+
+- *Siapa yang meninjau kalau pengirim tak aktif atau dihapus:* **Lead tim pengirim** (usulan
+  user; pengirim yang dinonaktifkan tetap dikenali timnya, dan Lead yang dinonaktifkan digantikan
+  Lead baru timnya). Kalau tak ada yang sah (pengirim = PIC dan Lead-nya PIC juga, atau tim itu
+  dipegang Manager), tinjauan jatuh ke **akun Dev**, bukan Manager. Saat menerima, PIC yang
+  membuat tak ada peninjau sah selain Dev ditolak ("Pilih PIC lain").
+- *Output wajib sebelum diajukan:* pengirim meninjau hasilnya, jadi keterangan hasil harus ada.
+- *Permintaan tak dibatalkan atau dihapus oleh pengirim:* ia menyunting selama belum dijawab;
+  yang salah ditolak Lead DAE. Permintaan tak pernah dihapus.
+- *Task yang dihapus:* permintaan yang masih berjalan kembali **menunggu** (dengan catatan di
+  diskusinya) dan bisa diterima lagi; yang sudah selesai tetap selesai. Task yang dipulihkan
+  (2.44.0) menjadi rutin biasa tanpa tautan ke permintaan.
+- *Agen AI (`agen/`) tak berubah:* task dari permintaan memakai aturan aksi yang sama, jadi agen
+  pun hanya bisa mengajukan, dan peninjaunya tampil di detail task.
+
+**Data dan penyimpanan**
+
+- Koleksi `permintaanDae` (ID `MDA-001`; `bahan` = tautan, `utas` = tanya/balas/komentar/catatan)
+  masuk `KOLEKSI_REAL`, jadi **data real** tersimpan di `data_real` seperti koleksi lain:
+  **tanpa tab baru dan tanpa langkah manual**. Task membawa `permintaanDae` dan `peminta`;
+  inisiatif membawa `menerima`.
+- **Data contoh** di spreadsheet: tab `permintaan_dae`, `permintaan_dae_links`, `permintaan_dae_utas`
+  (opsional, seperti tab lain yang datang belakangan: sheet yang diimpor sebelum 2.46.0 tetap
+  terbaca dengan daftar kosong) dan kolom baru di `tasks` dan `inisiatif`. Dibuat otomatis oleh
+  impor berikutnya; tak ada yang rusak bila tak diimpor ulang.
+- MySQL: `v2_permintaan_dae`, `v2_permintaan_dae_links`, `v2_permintaan_dae_utas` (kini 32 tabel),
+  `v2_tasks.permintaanDae` dan `peminta`, `v2_inisiatif.menerima`.
+- Salinan cepat data real di browser (dan agen) yang belum mengenal `permintaanDae` disusun
+  ulang dari awal **sekali** (`cacheRealKenal`), jadi tak ada permintaan yang terlewat.
+
+**Langkah deploy / data real:** tidak ada langkah wajib. Sesudah naik versi, semua orang memuat
+ulang; data real langsung bisa dipakai. Opsional: `npm run impor:v1 -- --demo` untuk menampilkan
+skenario contoh (menimpa seluruh tab data contoh, seperti biasa). Peta jenis di data real masih
+kosong: Lead DAE mengaturnya sekali lewat **Peta jenis → inisiatif** (tanpa peta, inisiatif dipilih
+sendiri saat menerima).
+
+Aturannya `Inti.kirimMintaDae`, `ubahMintaDae`, `terimaMintaDae`, `tolakMintaDae`,
+`tanyaMintaDae`, `balasMintaDae`, `komentariMintaDae`, `aturPetaMintaDae`, `peninjauDae`,
+`langkahMintaDae`, `mintaDaeTerbuka`; aksi data dengan nama yang sama. Diuji di
+`test/permintaan-dae.test.js` (aturan, transisi, izin, notifikasi, data contoh, skema, dan jalur
+server data real). Panduan: **Meminta tim DAE membangun sesuatu** (Staff), **Menerima permintaan
+ke tim DAE** (Lead), **Mengawasi permintaan ke tim DAE** (Manager).
 
 ### Alamat, pencarian cepat, dan notifikasi
 
@@ -1563,9 +1672,19 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
   - Keadaannya: D2 masih dikerjakan Andika (output sudah terisi). Ajukan D2 sebagai Andika, dan
     Ali langsung mendapat notifikasi bahwa DV7 siap dikerjakan, selagi Manager meninjau D2
     (2.30.0).
-- **Inisiatif tim DAE** (2.31.0): ProductTrack v2, Product Knowledge, AI Generate Soal, dan
-  Dashboard internal, PIC Ali. Task lama v1 Ali di luar proyek ditempel ke inisiatifnya menurut
-  judul; ProductTrack v2 juga punya satu pembaruan yang selesai dan satu yang sedang berjalan.
+- **Inisiatif tim DAE** (2.31.0, 2.46.0): ProductTrack v2, Product Knowledge, Generator Soal,
+  Dashboard dan laporan, Scraper dan data kompetitor, dan Otomasi operasional, PIC Ali. Task lama
+  v1 Ali di luar proyek ditempel ke inisiatifnya menurut judul; ProductTrack v2 juga punya satu
+  pembaruan yang selesai dan satu yang sedang berjalan. Empat yang terakhir menerima jenis
+  permintaan ke tim DAE (peta jenis).
+- **Permintaan ke tim DAE** (2.46.0), empat keadaan lewat aturan yang sama dengan tombolnya:
+  - **Generator OJK Tahap 1**: Andika (RAD) dari proyek OJK, diterima Ali di Generator Soal dan
+    sedang dikerjakan; Nynda (Manager) meninggalkan satu komentar.
+  - **Scraper bank soal TKA SMA**: Alya (LNA) dari proyek TKA, masih menunggu (coba **Terima**,
+    **Tanya dulu**, atau **Tolak** sebagai Ali).
+  - **Rapikan 200 PDF materi lama**: Bagas (CLO), ditolak Ali dengan alasan.
+  - **Dashboard rekap pendaftar tryout**: Dhea (CLO) dari proyek OJK, sudah satu putaran revisi dan
+    kini menunggu tinjauan Dhea (coba **Setujui** atau **Kembalikan untuk revisi** sebagai Dhea).
 - Beberapa Catatan Saya dan Link Saya contoh di folder "Contoh" (tautannya dari Tautan tim).
 - **Acara bersama** (2.33.0), ditulis ke tab `agenda` dengan tanda contoh (hanya terlihat selama
   sumber data contoh; impor ulang menimpanya karena ID-nya tetap):
@@ -1674,7 +1793,7 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
    Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 29 tabel berawalan `v2_` di skema
+   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 32 tabel berawalan `v2_` di skema
    `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
    salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
    dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru

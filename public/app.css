@@ -2474,6 +2474,47 @@ button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua)
 .kotak-minta-info { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding: 10px 12px; border: 1px solid var(--garis); border-radius: 10px; background: var(--dasar); font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
 .kotak-minta-info p { margin: 0; }
 
+/* ----- Permintaan ke tim DAE (2.46.0) ----- */
+.pill.mt-ditanya, .pill.mt-dikerjakan { background: var(--info-muda); color: var(--info-tua); }
+.pill.mt-ditinjau { background: var(--ungu-muda); color: var(--ungu); }
+.pill.mt-revisi { background: var(--kuning-muda); color: var(--kuning); }
+.pill.mt-selesai { background: var(--hijau-muda); color: var(--hijau); }
+
+/* Pilihan Jenis di form: segmen yang boleh turun baris (di ponsel 2 × 2). */
+.segmen.segmen-bungkus { display: flex; flex-wrap: wrap; align-self: flex-start; max-width: 100%; }
+
+/* Blok "Permintaan ke tim lain" di halaman proyek peminta. */
+.minta-keluar { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--garis); border-radius: 12px; background: var(--muka); }
+.minta-keluar + .minta-keluar { margin-top: 2px; }
+.minta-keluar-kepala { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.minta-keluar-judul { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.minta-keluar-judul b { font-size: calc(15px * var(--skala-huruf)); }
+.minta-hasil { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px dashed var(--garis-2); border-radius: 10px; background: var(--dasar); font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
+.minta-hasil svg { flex: none; margin-top: 2px; }
+.minta-hasil-isi { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; color: var(--tinta); }
+
+/* Halaman Permintaan (DAE): bagian Terima di dalam kartu permintaan. */
+.minta-terima { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--garis-halus); }
+.minta-terima .dua-isian { align-items: start; }
+.minta-bahan { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.banner-minta p { margin: 0 0 4px; }
+
+/* Penanda "Diminta dari … · tim" pada task DAE yang berasal dari permintaan. */
+button.ini-chip { font: inherit; font-size: calc(12px * var(--skala-huruf)); cursor: pointer; }
+.ini-chip.diminta { align-items: flex-start; gap: 6px; padding: 5px 10px; border-color: var(--info-garis); border-radius: 10px; background: var(--info-muda); color: var(--info-tua); font-weight: 600; line-height: 1.35; text-align: left; }
+.ini-chip.diminta svg { flex: none; margin-top: 2px; }
+.ini-chip.diminta:hover { border-color: var(--info); }
+.ini-berjalan-baris.ada-minta { gap: 6px; cursor: default; }
+.ini-berjalan-baris.ada-minta .ini-chip { align-self: flex-start; max-width: 100%; }
+.ini-berjalan-judul { color: var(--tinta); overflow-wrap: anywhere; }
+button.ini-berjalan-judul { padding: 0; border: 0; background: none; font: inherit; font-size: calc(13px * var(--skala-huruf)); font-weight: 600; text-align: left; cursor: pointer; }
+button.ini-berjalan-judul:hover { color: var(--biru); text-decoration: underline; text-underline-offset: 2px; }
+.ini-berjalan-orang { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; color: var(--redup); }
+
+/* Jumlah permintaan terbuka di kartu inisiatif. */
+.ini-minta { align-self: flex-start; padding: 2px 9px; border-radius: 999px; background: var(--info-muda); color: var(--info-tua); font-size: calc(12px * var(--skala-huruf)); font-weight: 700; }
+.ini-minta.kosong { padding: 0; background: transparent; color: var(--samar); font-weight: 400; }
+
 /* ----- Halaman inisiatif sebagai linimasa (2.39.0) ----- */
 .ini-kepala { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 20px; margin-top: 8px; }
 .ini-kepala-isi { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }

@@ -59,7 +59,7 @@
       id: 'mulai-menu', peran: 'mulai', judul: 'Peta menu', tujuan: 'Tahu halaman mana untuk apa.',
       langkah: [
         '**Ringkasan**: **Hari Ini** (pekerjaan Anda per tenggat; Lead juga melihat antrean timnya), **Dashboard**, dan **Laporan**.',
-        '**Pekerjaan**, berurutan seperti alurnya: **Rancangan Paket** (target paket) → **Proyek** (ADDIE) → **Task** → **Komunikasi** (utas per task, ruang tim, dan ruang proyek).',
+        '**Pekerjaan**, berurutan seperti alurnya: **Rancangan Paket** (target paket) → **Proyek** (ADDIE) → **Task** → **Komunikasi** (utas per task, ruang tim, dan ruang proyek). Anggota tim DAE, Manager, dan Dev juga melihat **Inisiatif** dan **Permintaan** (permintaan dari tim lain ke DAE; lencananya menunjukkan yang menunggu).',
         '**Task** satu halaman dengan lima tampilan. Deretan ikon di atas daftar menggantinya: Daftar, Kanban, Per orang, Timeline, dan **Kalender tim** (tenggat task, acara bersama, dan pendaftaran paket). Saringannya berlaku di semua tampilan.',
         'Yang terlihat mengikuti peran: **Staff** melihat task-nya sendiri, **Lead** juga task timnya (**Tim saya**), dan **Manager** juga para Lead serta seluruh divisi (**Semua**).',
         '**Ruang Saya**: **Kalender Saya** (agenda pribadi dan acara yang Anda ikuti), Link Saya (termasuk tautan tim), dan Catatan Saya.',
@@ -247,6 +247,17 @@
     },
 
     {
+      id: 'staff-minta-dae', peran: 'staff', judul: 'Meminta tim DAE membangun sesuatu', tujuan: 'Mengirim permintaan generator, scraper, dashboard, atau lainnya ke tim DAE, lalu meninjau hasilnya.',
+      langkah: [
+        'Buka proyek yang tim Anda kerjakan, lalu tekan **Minta ke tim DAE** (tombol di bawah judul proyek). Tombolnya hanya ada untuk Lead dan staff tim yang punya task di proyek itu; anggota DAE membuat task biasa, dan Manager hanya mengawasi.',
+        'Isi **Yang diminta**, pilih **Jenis** (Generator soal, Scraper, Dashboard, atau Lainnya), tulis **Kebutuhan**, tempel **Bahan riset** satu per baris ("Judul | https://…"), dan **Tenggat yang diharapkan**. Jenis menentukan inisiatif tujuan di DAE; Lead DAE bisa menggantinya.',
+        'Permintaan belum jadi task. Lead DAE diberi tahu, lalu **menerima** (jadi task DAE di sebuah inisiatif), **bertanya** (statusnya **Ditanya** sampai Anda membalas; Anda juga bisa **Sunting** permintaannya), atau **menolak** dengan alasan.',
+        'Statusnya ada di blok **Permintaan ke tim lain** di halaman proyek Anda: Dikirim → Diterima → Dikerjakan → Ditinjau → Selesai, ditambah Ditanya, Revisi, atau Ditolak, lengkap dengan PIC DAE, tenggat, dan inisiatifnya.',
+        'Hasilnya **wajib Anda tinjau**, bukan Lead Anda atau Manager. Saat PIC DAE mengajukan hasilnya, Anda diberi tahu dan task-nya masuk **Hari Ini**; blok permintaan juga punya tombolnya. **Setujui** menyelesaikan task dan permintaan; **Kembalikan untuk revisi** meminta catatan dan mengembalikan task ke PIC DAE, dan bisa berulang.',
+        'Kalau Anda tidak aktif lagi, atau ternyata PIC task-nya sendiri, yang meninjau adalah Lead tim Anda. Manager hanya melihat dan berkomentar.',
+      ],
+    },
+    {
       id: 'lead-antrean', peran: 'lead', judul: 'Memecah langkah jadi task turunan', tujuan: 'Membagi pekerjaan langkah yang Anda pegang ke staff tim, atau ke diri sendiri.', ilustrasi: 'antrean', coba: true,
       langkah: [
         'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Kerjakan sekarang** di Hari Ini, bertanda **Siap dibagi**. Tekan **Bagi ke staff** di barisnya (atau di kartu **Perlu perhatian Anda** di halaman proyek): detail task terbuka di bagian **Task turunan**, siap diisi. **Kerjakan sendiri** memulainya tanpa task turunan.',
@@ -254,6 +265,17 @@
         'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Lewat **Ubah task**, PIC langkah utama juga bisa diganti ke Lead atau staff aktif tim Anda, termasuk sesudah dibagi. PIC tiap task turunan tetap masing-masing.',
         'Setelah semua task turunan selesai, PIC langkah utama melengkapi output dan mengajukan ke peninjaunya. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
         'Task tim Anda yang PIC-nya staff (di tahap mana pun, mis. Design) juga bisa Anda bagi dari detail task-nya. Task yang sudah selesai atau sedang ditinjau tak bisa ditambah task turunan; alasannya tampil di bagian itu.',
+      ],
+    },
+    {
+      id: 'lead-terima-dae', peran: 'lead', judul: 'Menerima permintaan ke tim DAE (Lead DAE)', tujuan: 'Menjawab permintaan dari tim lain dan mengatur inisiatif tujuannya.',
+      langkah: [
+        'Buka **Permintaan** (Pekerjaan, di bawah Inisiatif). Lencananya berisi yang **menunggu**. Saringan: Menunggu, Diterima, Ditolak. Permintaan baru juga masuk lonceng.',
+        'Pilih permintaan untuk membaca kebutuhan, bahan risetnya, proyek asal, dan diskusinya. Tiga pilihan: **Terima, buat task**, **Tanya dulu**, atau **Tolak**.',
+        '**Terima, buat task**: pilih **Masuk ke inisiatif** (terisi dari jenis permintaan, hanya inisiatif Aktif, boleh diganti), **PIC** (anggota DAE), dan **Tenggat** (bawaan: tenggat yang diharapkan). Task DAE masuk Antre sebagai pembaruan inisiatif itu, memuat kebutuhan dan bahan riset, dan tertaut ke permintaan dan proyek asalnya.',
+        'Task ini **wajib ditinjau pengirim permintaan**: PIC mengisi output lalu mengajukan, pengirim menyetujui atau mengembalikan untuk revisi. PIC tidak bisa menyetujui task-nya sendiri, dan Manager tidak ikut meninjau. Task-nya diberi penanda **Diminta dari <proyek> · <tim>** di halaman inisiatif.',
+        '**Tanya dulu**: pertanyaan masuk ke diskusi permintaan dan pengirim diberi tahu. **Tolak**: alasan wajib, pengirim diberi tahu.',
+        '**Peta jenis → inisiatif** (tombol di atas daftar) menentukan inisiatif bawaan tiap jenis. Jenis yang belum dipetakan: inisiatifnya dipilih saat menerima. Siapa yang boleh menerima dan memetakan diatur Dev di **Panel Dev → Izin** (bawaannya Lead DAE).',
       ],
     },
     {
@@ -346,6 +368,14 @@
       ],
     },
     {
+      id: 'manager-minta-dae', peran: 'manager', judul: 'Mengawasi permintaan ke tim DAE', tujuan: 'Melihat permintaan lintas tim ke DAE tanpa menjadi gerbangnya.',
+      langkah: [
+        'Buka **Permintaan** untuk melihat semua permintaan ke tim DAE: siapa yang meminta, dari proyek mana, jenisnya, dan statusnya. Di halaman proyek, blok **Permintaan ke tim lain** menampilkan langkahnya.',
+        'Anda bisa **Tulis komentar** di permintaan mana pun, juga sesudah diterima. Komentar tidak mengubah status, dan pengirim serta Lead DAE diberi tahu.',
+        'Anda **tidak** menerima, bertanya, menolak, atau meninjau: Lead DAE menjawab permintaan, dan hasil kerja DAE ditinjau pengirim permintaannya (Lead tim peminta bila pengirimnya tak aktif). Dev bisa memberi Anda izin menerima di **Panel Dev → Izin**, tetapi tinjauan tetap di pengirim.',
+      ],
+    },
+    {
       id: 'manager-paket', peran: 'manager', judul: 'Memantau progres rancangan paket', tujuan: 'Tahu seberapa jauh paket menuju tayang.', ilustrasi: 'progres', coba: true,
       langkah: [
         'Di **Rancangan Paket**, kartu tiap paket menampilkan progres berbobot dan jumlah yang sudah tayang.',
@@ -376,7 +406,8 @@
     ['Task turunan', 'Bagian pekerjaan yang dibuat Lead di bawah task yang ia pegang, untuk staff timnya atau untuk dirinya sendiri (dulu disebut task anak). Tampil menjorok di bawah induknya; yang dipegang staff ditinjau Lead itu. Induknya baru bisa diajukan setelah semua turunannya selesai.'],
     ['Syarat ajukan', 'Syarat sebelum task proyek diajukan: output, ceklis, task turunan (kalau ada), task yang ditunggu sudah diajukan, tertahan, atau selesai, dan tidak tertahan.'],
     ['Serah-terima', 'Task yang diatur menunggu task lain, juga dari tim lain. Begitu task yang ditunggu diajukan untuk ditinjau atau ditandai tertahan, task berikutnya sudah bisa mulai sejajar; E12 tetap menunggu semuanya disetujui.'],
-    ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task turunan), Manager untuk task Lead dan kode bertanda Manager.'],
+    ['Peninjau', 'Yang menyetujui task proyek: Lead untuk task staff-nya (termasuk task turunan), Manager untuk task Lead dan kode bertanda Manager. Task hasil permintaan ke tim DAE ditinjau pengirim permintaannya; Manager hanya memantau.'],
+    ['Permintaan ke tim DAE', 'Permintaan dari anggota tim lain (lewat **Minta ke tim DAE** di halaman proyek) agar DAE membangun generator soal, scraper, dashboard, atau lainnya. Lead DAE menerimanya jadi task di sebuah inisiatif, bertanya, atau menolak; hasilnya ditinjau pengirim. Dikelola di halaman **Permintaan**; Manager hanya mengawasi.'],
     ['Jalur', '**Proyek** (ADDIE per tim), **rutin** (kode R), atau **lepas** (kode ADDIE di luar proyek, warisan v1). Di form Tambah task dipilih lewat **Task ini untuk apa?**, ditambah **Pembaruan** untuk pembaruan inisiatif atau proyek (tim DAE dan Manager).'],
     ['Fase', 'A Analysis, D Design, V Development (kodenya DV), I Implementation, E Evaluation, dijalankan tiap tim di proyek. Task sefase dalam satu tim dikerjakan bersamaan; fase berikutnya menunggu fase sebelumnya tim itu selesai.'],
     ['Urutan tunggu', 'Yang harus selesai dulu sebelum sebuah task jalan: fase timnya (bawaan), serah-terima yang diatur Lead (boleh dari tim lain), gerbang Manager (A1, A6), dan untuk E12 semua task lain di siklusnya.'],

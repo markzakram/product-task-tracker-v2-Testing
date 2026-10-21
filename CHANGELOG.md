@@ -1,5 +1,53 @@
 # Changelog — ProductTrack v2
 
+## 2.46.0 — Permintaan ke tim DAE (2026-10-21)
+
+Permintaan user: anggota tim lain (RAD, LNA, CLO) sering butuh tim DAE membangun sesuatu dari
+hasil proyeknya (generator soal, scraper, dashboard), tetapi tak ada jalur resminya. Rancangan
+disetujui user lewat pratinjau; tambahan dari user: hasil kerja DAE **wajib ditinjau pengirim
+permintaan**, dan Manager hanya mengawasi.
+
+- **Mengirim.** Di detail proyek, tombol **Minta ke tim DAE** (Lead dan staff tim yang punya task
+  di proyek itu; bukan anggota DAE, bukan Manager). Isinya: yang diminta, jenis (Generator soal,
+  Scraper, Dashboard, Lainnya), kebutuhan, bahan riset (satu tautan per baris), dan tenggat yang
+  diharapkan. Tercatat dengan proyek asal, tim peminta, dan pengirim; statusnya Menunggu.
+- **Halaman Permintaan** (Pekerjaan, di bawah Inisiatif; anggota DAE, Manager, dan Dev). Lencana =
+  jumlah yang menunggu. Saringan Menunggu, Diterima, Ditolak. Tiga aksi untuk yang berizin
+  (`permintaan.terima`, bawaan Lead, hanya anggota DAE):
+  - **Terima, buat task**: pilih inisiatif (terisi dari peta jenis, hanya yang Aktif), PIC anggota
+    DAE, dan tenggat. Jadi task DAE di jalur rutin yang tertaut ke permintaan dan proyek asal.
+  - **Tanya dulu**: pertanyaan masuk ke diskusi permintaan; statusnya Ditanya sampai pengirim
+    membalas atau menyunting permintaannya.
+  - **Tolak**: alasan wajib. Pengirim diberi tahu pada ketiganya.
+- **Peta jenis → inisiatif** (tombol di halaman Permintaan, izin `permintaan.peta`, bawaan Lead
+  DAE). Disimpan di inisiatifnya (kolom `menerima`) dan tampil di Tentang inisiatif.
+- **Tinjauan wajib oleh pengirim.** Task dari permintaan tidak bisa langsung ditandai selesai: PIC
+  mengisi output lalu mengajukan, pengirim menyetujui (task dan permintaan Selesai, output tampil
+  di proyek asal) atau mengembalikan untuk revisi (catatan wajib, putaran dihitung, bisa
+  berulang). PIC tak bisa menyetujui task-nya sendiri; Manager tak bisa menyetujui atau meninjau,
+  hanya melihat dan berkomentar. Pengirim yang tak aktif atau ternyata PIC-nya digantikan Lead
+  tim pengirim; kalau itu pun tak ada, akun Dev (tidak pernah Manager).
+- **Blok Permintaan ke tim lain** di proyek asal: langkah Dikirim → Diterima → Dikerjakan →
+  Ditinjau → Selesai (ditambah Ditanya, Revisi, Ditolak), PIC DAE, tenggat, inisiatif, hasil kerja,
+  dan tombol Setujui / Kembalikan untuk revisi bagi pengirim.
+- **Di inisiatif**: task dari permintaan bertanda "Diminta dari <proyek> · <tim>" (juga di riwayat
+  pembaruan dan detail task), kartu menampilkan jumlah permintaan terbuka, dan Tentang memuat jenis
+  yang diterimanya.
+- **Notifikasi** (lonceng): permintaan baru (Lead DAE), ditanya, dibalas, komentar, ditolak,
+  diterima, siap ditinjau, revisi, dan selesai.
+- **Izin baru** di Panel Dev → Izin: `permintaan.terima` dan `permintaan.peta` (bisa diatur,
+  bawaan Lead), `permintaan.kirim` dan `permintaan.tinjau` (tetap).
+- **Data**: koleksi `permintaanDae` (ID `MDA-001`) ikut data real tanpa tab atau langkah baru;
+  untuk data contoh tab `permintaan_dae`, `permintaan_dae_links`, `permintaan_dae_utas` (opsional;
+  sheet lama tetap terbaca), kolom `menerima` di `inisiatif`, dan `permintaanDae` + `peminta` di
+  `tasks`; tiga tabel dan tiga kolom yang sama di `db/produk_base_v2.sql` (kini 32 tabel).
+- **Data contoh**: enam inisiatif (Generator Soal menggantikan "AI Generate Soal", Dashboard dan
+  laporan menggantikan "Dashboard internal", ditambah Scraper dan data kompetitor serta Otomasi
+  operasional) dan empat permintaan yang meniru pratinjau. Tampil setelah `npm run impor:v1 -- --demo`
+  dijalankan lagi.
+- Tes baru `test/permintaan-dae.test.js` (23 tes); tes lama yang disesuaikan: `test/demo.test.js`
+  (daftar inisiatif contoh), `test/skema-mysql.test.js` (jumlah tabel), `test/sheets.test.js`
+  (fixture). Panduan: Staff, Lead, Manager, dan Istilah; terjemahan Inggris ditambah.
 ## 2.45.0 — Task rutin bisa disambungkan sebagai pembaruan proyek (2026-10-20)
 
 Permintaan user: tim DAE sering membuat task rutin yang sebenarnya pembaruan inisiatif atau

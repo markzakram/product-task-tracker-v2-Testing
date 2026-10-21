@@ -218,6 +218,7 @@
     { grup: 'Pekerjaan', id: 'paket', judul: 'Rancangan Paket', ikon: 'kotak' },
     { grup: 'Pekerjaan', id: 'proyek', judul: 'Proyek', ikon: 'lapis' },
     { grup: 'Pekerjaan', id: 'inisiatif', judul: 'Inisiatif', ikon: 'aktivitas', boleh: () => I.bolehLihatInisiatif(S.me) },
+    { grup: 'Pekerjaan', id: 'permintaan', judul: 'Permintaan', ikon: 'kotakMasuk', boleh: () => I.bolehLihatMintaDae(S.me) },
     { grup: 'Pekerjaan', id: 'task', judul: 'Task', ikon: 'tugas' },
     { grup: 'Pekerjaan', id: 'komunikasi', judul: 'Komunikasi', ikon: 'obrolan' },
     { grup: 'Ruang Saya', id: 'agenda', judul: 'Kalender Saya', ikon: 'kalender' },
@@ -314,6 +315,8 @@
     /* Inisiatif (2.31.0): yang dibuka dan saringan status. */
     /* saring/tanggap/batas/hariBuka: linimasa pembaruan di halaman satu inisiatif (2.39.0). */
     ini: { pilih: null, status: 'aktif', saring: 'semua', tanggap: null, batas: 40, hariBuka: new Set() },
+    /* Permintaan ke tim DAE (2.46.0): saringan status dan permintaan yang dibuka. */
+    pdae: { saring: 'menunggu', pilih: '' },
     /* Tab detail task yang dibuka (2.32.0): { id task, tab }. */
     detailTab: null,
     /* penuh = kartu folder yang sedang menampilkan semua link-nya (selama sesi ini). */
@@ -1268,13 +1271,19 @@
       tasks: daftar(d.tasks).map(t => ({
         ...t, sub: t.sub || '', support: daftar(t.support), deps: daftar(t.deps), subtasks: daftar(t.subtasks), comments: daftar(t.comments),
         tinjauan: daftar(t.tinjauan), evidence: daftar(t.evidence), output: t.output || '', selesaiAt: Number(t.selesaiAt) || 0,
-        induk: t.induk || '', tunggu: daftar(t.tunggu), lepasFase: !!t.lepasFase, inisiatif: t.inisiatif || '', diminta: t.diminta || '', pembaruanProyek: t.pembaruanProyek || '',
+        induk: t.induk || '', tunggu: daftar(t.tunggu), lepasFase: !!t.lepasFase, inisiatif: t.inisiatif || '', diminta: t.diminta || '', pembaruanProyek: t.pembaruanProyek || '', permintaanDae: t.permintaanDae || '', peminta: t.peminta || '',
       })),
-      inisiatif: daftar(d.inisiatif).map(x => ({ ...x, status: x.status || 'aktif', links: daftar(x.links) })),
+      inisiatif: daftar(d.inisiatif).map(x => ({ ...x, status: x.status || 'aktif', links: daftar(x.links), menerima: daftar(x.menerima) })),
       // Permintaan lanjutan (2.36.0). Tanpa baris ini koleksinya hilang saat data dimuat ulang.
       permintaan: daftar(d.permintaan).map(x => ({
         ...x, status: I.STATUS_MINTA.includes(x.status) ? x.status : 'menunggu', sub: x.sub || '', due: x.due || '', task: x.task || '',
         dialihkan: x.dialihkan || '', createdAt: angka(x.createdAt), jawabAt: angka(x.jawabAt), dialihkanAt: angka(x.dialihkanAt), updatedAt: angka(x.updatedAt),
+      })),
+      // Permintaan ke tim DAE (2.46.0). Tanpa baris ini koleksinya hilang saat data dimuat ulang.
+      permintaanDae: daftar(d.permintaanDae).map(x => ({
+        ...x, status: I.STATUS_MINTA_DAE.includes(x.status) ? x.status : 'menunggu', kebutuhan: x.kebutuhan || '', due: x.due || '', task: x.task || '', inisiatif: x.inisiatif || '',
+        pic: x.pic || '', dueTerima: x.dueTerima || '', oleh: x.oleh || '', alasan: x.alasan || '', revisi: angka(x.revisi), bahan: daftar(x.bahan), utas: daftar(x.utas),
+        createdAt: angka(x.createdAt), jawabAt: angka(x.jawabAt), selesaiAt: angka(x.selesaiAt), updatedAt: angka(x.updatedAt),
       })),
       // Banding perpanjangan tenggat (2.41.0). Tanpa baris ini koleksinya hilang saat data dimuat ulang.
       perpanjangan: daftar(d.perpanjangan).map(x => ({
@@ -1595,6 +1604,7 @@
     if (S.view === 'proyek' && S.proyek) b.push(S.proyek);
     if (S.view === 'paket' && S.pkt.pilih) b.push(S.pkt.pilih);
     if (S.view === 'inisiatif' && S.ini.pilih) b.push(S.ini.pilih);
+    if (S.view === 'permintaan' && S.pdae.pilih) b.push(S.pdae.pilih);
     if (S.view === 'komunikasi' && S.kom.pilih) b.push(alamatRuang(S.kom.pilih));
     if (S.view === 'catatan' && S.ctt.pilih && S.ctt.pilih !== '__baru') b.push(S.ctt.pilih);
     if (S.pilih && S.view !== 'komunikasi') b.push(S.pilih);
@@ -1614,6 +1624,7 @@
     if (hal === 'proyek') S.proyek = null;
     if (hal === 'paket') Object.assign(S.pkt, { pilih: null, sunting: false, kotor: false });
     if (hal === 'inisiatif') S.ini.pilih = null;
+    if (hal === 'permintaan') S.pdae.pilih = '';
     if (hal === 'komunikasi') S.kom.pilih = null;
     if (hal === 'catatan') S.ctt.pilih = null;
     for (const x of sisa) {
@@ -1632,6 +1643,7 @@
       else if (hal === 'proyek' && /^PRJ-/.test(x)) { if (ada(S.data.projects, x)) S.proyek = x; }
       else if (hal === 'paket' && /^PKG-/.test(x)) { if (ada(S.data.packages, x)) S.pkt.pilih = x; }
       else if (hal === 'inisiatif' && /^INI-/.test(x)) { if (ada(S.data.inisiatif || [], x)) S.ini.pilih = x; }
+      else if (hal === 'permintaan' && /^MDA-/.test(x)) { if (ada(S.data.permintaanDae || [], x)) S.pdae = { saring: saringMintaDaeDari(cariMintaDae(x)), pilih: x }; }
       else if (hal === 'catatan') { const n = catatanSaya().find(c => c.id === x); if (n) pilihAwal(n); }
     }
     return { ok: true, hilang, ditolak };
@@ -1671,6 +1683,7 @@
       hari: kerja.grup.filter(g => ['tinjau', 'antrean', 'telat', 'hari'].includes(g.kunci)).reduce((n, g) => n + g.isi.length, 0),
       proyek: I.izin(S.me, 'proyek.siklus') ? I.antreKeputusan(S.data, h).length : 0,
       komunikasi: I.daftarUtas(S.data, S.me, susunan(), { saring: 'baru', lingkup: 'terlibat', sejak: sejakBaca }).length,
+      permintaan: I.bolehLihatMintaDae(S.me) ? I.mintaDaeMenunggu(S.data).length : 0,
     };
   }
   const lencanaHtml = (id, n) => (n ? `<span class="lencana ${id === 'hari' ? 'biru' : ''}">${n}</span>` : '');
@@ -1785,7 +1798,7 @@
 
   const GAMBAR = {
     hari: () => viewHari(), dashboard: () => viewDashboard(), laporan: () => viewLaporan(), task: () => viewTask(),
-    proyek: () => viewProyek(), paket: () => viewPaket(), inisiatif: () => viewInisiatif(), komunikasi: () => viewKomunikasi(),
+    proyek: () => viewProyek(), paket: () => viewPaket(), inisiatif: () => viewInisiatif(), permintaan: () => viewPermintaan(), komunikasi: () => viewKomunikasi(),
     link: () => viewLink(), catatan: () => viewCatatan(), riwayat: () => viewRiwayat(), panduan: () => viewPanduan(), agenda: () => viewAgenda(),
     master: () => viewMaster(), dev: () => viewDev(),
   };
@@ -1975,6 +1988,7 @@
     undang: 'kalender', jadwal: 'kalender', jawab: 'centang', ikut: 'orang', notulen: 'catatan', batal: 'tutup',
     minta: 'serah', mintaTim: 'orang', mintaTerima: 'centang', mintaTolak: 'tutup', mintaAlih: 'serah',
     panjang: 'kalender', panjangSetuju: 'centang', panjangTolak: 'tutup',
+    daeBaru: 'kotakMasuk', daeTanya: 'tanya', daeBalas: 'balas', daeKomentar: 'obrolan', daeTolak: 'tutup', daeTerima: 'centang', daeSelesai: 'centang',
   };
 
   const acaraNotif = n => `<b>${esc(n.judul)}</b> · ${esc(fmtTanggal(n.tanggal))}${n.mulai ? ' ' + esc(n.mulai) : ''}`;
@@ -2012,6 +2026,14 @@
       case 'mintaTerima': return tr('{siapa}menerima permintaan Anda: {judul}', v);
       case 'mintaTolak': return tr('{siapa}menolak permintaan Anda ({minta}).{kutip}', { ...v, minta: esc(n.minta) });
       case 'mintaAlih': return tr('{siapa}mengalihkan permintaan {minta} ke {nama}', { ...v, minta: `<b>${esc(n.minta)}</b>`, nama: nama(n.ke) });
+      // Permintaan ke tim DAE (2.46.0).
+      case 'daeBaru': return tr('{siapa}meminta tim DAE: {minta}', { ...v, minta: `<b>${esc(n.minta)}</b>` });
+      case 'daeTanya': return tr('{siapa}bertanya soal permintaan Anda {minta}:{kutip}', { ...v, minta: `<b>${esc(n.minta)}</b>` });
+      case 'daeBalas': return tr('{siapa}membalas pertanyaan soal {minta}:{kutip}', { ...v, minta: `<b>${esc(n.minta)}</b>` });
+      case 'daeKomentar': return tr('{siapa}berkomentar di permintaan {minta}:{kutip}', { ...v, minta: `<b>${esc(n.minta)}</b>` });
+      case 'daeTolak': return tr('{siapa}menolak permintaan Anda {minta}.{kutip}', { ...v, minta: `<b>${esc(n.minta)}</b>` });
+      case 'daeTerima': return tr('{siapa}menerima permintaan Anda {minta}: jadi {judul}', { ...v, minta: `<b>${esc(n.minta)}</b>` });
+      case 'daeSelesai': return tr('{siapa}menyetujui hasil permintaan {minta}: selesai', { ...v, minta: `<b>${esc(n.minta)}</b>` });
       // Banding perpanjangan tenggat (2.41.0).
       case 'panjang': return tr('{siapa}minta perpanjangan tenggat {judul}: {lama} → {baru}.{kutip}', { ...v, lama: esc(fmtTanggal(n.dueLama)), baru: `<b>${esc(fmtTanggal(n.dueBaru))}</b>` });
       case 'panjangSetuju': return tr('{siapa}menyetujui perpanjangan tenggat {judul} ke {baru}', { ...v, baru: `<b>${esc(fmtTanggal(n.dueBaru))}</b>` });
@@ -2024,7 +2046,7 @@
     const daftar = notifSaya().slice(0, 40);
     return `<div class="panel-notif" role="dialog" aria-label="${tr('Notifikasi')}">
       <div class="panel-notif-kepala"><strong>${tr('Notifikasi')}</strong><span class="hint">${tr('untuk {nama}', { nama: esc(I.orang(S.me).pendek) })}</span></div>
-      <div class="panel-notif-isi">${daftar.map(n => `<button type="button" class="notif-item ${n.at > S.notif.sebelum ? 'baru' : ''}" data-aksi="notif-buka" data-id="${esc(n.task || '')}" data-proyek="${esc(n.proyek || '')}" data-ruang="${esc(n.ruang || '')}" data-pesan="${esc(n.pesan || '')}" data-agenda="${esc(n.agenda || '')}" data-hari="${esc(n.tanggal || '')}">
+      <div class="panel-notif-isi">${daftar.map(n => `<button type="button" class="notif-item ${n.at > S.notif.sebelum ? 'baru' : ''}" data-aksi="notif-buka" data-id="${esc(n.task || '')}" data-proyek="${esc(n.proyek || '')}" data-ruang="${esc(n.ruang || '')}" data-pesan="${esc(n.pesan || '')}" data-agenda="${esc(n.agenda || '')}" data-hari="${esc(n.tanggal || '')}" data-mintadae="${esc(n.mintaDae || '')}" data-jenis="${esc(n.jenis)}">
           <span class="notif-ikon jn-${n.jenis}">${ikon(IKON_NOTIF[n.jenis] || 'lonceng', 16)}</span>
           <span class="notif-teks">${kalimatNotif(n)}<small>${esc(relatif(n.at))}</small></span>
         </button>`).join('') || `<p class="hint panel-notif-kosong">${tr('Belum ada yang menyangkut Anda.')}</p>`}</div>
@@ -2182,7 +2204,10 @@
     // Banding perpanjangan tenggat untuk saya sebagai pemberi task (2.41.0).
     const panjangMasuk = I.panjangMasuk(S.data, S.me);
     const chip = (n, teks, kelas, ke) => (n ? `<button type="button" class="chip-aksi ${kelas}" data-aksi="lompat" data-ke="${ke}">${teks}</button>` : '');
+    // Permintaan ke tim DAE yang menunggu Lead DAE (2.46.0): membuka halaman Permintaan.
+    const menungguDae = I.bolehKelolaMintaDae(S.me) && S.me !== I.DEV ? I.mintaDaeMenunggu(S.data).length : 0;
     const ringkas = [
+      menungguDae ? `<button type="button" class="chip-aksi biru" data-aksi="ke" data-view="permintaan">${tr('{n} permintaan ke DAE', { n: menungguDae })}</button>` : '',
       chip(masuk.length, tr('{n} permintaan masuk', { n: masuk.length }), 'biru', 'hari-minta'),
       chip(panjangMasuk.length, tr('{n} pengajuan perpanjangan', { n: panjangMasuk.length }), 'kuning', 'hari-panjang'),
       chip(telat.length, tr('{n} terlambat', { n: telat.length }), 'merah', 'hari-sekarang'),
@@ -2967,7 +2992,7 @@
   /* Syarat ajukan (PRD) sebagai bilah kemajuan, dengan yang masih kurang di bawahnya. */
   function syaratRingkas(t, perId) {
     // Hanya saat dikerjakan: selagi menunggu, kartu langkah sudah menjelaskannya.
-    if (t.lane !== 'proyek' || t.status !== 'Dikerjakan') return '';
+    if ((t.lane !== 'proyek' && !t.permintaanDae) || t.status !== 'Dikerjakan') return '';
     const syarat = I.syaratAjukan(t, perId);
     const ok = syarat.filter(x => x.ok).length;
     const kurang = syarat.filter(x => !x.ok);
@@ -2990,7 +3015,7 @@
       </div>`).join('');
     const ket = t.output ? esc(potong(t.output, 36)) + (bukti.length ? ' · ' + tr('{n} tautan', { n: bukti.length }) : '') : tr('belum diisi');
     return {
-      ket, kurang: !t.output && t.lane === 'proyek' && !I.selesai(t),
+      ket, kurang: !t.output && (t.lane === 'proyek' || !!t.permintaanDae) && !I.selesai(t),
       html: `${boleh ? `<form class="baris-form" data-form="output" data-id="${id}">
           <label class="sr" for="out-${id}">${tr('Output')}</label>
           <input class="input" id="out-${id}" name="output" maxlength="200" value="${esc(t.output)}" placeholder="${esc(tr('Hasil kerja, mis. 40 soal lolos QC'))}" autocomplete="off">
@@ -3435,8 +3460,9 @@
           ${I.bolehAjukanPanjang(S.data, t, me) ? `<button type="button" class="tautan-kecil" data-aksi="panjang-ajukan" data-id="${esc(t.id)}">${ikon('kalender', 14)} ${tr('Minta perpanjangan tenggat')}</button>` : ''}</div>
         <div class="detail-orang">${avatar(t.pic)} ${tr('PIC')} ${nama(t.pic)}${statusHtml(t.pic)}
           ${t.support.length ? ` · ${tr('bantuan')} ${t.support.map(nama).join(', ')}` : ''}
-          · ${tinjau ? tr('ditinjau {nama}', { nama: nama(tinjau) }) + (tinjau === I.peninjauMinta(t) ? ' ' + tr('(tim peminta; Manager memantau)') : '') : jenis === 'proyek' ? tr('tanpa tinjauan') : tr('tanpa tinjauan (di luar proyek)')}</div>
+          · ${tinjau ? tr('ditinjau {nama}', { nama: nama(tinjau) }) + (tinjau === I.peninjauMinta(t) ? ' ' + tr('(tim peminta; Manager memantau)') : t.permintaanDae ? ' ' + tr('(pengirim permintaan; Manager memantau)') : '') : jenis === 'proyek' ? tr('tanpa tinjauan') : tr('tanpa tinjauan (di luar proyek)')}</div>
         ${pilihSambungTask(t, bisaSub)}
+        ${bannerMintaDae(t)}
         ${bannerPanjang(t)}
       </div>
 
@@ -4293,6 +4319,7 @@
               ${p.goal ? `<p class="teks-panjang" style="margin-top:8px">${teksBertaut(p.goal)}</p>` : ''}</div>
             ${gerbang}
             <div class="detail-aksi"><button type="button" class="tombol kecil" data-aksi="papan-proyek" data-id="${esc(p.id)}">${ikon('tugas', 16)} ${tr('Lihat di Task')}</button>
+              ${tombolMintaDae(p)}
               ${keputusan}
               ${iz('proyek.arsip') && !p.arsip && !r.siapMaju && r.keadaan !== 'sepi' && r.semua && r.semua === r.semuaSelesai ? `<button type="button" class="tombol kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">${tr('Arsipkan proyek')}</button>` : ''}
               ${menuProyek ? menuLagi(tr('Aksi lain proyek ini'), menuProyek) : ''}</div>
@@ -4305,11 +4332,319 @@
         </div>
         <div class="samping-tumpuk kolom-sisi">
           ${kartuPaketProyek(p)}
+          ${blokMintaDae(p)}
           ${kartuAcara('proyek', p.id)}
           ${(p.history || []).length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Riwayat tahap proyek')}</p><ul class="riwayat">${p.history.slice(0, 20).map(x => `
             <li>${teksRiwayat(x)} <small>· ${esc(relatif(x.at))}</small></li>`).join('')}</ul></section>` : ''}
         </div>
       </div>`;
+  }
+
+  /* ---------- Permintaan ke tim DAE (2.46.0, permintaan user) ----------
+     Dari detail proyek, anggota tim pemilik proyek menekan Minta ke tim DAE. Lead DAE menerima
+     di halaman Permintaan (jadi task di sebuah inisiatif), bertanya, atau menolak; task yang
+     lahir wajib ditinjau pengirimnya. Blok Permintaan ke tim lain di proyek asal menampilkan
+     langkahnya: Dikirim → Diterima → Dikerjakan → Ditinjau → Selesai (ditambah Ditanya, Revisi,
+     atau Ditolak). Manager hanya mengawasi dan boleh berkomentar. Aturannya di Inti. */
+  const cariMintaDae = id => (S.data.permintaanDae || []).find(x => x.id === id) || null;
+  const labelJenis = k => { const j = I.JENIS_MINTA_DAE.find(([x]) => x === k); return j ? tr(j[1]) : k; };
+  function pillMintaDae(m) {
+    const l = I.langkahMintaDae(S.data, m);
+    const [kelas, label] = l.kunci === 'ditolak' ? ['ditolak', tr('Ditolak')]
+      : l.tambahan === 'ditanya' ? ['ditanya', tr('Ditanya')]
+        : l.tambahan === 'revisi' ? ['revisi', tr('Revisi')]
+          : l.kunci === 'dikirim' ? ['menunggu', tr('Menunggu')]
+            : l.kunci === 'diterima' ? ['diterima', tr('Diterima')]
+              : l.kunci === 'dikerjakan' ? ['dikerjakan', tr('Dikerjakan')]
+                : l.kunci === 'ditinjau' ? ['ditinjau', tr('Ditinjau')] : ['selesai', tr('Selesai')];
+    return `<span class="pill mt-${kelas}">${esc(label)}</span>`;
+  }
+  const LANGKAH_MINTA_NAMA = { dikirim: 'Dikirim', diterima: 'Diterima', dikerjakan: 'Dikerjakan', ditinjau: 'Ditinjau', selesai: 'Selesai' };
+  function jalurMintaDae(m) {
+    const l = I.langkahMintaDae(S.data, m);
+    if (l.kunci === 'ditolak') return '';
+    const langkah = I.LANGKAH_MINTA_DAE;
+    const isi = langkah.map(([k], i) => {
+      const no = i + 1;
+      const kelas = no < l.no || (l.kunci === 'selesai' && no === l.no) ? 'lewat' : no === l.no ? 'kini' : '';
+      return `<div class="${kelas}"><span class="kotak">${kelas === 'lewat' ? '✓' : no}</span><span class="nama">${esc(tr(LANGKAH_MINTA_NAMA[k]))}</span></div>`;
+    }).join('');
+    const label = tr('Status permintaan: {status} (langkah {n} dari {total})', { status: tr(LANGKAH_MINTA_NAMA[l.kunci]), n: l.no, total: langkah.length });
+    return `<div class="jalur-tahap" role="img" aria-label="${esc(label)}">${isi}</div>`;
+  }
+  /* Hasil kerja DAE (keterangan dan tautan bukti dari PIC) untuk peminta. */
+  function hasilMintaDae(t) {
+    const bukti = (t.evidence || []).filter(e => tautanAman(e.url));
+    return `<div class="minta-hasil">${ikon('laporan', 16)}<span class="minta-hasil-isi">
+      ${t.output ? `<span>${teksBertaut(t.output)}</span>` : `<span>${tr('PIC belum menulis keterangan hasil.')}</span>`}
+      ${bukti.length ? `<span class="ini-pembaruan-chip">${bukti.map(e => `<a class="ini-chip" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${ikon('luar', 12)} ${esc(potong(e.label || I.judulTautan(e.url), 40))}</a>`).join('')}</span>` : ''}</span></div>`;
+  }
+  /* Satu permintaan di blok proyek asal. */
+  function kartuMintaKeluar(m) {
+    const l = I.langkahMintaDae(S.data, m);
+    const t = I.taskMintaDae(S.data, m);
+    const ini = m.inisiatif ? inisiatifDari(m.inisiatif) : null;
+    const tinjau = t && !I.selesai(t) ? I.peninjau(t) : '';
+    const saya = l.kunci === 'ditinjau' && tinjau === S.me;
+    const tanyaAkhir = (m.utas || []).filter(u => u.jenis === 'tanya').pop();
+    const revisi = t && l.tambahan === 'revisi' ? I.revisiTerakhir(t) : null;
+    const waktu = [tr('Diminta {nama}', { nama: nama(m.dari) }) + ' · ' + esc(fmtWaktu(m.createdAt))];
+    if (m.status === 'diterima' || m.status === 'selesai') waktu.push(tr('diterima {nama}', { nama: nama(m.oleh) }) + ' · ' + esc(fmtWaktu(m.jawabAt)));
+    if (m.status === 'ditolak') waktu.push(tr('ditolak {nama}', { nama: nama(m.oleh) }) + ' · ' + esc(fmtWaktu(m.jawabAt)));
+    if (m.status === 'selesai') waktu.push(tr('selesai {waktu}', { waktu: esc(fmtWaktu(m.selesaiAt)) }));
+    const tombol = [
+      saya ? `<button type="button" class="tombol kecil utama" data-aksi="aksi-task" data-kunci="setujui" data-id="${esc(t.id)}">${tr('Setujui')}</button>
+        <button type="button" class="tombol kecil" data-aksi="aksi-task" data-kunci="kembalikan" data-id="${esc(t.id)}">${tr('Kembalikan untuk revisi')}</button>` : '',
+      m.status === 'ditanya' && m.dari === S.me ? `<button type="button" class="tombol kecil utama" data-aksi="minta-dae-balas" data-id="${esc(m.id)}">${ikon('balas', 14)} ${tr('Balas')}</button>` : '',
+      I.bolehUbahMintaDae(m, S.me) ? `<button type="button" class="tombol kecil" data-aksi="minta-dae-ubah" data-id="${esc(m.id)}">${ikon('sunting', 14)} ${tr('Sunting')}</button>` : '',
+      t && (saya || tinjau) ? `<button type="button" class="tombol kecil" data-aksi="buka-task" data-id="${esc(t.id)}">${tr('Buka task')}</button>` : '',
+      I.bolehLihatMintaDae(S.me) ? `<button type="button" class="tautan-kecil" data-aksi="buka-minta" data-id="${esc(m.id)}">${tr('Buka di Permintaan')}</button>` : '',
+    ].join('');
+    return `<div class="minta-keluar" id="mdae-${esc(m.id)}">
+      <div class="minta-keluar-kepala"><span class="minta-keluar-judul"><b>${esc(m.judul)}</b> · ${chipTim(I.TIM_DAE)}</span>${l.tambahan || l.kunci === 'ditolak' ? pillMintaDae(m) : ''}</div>
+      ${jalurMintaDae(m)}
+      ${m.pic || m.dueTerima || m.due || ini ? `<p class="kartu-minta-meta">
+        ${m.pic ? `<span class="detail-orang">${tr('PIC DAE')} ${avatar(m.pic, 'kecil')} <b>${nama(m.pic)}</b></span>` : ''}
+        ${m.dueTerima || m.due ? `<span>${tr('Tenggat')} <span class="tenggat">${esc(fmtTanggal(m.dueTerima || m.due))}</span></span>` : ''}
+        ${ini ? `<span>${tr('Inisiatif§satu')} ${I.bolehLihatInisiatif(S.me) ? `<button type="button" class="tautan-kecil" data-aksi="buka-inisiatif" data-id="${esc(ini.id)}">${esc(ini.nama)}</button>` : `<b>${esc(ini.nama)}</b>`}</span>` : ''}</p>` : ''}
+      ${m.status === 'ditolak' ? `<p class="baris-minta-alasan">“${esc(m.alasan)}”</p>` : ''}
+      ${l.tambahan === 'ditanya' && tanyaAkhir ? `<p class="kotak-minta-info">${tr('{nama} bertanya: {teks}', { nama: `<b>${nama(tanyaAkhir.oleh)}</b>`, teks: `“${esc(potong(tanyaAkhir.teks, 240))}”` })}</p>` : ''}
+      ${revisi ? `<p class="kotak-minta-info">${tr('Dikembalikan {nama} untuk revisi: {catatan}', { nama: `<b>${nama(revisi.by)}</b>`, catatan: `“${esc(revisi.note || '—')}”` })}</p>` : ''}
+      ${t && (l.kunci === 'ditinjau' || l.kunci === 'selesai') ? hasilMintaDae(t)
+        : m.status === 'diterima' || m.status === 'selesai' ? `<div class="minta-hasil">${ikon('laporan', 16)}<span>${tr('Hasil dari DAE (tautan, keterangan, dan bukti dari PIC) tampil di sini saat siap ditinjau.')}</span></div>` : ''}
+      ${tinjau && !saya && l.kunci === 'ditinjau' ? `<p class="hint">${tr('Menunggu tinjauan {nama}.', { nama: nama(tinjau) })}</p>` : ''}
+      ${m.revisi ? `<p class="hint">${tr('Putaran revisi: {n}', { n: m.revisi })}</p>` : ''}
+      ${tombol ? `<div class="kartu-minta-tombol">${tombol}</div>` : ''}
+      <p class="hint">${waktu.join(' · ')}</p>
+    </div>`;
+  }
+  /* Blok di halaman proyek asal. */
+  function blokMintaDae(p) {
+    const daftar = I.mintaDaeProyek(S.data, p.id);
+    const boleh = I.bolehMintaDae(S.data, p, S.me);
+    if (!daftar.length && !boleh) return '';
+    const terbuka = daftar.filter(m => m.status !== 'ditolak' && m.status !== 'selesai').length;
+    return `<section class="kartu-polos samping-tumpuk" id="minta-dae"><p class="subjudul">${tr('Permintaan ke tim lain')} ${terbuka ? `<span class="lencana biru">${terbuka}</span>` : ''}</p>
+      ${daftar.map(kartuMintaKeluar).join('')}
+      <p class="hint">${boleh ? tr('Butuh tim DAE membangun sesuatu dari hasil proyek ini? Kirim lewat Minta ke tim DAE di atas. DAE menerimanya dulu sebelum jadi task, dan hasilnya Anda tinjau sendiri.')
+        : tr('Permintaan dari proyek ini ke tim DAE. Statusnya tampil di sini.')}</p>
+    </section>`;
+  }
+  const tombolMintaDae = p => (I.bolehMintaDae(S.data, p, S.me)
+    ? `<button type="button" class="tombol kecil" data-aksi="minta-dae" data-id="${esc(p.id)}">${ikon('serah', 16)} ${tr('Minta ke tim DAE')}</button>` : '');
+  /* Form kirim (m kosong) atau sunting permintaan. */
+  function formMintaDae(p, m = null) {
+    const jenis = m ? m.jenis : '';
+    const lewat = m && m.due && m.due < hariIni();
+    return `<form data-form="modal" novalidate>
+      <h2>${m ? tr('Sunting permintaan ke tim DAE') : tr('Permintaan ke tim DAE')}</h2>
+      <p class="hint">${tr('Dari {proyek} · {id}. Lead DAE menerima dulu sebelum jadi task. Yang diterima masuk ke salah satu inisiatif DAE, dan statusnya tampil di proyek ini.', { proyek: esc(p.name), id: esc(p.id) })}</p>
+      <label class="isian">${tr('Yang diminta')} <input name="judul" required maxlength="200" placeholder="${esc(tr('mis. Generator OJK Tahap 1'))}" value="${esc(m ? m.judul : '')}">
+        <small>${tr('Wajib. Nama hasil yang Anda butuhkan dari DAE.')}</small></label>
+      <div class="isian"><span>${tr('Jenis')}</span>
+        <div class="segmen segmen-bungkus" role="group" aria-label="${tr('Jenis permintaan')}">${I.JENIS_MINTA_DAE.map(([k]) => `<button type="button" data-aksi="pilih-jenis" data-jenis="${k}" aria-pressed="${k === jenis}">${esc(labelJenis(k))}</button>`).join('')}</div>
+        <input type="hidden" name="jenis" value="${esc(jenis)}">
+        <small>${tr('Wajib. Menentukan inisiatif tujuan di DAE, mis. Generator soal → Generator Soal. Lead DAE bisa menggantinya saat menerima.')}</small></div>
+      <label class="isian">${tr('Kebutuhan')} <textarea name="kebutuhan" maxlength="2000" rows="4" placeholder="${esc(tr('Apa yang sudah siap, apa yang dibutuhkan, dan seperti apa hasil yang diharapkan.'))}">${esc(m ? m.kebutuhan : '')}</textarea></label>
+      <label class="isian">${tr('Bahan riset (opsional)')} <textarea name="links" rows="3" placeholder="${esc(tr('Satu per baris: Judul | https://…'))}">${esc(m ? teksTautan(m.bahan) : '')}</textarea></label>
+      <label class="isian">${tr('Tenggat yang diharapkan')} <input type="date" name="due" ${lewat ? '' : `min="${esc(hariIni())}"`} value="${esc(m ? m.due : '')}"></label>
+      ${kakiModal(m ? tr('Simpan') : tr('Kirim permintaan'))}
+    </form>`;
+  }
+  const formUtasMintaDae = (m, judul, label, tombol, bantu = '') => `<form data-form="modal" novalidate>
+      <h2>${esc(judul)}</h2>
+      <p class="label-tebal">${esc(m.judul)}</p>
+      <label class="isian">${esc(label)} <textarea name="teks" required maxlength="2000" rows="4"></textarea></label>
+      ${bantu ? `<p class="hint">${bantu}</p>` : ''}
+      ${kakiModal(tombol)}
+    </form>`;
+  function formTolakMintaDae(m) {
+    return `<form data-form="modal" novalidate>
+      <h2>${tr('Tolak permintaan?')}</h2>
+      <p class="label-tebal">${esc(m.judul)}</p>
+      <label class="isian">${esc(tr('Alasan (wajib, dikirim ke {nama})', { nama: I.orang(m.dari).pendek }))} <textarea name="alasan" required maxlength="1000" rows="3" placeholder="${esc(tr('Mis. antrean tim penuh sampai akhir bulan; bisa mulai tanggal …'))}"></textarea></label>
+      <p class="hint">${tr('Tidak ada task yang dibuat. {nama} diberi tahu beserta alasannya dan bisa mengirim permintaan baru dengan cakupan lain.', { nama: nama(m.dari) })}</p>
+      ${kakiModal(tr('Tolak'))}
+    </form>`;
+  }
+  /* Peta jenis → inisiatif: diatur Lead DAE, disimpan di inisiatifnya (inisiatif.menerima). */
+  const urutIdInisiatif = (a, b) => a.id.localeCompare(b.id, 'id', { numeric: true });
+  const petaMentah = () => {
+    const peta = {};
+    for (const x of S.data.inisiatif || []) for (const k of x.menerima || []) if (!peta[k]) peta[k] = x.id;
+    return peta;
+  };
+  function formPetaMintaDae() {
+    const peta = petaMentah();
+    const pilihan = (S.data.inisiatif || []).filter(x => x.tim === I.TIM_DAE && x.status !== 'selesai').sort(urutIdInisiatif);
+    return `<form data-form="modal" novalidate>
+      <h2>${tr('Peta jenis → inisiatif')}</h2>
+      <p class="hint">${tr('Jenis yang dipilih pengirim menentukan inisiatif bawaan saat Anda menerima permintaan. Yang tak dipetakan: inisiatifnya dipilih sendiri saat menerima. Satu jenis hanya satu inisiatif.')}</p>
+      ${I.JENIS_MINTA_DAE.map(([k]) => `<label class="isian">${esc(labelJenis(k))} <select name="peta-${k}">${opsiHtml([['', tr('— belum dipetakan —')], ...pilihan.map(x => [x.id, x.nama])], peta[k] || '')}</select></label>`).join('')}
+      ${kakiModal(tr('Simpan'))}
+    </form>`;
+  }
+
+  /* ---- Halaman Permintaan (DAE, Manager, Dev) ---- */
+  const SARING_MINTA_DAE = [
+    ['menunggu', m => I.bukaMintaDae(m)],
+    ['diterima', m => m.status === 'diterima' || m.status === 'selesai'],
+    ['ditolak', m => m.status === 'ditolak'],
+  ];
+  const saringMintaDaeDari = m => (SARING_MINTA_DAE.find(([, f]) => f(m)) || ['menunggu'])[0];
+  const butirUtas = u => `<div class="ini-pesan">${avatar(u.oleh, 'kecil')}<div class="ini-pesan-badan">
+      <p class="ini-pesan-kepala"><b>${nama(u.oleh)}</b>${I.orang(u.oleh).peran === 'manager' ? ` <span class="lencana-manager">${tr('Manager')}</span>` : ''}
+        <small>${u.jenis === 'tanya' ? tr('bertanya') : u.jenis === 'balas' ? tr('membalas') : u.jenis === 'komentar' ? tr('berkomentar') : tr('catatan')} · ${esc(relatif(u.at))}</small></p>
+      <div class="ini-pesan-isi"><p>${teksBertaut(u.teks)}</p></div></div></div>`;
+  function formTerimaMintaDae(m) {
+    const daftar = (S.data.inisiatif || []).filter(x => x.tim === I.TIM_DAE && x.status === 'aktif').sort(urutIdInisiatif);
+    const bawaan = I.petaMintaDae(S.data)[m.jenis] || '';
+    const anggota = I.anggotaDae().filter(id => I.picBoleh(S.me).includes(id) || I.orang(S.me).peran === 'manager');
+    const picAwal = anggota.includes(S.me) ? S.me : anggota[0] || '';
+    return `<form class="minta-terima" data-form="minta-dae-terima" data-id="${esc(m.id)}" novalidate>
+      <p class="subjudul">${tr('Terima permintaan')}</p>
+      <label class="isian">${tr('Masuk ke inisiatif')}
+        <select name="inisiatif" required>${bawaan ? '' : `<option value="" selected disabled>${tr('— pilih inisiatif —')}</option>`}${opsiHtml(daftar.map(x => [x.id, `${x.nama} (${x.id})`]), bawaan)}</select>
+        <small>${bawaan ? tr('Dari jenis {jenis}, bisa diganti.', { jenis: labelJenis(m.jenis) }) : tr('Jenis {jenis} belum dipetakan ke inisiatif: pilih sendiri.', { jenis: labelJenis(m.jenis) })}</small></label>
+      <div class="dua-isian">
+        <label class="isian">${tr('PIC')} <select name="pic">${anggota.map(id => `<option value="${esc(id)}" ${id === picAwal ? 'selected' : ''}>${esc(id === S.me ? tr('Saya ({nama})', { nama: I.orang(id).pendek }) : I.orang(id).pendek)}</option>`).join('')}</select></label>
+        <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(m.due || '')}"></label>
+      </div>
+      <div class="kotak-minta-info">
+        <p>${tr('Masuk Antre sebagai pembaruan inisiatif yang dipilih, tertaut ke permintaan ini dan ke {id}.', { id: esc(m.proyek) })}</p>
+        <p>${tr('Wajib ditinjau {nama}: PIC mengajukan hasilnya, {nama} menyetujui atau mengembalikan untuk revisi. Manager hanya memantau.', { nama: nama(m.dari) })}</p>
+        <p>${tr('{nama} diberi tahu saat diterima, saat hasilnya siap ditinjau, dan saat selesai.', { nama: nama(m.dari) })}</p>
+      </div>
+      <div class="kartu-minta-tombol">
+        <button class="tombol utama">${tr('Terima, buat task')}</button>
+        <button type="button" class="tombol" data-aksi="minta-dae-tanya" data-id="${esc(m.id)}">${ikon('obrolan', 14)} ${tr('Tanya dulu')}</button>
+        <button type="button" class="tombol" data-aksi="minta-dae-tolak" data-id="${esc(m.id)}">${tr('Tolak')}</button>
+      </div>
+    </form>`;
+  }
+  function detailMintaDae(m) {
+    const p = proyekDari(m.proyek);
+    const t = I.taskMintaDae(S.data, m);
+    const ini = m.inisiatif ? inisiatifDari(m.inisiatif) : null;
+    const bahan = (m.bahan || []).filter(l => tautanAman(l.url));
+    const kelola = I.bolehKelolaMintaDae(S.me) && S.me !== I.DEV;
+    const tinjau = t ? I.peninjau(t) : '';
+    const keadaan = p ? I.ringkasProyek(S.data, p, hariIni(), perIdKini()).keadaan : '';
+    const info = [];
+    if (m.status === 'diterima' || m.status === 'selesai') {
+      info.push(tr('Diterima {nama} · {waktu}', { nama: nama(m.oleh), waktu: esc(fmtWaktu(m.jawabAt)) }));
+      info.push(t ? tr('Jadi task {id} di inisiatif {ini} · {status} · PIC {pic}', { id: `<button type="button" class="tautan-task" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(t.id)}</button>`, ini: ini ? esc(ini.nama) : '—', status: esc(tr(t.status)), pic: nama(m.pic) })
+        : tr('Task {id} sudah dihapus.', { id: esc(m.task) }));
+      if (t) info.push(tinjau ? tr('Hasilnya ditinjau {nama}, pengirim permintaan; Manager hanya memantau.', { nama: nama(tinjau) }) + (m.revisi ? ' ' + tr('Putaran revisi: {n}', { n: m.revisi }) : '') : '');
+    }
+    if (m.status === 'ditolak') {
+      info.push(tr('Ditolak {nama} · {waktu}', { nama: nama(m.oleh), waktu: esc(fmtWaktu(m.jawabAt)) }));
+    }
+    const utas = m.utas || [];
+    const boleLihatUtas = utas.length || I.bolehKomentarMintaDae(m, S.me);
+    return `<article class="kartu-minta ${m.status === 'diterima' || m.status === 'selesai' || m.status === 'ditolak' ? 'untuk-tim' : ''}" data-detail="${esc(m.id)}">
+      <p class="kartu-minta-oleh">${avatar(m.dari, 'kecil')}<span>${tr('{siapa} dari {tim} meminta tim DAE', { siapa: `<b>${nama(m.dari)}</b>`, tim: chipTim(m.timPeminta) })} · ${esc(relatif(m.createdAt))}</span>${pillMintaDae(m)}</p>
+      <h3 class="kartu-minta-judul">${esc(m.judul)}</h3>
+      <p class="kartu-minta-meta"><span>${tr('Jenis')} <b>${esc(labelJenis(m.jenis))}</b></span><span>${tr('Dikirim')} <b>${esc(fmtWaktu(m.createdAt))}</b></span>${m.due ? `<span>${tr('Harapan')} <b>${esc(fmtTanggal(m.due))}</b></span>` : ''}</p>
+      ${p ? `<button type="button" class="kartu-minta-asal" data-aksi="buka-proyek" data-id="${esc(p.id)}"><span class="hint">${tr('Dari')}</span> <b>${esc(p.id)}</b> <span class="kartu-minta-asal-judul">${esc(p.name)}</span> ${keadaan ? chipKeadaan(keadaan) : ''}</button>`
+        : `<p class="hint">${tr('Dari {id} (proyeknya sudah dihapus)', { id: esc(m.proyek) })}</p>`}
+      <div class="minta-bahan"><p class="sub-kecil">${tr('Kebutuhan')}</p>${m.kebutuhan ? `<p class="kartu-minta-rincian teks-panjang">${teksBertaut(m.kebutuhan)}</p>` : `<p class="hint">${tr('Tidak diisi.')}</p>`}</div>
+      ${bahan.length ? `<div class="minta-bahan"><p class="sub-kecil">${tr('Bahan riset')}</p><div class="ini-pembaruan-chip">${bahan.map(l => `<a class="ini-chip" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${ikon('luar', 12)} ${esc(l.label || I.judulTautan(l.url))}</a>`).join('')}</div></div>` : ''}
+      ${boleLihatUtas ? `<div class="minta-bahan"><p class="sub-kecil">${tr('Diskusi')}</p>
+        ${utas.length ? `<div class="ini-utas">${utas.map(butirUtas).join('')}</div>` : `<p class="hint">${tr('Belum ada pertanyaan atau komentar.')}</p>`}
+        ${I.bolehKomentarMintaDae(m, S.me) ? `<button type="button" class="tautan-kecil" data-aksi="minta-dae-komentar" data-id="${esc(m.id)}">${tr('Tulis komentar')}</button>` : ''}</div>` : ''}
+      ${m.status === 'ditolak' && m.alasan ? `<div class="kotak-minta-info"><p>${info.join('</p><p>')}</p><p class="baris-minta-alasan">“${esc(m.alasan)}”</p></div>`
+        : info.filter(Boolean).length ? `<div class="kotak-minta-info">${info.filter(Boolean).map(s => `<p>${s}</p>`).join('')}</div>` : ''}
+      ${I.bukaMintaDae(m) ? (kelola ? formTerimaMintaDae(m)
+        : `<div class="kotak-minta-info"><p>${S.me === I.DEV ? tr('Dev hanya melihat. Pilih Lihat sebagai Lead DAE untuk menerima, bertanya, atau menolak.') : I.orang(S.me).peran === 'manager' ? tr('Anda mengawasi permintaan ini. Lead DAE yang menerima, bertanya, atau menolak; Anda boleh berkomentar.') : tr('Hanya Lead DAE yang menerima, bertanya, atau menolak permintaan ini.')}</p></div>`) : ''}
+    </article>`;
+  }
+  function viewPermintaan() {
+    const semua = S.data.permintaanDae || [];
+    const f = (SARING_MINTA_DAE.find(([k]) => k === S.pdae.saring) || SARING_MINTA_DAE[0]);
+    const tampil = semua.filter(f[1]);
+    const dipilih = tampil.find(m => m.id === S.pdae.pilih) || tampil[0] || null;
+    const label = { menunggu: tr('Menunggu'), diterima: tr('Diterima'), ditolak: tr('Ditolak') };
+    const baris = m => `<button type="button" class="baris ${dipilih && dipilih.id === m.id ? 'dipilih' : ''}" data-aksi="pdae-pilih" data-id="${esc(m.id)}">
+        ${pillMintaDae(m)}
+        <span class="baris-isi"><span class="baris-judul">${esc(m.judul)}</span>
+          <span class="baris-meta">${chipTim(m.timPeminta)} ${esc((proyekDari(m.proyek) || { name: m.proyek }).name)} · ${esc(labelJenis(m.jenis))} · ${esc(relatif(m.createdAt))}</span></span>
+        ${m.due ? `<span class="tenggat">${esc(fmtTanggalPendek(m.due))}</span>` : ''}${avatar(m.dari, 'kecil')}
+      </button>`;
+    return `<div class="judul-halaman"><div><h1>${tr('Permintaan')}</h1>
+        <p>${tr('Permintaan dari tim lain ke tim DAE. Yang diterima menjadi task DAE di sebuah inisiatif dan wajib ditinjau pengirimnya; tim peminta melihat statusnya di proyek asalnya. Manager hanya mengawasi.')}</p></div>
+        <div class="segmen" role="group" aria-label="${tr('Status permintaan')}">${SARING_MINTA_DAE.map(([k, fn]) => `<button type="button" data-aksi="pdae-saring" data-nilai="${k}" aria-pressed="${S.pdae.saring === k}">${esc(label[k])} (${semua.filter(fn).length})</button>`).join('')}</div>
+        ${I.bolehAturPetaMintaDae(S.me) ? `<button type="button" class="tombol" data-aksi="pdae-peta">${ikon('atur', 16)} ${tr('Peta jenis → inisiatif')}</button>` : ''}
+      </div>
+      <div class="dua-kolom">
+        <div class="kolom-sisi">
+          ${tampil.length ? `<div class="grup">${tampil.map(baris).join('')}</div>` : `<div class="kosong-isi">${tr('Tak ada permintaan dengan status ini.')}</div>`}
+          <p class="hint" style="margin-top:10px">${tr('Permintaan baru memberi tahu Lead DAE. Yang diterima dikerjakan di inisiatifnya; yang ditolak selalu disertai alasan.')}</p>
+        </div>
+        <div class="kolom-utama">${dipilih ? detailMintaDae(dipilih) : `<div class="kosong-isi">${tr('Pilih permintaan untuk melihat rinciannya.')}</div>`}</div>
+      </div>`;
+  }
+  /* Membuka satu permintaan di halaman Permintaan (juga dari notifikasi dan blok proyek). */
+  function bukaMintaDaeDi(id) {
+    const m = cariMintaDae(id);
+    if (!m || !I.bolehLihatMintaDae(S.me)) return false;
+    S.pdae = { saring: saringMintaDaeDari(m), pilih: m.id };
+    pindahHalaman('permintaan');
+    return true;
+  }
+  function kirimTerimaMintaDae(form) {
+    const m = cariMintaDae(form.dataset.id);
+    if (!m) return;
+    const f = Object.fromEntries(new FormData(form).entries());
+    try {
+      if (!f.inisiatif) throw new Error(tr('Pilih inisiatif tujuannya.'));
+      const t = ubahData('terimaMintaDae', { permintaan: m.id, f: { inisiatif: f.inisiatif, pic: f.pic, due: f.due } });
+      S.pdae = { saring: 'diterima', pilih: m.id };
+      selesaiUbah(tr('{id} dibuat untuk {nama} di inisiatif {ini}. {peminta} diberi tahu dan akan meninjau hasilnya.', { id: t.id, nama: I.orang(t.pic).pendek, ini: (inisiatifDari(t.inisiatif) || {}).nama || t.inisiatif, peminta: I.orang(m.dari).pendek }));
+    } catch (err) { toast(trPola(err.message), true); }
+  }
+
+  /* ---- Penanda di halaman inisiatif dan detail task ---- */
+  /* Jumlah permintaan terbuka di kartu inisiatif; hanya untuk inisiatif yang menerima jenis permintaan. */
+  const penandaMintaIni = y => {
+    const n = I.mintaDaeTerbuka(S.data, y);
+    return (y.menerima || []).length || n ? `<span class="ini-minta ${n ? '' : 'kosong'}">${n ? tr('{n} permintaan terbuka', { n }) : tr('Tanpa permintaan terbuka')}</span>` : '';
+  };
+  /* "Diminta dari <proyek> · <tim>" pada task DAE yang lahir dari permintaan, tertaut ke proyek asalnya. */
+  function chipDiminta(t) {
+    const m = I.asalMintaDae(S.data, t);
+    if (!m) return '';
+    const p = proyekDari(m.proyek);
+    const isi = `${ikon('serah', 12)} ${tr('Diminta dari {proyek} · {tim}', { proyek: esc(p ? p.name : m.proyek), tim: esc(I.singkatTim(m.timPeminta)) })}`;
+    return p ? `<button type="button" class="ini-chip diminta" data-aksi="buka-proyek" data-id="${esc(p.id)}" title="${esc(tr('Buka proyek asal permintaan'))}">${isi}</button>` : `<span class="ini-chip diminta">${isi}</span>`;
+  }
+  /* Satu baris "Sedang berjalan" di detail inisiatif; yang berasal dari permintaan memuat penandanya. */
+  function barisBerjalanIni(t, x) {
+    const judul = esc(I.judulPembaruan(t, x));
+    if (!t.permintaanDae) {
+      return `<button type="button" class="ini-berjalan-baris" data-aksi="buka-task" data-id="${esc(t.id)}"><span>${judul}</span><small>${esc(t.id)} · ${esc(tr(t.status))}${t.due ? ' · ' + esc(fmtTanggal(t.due)) : ''}</small></button>`;
+    }
+    return `<div class="ini-berjalan-baris ada-minta">
+      <button type="button" class="ini-berjalan-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${judul}</button>
+      <small>${esc(t.id)} · ${esc(tr(t.status))}${t.due ? ' · ' + esc(tr('tenggat {tanggal}', { tanggal: fmtTanggal(t.due) })) : ''}</small>
+      <small class="ini-berjalan-orang">${tr('PIC')} ${avatar(t.pic, 'kecil')} ${nama(t.pic)}</small>
+      ${chipDiminta(t)}</div>`;
+  }
+  /* Spanduk di detail task yang lahir dari permintaan: dari siapa, siapa yang meninjau, putaran revisi. */
+  function bannerMintaDae(t) {
+    const m = I.asalMintaDae(S.data, t);
+    if (!m) return '';
+    const p = proyekDari(m.proyek);
+    const tinjau = I.peninjau(t);
+    const tombol = [
+      p ? `<button type="button" class="tombol kecil" data-aksi="buka-proyek" data-id="${esc(p.id)}">${tr('Buka proyek asal')}</button>` : '',
+      I.bolehLihatMintaDae(S.me) ? `<button type="button" class="tombol kecil" data-aksi="buka-minta" data-id="${esc(m.id)}">${tr('Buka di Permintaan')}</button>` : '',
+    ].join('');
+    return `<div class="banner biru banner-minta" role="status">
+      <p>${tr('Dari permintaan {id}: {nama} ({tim}) meminta tim DAE untuk {proyek}.', { id: esc(m.id), nama: `<b>${nama(m.dari)}</b>`, tim: esc(I.singkatTim(m.timPeminta)), proyek: esc(p ? p.name : m.proyek) })}</p>
+      <p class="hint">${tinjau === I.DEV ? tr('Tak ada pengirim atau Lead tim peminta yang bisa meninjau, jadi Dev yang meninjau.') : tr('Hasilnya wajib ditinjau {nama}, pengirim permintaan. Manager hanya memantau.', { nama: nama(tinjau) })}${m.revisi ? ' ' + tr('Putaran revisi: {n}', { n: m.revisi }) : ''}</p>
+      ${tombol ? `<div class="kartu-langkah-tombol">${tombol}</div>` : ''}
+    </div>`;
   }
 
   /* ---------- Inisiatif (2.31.0, permintaan user) ----------
@@ -4338,6 +4673,7 @@
         <small>${esc(y.id)} · ${chipTim(y.tim)} · ${tr('PIC {nama}', { nama: nama(y.pic) })}</small>
         ${y.tujuan ? `<span class="ini-tujuan">${esc(potong(y.tujuan, 160))}</span>` : ''}
         <span class="ini-angka">${tr('{a} terbuka · {b} telat · {c} selesai 30 hari', { a: r.buka.length, b: r.telat, c: r.selesai30 })}</span>
+        ${penandaMintaIni(y)}
         ${belumSaya(r) ? `<span class="ini-belum">${tr('{n} pembaruan belum Anda tanggapi', { n: belumSaya(r) })}</span>` : ''}
         <small>${tr('Terakhir diperbarui {waktu}', { waktu: esc(relatif(r.terakhir)) })}</small>
       </button>`;
@@ -4397,9 +4733,10 @@
               ${baris(tr('PIC'), nama(x.pic))}
               ${x.createdAt ? baris(tr('Dideklarasikan'), esc(fmtTanggal(I.isoHari(x.createdAt)))) : ''}
               ${baris(tr('Tautan'), tautan.length ? tautan.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${ikon('luar', 14)} ${esc(l.label || I.judulTautan(l.url))}</a>`).join('') : `<span class="hint">${kelola ? tr('Belum ada. Tambahkan repo, dokumen, atau dashboard lewat Ubah.') : tr('Belum ada.')}</span>`)}
+              ${(x.menerima || []).length ? baris(tr('Menerima permintaan'), x.menerima.map(k => `<span class="ini-chip">${esc(labelJenis(k))}</span>`).join('')) : ''}
             </dl></section>
           <section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Sedang berjalan')} ${r.buka.length ? `<span class="lencana">${r.buka.length}</span>` : ''}</p>
-            ${r.buka.length ? `<div class="ini-berjalan">${r.buka.map(t => `<button type="button" class="ini-berjalan-baris" data-aksi="buka-task" data-id="${esc(t.id)}"><span>${esc(I.judulPembaruan(t, x))}</span><small>${esc(t.id)} · ${esc(tr(t.status))}${t.due ? ' · ' + esc(fmtTanggal(t.due)) : ''}</small></button>`).join('')}</div>`
+            ${r.buka.length ? `<div class="ini-berjalan">${r.buka.map(t => barisBerjalanIni(t, x)).join('')}</div>`
               : `<p class="hint">${tr('Tidak ada. Pembaruan yang belum selesai tampil di sini.')}</p>`}</section>
           ${kartuAcara('inisiatif', x.id)}
         </aside>
@@ -4457,6 +4794,7 @@
       ${t.detail ? `<p class="ini-pembaruan-ringkas">${esc(potong(teksPolos(t.detail), 240))}</p>` : ''}
       ${!adaAngka && t.output ? `<p class="ini-pembaruan-ringkas">${esc(potong(t.output, 200))}</p>` : ''}
       <div class="ini-pembaruan-chip">
+        ${chipDiminta(t)}
         ${adaAngka ? ANGKA_LABEL.filter(([k]) => angka[k]).map(([k, l]) => `<span class="ini-chip">${esc(tr(l, { n: angka[k] }))}</span>`).join('') : ''}
         ${bukti.slice(0, 3).map(e => `<a class="ini-chip" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${ikon('luar', 12)} ${esc(potong(e.label || I.judulTautan(e.url), 40))}</a>`).join('')}
         ${bukti.length > 3 ? `<span class="ini-chip">+${bukti.length - 3}</span>` : ''}
@@ -10103,6 +10441,43 @@
           tutupModal();
           return selesaiUbah(tr('Permintaan dialihkan ke {nama}.', { nama: I.orang(x.ke).pendek }));
         }
+        // Permintaan ke tim DAE (2.46.0).
+        case 'minta-dae': {
+          ubahData('kirimMintaDae', { proyek: m.id, f: { judul: f.judul, jenis: f.jenis, kebutuhan: f.kebutuhan, due: f.due, bahan: tautanDariTeks(f.links) } });
+          tutupModal();
+          return selesaiUbah(tr('Permintaan terkirim ke tim DAE. {nama} diberi tahu.', { nama: I.orang(I.TIM[I.TIM_DAE].lead).pendek }));
+        }
+        case 'minta-dae-ubah': {
+          ubahData('ubahMintaDae', { permintaan: m.id, f: { judul: f.judul, jenis: f.jenis, kebutuhan: f.kebutuhan, due: f.due, bahan: tautanDariTeks(f.links) } });
+          tutupModal();
+          return selesaiUbah(tr('Permintaan disimpan.'));
+        }
+        case 'minta-dae-tanya': {
+          const x = ubahData('tanyaMintaDae', { permintaan: m.id, teks: f.teks });
+          tutupModal();
+          return selesaiUbah(tr('Pertanyaan terkirim ke {nama}; permintaan menunggu balasannya.', { nama: I.orang(x.dari).pendek }));
+        }
+        case 'minta-dae-balas': {
+          ubahData('balasMintaDae', { permintaan: m.id, teks: f.teks });
+          tutupModal();
+          return selesaiUbah(tr('Balasan terkirim. Lead DAE diberi tahu.'));
+        }
+        case 'minta-dae-komentar': {
+          ubahData('komentariMintaDae', { permintaan: m.id, teks: f.teks });
+          tutupModal();
+          return selesaiUbah(tr('Komentar terkirim.'));
+        }
+        case 'minta-dae-tolak': {
+          const x = ubahData('tolakMintaDae', { permintaan: m.id, alasan: f.alasan });
+          tutupModal();
+          S.pdae = { saring: 'ditolak', pilih: m.id };
+          return selesaiUbah(tr('Permintaan ditolak. {nama} diberi tahu beserta alasannya.', { nama: I.orang(x.dari).pendek }));
+        }
+        case 'peta-minta-dae': {
+          ubahData('aturPetaMintaDae', { peta: Object.fromEntries(I.JENIS_MINTA_DAE.map(([k]) => [k, f['peta-' + k] || ''])) });
+          tutupModal();
+          return selesaiUbah(tr('Peta jenis permintaan disimpan.'));
+        }
         case 'konfirmasi-aksi': {
           const t = S.data.tasks.find(x => x.id === m.id);
           tutupModal();
@@ -10436,6 +10811,7 @@
           const a = d.agenda && acaraDari(d.agenda);
           if (a) bukaDetailAgenda(a, d.hari);
         }
+        else if (d.mintadae && /^dae(Baru|Balas|Komentar)$/.test(d.jenis) && bukaMintaDaeDi(d.mintadae)) { /* dibuka di halaman Permintaan */ }
         else if (d.proyek) bukaProyek(d.proyek);
         else if (t) bukaTask(t.id);
         else renderKepala();
@@ -10674,6 +11050,41 @@
           selesaiUbah(tr('Pengajuan perpanjangan dibatalkan.'));
         } catch (err) { toast(err.message, true); }
         break;
+      /* Permintaan ke tim DAE (2.46.0). */
+      case 'minta-dae': { const pr = proyekDari(d.id); if (pr) bukaModal({ jenis: 'minta-dae', id: pr.id }, formMintaDae(pr)); break; }
+      case 'minta-dae-ubah': {
+        const x = cariMintaDae(d.id);
+        const pr = x && proyekDari(x.proyek);
+        if (x && pr) bukaModal({ jenis: 'minta-dae-ubah', id: x.id }, formMintaDae(pr, x));
+        break;
+      }
+      case 'pilih-jenis': {
+        const form = el.closest('form');
+        form.elements.jenis.value = d.jenis;
+        form.querySelectorAll('[data-aksi="pilih-jenis"]').forEach(b => b.setAttribute('aria-pressed', String(b === el)));
+        break;
+      }
+      case 'minta-dae-tanya': {
+        const x = cariMintaDae(d.id);
+        if (x) bukaModal({ jenis: 'minta-dae-tanya', id: x.id }, formUtasMintaDae(x, tr('Tanya {nama} dulu', { nama: I.orang(x.dari).pendek }), tr('Pertanyaan'), tr('Kirim pertanyaan'),
+          tr('{nama} diberi tahu dan permintaan berstatus Ditanya sampai dibalas. Ia bisa membalas atau menyunting permintaannya.', { nama: nama(x.dari) })));
+        break;
+      }
+      case 'minta-dae-balas': {
+        const x = cariMintaDae(d.id);
+        if (x) bukaModal({ jenis: 'minta-dae-balas', id: x.id }, formUtasMintaDae(x, tr('Balas pertanyaan'), tr('Balasan'), tr('Kirim balasan'), tr('Lead DAE diberi tahu. Anda juga bisa menyunting permintaannya dengan Sunting.')));
+        break;
+      }
+      case 'minta-dae-komentar': {
+        const x = cariMintaDae(d.id);
+        if (x) bukaModal({ jenis: 'minta-dae-komentar', id: x.id }, formUtasMintaDae(x, tr('Tulis komentar'), tr('Komentar'), tr('Kirim komentar'), tr('Komentar tidak mengubah status permintaan.')));
+        break;
+      }
+      case 'minta-dae-tolak': { const x = cariMintaDae(d.id); if (x) bukaModal({ jenis: 'minta-dae-tolak', id: x.id }, formTolakMintaDae(x)); break; }
+      case 'pdae-pilih': S.pdae.pilih = d.id; render(); break;
+      case 'pdae-saring': S.pdae = { saring: d.nilai, pilih: '' }; render(); break;
+      case 'pdae-peta': bukaModal({ jenis: 'peta-minta-dae' }, formPetaMintaDae()); break;
+      case 'buka-minta': if (!bukaMintaDaeDi(d.id)) toast(tr('Permintaan ini tak bisa dibuka dari profil Anda.'), true); break;
       /* Permintaan lanjutan (2.36.0). */
       case 'minta-lanjutan': {
         const t = perIdKini().get(d.id);
@@ -11370,7 +11781,7 @@
     if (form.dataset.form === 'masuk-dev') { e.preventDefault(); kirimMasukDev(form); return; }
     if (form.dataset.form === 'orang') { e.preventDefault(); kirimOrang(form); return; }
     // PIN profil dan halaman Master (0.14.0).
-    const khusus = { 'ini-tanggap': kirimTanggapan, agenda: kirimAgenda, notulen: kirimNotulen, 'pengingat-agenda': kirimPengingatAgenda, 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-sub-hapus': kirimHapusSub, 'mst-sub-pindah': kirimPindahSub, 'mst-kat': kirimMasterKategori,
+    const khusus = { 'ini-tanggap': kirimTanggapan, 'minta-dae-terima': kirimTerimaMintaDae, agenda: kirimAgenda, notulen: kirimNotulen, 'pengingat-agenda': kirimPengingatAgenda, 'pin-profil': kirimPinProfil, 'mst-sub': kirimMasterSub, 'mst-sub-hapus': kirimHapusSub, 'mst-sub-pindah': kirimPindahSub, 'mst-kat': kirimMasterKategori,
       'mst-tambah': kirimMasterTambah, 'mst-label': kirimMasterLabel, 'mst-pin': kirimFormPin }[form.dataset.form];
     if (khusus) { e.preventDefault(); khusus(form); return; }
     const jenis = form.dataset.form;
