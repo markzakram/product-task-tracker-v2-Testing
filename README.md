@@ -1796,6 +1796,22 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
   data*).
 - **Link Saya dan Catatan Saya tetap di browser itu**, di data contoh maupun data real, jadi
   belum terbagi antarperangkat.
+  - **Beberapa tab (2.46.1, keluhan user: catatan yang sudah dimasukkan hilang).** Sampai 2.46.0
+    tiap tab v2 menulis ulang salinan Catatan/Link pribadinya setiap kali ada perubahan data real
+    dari tim, jadi tab yang lama terbuka menimpa catatan yang baru ditulis di tab lain. Kini
+    salinan cepat data real (`simpanCacheReal`) tak lagi menulis data pribadi; data pribadi
+    ditulis `simpanPribadi` hanya saat isinya berubah, sesudah digabung tiga arah dengan yang
+    tersimpan (`Inti.gabungPribadi`: per ID, yang diubah satu pihak ikut pihak itu, diubah keduanya
+    yang terbaru, dihapus dan tak diubah pihak lain ikut terhapus). Tab lain ikut diperbarui lewat
+    peristiwa `storage`. Diuji di `test/catatan-antartab.test.js`.
+  - **Pulihkan catatan.** Catatan yang hilang tanpa dihapus tetapi riwayat versinya masih ada di
+    browser itu (menghapus catatan ikut menghapus riwayatnya) ditawarkan di atas Catatan Saya:
+    **Lihat dan pulihkan** membuatnya kembali di folder Umum dari versi terakhirnya, dan versi
+    lainnya tetap di Riwayat versi catatan itu. Hanya di data real; catatan data contoh tak
+    dihitung. Catatan yang tak pernah diubah sesudah dibuat tak punya riwayat versi, jadi tak bisa
+    dipulihkan dengan cara ini.
+  - Data contoh masih menyimpan semuanya dalam satu salinan per browser, jadi dua tab data
+    contoh tetap bisa saling menimpa.
 - **Agen AI Ali hanya berjalan selama Agent Office menyala** di komputer Ali: jadwal yang
   terlewat tidak dijalankan susulan. Tugas AI-nya memakai kredit API, dan perubahan task hanya
   tersimpan di data real.

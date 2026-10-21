@@ -381,6 +381,7 @@
     if (S.mode === 'real') {
       // Data bersama sudah dikirim lewat ubahData; di sini hanya salinan cepatnya dan data pribadi.
       S.pribadi = { links: S.data.links || [], notes: S.data.notes || [] };
+      simpanPribadi();
       return simpanCacheReal();
     }
     simpan('data', { versi: S.versi, dimuat: S.dimuat, data: S.data });
@@ -437,13 +438,52 @@
     }
     S.data = d;
   }
+  /* Sejak 2.46.1 salinan cepat ini tak lagi menulis Catatan/Link pribadi: dulu tiap tab menulisnya
+     setiap ada perubahan data real, sehingga tab yang lama terbuka menimpa catatan yang baru
+     ditulis di tab lain. Data pribadi ditulis simpanPribadi, hanya saat isinya berubah di sini. */
   function simpanCacheReal() {
     const R = S.real;
     if (S.pratinjau || !R.dasar) return;
     const { links, notes, ...dasar } = R.dasar;
     simpan('real', { generasi: R.generasi, seq: R.seq, koleksi: I.KOLEKSI_REAL, dasar, tertunda: R.tertunda });
-    simpan('pribadi_real', S.pribadi);
   }
+  /* Catatan/Link pribadi (data real): digabung dulu dengan yang tersimpan sekarang (mungkin dari
+     tab lain), lalu ditulis. S.pribadiAsal = yang terakhir dibaca atau ditulis tab ini. */
+  const PRIBADI_KOSONG = () => ({ links: [], notes: [] });
+  function bacaPribadi() {
+    S.pribadi = ambil('pribadi_real', null) || PRIBADI_KOSONG();
+    S.pribadiAsal = structuredClone(S.pribadi);
+  }
+  function pasangPribadi() {
+    if (S.data) { S.data.links = S.pribadi.links; S.data.notes = S.pribadi.notes; }
+    if (S.real.dasar) { S.real.dasar.links = S.pribadi.links; S.real.dasar.notes = S.pribadi.notes; }
+  }
+  function simpanPribadi() {
+    if (S.pratinjau) return;
+    S.pribadi = I.gabungPribadi(S.pribadiAsal, S.pribadi, ambil('pribadi_real', null) || PRIBADI_KOSONG());
+    simpan('pribadi_real', S.pribadi);
+    S.pribadiAsal = structuredClone(S.pribadi);
+    pasangPribadi();
+  }
+  /* Tab lain menyimpan Catatan/Link pribadi: ikut diperbarui di sini (2.46.1). */
+  window.addEventListener('storage', e => {
+    if (e.key !== AWALAN + 'pribadi_real' || S.mode !== 'real' || S.pratinjau || !S.pribadi) return;
+    const kini = ambil('pribadi_real', null);
+    if (!kini) return;
+    const sebelum = JSON.stringify(S.pribadi);
+    S.pribadi = I.gabungPribadi(S.pribadiAsal, S.pribadi, kini);
+    S.pribadiAsal = structuredClone(kini);
+    // Ada perubahan tab ini yang belum ada di simpanan: tulis gabungannya.
+    if (JSON.stringify(S.pribadi) !== JSON.stringify(kini)) {
+      simpan('pribadi_real', S.pribadi);
+      S.pribadiAsal = structuredClone(S.pribadi);
+    }
+    pasangPribadi();
+    if (JSON.stringify(S.pribadi) === sebelum) return;
+    // Catatan: daftarnya saja, supaya editor yang sedang dipakai tak terganggu.
+    if (S.view === 'catatan') segarkanDaftarCatatan();
+    else if (S.view === 'link') gambarUlangAman();
+  });
   /* Saat dibuka di data real: salinan cepat dari browser ini (kalau generasinya sama), lalu
      perubahan sesudahnya dari server. Perintah yang belum terkirim dikirim lagi; server membuang
      yang ternyata sudah tersimpan (ID-nya sama). */
@@ -453,7 +493,7 @@
   function mulaiReal(b) {
     const cache = ambil('real', null);
     const sama = !!(cache && cache.dasar && cacheRealKenal(cache) && b && !b.dariAwal && cache.generasi === b.generasi);
-    S.pribadi = ambil('pribadi_real', null) || { links: [], notes: [] };
+    bacaPribadi();
     Object.assign(S.real, {
       generasi: sama ? cache.generasi : '',
       seq: sama ? cache.seq : 0,
@@ -6484,6 +6524,13 @@
           <button type="button" class="tombol utama" data-aksi="catatan-baru">${ikon('tambah', 16)} ${tr('Catatan baru')}</button>
         </div></div>${bilahPilihCatatan()}`;
     const alat = `<div class="catatan-alat">${kotakCari('catatan', S.ctt.q, 'Cari catatan…')}${saringWarnaHtml()}</div>`;
+    // Catatan yang hilang tanpa dihapus, tetapi riwayat versinya masih ada (2.46.1).
+    const nYatim = catatanYatim().length;
+    const pulih = nYatim ? `<div class="banner kuning ctt-yatim-banner">${tr('{n} catatan tak ada lagi di daftar, padahal tidak Anda hapus. Riwayat versinya masih tersimpan di browser ini.', { n: nYatim })}
+        <button type="button" class="tombol kecil" data-aksi="ctt-yatim">${tr('Lihat dan pulihkan')}</button></div>` : '';
+    return viewCatatanDengan(kepala + pulih, alat, kartu, n, milik);
+  }
+  function viewCatatanDengan(kepala, alat, kartu, n, milik) {
     if (kartu) return `${kepala}<div class="catatan-kartu-wadah">${alat}<div id="hasil" class="ctt-grup-daftar ctt-grid">${daftarCatatan()}</div></div>`;
     return `${kepala}<div class="catatan-dua ${n ? 'ada-editor' : ''}">
         <aside class="catatan-panel kartu-polos rapat">${alat}<div id="hasil" class="catatan-list ctt-grup-daftar">${daftarCatatan()}</div></aside>
@@ -6491,6 +6538,47 @@
           <p><strong>${milik.length ? tr('Pilih catatan di kiri') : tr('Belum ada catatan')}</strong><br><span class="hint">${tr('Catatan tersimpan sendiri saat Anda menulis. Mulai dari templat bila perlu.')}</span></p>
           <button type="button" class="tombol utama" data-aksi="catatan-baru">${ikon('tambah', 16)} ${tr('Catatan baru')}</button></section>`}
       </div>`;
+  }
+
+  /* Catatan yatim (2.46.1): ID-nya ada di riwayat versi browser ini, tetapi catatannya tak ada di
+     Catatan Saya maupun data contoh. Menghapus catatan ikut menghapus riwayat versinya, jadi yang
+     tersisa di sini hilang tanpa dihapus, mis. tertimpa tab lain sebelum 2.46.1. Hanya di data real. */
+  let idCatatanContoh = null;
+  function catatanYatim() {
+    if (S.mode !== 'real' || !S.pribadi) return [];
+    if (!idCatatanContoh) {
+      const contoh = ambil('data', null);
+      idCatatanContoh = new Set(((contoh && contoh.data && contoh.data.notes) || []).map(x => x.id));
+    }
+    const ada = new Set((S.pribadi.notes || []).map(x => x.id));
+    return Object.entries(semuaVersi())
+      .filter(([id, v]) => !ada.has(id) && !idCatatanContoh.has(id) && Array.isArray(v) && v.length && (v[0].title || String(v[0].body || '').trim()))
+      .map(([id, v]) => ({ id, versi: v.length, at: v[0].at, title: v[0].title || '', body: String(v[0].body || '') }))
+      .sort((a, b) => b.at - a.at);
+  }
+  function formYatim() {
+    const daftar = catatanYatim();
+    return `<div class="form-versi">
+      <h2>${tr('Pulihkan catatan')}</h2>
+      <p class="hint">${tr('Catatan ini tak ada lagi di daftar Anda, tetapi versi terakhirnya masih tersimpan di browser ini. Memulihkan membuatnya kembali di folder Umum; versi lainnya bisa dibuka lewat Riwayat versi catatan itu.')}</p>
+      ${daftar.length ? `<ul class="versi-daftar">${daftar.map(v => `<li>
+          <div><strong>${esc(v.title || barisPertama(v) || tr('Tanpa judul'))}</strong><small>${tr('versi terakhir {waktu}', { waktu: esc(fmtWaktu(v.at)) })} · ${tr('{n} versi', { n: v.versi })} · ${tr('{n} karakter', { n: v.body.length })}</small>
+            <p>${esc(potong(v.body.replace(/\s+/g, ' '), 180)) || `<i>${tr('kosong')}</i>`}</p></div>
+          <span class="versi-tombol"><button type="button" class="tombol kecil" data-aksi="ctt-yatim-buang" data-id="${esc(v.id)}">${tr('Buang')}</button>
+          <button type="button" class="tombol kecil utama" data-aksi="ctt-yatim-pulih" data-id="${esc(v.id)}">${tr('Pulihkan')}</button></span></li>`).join('')}</ul>`
+        : `<p class="kosong-isi">${tr('Tak ada lagi catatan yang bisa dipulihkan.')}</p>`}
+      <div class="modal-kaki"><button type="button" class="tombol" data-aksi="tutup-modal">${tr('Tutup')}</button></div>
+    </div>`;
+  }
+  function pulihkanYatim(id) {
+    const v = ambilVersi(id)[0];
+    if (!v || S.data.notes.some(x => x.id === id)) return;
+    const waktu = Date.now();
+    S.data.notes.unshift({ id, user: S.me, createdAt: v.at || waktu, pin: false, title: String(v.title || ''), body: String(v.body || ''), folder: '', updatedAt: waktu });
+    simpanData();
+    if (catatanYatim().length) $('#modal-panel').innerHTML = formYatim(); else tutupModal();
+    render();
+    toast(tr('Catatan "{judul}" dipulihkan ke Umum.', { judul: potong(v.title || barisPertama(v) || tr('Tanpa judul'), 40) }));
   }
 
   function saringWarnaHtml() {
@@ -8783,7 +8871,7 @@
     S.pratinjau = null;
     S.obr.peristiwa = S.obr.peristiwa.filter(e => !e.tertunda && !e.gagal);
     if (S.mode === 'real') {
-      S.pribadi = ambil('pribadi_real', null) || { links: [], notes: [] };
+      bacaPribadi();
       susunReal();
     } else if (!S.uji) {
       const lokal = ambil('data', null);
@@ -11652,6 +11740,16 @@
         break;
       }
       case 'ctt-pulihkan': pulihkanVersi(Number(d.i)); break;
+      // Catatan yang hilang tanpa dihapus (2.46.1).
+      case 'ctt-yatim': bukaModal({ jenis: 'ctt-yatim', tanpaFokus: true }, formYatim()); break;
+      case 'ctt-yatim-pulih': pulihkanYatim(d.id); break;
+      case 'ctt-yatim-buang': {
+        if (!confirm(tr('Buang riwayat versi catatan ini? Catatannya tak bisa dipulihkan lagi.'))) return;
+        hapusVersi(d.id);
+        if (catatanYatim().length) $('#modal-panel').innerHTML = formYatim(); else tutupModal();
+        render();
+        break;
+      }
       case 'catatan-unduh': {
         simpanCatatanTertunda();
         const n = catatanAktif();

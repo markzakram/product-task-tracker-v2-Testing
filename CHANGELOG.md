@@ -1,5 +1,22 @@
 # Changelog — ProductTrack v2
 
+## 2.46.1 — Catatan Saya tak lagi tertimpa tab lain; pulihkan catatan yang hilang (2026-10-21)
+
+Keluhan user: catatan yang sudah dimasukkan di data real v2 hilang.
+
+- **Penyebab:** Catatan Saya dan Link Saya hanya tersimpan di browser. Setiap tab v2 menulis ulang
+  salinan miliknya setiap kali ada perubahan data real dari tim, jadi tab yang sudah lama terbuka
+  menimpa catatan yang baru ditulis di tab lain. Setelah dimuat ulang, catatan itu hilang.
+- **Perbaikan:** data pribadi kini hanya ditulis saat isinya berubah di tab itu, dan sebelum
+  ditulis digabung dengan yang tersimpan sekarang (per catatan: yang diubah satu tab ikut tab itu,
+  diubah keduanya yang terbaru, yang dihapus ikut terhapus). Tab lain yang terbuka ikut diperbarui
+  seketika.
+- **Pulihkan catatan:** catatan yang hilang tanpa dihapus, tetapi riwayat versinya masih ada di
+  browser itu, ditawarkan di atas Catatan Saya (**Lihat dan pulihkan**). Pulihkan membuatnya
+  kembali di folder Umum dari versi terakhirnya; Buang menghapus riwayatnya. Catatan yang tak
+  pernah diubah sesudah dibuat tak punya riwayat versi, jadi tak bisa dipulihkan dengan cara ini.
+- Tes baru `test/catatan-antartab.test.js`.
+
 ## 2.46.0 — Permintaan ke tim DAE (2026-10-21)
 
 Permintaan user: anggota tim lain (RAD, LNA, CLO) sering butuh tim DAE membangun sesuatu dari

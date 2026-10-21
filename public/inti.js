@@ -3960,6 +3960,39 @@
     return l;
   }
 
+  /* ---------- Catatan & Link pribadi di beberapa tab (2.46.1) ----------
+     Catatan Saya dan Link Saya hanya tersimpan di browser. Dulu setiap tab menulis ulang salinan
+     miliknya tiap kali ada perubahan data real, jadi tab lama menimpa catatan yang baru ditulis di
+     tab lain (keluhan user: catatan yang sudah dimasukkan hilang). Kini sebelum menulis, isi tab
+     ini digabung tiga arah: asal = yang terakhir dibaca atau ditulis tab ini, saya = isi tab ini,
+     kini = yang tersimpan sekarang (mungkin dari tab lain). Per ID: yang hanya diubah satu pihak
+     ikut pihak itu; diubah keduanya, yang updatedAt-nya terbaru; dihapus satu pihak dan tak
+     diubah pihak lain, ikut terhapus. Yang baru dari tab lain di depan, seperti butir baru. */
+  function gabungDaftarPribadi(asal, saya, kini) {
+    const peta = xs => new Map((Array.isArray(xs) ? xs : []).filter(x => x && x.id).map(x => [x.id, x]));
+    const A = peta(asal), M = peta(saya), K = peta(kini);
+    const sama = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+    const baruLain = [...K.keys()].filter(id => !M.has(id) && !A.has(id));
+    const lain = [...K.keys()].filter(id => !M.has(id) && A.has(id));
+    const out = [];
+    for (const id of [...baruLain, ...M.keys(), ...lain]) {
+      const a = A.get(id), m = M.get(id), k = K.get(id);
+      if (m && k) {
+        const ubahM = !a || !sama(m, a), ubahK = !a || !sama(k, a);
+        out.push(ubahM && ubahK ? ((Number(k.updatedAt) || 0) > (Number(m.updatedAt) || 0) ? k : m) : ubahK ? k : m);
+      } else if (m) {
+        if (!a || !sama(m, a)) out.push(m);   // baru di tab ini, atau diubah di sini walau dihapus di tab lain
+      } else if (k) {
+        if (!a || !sama(k, a)) out.push(k);   // baru di tab lain, atau diubah di sana walau dihapus di sini
+      }
+    }
+    return out;
+  }
+  const gabungPribadi = (asal, saya, kini) => ({
+    links: gabungDaftarPribadi(asal && asal.links, saya && saya.links, kini && kini.links),
+    notes: gabungDaftarPribadi(asal && asal.notes, saya && saya.notes, kini && kini.notes),
+  });
+
   function simpanCatatan(data, me, f, id, waktu) {
     const title = teks(f.title);
     const body = String(f.body == null ? '' : f.body).replace(/\s+$/, '');
@@ -4809,6 +4842,7 @@
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, sorotProyek,
     angkaKerja, jumlahAngka, judulPembaruan, linimasaInisiatif, tanggapanPembaruan, belumDitanggapi,
+    gabungDaftarPribadi, gabungPribadi,
     ringkasPembaruan, bolehPembaruanProyek, sambungProyek, pembaruanProyek, ringkasPembaruanProyek,
     STATUS_PANJANG, pemberiTask, panjangMenunggu, panjangTask, bolehAjukanPanjang, bolehJawabPanjang, ajukanPerpanjangan, jawabPerpanjangan,
     batalkanPerpanjangan, panjangMasuk, pulihkanTask,

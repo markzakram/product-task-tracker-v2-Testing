@@ -2719,6 +2719,16 @@
     'Task dari permintaan ke tim DAE harus kembali ke sebuah inisiatif. Pilih inisiatif tujuannya.': 'A task from a request to team DAE must go back into an initiative. Choose the target initiative.',
     'Task ini perlu ditinjau dulu. Pindahkan ke Ditinjau.': 'This task needs a review first. Move it to In review.',
     'Belum ada pengirim permintaan atau anggota aktif tim peminta yang bisa memutuskan perpanjangan ini.': 'There is no request sender or active requesting-team member who can decide on this extension.',
+    /* ----- Catatan pribadi di beberapa tab (2.46.1) ----- */
+    '{n} catatan tak ada lagi di daftar, padahal tidak Anda hapus. Riwayat versinya masih tersimpan di browser ini.': '{n} notes are no longer in your list, though you didn\'t delete them. Their version history is still stored in this browser.',
+    'Lihat dan pulihkan': 'View and restore',
+    'Pulihkan catatan': 'Restore notes',
+    'Catatan ini tak ada lagi di daftar Anda, tetapi versi terakhirnya masih tersimpan di browser ini. Memulihkan membuatnya kembali di folder Umum; versi lainnya bisa dibuka lewat Riwayat versi catatan itu.': 'These notes are no longer in your list, but their latest version is still stored in this browser. Restoring recreates the note in the General folder; its other versions are available from that note\'s Version history.',
+    'versi terakhir {waktu}': 'latest version {waktu}',
+    '{n} versi': '{n} versions',
+    'Tak ada lagi catatan yang bisa dipulihkan.': 'No more notes to restore.',
+    'Catatan "{judul}" dipulihkan ke Umum.': 'Note "{judul}" restored to General.',
+    'Buang riwayat versi catatan ini? Catatannya tak bisa dipulihkan lagi.': 'Discard this note\'s version history? The note can no longer be restored.',
   };
 
   let kini = 'id';

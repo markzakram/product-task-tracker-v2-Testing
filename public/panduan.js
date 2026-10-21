@@ -99,6 +99,7 @@
         '**Pindah baris**: seret pegangan **⋮⋮** ke tempat garis biru. Pintasan lain: **Ctrl+Enter** mencentang checklist, **Ctrl+Shift+X** mencoret, **Ctrl+E** menandai kode.',
         '**Jadikan task** membuat task dari satu blok catatan; nomor task-nya ditempel di ujung blok itu dan bisa diklik. **Ctrl+Z** mengurungkan perubahan.',
         'Beri **warna** untuk menandai catatan dan saring menurut warnanya. **Riwayat versi** menyimpan isi lama, jadi suntingan yang keliru bisa dipulihkan.',
+        'Catatan tersimpan di browser ini saja. Di data real, Catatan Saya boleh dibuka di beberapa tab sekaligus: isinya digabung dan tab lain ikut diperbarui. Catatan yang hilang tanpa dihapus, tetapi riwayat versinya masih ada, ditawarkan lewat **Lihat dan pulihkan** di atas daftar.',
         'Tombol **Pilih** di atas daftar memilih beberapa catatan sekaligus untuk dihapus, dipindah ke folder, atau diberi warna. Catatan juga bisa diseret ke folder lain, atau ke **Disematkan**.',
         'Salah hapus? Tekan **Urungkan** pada pesan yang muncul (atau **Ctrl+Z**) dalam 10 detik; catatan dan riwayat versinya kembali.',
         'Catatan pribadi dan hanya ada di **browser ini**; tidak terkirim ke spreadsheet. Unduh sebagai .txt bila perlu disimpan di tempat lain.',

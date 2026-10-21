@@ -1352,6 +1352,9 @@ button.ctt-cek:hover { border-color: var(--hijau); }
 .versi-daftar { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
 .versi-daftar li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--garis); border-radius: 12px; }
 .versi-daftar li > div { flex: 1; min-width: 0; }
+/* Pulihkan catatan yang hilang tanpa dihapus (2.46.1). */
+.versi-tombol { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.ctt-yatim-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
 .versi-daftar strong { display: block; font-size: calc(14px * var(--skala-huruf)); }
 .versi-daftar small { display: block; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
 .versi-daftar p { margin: 6px 0 0; font-size: calc(13px * var(--skala-huruf)); color: var(--tinta-2); overflow-wrap: anywhere; }
