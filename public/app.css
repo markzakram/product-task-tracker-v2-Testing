@@ -2581,9 +2581,20 @@ button.ini-berjalan-judul:hover { color: var(--biru); text-decoration: underline
 .ini-garis > .ini-lainnya { align-self: flex-start; }
 .ini-pembaruan { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 16px; border: 1px solid var(--garis); border-radius: 12px; background: var(--muka); }
 .ini-pembaruan-meta { margin: 0; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
-.ini-task-kepala { display: flex; align-items: flex-start; gap: 8px; }
-.ini-task-kepala > :first-child { flex: 1; min-width: 0; }
+.ini-task-kepala { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.ini-task-kepala > :first-child { flex: 1 1 150px; min-width: 0; }
 .ini-task-kepala > .tombol { flex-shrink: 0; }
+.ini-task-aksi { display: flex; flex-wrap: wrap; gap: 6px; }
+.pindah-pilihan { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.pindah-daftar { max-height: min(40vh, 380px); overflow: auto; border: 1px solid var(--garis); border-radius: 10px; }
+.pindah-baris { display: flex; align-items: flex-start; gap: 10px; padding: 12px; cursor: pointer; }
+.pindah-baris + .pindah-baris { border-top: 1px solid var(--garis-halus); }
+.pindah-baris:hover { background: var(--abu); }
+.pindah-baris > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.pindah-baris strong { font-size: calc(13px * var(--skala-huruf)); }
+.pindah-baris small { color: var(--redup); font-size: calc(12px * var(--skala-huruf)); }
+.form-pindah-pembaruan input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; }
+.pindah-daftar > .hint { padding: 12px; }
 .ini-pembaruan-judul { align-self: flex-start; max-width: 100%; padding: 0; border: 0; background: transparent; color: var(--tinta); font: inherit; font-size: calc(15px * var(--skala-huruf)); font-weight: 700; line-height: 1.4; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .ini-pembaruan-judul:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ini-pembaruan-ringkas { margin: 0; font-size: calc(13px * var(--skala-huruf)); line-height: 1.55; color: var(--tinta-2); overflow-wrap: anywhere; }

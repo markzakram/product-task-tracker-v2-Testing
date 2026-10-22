@@ -27,6 +27,33 @@
   'use strict';
 
   const EN = {
+    /* Pindah inisiatif dan pembaruan (2.48.0). */
+    'Pindahkan task {id}': 'Move task {id}',
+    'Pindahkan inisiatif': 'Move initiative',
+    'Pindahkan pembaruan': 'Move updates',
+    'Pilih satu atau beberapa task dalam cakupan ini untuk dipindahkan.': 'Select one or more tasks in this scope to move.',
+    'Seluruh subinisiatif dan pembaruan tetap berada di dalam wadah ini. ID, status, PIC, dan riwayat tetap sama.': 'All subinitiatives and updates stay inside this initiative. IDs, statuses, owners, and history stay the same.',
+    'Inisiatif induk tujuan': 'Destination parent initiative',
+    'Hanya task yang dicentang dipindahkan. ID, status, tanggal selesai, komentar, dan bukti tetap sama.': 'Only checked tasks are moved. IDs, statuses, completion dates, comments, and evidence stay the same.',
+    'Inisiatif tujuan': 'Destination initiative',
+    '— pilih inisiatif atau subinisiatif —': '— select an initiative or subinitiative —',
+    'Belum ada tujuan yang tersedia. Buat inisiatif atau aktifkan kembali tujuan yang selesai.': 'No destination is available. Create an initiative or reactivate a completed destination.',
+    'Cari pembaruan': 'Search updates',
+    'Judul, ID task, atau inisiatif asal': 'Title, task ID, or source initiative',
+    'Pilih hasil pencarian': 'Select search results',
+    'Tidak ada pembaruan yang cocok.': 'No updates match.',
+    'Maksimal 200 pembaruan sekali pindah. Pilihan tetap tersimpan saat pencarian berubah.': 'Move up to 200 updates at a time. Selections are kept when the search changes.',
+    '{n} dipilih · {p} akan dipindahkan · {t} sudah di tujuan': '{n} selected · {p} to move · {t} already at destination',
+    'Pindahkan {n} pembaruan': 'Move {n} updates',
+    'Inisiatif beserta isinya dipindahkan.': 'Initiative and its contents moved.',
+    '{n} pembaruan dipindahkan ke {nama}.': '{n} updates moved to {nama}.',
+    'Tidak ada pembaruan yang bisa Anda pindahkan.': 'There are no updates you can move.',
+    'Pilih pembaruan yang akan dipindahkan.': 'Select the updates to move.',
+    'Pilih maksimal 200 pembaruan dalam satu pemindahan.': 'Select up to 200 updates in one move.',
+    'Pilih inisiatif tujuan terlebih dahulu.': 'Select the destination initiative first.',
+    'Ada task yang sudah tidak tersedia. Tutup jendela ini dan pilih ulang pembaruannya.': 'A task is no longer available. Close this dialog and select the updates again.',
+    'Pilih task yang sudah berada di sebuah inisiatif.': 'Select tasks that already belong to an initiative.',
+    'Lokasi pembaruan sudah berubah. Tutup jendela ini dan pilih ulang pembaruannya.': 'An update has moved. Close this dialog and select the updates again.',
     /* ----- Navigasi & halaman ----- */
     'Ringkasan': 'Overview',
     'Pekerjaan': 'Work',

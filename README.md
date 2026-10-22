@@ -872,6 +872,21 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   ke task langsung. Task hanya dihitung sekali dalam satu ringkasan; hitungan global tetap berasal
   dari koleksi task. Wadah yang masih memiliki subinisiatif tidak dapat dihapus. Siklus dan
   induk dari tim lain ditolak dengan aturan yang sama di browser dan server.
+- **Pindahkan (2.48.0)**: tombol **Pindahkan inisiatif** membawa wadah beserta seluruh cabang
+  dan isinya ke induk pilihan. Contoh: ProductTrack → ProdukApp; task tetap di ProductTrack.
+  Untuk memindahkan isi tertentu, gunakan **Pindahkan pembaruan**, pilih tujuan, lalu centang
+  task. Daftar mengikuti cakupan **Termasuk turunan / Di sini saja**, mencakup semua status
+  dan pembaruan lama, meski belum ditampilkan di linimasa. Pencarian mencocokkan judul, ID,
+  dan jalur asal; **Pilih hasil pencarian** hanya mengubah centang hasil yang terlihat.
+  Centang lain tetap dipertahankan dan masuk hitungan; **Kosongkan** melepas seluruh pilihan.
+  Tombol **Pindahkan** pada satu pembaruan langsung memilih task itu. Tujuan boleh inisiatif
+  Aktif atau Ditunda; yang Selesai perlu diaktifkan kembali. **Batal** tidak mengubah data.
+  Maksimal 200 task sekali pindah, dengan izin PIC/Lead/Manager yang sama seperti detail task.
+  Hanya task yang dicentang dipindahkan; wadah dan relasi task tetap ada. ID, status, tanggal
+  selesai, output, komentar, ceklis, dan bukti tidak berubah. Permintaan DAE mengikuti task
+  tanpa melewati tinjauan pengirim. Seluruh pilihan disimpan sebagai satu perintah
+  `pindahPembaruan`, atau ditolak seluruhnya jika ada masalah izin, tujuan, atau lokasi asal
+  yang berubah sejak form dibuka. Task yang sudah di tujuan dilewati tanpa log tambahan.
 - **Deklarasi**: nama, tujuan, PIC (anggota tim DAE), dan tautan (satu per baris, "Judul |
   https://…"). Yang boleh: Lead DAE dan Manager, lewat izin `inisiatif.kelola` (Panel Dev →
   Izin). Inisiatif yang sudah punya task tak bisa dihapus; tandai **Selesai** supaya riwayatnya

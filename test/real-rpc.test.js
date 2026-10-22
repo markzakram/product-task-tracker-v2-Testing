@@ -92,6 +92,29 @@ test('Pengembangan: server menyimpan hierarki, menolak siklus/izin, dan klien la
   assert.deepEqual(klien.tasks, d.tasks);
 });
 
+test('pindah pembaruan: satu perintah tersimpan, izin dan konflik asal ditolak tanpa perubahan parsial', async () => {
+  const p=sheetV2(), biasa=await masuk(), dev=pakai(await aksi(null,'masukDev',PIN_DEV));
+  await aksi(dev,'aturSumber','real');
+  const ali=await sebagai(biasa,'ali'), andika=await sebagai(biasa,'andika');
+  const simpan=async(nama,isi)=>{const r=await aksi(ali,'simpanReal',perintah(nama,isi));assert.equal(r.status,200,r.teks);return r.json.peristiwa;};
+  const asal=(await simpan('inisiatifBaru',{f:{nama:'ProductTrack'}})).hasil.id;
+  const tujuan=(await simpan('inisiatifBaru',{f:{nama:'ProdukApp'}})).hasil.id;
+  const a=(await simpan('taskBaru',{f:{title:'Pembaruan lama',inisiatif:asal,pic:'ali'}})).hasil.id;
+  const b=(await simpan('taskBaru',{f:{title:'Pembaruan lainnya',inisiatif:asal,pic:'ali'}})).hasil.id;
+  const isi={tasks:[a,b],inisiatif:tujuan,asal:{[a]:asal,[b]:asal}};
+  const n=p.tab('data_real').values.length;
+  assert.equal((await aksi(andika,'simpanReal',perintah('pindahPembaruan',isi))).status,400);
+  assert.equal((await aksi(ali,'simpanReal',perintah('pindahPembaruan',{...isi,asal:{[a]:asal,[b]:'sudah-pindah'}}))).status,400);
+  assert.equal(p.tab('data_real').values.length,n);
+  const hasil=await simpan('pindahPembaruan',isi);
+  assert.deepEqual(hasil.hasil,{dipindah:2,tetap:0,inisiatif:tujuan});
+  assert.equal(p.tab('data_real').values.length,n+1);
+  const d=I.dataKosong();
+  for(const e of (await sheet.bacaReal(p.k,ID,{segar:true})).peristiwa)I.terapkanUbah(d,e.ubah);
+  assert.ok(d.tasks.filter(t=>[a,b].includes(t.id)).every(t=>t.inisiatif===tujuan));
+  assert.equal(d.inisiatif.length,2);
+});
+
 test('sumber data: hanya mode Dev yang mengganti, untuk semua pengguna; data contoh tetap bawaan', async () => {
   const p = sheetV2();
   const biasa = await masuk();

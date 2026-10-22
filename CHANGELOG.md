@@ -1,5 +1,29 @@
 # Changelog — ProductTrack v2
 
+## 2.48.0 — Pindahkan inisiatif dan pembaruan pilihan (2026-10-22)
+
+Permintaan user: merapikan progres lama sendiri ke struktur Pengembangan yang baru melalui
+tombol pindah, baik seluruh wadah maupun beberapa pembaruan saja.
+
+- **Pindahkan inisiatif** di detail memindahkan wadah beserta subinisiatif dan task-nya ke
+  induk tujuan, atau kembali ke tingkat utama. Misalnya ProductTrack ke dalam ProdukApp.
+  Pilihan induk mengecualikan dirinya sendiri, turunannya, dan tim lain; ID tetap sama.
+- **Pindahkan pembaruan** membuka daftar task dalam cakupan **Termasuk turunan / Di sini saja**,
+  termasuk pembaruan lama yang belum ditampilkan di linimasa. Bisa mencari judul/ID/asal,
+  mencentang beberapa task, memilih hasil pencarian, atau mengosongkan pilihan. Maksimal 200
+  task per pemindahan; pencarian tidak membuang centang sebelumnya.
+- **Pindahkan** pada task berjalan dan riwayat membuka form dengan task tersebut terpilih.
+  Tujuan menampilkan jalur lengkap inisiatif/subinisiatif. Jumlah yang akan dipindahkan terlihat;
+  task yang sudah berada di tujuan dilewati. **Batal** menutup tanpa perubahan.
+- **Riwayat tetap utuh**: ID, status, PIC, tanggal selesai, output, komentar, ceklis, bukti,
+  dan relasi task tetap. Wadah asal tetap ada. Permintaan DAE mengikuti tujuan baru tanpa
+  mengubah peninjau atau status permintaannya; ringkasan induk diperbarui dari task yang ada.
+- **Satu perintah untuk seluruh pilihan**, divalidasi browser dan server sebelum mengubah data.
+  Task hilang, izin tidak cukup, tujuan selesai/tidak ada, atau lokasi asal yang sudah berubah
+  ditolak tanpa memindahkan sebagian pilihan. Penyimpanan memakai jurnal yang sudah ada.
+- Tampilan mengikuti tema aplikasi, termasuk layar kecil. Panduan Lead/Manager, README,
+  terjemahan, dan tes pemindahan/penyimpanan diperbarui. Tidak ada pemindahan otomatis data real.
+
 ## 2.47.0 — Pengembangan: hierarki inisiatif dan subinisiatif (2026-10-22)
 
 Menu **Inisiatif** menjadi **Pengembangan**. Pekerjaan berkelanjutan dapat disusun bertingkat,

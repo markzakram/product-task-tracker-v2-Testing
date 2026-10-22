@@ -4684,17 +4684,19 @@
     const isi = `${ikon('serah', 12)} ${tr('Diminta dari {proyek} · {tim}', { proyek: esc(p ? p.name : m.proyek), tim: esc(I.singkatTim(m.timPeminta)) })}`;
     return p ? `<button type="button" class="ini-chip diminta" data-aksi="buka-proyek" data-id="${esc(p.id)}" title="${esc(tr('Buka proyek asal permintaan'))}">${isi}</button>` : `<span class="ini-chip diminta">${isi}</span>`;
   }
-  /* Hapus pembaruan dari halaman inisiatif memakai konfirmasi dan izin hapus task yang sama
-     dengan detail task. Komponen kartu juga dipakai proyek, jadi tombol ini khusus inisiatif. */
-  function tombolHapusPembaruan(t) {
-    if (!t.inisiatif || !I.bolehHapusTask(t, S.me, perIdKini())) return '';
-    return `<button type="button" class="tombol kecil bahaya" data-aksi="hapus-task" data-id="${esc(t.id)}" aria-label="${esc(tr('Hapus task {id}', { id: t.id }))}">${ikon('hapus', 14)} ${tr('Hapus')}</button>`;
+  const bolehPindahPembaruan = t => t.inisiatif && !t.project && I.bolehLihatInisiatif(S.me) && I.bolehUbah(t, S.me);
+  /* Aksi memakai izin task yang sama dengan detail; kartu proyek tidak mendapat aksi ini. */
+  function tombolAksiPembaruan(t) {
+    if (!t.inisiatif) return '';
+    const pindah = bolehPindahPembaruan(t) ? `<button type="button" class="tombol kecil" data-aksi="pindah-pembaruan" data-task="${esc(t.id)}" aria-label="${esc(tr('Pindahkan task {id}', { id: t.id }))}">${ikon('serah', 14)} ${tr('Pindahkan')}</button>` : '';
+    const hapus = I.bolehHapusTask(t, S.me, perIdKini()) ? `<button type="button" class="tombol kecil bahaya" data-aksi="hapus-task" data-id="${esc(t.id)}" aria-label="${esc(tr('Hapus task {id}', { id: t.id }))}">${ikon('hapus', 14)} ${tr('Hapus')}</button>` : '';
+    return pindah || hapus ? `<span class="ini-task-aksi">${pindah}${hapus}</span>` : '';
   }
   /* Satu baris "Sedang berjalan" di detail inisiatif; yang berasal dari permintaan memuat penandanya. */
   function barisBerjalanIni(t, x) {
     const judul = esc(I.judulPembaruan(t, inisiatifDari(t.inisiatif) || x));
     return `<div class="ini-berjalan-baris ini-berjalan-task${t.permintaanDae ? ' ada-minta' : ''}">
-      <div class="ini-task-kepala"><button type="button" class="ini-berjalan-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${judul}</button>${tombolHapusPembaruan(t)}</div>
+      <div class="ini-task-kepala"><button type="button" class="ini-berjalan-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${judul}</button>${tombolAksiPembaruan(t)}</div>
       <small>${esc(t.id)} · ${esc(tr(t.status))}${t.due ? ' · ' + esc(tr('tenggat {tanggal}', { tanggal: fmtTanggal(t.due) })) : ''}</small>
       ${t.permintaanDae ? `<small class="ini-berjalan-orang">${tr('PIC')} ${avatar(t.pic, 'kecil')} ${nama(t.pic)}</small>` : ''}
       ${asalPembaruanIni(t, x)}${chipDiminta(t)}</div>`;
@@ -4802,6 +4804,7 @@
         <div class="ini-kepala-tombol">
           ${kelola && !r.tasks.length && !anak.length ? `<button type="button" class="tombol bahaya" data-aksi="inisiatif-hapus" data-id="${esc(x.id)}">${ikon('hapus', 16)} ${tr('Hapus')}</button>` : ''}
           ${kelola ? `<button type="button" class="tombol" data-aksi="inisiatif-ubah" data-id="${esc(x.id)}">${ikon('sunting', 16)} ${tr('Ubah')}</button>` : ''}
+          ${kelola ? `<button type="button" class="tombol" data-aksi="pindah-inisiatif" data-id="${esc(x.id)}">${ikon('serah', 16)} ${tr('Pindahkan inisiatif')}</button>` : ''}
           ${x.status !== 'selesai' && I.bolehBuatTask(S.me) ? `<button type="button" class="tombol utama" data-aksi="inisiatif-pembaruan" data-id="${esc(x.id)}">${ikon('tambah', 16)} ${tr('Tambah pembaruan')}</button>` : ''}
         </div>
       </div>
@@ -4809,6 +4812,7 @@
         ${ubin(r.selesai30, tr('pembaruan · 30 hari'))}${ubinTengah}${ubin(r.terakhir ? esc(relatif(r.terakhir)) : '—', tr('terakhir diperbarui'), true)}
       </div>
       ${anak.length ? `<div class="ini-cakupan"><span class="hint">${tr('Cakupan ringkasan dan pembaruan')}</span><div class="segmen kecil" role="group" aria-label="${tr('Cakupan pembaruan')}">${[['semua', tr('Termasuk turunan')], ['langsung', tr('Di sini saja')]].map(([k, l]) => `<button type="button" data-aksi="ini-cakupan" data-nilai="${k}" aria-pressed="${S.ini.cakupan === k}">${l}</button>`).join('')}</div></div>` : ''}
+      ${r.tasks.some(bolehPindahPembaruan) ? `<div class="ini-cakupan"><button type="button" class="tombol kecil" data-aksi="pindah-pembaruan" data-inisiatif="${esc(x.id)}">${ikon('serah', 16)} ${tr('Pindahkan pembaruan')}</button><span class="hint">${tr('Pilih satu atau beberapa task dalam cakupan ini untuk dipindahkan.')}</span></div>` : ''}
       <section class="ini-subbagian"><div class="ini-umpan-kepala"><h2>${tr('Subinisiatif')}${anak.length ? ` (${anak.length})` : ''}</h2>${kelola ? `<button type="button" class="tombol kecil" data-aksi="inisiatif-baru" data-induk="${esc(x.id)}">${ikon('tambah', 16)} ${tr('Tambah subinisiatif')}</button>` : ''}</div>
         ${anak.length ? `<div class="ini-grid">${anak.map(y => { const a = I.ringkasInisiatif(S.data, y, h); return `<button type="button" class="kartu-polos ini-kartu" data-aksi="buka-inisiatif" data-id="${esc(y.id)}"><span class="ini-kartu-atas"><strong>${esc(y.nama)}</strong>${pillInisiatif(y.status)}</span><small>${esc(y.id)} · ${tr('PIC {nama}', { nama: nama(y.pic) })}</small><span class="ini-tujuan">${esc(potong(y.tujuan || '', 160))}</span><span class="ini-angka">${tr('{a} terbuka · {b} telat · {c} selesai 30 hari', { a: a.buka.length, b: a.telat, c: a.selesai30 })}</span></button>`; }).join('')}</div>` : `<p class="hint">${tr('Belum ada subinisiatif.')}</p>`}</section>
       <div class="ini-badan">
@@ -4877,7 +4881,7 @@
     const meta = [esc(t.id), t.selesaiAt ? tr('selesai {jam}', { jam: esc(fmtJam(t.selesaiAt)) }) : '', t.pic !== x.pic ? nama(t.pic) : '',
       nManager ? tr('{n} tanggapan Manager', { n: nManager }) : tg.length ? tr('{n} tanggapan', { n: tg.length }) : ''].filter(Boolean).join(' · ');
     return `<article class="ini-pembaruan" id="pb-${esc(t.id)}">
-      <div class="ini-task-kepala"><p class="ini-pembaruan-meta">${meta}</p>${tombolHapusPembaruan(t)}</div>
+      <div class="ini-task-kepala"><p class="ini-pembaruan-meta">${meta}</p>${tombolAksiPembaruan(t)}</div>
       <button type="button" class="ini-pembaruan-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(I.judulPembaruan(t, inisiatifDari(t.inisiatif) || x))}</button>
       ${asalPembaruanIni(t, x)}
       ${t.detail ? `<p class="ini-pembaruan-ringkas">${esc(potong(teksPolos(t.detail), 240))}</p>` : ''}
@@ -4983,6 +4987,48 @@
       <label class="isian">${tr('Tautan (opsional)')} <textarea name="links" rows="3" placeholder="${tr('Satu per baris: Judul | https://…')}">${esc(x ? teksTautan(x.links) : '')}</textarea></label>
       ${kakiModal(x ? tr('Simpan') : tr('Deklarasikan'))}
     </form>`;
+  }
+  function formPindahInisiatif(x) {
+    const larang = new Set([x.id, ...I.turunanInisiatif(S.data, x.id).map(y => y.id)]);
+    const pilihan = I.urutInisiatif(S.data).map(b => b.x).filter(y => !larang.has(y.id) && y.tim === x.tim && I.bolehKelolaInisiatif(S.me, y));
+    return `<form data-form="modal" novalidate><h2>${tr('Pindahkan inisiatif')}</h2>
+      <p><b>${esc(namaJalurIni(x.id))}</b></p>
+      <p class="hint">${tr('Seluruh subinisiatif dan pembaruan tetap berada di dalam wadah ini. ID, status, PIC, dan riwayat tetap sama.')}</p>
+      <label class="isian">${tr('Inisiatif induk tujuan')} <select name="induk" data-pindah-induk data-asal="${esc(x.induk || '')}">${opsiHtml([['', tr('— tingkat utama Pengembangan —')], ...pilihan.map(y => [y.id, namaJalurIni(y.id)])], x.induk || '')}</select></label>
+      ${kakiModal(tr('Pindahkan inisiatif'))}</form>`;
+  }
+  function formPindahPembaruan(tasks, dipilih) {
+    const pilihan = I.urutInisiatif(S.data).map(b => b.x).filter(y => y.status !== 'selesai');
+    return `<form data-form="modal" class="form-pindah-pembaruan" novalidate><h2>${tr('Pindahkan pembaruan')}</h2>
+      <p class="hint">${tr('Hanya task yang dicentang dipindahkan. ID, status, tanggal selesai, komentar, dan bukti tetap sama.')}</p>
+      <label class="isian">${tr('Inisiatif tujuan')} <select name="tujuan" data-pindah-tujuan><option value="">${esc(tr('— pilih inisiatif atau subinisiatif —'))}</option>${opsiHtml(pilihan.map(y => [y.id, namaJalurIni(y.id)]), '')}</select></label>
+      ${pilihan.length ? '' : `<p class="hint">${tr('Belum ada tujuan yang tersedia. Buat inisiatif atau aktifkan kembali tujuan yang selesai.')}</p>`}
+      <label class="isian">${tr('Cari pembaruan')} <input type="search" data-pindah-cari placeholder="${tr('Judul, ID task, atau inisiatif asal')}"></label>
+      <div class="pindah-pilihan"><label class="cek"><input type="checkbox" data-pindah-semua> ${tr('Pilih hasil pencarian')}</label><button type="button" class="tombol kecil" data-aksi="pindah-kosongkan">${tr('Kosongkan')}</button></div>
+      <div class="pindah-daftar">${tasks.map(t => `<label class="pindah-baris" data-pindah-baris data-cari="${esc((t.id + ' ' + t.title + ' ' + namaJalurIni(t.inisiatif)).toLocaleLowerCase())}">
+        <input type="checkbox" name="tasks" value="${esc(t.id)}" data-asal="${esc(t.inisiatif)}" ${dipilih.includes(t.id) ? 'checked' : ''}>
+        <span><strong>${esc(t.title)}</strong><small>${esc(t.id)} · ${esc(tr(t.status))} · ${nama(t.pic)}</small><small>${esc(namaJalurIni(t.inisiatif))}</small></span></label>`).join('')}
+        <p class="hint" data-pindah-kosong hidden>${tr('Tidak ada pembaruan yang cocok.')}</p></div>
+      <p class="hint" data-pindah-ringkas role="status" aria-live="polite"></p>
+      <p class="hint">${tr('Maksimal 200 pembaruan sekali pindah. Pilihan tetap tersimpan saat pencarian berubah.')}</p>
+      ${kakiModal(tr('Pindahkan'))}</form>`;
+  }
+  function segarkanPindahPembaruan(form) {
+    const q = $('[data-pindah-cari]', form).value.trim().toLocaleLowerCase();
+    const tujuan = form.elements.tujuan.value;
+    for (const b of $$('[data-pindah-baris]', form)) b.hidden = !!q && !b.dataset.cari.includes(q);
+    const tampil = $$('[data-pindah-baris]:not([hidden]) input', form);
+    const semua = $('[data-pindah-semua]', form);
+    semua.checked = !!tampil.length && tampil.every(el => el.checked);
+    semua.indeterminate = tampil.some(el => el.checked) && !semua.checked;
+    semua.disabled = !tampil.length;
+    $('[data-pindah-kosong]', form).hidden = !!tampil.length;
+    const pilih = $$('input[name="tasks"]:checked', form);
+    const tetap = tujuan ? pilih.filter(el => el.dataset.asal === tujuan).length : 0;
+    $('[data-pindah-ringkas]', form).textContent = tr('{n} dipilih · {p} akan dipindahkan · {t} sudah di tujuan', { n: pilih.length, p: tujuan ? pilih.length - tetap : 0, t: tetap });
+    const tombol = $('.modal-kaki .utama', form);
+    tombol.disabled = !tujuan || pilih.length === tetap || pilih.length > I.MAKS_PINDAH_PEMBARUAN;
+    tombol.textContent = tr('Pindahkan {n} pembaruan', { n: tujuan ? pilih.length - tetap : pilih.length });
   }
   /* Tujuan pembaruan (2.45.0): inisiatif yang belum selesai dan proyek yang tak diarsipkan, dua
      kelompok dalam satu pilihan. ID-nya membedakan: INI-… inisiatif, PRJ-… proyek. tetap = yang
@@ -10649,6 +10695,18 @@
           return selesaiUbah((ada ? tr('{n} task untuk {m} target ditambahkan ke {id}.', { n: tasks.length, m: items.length, id: project.id }) : tr('{n} task untuk {m} target dibuat di {id}.', { n: tasks.length, m: items.length, id: project.id }))
             + ' ' + tr('Langkahnya menunggu di antrean Lead tim pemiliknya dan dikerjakan per tahap ADDIE; progres {paket} naik per capaian.', { paket: judulPaket(p) }));
         }
+        case 'pindah-inisiatif': {
+          ubahData('ubahInisiatif', { inisiatif: m.id, f: { induk: f.induk } });
+          tutupModal();
+          return selesaiUbah(tr('Inisiatif beserta isinya dipindahkan.'));
+        }
+        case 'pindah-pembaruan': {
+          const tasks = new FormData(form).getAll('tasks');
+          const h = ubahData('pindahPembaruan', { tasks, inisiatif: f.tujuan, asal: m.asal });
+          tutupModal();
+          S.ini.tanggap = null;
+          return selesaiUbah(tr('{n} pembaruan dipindahkan ke {nama}.', { n: h.dipindah, nama: namaJalurIni(f.tujuan) }));
+        }
         case 'inisiatif-baru': {
           const x = ubahData('inisiatifBaru', { f: { nama: f.nama, tujuan: f.tujuan, pic: f.pic, induk: f.induk, links: tautanDariTeks(f.links) } });
           tutupModal();
@@ -11392,6 +11450,28 @@
         bukaTask(d.id);
         segarkanUtas();
         break;
+      case 'pindah-inisiatif': {
+        const x = inisiatifDari(d.id);
+        if (x && I.bolehKelolaInisiatif(S.me, x)) {
+          bukaModal({ jenis: 'pindah-inisiatif', id: x.id }, formPindahInisiatif(x));
+          $('#modal-panel .modal-kaki .utama').disabled = true;
+        }
+        break;
+      }
+      case 'pindah-pembaruan': {
+        const x = inisiatifDari(d.inisiatif);
+        const tasks = (d.task ? [perIdKini().get(d.task)].filter(Boolean) : x ? ringkasIniKini(x).tasks : []).filter(bolehPindahPembaruan);
+        if (!tasks.length) return toast(tr('Tidak ada pembaruan yang bisa Anda pindahkan.'), true);
+        bukaModal({ jenis: 'pindah-pembaruan', asal: Object.fromEntries(tasks.map(t => [t.id, t.inisiatif])) }, formPindahPembaruan(tasks, d.task ? [d.task] : []));
+        segarkanPindahPembaruan($('#modal-panel form'));
+        break;
+      }
+      case 'pindah-kosongkan': {
+        const form = el.closest('form');
+        $$('input[name="tasks"]', form).forEach(c => { c.checked = false; });
+        segarkanPindahPembaruan(form);
+        break;
+      }
       case 'inisiatif-baru': bukaModal({ jenis: 'inisiatif-baru' }, formInisiatif(null, d.induk || '')); break;
       case 'inisiatif-ubah': { const x = inisiatifDari(d.id); if (x) bukaModal({ jenis: 'inisiatif-ubah', id: x.id }, formInisiatif(x)); break; }
       case 'proyek-pembaruan': {
@@ -11832,6 +11912,13 @@
 
   document.addEventListener('change', e => {
     const el = e.target;
+    if (el.matches('[data-pindah-induk]')) { $('.modal-kaki .utama', el.closest('form')).disabled = el.value === el.dataset.asal; return; }
+    if (el.closest('.form-pindah-pembaruan')) {
+      const form = el.closest('form');
+      if (el.matches('[data-pindah-semua]')) $$('[data-pindah-baris]:not([hidden]) input', form).forEach(c => { c.checked = el.checked; });
+      segarkanPindahPembaruan(form);
+      return;
+    }
     if (el.matches('[data-ini-induk]') && S.modal && S.modal.jenis === 'inisiatif-baru') {
       const x = inisiatifDari(el.value), pic = el.closest('form').elements.namedItem('pic');
       if (x && [...pic.options].some(o => o.value === x.pic)) pic.value = x.pic;
@@ -12021,6 +12108,7 @@
 
   document.addEventListener('input', e => {
     const el = e.target;
+    if (el.matches('[data-pindah-cari]')) { segarkanPindahPembaruan(el.closest('form')); return; }
     if (el.classList && el.classList.contains('ne-teks')) { inputBlok(el, e); return; }
     if (el.id === 'foto-zoom') { if (kerat) aturZoom(Number(el.value)); return; }
     if (el.id === 'palet-q') { S.palet.q = el.value; S.palet.pilih = 0; $('#palet-hasil').innerHTML = hasilPalet(); return; }

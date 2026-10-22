@@ -2835,11 +2835,14 @@
     if (x.status === 'selesai') throw new Error(`Inisiatif ${x.nama} sudah selesai. Aktifkan lagi dulu untuk menambah pembaruan.`);
     return x;
   }
-  /* Menempel task lama (di luar proyek) ke inisiatif, atau melepasnya (id kosong). */
-  function tempelInisiatif(data, t, id, me, waktu) {
+  function periksaTempelInisiatif(data, t, id, me) {
     if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang menempelkan task ke inisiatif.');
     if (t.permintaanDae && !teks(id)) throw new Error('Task dari permintaan ke tim DAE tetap berada di sebuah inisiatif. Pindahkan ke inisiatif lain saja.');
-    const x = inisiatifUntukTask(data, id, t.project, me);
+    return inisiatifUntukTask(data, id, t.project, me);
+  }
+  /* Menempel task lama (di luar proyek) ke inisiatif, atau melepasnya (id kosong). */
+  function tempelInisiatif(data, t, id, me, waktu) {
+    const x = periksaTempelInisiatif(data, t, id, me);
     const lama = cariInisiatif(data, t.inisiatif);
     t.inisiatif = x ? x.id : '';
     if (x) t.pembaruanProyek = '';   // satu tempat saja: inisiatif atau proyek (2.45.0)
@@ -2848,6 +2851,30 @@
     catatLog(data, 'update', `${t.id} · ${t.title}`, x ? `Ditempel ke inisiatif ${x.id} · ${x.nama}` : `Dilepas dari inisiatif ${lama ? lama.nama : ''}`.trim(), me, waktu);
     ikutiTaskMintaDae(data, t, waktu);
     return t;
+  }
+  /* Pindah pilihan (2.48.0): periksa seluruh batch sebelum menyentuh task atau permintaannya.
+     asal adalah snapshot lokasi saat dipilih, agar perpindahan dari tab lain tidak tertimpa. */
+  const MAKS_PINDAH_PEMBARUAN = 200;
+  function pindahPembaruan(data, ids, tujuan, asal, me, waktu) {
+    tujuan = teks(tujuan);
+    const daftar = [...new Set((Array.isArray(ids) ? ids : []).map(teks).filter(Boolean))];
+    if (!daftar.length) throw new Error('Pilih pembaruan yang akan dipindahkan.');
+    if (daftar.length > MAKS_PINDAH_PEMBARUAN) throw new Error('Pilih maksimal 200 pembaruan dalam satu pemindahan.');
+    if (!tujuan) throw new Error('Pilih inisiatif tujuan terlebih dahulu.');
+    const per = indeks(data), pindah = [];
+    for (const id of daftar) {
+      const t = per.get(id);
+      if (!t) throw new Error('Ada task yang sudah tidak tersedia. Tutup jendela ini dan pilih ulang pembaruannya.');
+      if (!t.inisiatif) throw new Error('Pilih task yang sudah berada di sebuah inisiatif.');
+      periksaTempelInisiatif(data, t, tujuan, me);
+      if (t.inisiatif === tujuan) continue;
+      if (!asal || !Object.prototype.hasOwnProperty.call(asal, id) || asal[id] !== t.inisiatif) {
+        throw new Error('Lokasi pembaruan sudah berubah. Tutup jendela ini dan pilih ulang pembaruannya.');
+      }
+      pindah.push(t);
+    }
+    for (const t of pindah) tempelInisiatif(data, t, tujuan, me, waktu);
+    return { dipindah: pindah.length, tetap: daftar.length - pindah.length, inisiatif: tujuan };
   }
   /* Ringkasan satu inisiatif: task terbuka, riwayat pembaruan yang selesai (terbaru di atas). */
   function ringkasInisiatif(data, x, hariIni, langsung = false) {
@@ -4770,6 +4797,7 @@
     ubahInisiatif: (d, x, me, w) => ubahInisiatif(d, cariDi(d.inisiatif, x.inisiatif, 'Inisiatif'), x.f || {}, me, w),
     hapusInisiatif: (d, x, me, w) => hapusInisiatif(d, cariDi(d.inisiatif, x.inisiatif, 'Inisiatif'), me, w),
     tempelInisiatif: (d, x, me, w) => tempelInisiatif(d, tugas(d, x), x.inisiatif || '', me, w),
+    pindahPembaruan: (d, x, me, w) => pindahPembaruan(d, x.tasks, x.inisiatif, x.asal, me, w),
     // Pembaruan proyek (2.45.0).
     sambungProyek: (d, x, me, w) => sambungProyek(d, tugas(d, x), x.proyek || '', me, w),
     duplikatProyek: (d, x, me, w, h) => duplikatProyek(d, proyekX(d, x), x.f || {}, me, w, h),
@@ -4839,6 +4867,7 @@
   function ringkasHasil(h) {
     if (!h || typeof h !== 'object') return null;
     if (h.project && Array.isArray(h.tasks)) return { project: h.project.id, tasks: h.tasks.map(t => t.id) };
+    if (Number.isInteger(h.dipindah) && h.inisiatif) return { dipindah: h.dipindah, tetap: h.tetap, inisiatif: h.inisiatif };
     return h.id ? { id: h.id } : null;
   }
   /* Koleksi data real. Link Saya dan Catatan Saya tetap pribadi di browser. DEPAN = data baru
@@ -4904,6 +4933,7 @@
     selesai, aktif, indeks, depsBelum, duplikatPaket, duplikatProyek, waktuKumpul,
     TIM_INISIATIF, STATUS_INISIATIF, bolehLihatInisiatif, bolehKelolaInisiatif, cariInisiatif, inisiatifBaru, ubahInisiatif, hapusInisiatif, tempelInisiatif, ringkasInisiatif, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
     anakInisiatif, turunanInisiatif, jejakInisiatif, namaJalurInisiatif, urutInisiatif,
+    pindahPembaruan, MAKS_PINDAH_PEMBARUAN,
     anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, pilihanPicUbah, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
