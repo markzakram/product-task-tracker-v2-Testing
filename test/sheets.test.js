@@ -273,7 +273,7 @@ const contoh = () => ({
     ],
     links: [{ id: 'pl2', urutan: 1, label: 'Brief', url: 'https://docs.google.com/document/d/brief' }],
   }],
-  inisiatif: [{ id: 'INI-001', nama: 'ProductTrack v2', tujuan: 'Task tracker ADDIE', tim: 'SI', pic: 'ali', status: 'aktif', createdBy: 'ali',
+  inisiatif: [{ id: 'INI-001', nama: 'ProductTrack v2', tujuan: 'Task tracker ADDIE', tim: 'SI', pic: 'ali', induk: '', status: 'aktif', createdBy: 'ali',
     createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedBy: 'ali', updatedAt: Date.parse('2026-07-02T01:00:00Z'),
     links: [{ id: 'il1', urutan: 1, label: 'Repo', url: 'https://contoh.id/repo' }], menerima: ['generator', 'lainnya'] }],
   permintaanDae: [{

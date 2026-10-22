@@ -291,6 +291,15 @@
       ],
     },
     {
+      id: 'lead-pengembangan', peran: 'lead', judul: 'Menyusun inisiatif dan subinisiatif (tim DAE)', tujuan: 'Mengelompokkan pekerjaan berkelanjutan dan pembaruannya.',
+      langkah: [
+        'Buka **Pengembangan**, lalu **Inisiatif baru** untuk wadah utama seperti **Generator Soal**. Buka wadahnya dan tekan **Tambah subinisiatif** untuk membuat **Generator Soal OJK**, lalu tambahkan turunan lagi sesuai kebutuhan. PIC awal mengikuti induk dan boleh diganti.',
+        'Untuk menyusun inisiatif yang sudah ada, buka **Ubah → Inisiatif induk**. Task, ID, dan diskusi tetap ikut bersama cabangnya. Pilih tingkat utama untuk melepas cabang dari induknya.',
+        '**Termasuk turunan** menampilkan ringkasan, task berjalan, dan riwayat seluruh cabang; **Di sini saja** hanya menampilkan pembaruan langsung. Klik jalur nama untuk menuju asal pembaruan.',
+        '**Tambah pembaruan** membuat task di wadah yang sedang dibuka. **Hapus** pada task berjalan atau riwayat menghapus task sesuai izin setelah konfirmasi, sementara wadah inisiatif tetap ada.',
+      ],
+    },
+    {
       id: 'lead-buat', peran: 'lead', judul: 'Membuat task', tujuan: 'Menambah pekerjaan dengan kode dan PIC yang tepat.', ilustrasi: 'formtask', coba: true,
       langkah: [
         'Tekan **Tambah task**, lalu di **Task ini untuk apa?** pilih **Proyek** atau **Rutin**. Dari halaman proyek, proyeknya sudah terpilih; dari tab tim, **Tambah task di …** langsung memakai jalur Proyek dan hanya menawarkan sub-stage tim dan fase itu.',
@@ -361,8 +370,12 @@
     {
       id: 'manager-inisiatif', peran: 'manager', judul: 'Memantau dan menanggapi inisiatif', tujuan: 'Membaca pembaruan pekerjaan berkelanjutan dan memberi tanggapan.',
       langkah: [
-        'Buka **Inisiatif**. Di tiap kartu tertulis berapa pembaruan 30 hari terakhir yang **belum Anda tanggapi**.',
+        'Buka **Pengembangan**. Inisiatif ditampilkan sebagai pohon; panah membuka atau melipat cabang. Setiap baris menampilkan progres seluruh task turunannya dan jumlah pembaruan yang **belum Anda tanggapi**.',
+        'Buat wadah utama seperti **Generator Soal**, **Pengumpulan Data**, atau **Aplikasi Internal** melalui **Inisiatif baru**. Buka wadahnya, lalu **Tambah subinisiatif**, misalnya **Generator Soal OJK → Integrasi Platform Latihan**. PIC awal mengikuti induk, dan boleh diganti.',
+        'Untuk menyusun pekerjaan lama, buka **Ubah → Inisiatif induk**. Seluruh cabang, task, dan diskusi tetap ikut tanpa berubah ID. Pilih tingkat utama untuk melepaskan dari induknya. Inisiatif tidak bisa diletakkan di dalam dirinya sendiri atau turunannya.',
         'Di halaman inisiatif, empat angka di atas memberi gambaran cepat: pembaruan 30 hari, commit dan sesi kerja 7 hari (kalau dicatat), dan kapan terakhir diperbarui.',
+        'Cakupan **Termasuk turunan** menggabungkan ringkasan, task berjalan, dan riwayat seluruh cabang; **Di sini saja** membatasi ke task yang langsung ditempel di wadah ini. Jalur nama pada pembaruan menunjukkan asalnya. Status dan PIC setiap wadah tetap diatur sendiri, tidak otomatis berubah saat induknya diubah.',
+        'Gunakan **Hapus** pada task berjalan atau riwayat pembaruan untuk menghapus task sesuai izin. Konfirmasi menjelaskan data yang ikut terhapus; wadah inisiatif tetap ada. Wadah yang masih memiliki subinisiatif atau task tidak dapat dihapus.',
         'Pembaruan dikelompokkan per hari, terbaru di atas, lengkap dengan ringkasan, angka kerja, dan buktinya. Saringan **Belum ditanggapi** menyisakan yang belum dikomentari siapa pun.',
         'Tekan **Tanggapi** di pembaruannya: pilih **Bagus**, **Perlu dibahas**, atau **Pertanyaan**, tambahkan teks bila perlu, lalu **Kirim tanggapan**. Centang **Perlu jawaban** supaya PIC diminta menjawab (tercentang sendiri untuk Pertanyaan dan Perlu dibahas).',
         'Tanggapan tersimpan di diskusi task pembaruannya: PIC diberi tahu, bisa membalas dari halaman ini, tab Diskusi task, atau Komunikasi. Tanggapan Anda bertanda **Manager**.',
@@ -428,7 +441,7 @@
     ['Tampilan pribadi', 'Warna aksen, latar (wallpaper), sampul profil, kepadatan, ukuran huruf, dan halaman awal milik satu profil. Diatur lewat foto Anda di kanan atas → Sesuaikan tampilan, dan ikut ke perangkat mana pun.'],
     ['Status', 'Emoji dan teks singkat (mis. 🏖️ Cuti) di samping nama dan foto Anda, terlihat semua orang, dan hilang sendiri sesudah waktunya.'],
     ['PIN profil', 'PIN pribadi sebuah profil (4–8 angka), diminta saat memilih profil itu dan dipasang lewat mode Dev. Berbeda dari PIN aplikasi yang dipakai bersama.'],
-    ['Inisiatif', 'Pekerjaan berkelanjutan di luar rancangan paket (mis. ProductTrack v2), sementara khusus tim DAE dan Manager. Dideklarasikan sekali; tiap pembaruannya task biasa tanpa tinjauan yang tetap terhitung di Hari Ini, beban, dan Laporan.'],
+    ['Inisiatif', 'Wadah pekerjaan berkelanjutan di menu Pengembangan, sementara khusus tim DAE dan Manager. Bisa memiliki subinisiatif bertingkat. Tiap pembaruannya berupa task yang tetap terhitung di Hari Ini, beban, dan Laporan; pembaruan dari permintaan tetap mengikuti aturan tinjauannya.'],
     ['Pembaruan proyek', 'Task rutin yang disambungkan ke proyek yang berjalan terus, lewat **Pembaruan untuk** di form Tambah task atau di detail task-nya. Tetap rutin: tanpa tinjauan dan tak menggeser fase, progres, atau E12. Tampil di tab **Pembaruan** proyeknya, tempat Manager menanggapi. Sementara khusus tim DAE dan Manager.'],
     ['Izin', 'Daftar apa yang boleh dilakukan Manager, Lead, dan Staff, mis. membuat proyek, menghapus paket, atau membuka Laporan. Diatur mode Dev di Panel Dev → Izin dengan centang per peran; yang mengikuti struktur tim dan alur tinjauan tetap.'],
     ['Perlu jawaban', 'Tanda pada pesan yang menunggu jawaban orang yang disebut. Hilang setelah orang itu membalas atau menandainya beres.'],

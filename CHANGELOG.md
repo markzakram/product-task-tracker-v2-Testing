@@ -1,5 +1,46 @@
 # Changelog — ProductTrack v2
 
+## 2.47.0 — Pengembangan: hierarki inisiatif dan subinisiatif (2026-10-22)
+
+Menu **Inisiatif** menjadi **Pengembangan**. Pekerjaan berkelanjutan dapat disusun bertingkat,
+misalnya Generator Soal → Generator Soal OJK → Integrasi Platform Latihan, lalu task pembaruannya.
+
+- **Pohon pengembangan** memakai kartu, warna, dan tombol aplikasi yang sudah ada. Panah melipat
+  cabang; nama membuka detail. Saringan status tetap menampilkan jalur induk hasil yang cocok.
+- **Tambah subinisiatif** dari detail, dengan PIC awal mengikuti induk dan bisa diganti. Form
+  **Ubah → Inisiatif induk** memindahkan cabang tanpa mengganti ID, task, diskusi, atau tautannya.
+  Pilih tingkat utama untuk melepaskan dari induk. Status/PIC tiap wadah tetap mandiri.
+- **Jalur navigasi dan pilihan lengkap**: lokasi induk–anak tampil di detail, pilihan tujuan
+  pembaruan, pemulihan task, acara, dan penerimaan/pemetaan permintaan DAE.
+- **Ringkasan seluruh turunan** menggabungkan task berjalan, telat, riwayat, angka kerja, dan
+  permintaan terbuka. Setiap task dihitung satu kali per ringkasan. **Di sini saja** membatasi
+  ringkasan dan riwayat ke task yang langsung menempel pada wadah terpilih.
+- **Validasi bersama browser/server** menolak induk hilang, tim berbeda, diri sendiri, dan siklus
+  melalui turunannya. Wadah yang memiliki subinisiatif tidak bisa dihapus. Hapus task dari
+  halaman inisiatif tetap tersedia; wadah dan subinisiatifnya tetap tersimpan.
+- **Kompatibel dengan data lama**: kolom `inisiatif.induk` kosong berarti tingkat utama. Data
+  real menyimpan perubahan lewat jurnal yang sudah ada, tanpa impor ulang; skema Sheets dan
+  referensi MySQL turut diperbarui. Data impor dengan rujukan putus tetap dapat ditampilkan.
+- **Nama dan contoh**: tiga akar Generator Soal, Pengumpulan Data, dan Aplikasi Internal;
+  data contoh berisi 26 wadah termasuk subinisiatif OJK/SKD, scraper, dan aplikasi. Form memberi
+  saran nama. Data real yang sudah ada tidak otomatis diganti namanya atau dipindahkan.
+- Panduan, README, terjemahan Inggris, dan tes hierarki/agregasi/penyimpanan diperbarui.
+
+## 2.46.2 — Hapus task langsung dari halaman inisiatif (2026-10-22)
+
+Permintaan user: task/pembaruan yang sudah dibuat di dalam inisiatif bisa dihapus.
+
+- **Tombol Hapus** di setiap task yang berizin pada **Sedang berjalan** dan **Riwayat pembaruan**.
+  Sebelumnya, penghapusan hanya tersedia setelah membuka detail task.
+- Memakai izin dan konfirmasi hapus task yang sudah berlaku. Konfirmasi menjelaskan bahwa
+  **wadah inisiatif tetap ada**; yang dihapus adalah task beserta data terkaitnya. Pembaruan lain
+  tetap tersimpan dan ringkasan inisiatif dihitung ulang, termasuk setelah pembaruan terakhir dihapus.
+- Form tanggapan yang menunjuk task yang baru dihapus ikut ditutup. Penanda asal permintaan DAE
+  tetap tersedia pada task yang sedang berjalan.
+- Tes regresi di `test/hapus-task.test.js`: hapus task berjalan dan selesai, penolakan pengguna
+  tanpa izin, wadah tetap utuh, ringkasan diperbarui, serta perubahan data real tidak menghapus
+  inisiatifnya. Tidak ada perubahan skema data.
+
 ## 2.46.1 — Catatan Saya tak lagi tertimpa tab lain; pulihkan catatan yang hilang (2026-10-21)
 
 Keluhan user: catatan yang sudah dimasukkan di data real v2 hilang.

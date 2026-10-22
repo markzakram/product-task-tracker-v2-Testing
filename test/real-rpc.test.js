@@ -54,6 +54,44 @@ test.beforeEach(() => {
 });
 test.after(() => { I.aturOrang([]); I.aturMaster([]); });
 
+test('Pengembangan: server menyimpan hierarki, menolak siklus/izin, dan klien lain membaca pemindahan cabang', async () => {
+  const p = sheetV2(), biasa = await masuk();
+  const dev = pakai(await aksi(null, 'masukDev', PIN_DEV));
+  await aksi(dev, 'aturSumber', 'real');
+  const ali = await sebagai(biasa, 'ali'), andika = await sebagai(biasa, 'andika');
+  const simpan = async (nama, isi) => {
+    const r = await aksi(ali, 'simpanReal', perintah(nama, isi));
+    assert.equal(r.status, 200, r.teks);
+    return r.json.peristiwa.hasil;
+  };
+  const root = (await simpan('inisiatifBaru', { f: { nama: 'Generator Soal' } })).id;
+  const lain = (await simpan('inisiatifBaru', { f: { nama: 'Aplikasi Internal' } })).id;
+  const anak = (await simpan('inisiatifBaru', { f: { nama: 'Generator Soal OJK', induk: root } })).id;
+  const cucu = (await simpan('inisiatifBaru', { f: { nama: 'Integrasi Platform', induk: anak } })).id;
+  const t = (await simpan('taskBaru', { f: { title: 'Integrasi generator', pic: 'ali', inisiatif: cucu } })).id;
+  const sebelum = p.tab('data_real').values.length;
+  for (const [cookie, nama, isi] of [
+    [ali, 'ubahInisiatif', { inisiatif: root, f: { induk: cucu } }],
+    [andika, 'ubahInisiatif', { inisiatif: anak, f: { induk: lain } }],
+    [ali, 'hapusInisiatif', { inisiatif: root }],
+  ]) assert.equal((await aksi(cookie, 'simpanReal', perintah(nama, isi))).status, 400);
+  assert.equal(p.tab('data_real').values.length, sebelum, 'penolakan tidak masuk jurnal');
+  await simpan('ubahInisiatif', { inisiatif: anak, f: { induk: lain } });
+  await simpan('ubahInisiatif', { inisiatif: anak, f: { nama: 'Generator OJK' } });
+  const baca = await sheet.bacaReal(p.k, ID, { segar: true });
+  const d = I.dataKosong();
+  for (const e of baca.peristiwa) I.terapkanUbah(d, e.ubah);
+  assert.equal(I.cariInisiatif(d, anak).induk, lain);
+  assert.equal(I.cariInisiatif(d, cucu).induk, anak);
+  assert.deepEqual(I.ringkasInisiatif(d, I.cariInisiatif(d, lain), '2026-10-22').tasks.map(x => x.id), [t]);
+  assert.equal(I.ringkasInisiatif(d, I.cariInisiatif(d, root), '2026-10-22').tasks.length, 0);
+  const nynda = await sebagai(biasa, 'nynda');
+  const klien = I.dataKosong();
+  for (const e of (await aksi(nynda, 'sinkron', { realSejak: 0 })).json.real.peristiwa) I.terapkanUbah(klien, e.ubah);
+  assert.deepEqual(klien.inisiatif, d.inisiatif);
+  assert.deepEqual(klien.tasks, d.tasks);
+});
+
 test('sumber data: hanya mode Dev yang mengganti, untuk semua pengguna; data contoh tetap bawaan', async () => {
   const p = sheetV2();
   const biasa = await masuk();

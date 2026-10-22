@@ -51,6 +51,34 @@ test('hapus task: siapa yang boleh', () => {
   assert.equal(I.bolehHapusTask(sendiri, 'alya'), false, 'Lead tim lain untuk task di luar proyek');
 });
 
+test('hapus pembaruan inisiatif: task berjalan dan selesai bisa dihapus; wadah dan pembaruan lain tetap', () => {
+  const d = I.dataKosong();
+  const ini = I.inisiatifBaru(d, { nama: 'Generator OJK' }, 'ali', WAKTU);
+  const buat = title => I.taskBaru(d, { title, pic: 'ali', inisiatif: ini.id }, 'ali', WAKTU, HARI);
+  const berjalan = buat('Tambah platform');
+  const beres = buat('Perbaiki generator');
+  I.terapkanAksi(d, berjalan, 'mulai', 'ali', WAKTU + 1);
+  I.terapkanAksi(d, beres, 'mulai', 'ali', WAKTU + 1);
+  I.terapkanAksi(d, beres, 'selesai', 'ali', WAKTU + 2);
+  const wadah = structuredClone(ini);
+  const sebelum = structuredClone(d);
+  assert.throws(() => I.hapusTask(d, [berjalan.id], 'andika', WAKTU + 3), /tak boleh menghapus/);
+  assert.deepEqual(d, sebelum, 'penolakan tidak mengubah data');
+  const hasil = I.jalankanPerintah(d, { aksi: 'hapusTask', isi: { tasks: [berjalan.id] }, oleh: 'ali', at: WAKTU + 4, hari: HARI });
+  assert.equal(hasil.ok, true, hasil.galat);
+  assert.deepEqual(d.inisiatif, [wadah], 'wadah inisiatif tetap utuh');
+  assert.deepEqual(d.tasks.map(t => t.id), [beres.id]);
+  const ringkas = I.ringkasInisiatif(d, ini, HARI);
+  assert.deepEqual([ringkas.buka.length, ringkas.selesai30], [0, 1]);
+  const perubahan = I.bedaData(sebelum, d);
+  assert.deepEqual(perubahan.tasks.hapus, [berjalan.id]);
+  assert.equal(perubahan.inisiatif, undefined, 'data real hanya menghapus task, bukan inisiatif');
+  I.hapusTask(d, [beres.id], 'nynda', WAKTU + 5);
+  assert.deepEqual(d.inisiatif, [wadah], 'hapus pembaruan terakhir pun tidak menghapus wadah');
+  assert.deepEqual(I.ringkasInisiatif(d, ini, HARI).tasks, []);
+  assert.ok(d.log.some(l => l.type === 'delete' && l.task.startsWith(beres.id + ' ')));
+});
+
 test('hapus banyak task lewat perintah data real: turunan, setoran, dan rujukan ikut bersih', () => {
   const { d, tasks, dv1, anak } = siapkan();
   const m = perId(d);

@@ -865,17 +865,17 @@ test('skema spreadsheet: tab permintaan_dae beserta bahan dan utasnya tertulis d
   assert.equal(lama.tasks.length, d.tasks.length);
 });
 
-test('data contoh (scripts/_demo.js): empat permintaan, enam inisiatif dengan peta jenis, lewat aturan yang sama dengan tombolnya', () => {
+test('data contoh (scripts/_demo.js): empat permintaan dalam hierarki Pengembangan, lewat aturan yang sama dengan tombolnya', () => {
   const d = dataDemo();
   const r = tambahDemo(d, SEKARANG);
-  assert.deepEqual([r.inisiatif, r.permintaanDae, d.permintaanDae.length], [6, 4, 4]);
-  assert.deepEqual(d.inisiatif.map(x => x.nama).sort(), ['Dashboard dan laporan', 'Generator Soal', 'Otomasi operasional', 'Product Knowledge', 'ProductTrack v2', 'Scraper dan data kompetitor']);
+  assert.deepEqual([r.inisiatif, r.permintaanDae, d.permintaanDae.length], [26, 4, 4]);
+  assert.deepEqual(d.inisiatif.filter(x => !x.induk).map(x => x.nama).sort(), ['Aplikasi Internal', 'Generator Soal', 'Pengumpulan Data']);
   const per = judul => d.permintaanDae.find(m => m.judul === judul);
   const ojk = d.projects.find(x => x.paket === 'PKG-004');
   const tka = d.projects.find(x => x.paket === 'PKG-001');
   const gen = per('Generator OJK Tahap 1');
   assert.deepEqual([gen.dari, gen.timPeminta, gen.proyek, gen.status, gen.jenis, gen.pic, gen.oleh], ['andika', 'AK', ojk.id, 'diterima', 'generator', 'ali', 'ali']);
-  assert.equal(d.inisiatif.find(x => x.id === gen.inisiatif).nama, 'Generator Soal');
+  assert.equal(d.inisiatif.find(x => x.id === gen.inisiatif).nama, 'Generator Soal OJK');
   assert.deepEqual(I.langkahMintaDae(d, gen), { kunci: 'dikerjakan', no: 3, tambahan: '' });
   assert.deepEqual(gen.utas.map(u => [u.jenis, u.oleh]), [['komentar', 'nynda']], 'Manager mengawasi dengan satu komentar');
   assert.equal(gen.bahan.length, 3);
@@ -892,9 +892,10 @@ test('data contoh (scripts/_demo.js): empat permintaan, enam inisiatif dengan pe
   assert.deepEqual(Object.keys(peta).sort(), ['dashboard', 'generator', 'lainnya', 'scraper']);
   const nama = id => d.inisiatif.find(x => x.id === id).nama;
   assert.deepEqual(Object.fromEntries(Object.entries(peta).map(([k, v]) => [k, nama(v)])),
-    { generator: 'Generator Soal', scraper: 'Scraper dan data kompetitor', dashboard: 'Dashboard dan laporan', lainnya: 'Otomasi operasional' });
+    { generator: 'Generator Soal', scraper: 'Scraper Media Sosial', dashboard: 'Dashboard dan laporan', lainnya: 'Otomasi operasional' });
   const terbuka = Object.fromEntries(d.inisiatif.map(x => [x.nama, I.mintaDaeTerbuka(d, x)]));
-  assert.deepEqual([terbuka['Generator Soal'], terbuka['Scraper dan data kompetitor'], terbuka['Dashboard dan laporan'], terbuka['Otomasi operasional'], terbuka['ProductTrack v2']], [1, 1, 1, 0, 0]);
+  assert.deepEqual([terbuka['Generator Soal'], terbuka['Scraper Media Sosial'], terbuka['Dashboard dan laporan'], terbuka['Otomasi operasional'], terbuka['ProductTrack']], [1, 1, 1, 0, 0]);
+  assert.deepEqual([terbuka['Generator Soal OJK'], terbuka['Pengumpulan Data'], terbuka['Aplikasi Internal']], [1, 1, 1]);
   assert.equal(I.mintaDaeMenunggu(d).length, 1);
   assert.ok(d.permintaanDae.every(m => I.bolehMintaDae({ ...d, projects: d.projects.map(x => ({ ...x, arsip: false })) }, d.projects.find(x => x.id === m.proyek), m.dari)), 'semua pengirim sah menurut aturan');
   // Notifikasi dan Hari Ini yang diharapkan di data contoh.

@@ -250,9 +250,11 @@ CREATE TABLE IF NOT EXISTS `v2_inisiatif` (
   `updatedBy`  VARCHAR(64)  NOT NULL DEFAULT '',
   `updatedAt`  DATETIME(3)  NULL,
   `menerima`   JSON         NOT NULL DEFAULT (JSON_ARRAY()),   -- jenis permintaan ke tim DAE yang diterima inisiatif ini (2.46.0)
+  `induk`      VARCHAR(64)  NOT NULL DEFAULT '',              -- kosong = akar Pengembangan (2.47.0)
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `ix_inisiatif_tim` (`tim`, `status`)
+  KEY `ix_inisiatif_tim` (`tim`, `status`),
+  KEY `ix_inisiatif_induk` (`induk`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `v2_inisiatif_links` (

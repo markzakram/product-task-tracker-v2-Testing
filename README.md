@@ -37,7 +37,7 @@ setiap orang memilih profilnya sendiri; sejak 0.14.0 profil bisa dikunci dengan 
 | Grup | Halaman |
 |---|---|
 | Ringkasan | Hari Ini · Dashboard · Laporan (bawaan: Lead & Manager) |
-| Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Inisiatif (DAE & Manager) · Task · Komunikasi |
+| Pekerjaan | Rancangan Paket · Proyek (ADDIE per tim) · Pengembangan (DAE & Manager) · Task · Komunikasi |
 | Ruang Saya | Kalender Saya · Link Saya (termasuk Tautan tim) · Catatan Saya |
 | Manajer | Riwayat Aktivitas (bawaan: Manager) · Master (bawaan: Lead & Manager) |
 | Bantuan | Panduan |
@@ -845,7 +845,7 @@ Paket, Task, Pengaturan, Halaman, Ruang Saya) dengan kolom Manager, Lead, dan St
   bawaan, `tetap`); pemeriksaannya `Inti.izin(me, kunci)` dan `Inti.izinPeran(kunci)`. Diuji di
   `test/master.test.js` dan `test/rpc.test.js`.
 
-### Inisiatif (2.31.0)
+### Pengembangan: inisiatif dan subinisiatif (2.31.0, 2.47.0)
 
 Permintaan user: pekerjaan tim DAE (Data & AI Engineer) yang berjalan terus di luar rancangan
 paket, seperti membangun ProductTrack v2, Product Knowledge, atau AI generate soal, perlu
@@ -854,10 +854,24 @@ terlalu berat untuk itu (fase, gerbang Manager, dan E12 per siklus), jadi Inisia
 yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara khusus tim DAE**
 (dan Manager).
 
-- **Halaman Inisiatif** (grup Pekerjaan, di bawah Proyek): kartu tiap inisiatif dengan status
-  (Aktif, Ditunda, Selesai), PIC, tujuan, jumlah pembaruan terbuka, telat, dan selesai 30 hari,
-  serta kapan terakhir diperbarui; urutannya yang terbaru diperbarui di atas. Hanya tampil untuk
+- **Halaman Pengembangan** (grup Pekerjaan, di bawah Proyek): pohon inisiatif dengan status
+  (Aktif, Ditunda, Selesai), PIC, progres task seluruh turunannya, dan permintaan terbuka.
+  Klik panah untuk melipat cabang atau nama untuk membuka detail; akar terbaru diperbarui di atas. Hanya tampil untuk
   anggota tim DAE, Manager, dan Dev; alamatnya `#/inisiatif/INI-001`.
+- **Hierarki (2.47.0)**: **Inisiatif baru** membuat wadah utama; **Tambah subinisiatif** di detail
+  membuat anak yang boleh memiliki subinisiatif lagi. PIC awal mengikuti induk dan bisa diganti.
+  Saran nama: **Generator Soal → Generator Soal OJK → Integrasi Platform Latihan**,
+  **Pengumpulan Data → Scraper Media Sosial → Scraper X**, dan
+  **Aplikasi Internal → ProductTrack → Manajemen Task**. Nama tetap bisa disesuaikan.
+- **Pindahkan pekerjaan lama** lewat **Ubah → Inisiatif induk**, termasuk seluruh cabangnya;
+  ID, task, komentar, dan tautan tetap sama. Pilihan tingkat utama melepaskan hubungan induk.
+  Nama tujuan task/acara/permintaan menampilkan jalur lengkap untuk membedakan wadah bernama sama.
+  Status dan PIC tiap wadah mandiri; perubahan induk tidak otomatis mengganti nilai anaknya.
+- **Agregasi**: detail menampilkan task seluruh turunan secara bawaan, termasuk riwayat,
+  telat, angka kerja, dan permintaan terbuka. **Di sini saja** membatasi ringkasan dan pembaruan
+  ke task langsung. Task hanya dihitung sekali dalam satu ringkasan; hitungan global tetap berasal
+  dari koleksi task. Wadah yang masih memiliki subinisiatif tidak dapat dihapus. Siklus dan
+  induk dari tim lain ditolak dengan aturan yang sama di browser dan server.
 - **Deklarasi**: nama, tujuan, PIC (anggota tim DAE), dan tautan (satu per baris, "Judul |
   https://…"). Yang boleh: Lead DAE dan Manager, lewat izin `inisiatif.kelola` (Panel Dev →
   Izin). Inisiatif yang sudah punya task tak bisa dihapus; tandai **Selesai** supaya riwayatnya
@@ -869,6 +883,10 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   rutin.
 - **Detail inisiatif**: pembaruan yang sedang berjalan, dan **Riwayat pembaruan** (yang selesai,
   terbaru di atas, dengan output-nya) seperti changelog.
+- **Hapus pembaruan (2.46.2)**: tombol **Hapus** tersedia langsung pada task di **Sedang berjalan**
+  dan **Riwayat pembaruan**, sesuai izin hapus task yang sudah berlaku. Konfirmasi menyebut task
+  dan data terkait yang ikut dihapus; **Batal** tidak mengubah data. Wadah inisiatif tetap ada,
+  termasuk saat pembaruan terakhir dihapus, dan ringkasannya dihitung ulang dari task yang tersisa.
 - **Linimasa dan tanggapan (2.39.0, permintaan user).** User menilai detail inisiatif "masih
   sangat jelek" dan ingin Manager bisa mengomentari pembaruan. Sesudah kanvas rekomendasi, user
   memilih Opsi A (linimasa harian) dengan komentar Manager:
@@ -901,6 +919,10 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   `Inti.inisiatifBaru`, `ubahInisiatif`, `hapusInisiatif`, `tempelInisiatif`,
   `ringkasInisiatif`; tim yang memakainya `Inti.TIM_INISIATIF` (`['SI']`). Diuji di
   `test/inti.test.js`, `test/demo.test.js`, dan `test/sheets.test.js`.
+  Sejak 2.47.0, `inisiatif.induk` menyimpan ID induk; kosong atau belum ada berarti tingkat utama.
+  Data real tetap memakai jurnal `data_real`, tanpa impor ulang. Helper `jejakInisiatif`,
+  `namaJalurInisiatif`, `anakInisiatif`, `turunanInisiatif`, dan `urutInisiatif` mendukung hierarki;
+  `ringkasInisiatif(data, x, hari, true)` membatasi ke task langsung. Tes: `test/pengembangan.test.js`.
 
 ### Pembaruan proyek (2.45.0)
 
@@ -1725,13 +1747,14 @@ Menambah skenario di atas data v1, memakai aturan yang sama dengan tombol di apl
   - Keadaannya: D2 masih dikerjakan Andika (output sudah terisi). Ajukan D2 sebagai Andika, dan
     Ali langsung mendapat notifikasi bahwa DV7 siap dikerjakan, selagi Manager meninjau D2
     (2.30.0).
-- **Inisiatif tim DAE** (2.31.0, 2.46.0): ProductTrack v2, Product Knowledge, Generator Soal,
-  Dashboard dan laporan, Scraper dan data kompetitor, dan Otomasi operasional, PIC Ali. Task lama
-  v1 Ali di luar proyek ditempel ke inisiatifnya menurut judul; ProductTrack v2 juga punya satu
-  pembaruan yang selesai dan satu yang sedang berjalan. Empat yang terakhir menerima jenis
-  permintaan ke tim DAE (peta jenis).
+- **Pengembangan tim DAE** (2.47.0): 26 wadah, dengan akar **Generator Soal**, **Pengumpulan Data**,
+  dan **Aplikasi Internal**, PIC Ali. Termasuk Generator Soal OJK/SKD, Scraper Media Sosial,
+  Pengolahan Data, ProductTrack, Product Knowledge, dan subinisiatifnya. Task lama
+  v1 Ali di luar proyek ditempel ke inisiatifnya menurut judul; ProductTrack juga punya satu
+  pembaruan yang selesai dan satu yang sedang berjalan. Generator Soal, Scraper Media Sosial,
+  Dashboard dan laporan, serta Otomasi operasional menerima jenis permintaan ke tim DAE (peta jenis).
 - **Permintaan ke tim DAE** (2.46.0), empat keadaan lewat aturan yang sama dengan tombolnya:
-  - **Generator OJK Tahap 1**: Andika (RAD) dari proyek OJK, diterima Ali di Generator Soal dan
+  - **Generator OJK Tahap 1**: Andika (RAD) dari proyek OJK, diterima Ali di Generator Soal OJK dan
     sedang dikerjakan; Nynda (Manager) meninggalkan satu komentar.
   - **Scraper bank soal TKA SMA**: Alya (LNA) dari proyek TKA, masih menunggu (coba **Terima**,
     **Tanya dulu**, atau **Tolak** sebagai Ali).

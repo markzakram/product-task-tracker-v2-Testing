@@ -106,13 +106,14 @@ test('skenario contoh PAPI Kostick (2.29.1, 2.30.0): proyek tanpa paket, serah-t
   assert.ok(I.pengingatFase(sub('I5'), kini).some(x => x.t.id === sub('DV7').id), 'uji coba diingatkan prototype (fase DAE, 2.43.0)');
 });
 
-test('skenario contoh Inisiatif (2.31.0, 2.46.0): enam inisiatif DAE, pembaruannya task rutin tanpa tinjauan', () => {
+test('skenario contoh Pengembangan (2.47.0): tiga akar dan subinisiatif; pembaruan biasa tetap rutin tanpa tinjauan', () => {
   const d = data();
   const r = tambahDemo(d, SEKARANG);
-  assert.equal(r.inisiatif, 6);
-  assert.deepEqual(d.inisiatif.map(x => x.nama).sort(), ['Dashboard dan laporan', 'Generator Soal', 'Otomasi operasional', 'Product Knowledge', 'ProductTrack v2', 'Scraper dan data kompetitor']);
+  assert.equal(r.inisiatif, 26);
+  assert.deepEqual(d.inisiatif.filter(x => !x.induk).map(x => x.nama).sort(), ['Aplikasi Internal', 'Generator Soal', 'Pengumpulan Data']);
+  assert.ok(d.inisiatif.filter(x => x.induk).every(x => I.cariInisiatif(d, x.induk)));
   assert.ok(d.inisiatif.every(x => x.tim === 'SI' && x.pic === 'ali' && x.status === 'aktif'));
-  const v2 = d.inisiatif.find(x => x.nama === 'ProductTrack v2');
+  const v2 = d.inisiatif.find(x => x.nama === 'ProductTrack');
   const r2 = I.ringkasInisiatif(d, v2, HARI);
   assert.equal(r2.buka.length >= 1 && r2.beres.length >= 1, true, 'ada pembaruan berjalan dan riwayat');
   assert.ok(r2.tasks.every(t => !t.project && t.lane === 'rutin' && !I.peninjau(t)), 'task rutin, tanpa tinjauan');

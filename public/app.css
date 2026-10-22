@@ -601,7 +601,7 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .baris-proyek { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; width: 100%; padding: 14px 16px; text-align: left; background: var(--muka); border: 1px solid var(--garis); border-radius: 14px; }
 .baris-proyek:hover { border-color: var(--biru-garis); }
 /* Inisiatif (2.31.0). */
-.ini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
 .ini-kartu { display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%; color: inherit; font: inherit; cursor: pointer; }
 .ini-kartu:hover { border-color: var(--biru-garis); }
 .ini-kartu-atas { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -613,6 +613,38 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .pill.ini-ditunda { background: var(--kuning-muda); color: var(--kuning); }
 .pill.ini-selesai { background: var(--biru-muda); color: var(--biru-tua); }
 .ini-pilih { margin-top: 8px; }
+/* Pengembangan: pohon memakai kartu, token, dan tombol inisiatif yang sudah ada. */
+.ini-pohon { display: flex; flex-direction: column; gap: 12px; }
+.ini-pohon-grup { padding: 6px 16px; }
+.ini-pohon-baris { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 14px 0; margin-left: calc(var(--tingkat) * 20px); }
+.ini-pohon-baris + .ini-pohon-baris { border-top: 1px solid var(--garis-halus); }
+.ini-lipat { width: 30px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--biru); }
+button.ini-lipat:hover { background: var(--abu); }
+.ini-pohon-nama { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.ini-pohon-nama .ini-berjalan-judul { font-size: calc(15px * var(--skala-huruf)); font-weight: 700; }
+.ini-pohon-nama small { color: var(--redup); font-size: calc(12px * var(--skala-huruf)); }
+.ini-pohon-nama small.teks-merah { color: var(--merah); }
+.ini-pohon-angka { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; color: var(--redup); font-size: calc(12px * var(--skala-huruf)); }
+.ini-pohon-angka progress { width: 110px; max-width: 100%; height: 5px; border: 0; border-radius: 8px; overflow: hidden; background: var(--abu); accent-color: var(--isi-biru); }
+.ini-pohon-angka progress::-webkit-progress-bar { background: var(--abu); }
+.ini-pohon-angka progress::-webkit-progress-value { background: var(--isi-biru); }
+.ini-pohon-angka progress::-moz-progress-bar { background: var(--isi-biru); }
+.ini-jejak { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: calc(13px * var(--skala-huruf)); color: var(--redup); min-width: 0; }
+.ini-jejak button, .ini-jalur { border: 0; background: none; color: var(--biru); padding: 0; text-align: left; font: inherit; overflow-wrap: anywhere; }
+.ini-jejak button { padding: 4px 0; }
+.ini-jejak span { overflow-wrap: anywhere; }
+.ini-jejak button:hover, button.ini-jalur:hover { text-decoration: underline; }
+.ini-jalur { font-size: calc(12px * var(--skala-huruf)); }
+.ini-subbagian { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+.ini-subbagian > .hint { margin: 0; }
+.ini-cakupan { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+@media (max-width: 600px) {
+  .ini-pohon-grup { padding: 4px 10px; }
+  .ini-pohon-baris { grid-template-columns: 26px minmax(0, 1fr) auto; gap: 6px; margin-left: calc(var(--tingkat) * 10px); }
+  .ini-pohon-nama { grid-column: 2 / -1; }
+  .ini-pohon-angka { grid-column: 2; align-items: flex-start; }
+  .ini-pohon-baris > .pill { grid-column: 3; }
+}
 /* Proyek yang melibatkan tim saya (2.30.0). */
 .baris-proyek.tim-saya { border-color: var(--biru-garis); box-shadow: inset 4px 0 0 var(--biru); }
 .chip-tim.tim-saya { outline: 2px solid var(--biru); outline-offset: 1px; }
@@ -2549,6 +2581,9 @@ button.ini-berjalan-judul:hover { color: var(--biru); text-decoration: underline
 .ini-garis > .ini-lainnya { align-self: flex-start; }
 .ini-pembaruan { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 16px; border: 1px solid var(--garis); border-radius: 12px; background: var(--muka); }
 .ini-pembaruan-meta { margin: 0; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+.ini-task-kepala { display: flex; align-items: flex-start; gap: 8px; }
+.ini-task-kepala > :first-child { flex: 1; min-width: 0; }
+.ini-task-kepala > .tombol { flex-shrink: 0; }
 .ini-pembaruan-judul { align-self: flex-start; max-width: 100%; padding: 0; border: 0; background: transparent; color: var(--tinta); font: inherit; font-size: calc(15px * var(--skala-huruf)); font-weight: 700; line-height: 1.4; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .ini-pembaruan-judul:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ini-pembaruan-ringkas { margin: 0; font-size: calc(13px * var(--skala-huruf)); line-height: 1.55; color: var(--tinta-2); overflow-wrap: anywhere; }
@@ -2579,6 +2614,7 @@ a.ini-chip:hover { border-color: var(--biru-garis); }
 .ini-berjalan { display: flex; flex-direction: column; gap: 6px; }
 .ini-berjalan-baris { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 8px 10px; border: 1px solid var(--garis); border-radius: 10px; background: var(--dasar); color: var(--tinta); font: inherit; font-size: calc(13px * var(--skala-huruf)); font-weight: 600; text-align: left; cursor: pointer; }
 .ini-berjalan-baris small { font-weight: 400; color: var(--redup); }
+.ini-berjalan-baris.ini-berjalan-task { cursor: default; }
 .ini-belum { align-self: flex-start; padding: 2px 9px; border-radius: 999px; background: var(--ungu-muda); color: var(--ungu); font-size: calc(12px * var(--skala-huruf)); font-weight: 700; }
 @media (max-width: 899px) {
   .ini-ubin-baris { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

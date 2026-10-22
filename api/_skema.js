@@ -34,7 +34,7 @@ const TAB = {
   package_items: ['id', 'paket', 'urutan', 'kategori', 'grup', 'nama', 'target', 'satuan', 'awal', 'catatan'],
   package_links: ['id', 'paket', 'urutan', 'label', 'url'],
   /* Inisiatif (2.31.0): pekerjaan berkelanjutan di luar paket & ADDIE; task-nya menaut lewat kolom tasks.inisiatif. */
-  inisiatif: ['id', 'nama', 'tujuan', 'tim', 'pic', 'status', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt', 'menerima'],
+  inisiatif: ['id', 'nama', 'tujuan', 'tim', 'pic', 'status', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt', 'menerima', 'induk'],
   inisiatif_links: ['id', 'inisiatif', 'urutan', 'label', 'url'],
   /* Permintaan lanjutan (2.36.0): dari task asal (sumber) ke satu orang; task = task yang lahir saat diterima. */
   permintaan: ['id', 'sumber', 'dari', 'ke', 'judul', 'rincian', 'sub', 'due', 'status', 'alasan', 'task', 'oleh', 'dialihkan', 'dialihkanAt',
