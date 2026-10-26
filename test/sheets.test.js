@@ -243,13 +243,14 @@ test('menyerah setelah jatah ulang habis, dan galat lain tak diulang sama sekali
 const { urai } = require('../api/_skema');
 
 const contoh = () => ({
-  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, paket: 'PKG-002', ketat: false, history: [] }],
+  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, paket: 'PKG-002', ketat: false, jenis: '', timProyek: [], tahapUmum: [], tenggat: '', history: [] },
+    { id: 'PRJ-4', name: 'Rekrutmen guru', platform: 'All Platform', stage: '', cycle: 1, decision: 'Build', goal: '', lead: 'dhea', arsip: false, paket: '', ketat: false, jenis: 'umum', timProyek: ['CO', 'LA'], tahapUmum: [{ id: 'tp1', nama: 'Lowongan, dibuka' }, { id: 'tp2', nama: 'Seleksi' }], tenggat: '2026-11-15', history: [] }],
   tasks: [
     {
       id: 'PRD-001', project: '', lane: 'rutin', kategori: 'RnD', title: 'Task lepas', platform: 'ASN', stage: '', sub: '', detail: '',
       pic: 'andika', support: ['uma'], priority: 'High', start: '2026-07-01', due: '2026-07-05', status: 'Selesai',
       tertahan: false, alasanTertahan: '', output: '1 laporan', deps: [], tunggu: [], lepasFase: false, notes: '', assignedBy: 'nynda', cycle: 1,
-      createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedAt: Date.parse('2026-07-05T01:00:00Z'), selesaiAt: Date.parse('2026-07-05T01:00:00Z'), induk: '', inisiatif: 'INI-001', diminta: '', pembaruanProyek: '', permintaanDae: '', peminta: '',
+      createdAt: Date.parse('2026-07-01T01:00:00Z'), updatedAt: Date.parse('2026-07-05T01:00:00Z'), selesaiAt: Date.parse('2026-07-05T01:00:00Z'), induk: '', inisiatif: 'INI-001', diminta: '', pembaruanProyek: '', permintaanDae: '', peminta: '', tahapProyek: '',
       subtasks: [{ id: 's1', title: 'Kumpulkan data', pic: 'uma', due: '', done: true, link: 'https://docs.google.com/spreadsheets/d/contoh' }],
       comments: [{ id: 'k1', author: 'nynda', text: 'Mantap, lanjut', at: Date.parse('2026-07-04T02:00:00Z') }],
       tinjauan: [{ id: 'r1', by: 'nynda', action: 'Disetujui', note: 'Ditandai selesai di v1', at: Date.parse('2026-07-05T01:00:00Z') }],
@@ -259,7 +260,7 @@ const contoh = () => ({
       id: 'PRD-646', project: 'PRJ-3', lane: 'proyek', kategori: 'QC', title: 'Langkah 2', platform: 'PCPM', stage: 'V',
       sub: '3.2 Learning Content Implementation', detail: '', pic: 'kiki', support: [], priority: 'Normal', start: '2026-07-20', due: '',
       status: 'Antre', tertahan: true, alasanTertahan: 'Menunggu tabel konversi', output: '', deps: ['PRD-001'], tunggu: ['PRD-001'], lepasFase: true, notes: '', assignedBy: 'nynda', cycle: 1,
-      createdAt: Date.parse('2026-07-20T04:00:00Z'), updatedAt: Date.parse('2026-07-20T04:00:00Z'), selesaiAt: 0, induk: 'PRD-001', inisiatif: '', diminta: 'andika', pembaruanProyek: '', permintaanDae: 'MDA-001', peminta: 'andika',
+      createdAt: Date.parse('2026-07-20T04:00:00Z'), updatedAt: Date.parse('2026-07-20T04:00:00Z'), selesaiAt: 0, induk: 'PRD-001', inisiatif: '', diminta: 'andika', pembaruanProyek: '', permintaanDae: 'MDA-001', peminta: 'andika', tahapProyek: 'tp2',
       subtasks: [], comments: [], tinjauan: [], evidence: [],
     },
   ],
@@ -314,7 +315,7 @@ test('tulisContoh lalu bacaContoh mengembalikan data yang sama persis', async ()
   assert.deepEqual(baca.data.notes, asli.notes);
   assert.deepEqual(baca.data.setoran, asli.setoran);
   assert.deepEqual(baca.data.log, asli.log);
-  assert.deepEqual(baca.seq, { task: 646, prj: 3, pkg: 2 });
+  assert.deepEqual(baca.seq, { task: 646, prj: 4, pkg: 2 });
 });
 
 test('spreadsheet kosong disiapkan dulu: penanda v2 ikut terpasang', async () => {

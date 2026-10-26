@@ -958,6 +958,55 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   `namaJalurInisiatif`, `anakInisiatif`, `turunanInisiatif`, dan `urutInisiatif` mendukung hierarki;
   `ringkasInisiatif(data, x, hari, true)` membatasi ke task langsung. Tes: `test/pengembangan.test.js`.
 
+### Proyek umum (2.51.0)
+
+Permintaan user: proyek di luar rancangan paket untuk semua tim, misalnya "cari guru", karena
+proyek ADDIE terlalu berat untuk pekerjaan seperti itu dan Pengembangan khusus pekerjaan
+berkelanjutan tim DAE. Keputusan user (sesudah kanvas rekomendasi): **tahap bebas** yang tak
+menahan, task **ditinjau Lead**, pembuatnya **Lead (untuk timnya) dan Manager**, tampilan **Opsi A
+daftar per tahap**, dengan Papan dan Linimasa sebagai pilihan tampilan lain seperti di halaman Task.
+
+- **Jenis proyek** (`p.jenis = 'umum'`; kosong = proyek ADDIE). Form **Proyek baru** bertanya
+  "Proyek ini untuk apa?": ADDIE (izin `proyek.buat`, bawaan Manager) atau Umum (izin baru
+  `proyek.buatUmum`, bawaan Manager dan Lead). Lead hanya membuat untuk timnya sendiri; Manager
+  memilih tim pemiliknya. Isiannya: tim lain yang ikut (`timProyek`, pemilik dulu), Lead proyek
+  (Lead salah satu tim yang terlibat, atau Manager), tenggat proyek (`tenggat`), dan tahap
+  (`tahapUmum` = `[{ id, nama }]`, paling banyak 12, bisa mulai dari templat Rekrutmen, Acara, atau
+  Kerja sama, dinaikkan dan dihapus). Tahap boleh kosong.
+- **Tanpa ADDIE:** tanpa sub-stage, fase, gerbang Manager, siklus, dan E12. Tahap proyeknya tak
+  dihitung ulang (`segarkanTahap` melewatinya), tak masuk antrean keputusan, dan semua task selesai
+  berarti keadaan **Semua task selesai** (`tuntas`), bukan "tak ada task terbuka". Rancangan paket
+  tak ditautkan.
+- **Task Proyek umum** = task proyek biasa (lane proyek, `stage` dan `sub` kosong, `tahapProyek` =
+  ID tahap atau kosong): hasil kerja, ceklis, bukti, diskusi, dan task turunan seperti
+  biasa (Atur urutan tunggu tetap khusus proyek ADDIE). Staff mengajukan, Lead-nya menyetujui; task Lead ditinjau Manager. PIC: staff
+  untuk dirinya (bila timnya terlibat), Lead untuk timnya dan Lead tim lain yang terlibat
+  (`Inti.pilihanPicUmum`), Manager siapa pun. Task-nya ditambah dari halaman proyeknya (form
+  **Tambah task** tanpa sub-stage, dengan pilihan Tahap); form Tambah task umum di halaman Task
+  hanya menawarkan proyek ADDIE. Lanjutan dari task Proyek umum masuk ke tahap yang sama.
+- **Halaman Proyek umum:** kepala (Umum, ID, tim, Lead, keadaan, tujuan, Tambah task, Ubah, menu
+  ⋯ dengan Duplikat, Tunda/Lanjutkan, Arsipkan, Hapus), kemajuan (task selesai, terlambat,
+  tertahan, tenggat proyek), jalur tahap (selesai per tahap; tahap pertama yang masih punya task
+  terbuka disorot; klik melompat ke bagiannya), dan pilihan tampilan (diingat per browser):
+  - **Daftar** (bawaan): satu bagian per tahap, lalu **Tanpa tahap**, dengan baris task biasa dan
+    **+ Tambah task di …**; tahap yang tuntas dilipat.
+  - **Papan**: kolom per tahap; kartu diseret ke tahap lain (`pindahTahapUmum`), status tetap
+    lewat tombol task.
+  - **Linimasa**: batang task dari mulai sampai tenggat, dikelompokkan per tahap, 35 hari, geser
+    per minggu.
+  - Samping: **Perlu perhatian Anda** (tinjauan Anda dan yang terlambat), **Diskusi proyek** (ruang
+    proyek di Komunikasi, tiga pesan terakhir; tempat Manager menanggapi proyek), Tentang, dan
+    Acara.
+- **Yang mengelola** (`Inti.bolehKelolaUmum`): Lead proyek, Lead tim pemilik, dan Manager: ubah
+  proyek (nama, tim, Lead, tenggat, tahap; task di tahap yang dihapus jadi tanpa tahap), tunda,
+  arsipkan. Hapus proyek tetap izin `proyek.hapus`. Di detail task, tahap bisa dipindah oleh PIC,
+  Lead-nya, Lead proyek, atau Manager. Baris dan kartu task menulis nama tahapnya.
+- **Data**: kolom `jenis`, `timProyek` (dipisah koma), `tahapUmum` (JSON), dan `tenggat` di tab
+  `projects` dan `v2_projects`; kolom `tahapProyek` di tab `tasks` dan `v2_tasks`. Aturannya
+  `Inti.proyekBaru` (→ `proyekUmumBaru`), `ubahProyek` (→ `ubahProyekUmum`), `taskBaru` (→
+  `taskUmumBaru`), `pindahTahapUmum`, `ringkasProyekUmum`, `rapikanTahapUmum`; diuji di
+  `test/proyek-umum.test.js` dan `test/sheets.test.js`.
+
 ### Pembaruan proyek (2.45.0)
 
 Permintaan user: tim DAE sering membuat task rutin yang sebenarnya pembaruan inisiatif atau

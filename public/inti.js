@@ -53,6 +53,7 @@
   const PERAN_IZIN = ['manager', 'lead', 'staff'];
   const IZIN = [
     { kunci: 'proyek.buat', grup: 'Proyek', label: 'Membuat proyek', aksi: 'membuat proyek', peran: ['manager'] },
+    { kunci: 'proyek.buatUmum', grup: 'Proyek', label: 'Membuat Proyek umum (di luar ADDIE dan rancangan paket); Lead untuk timnya', aksi: 'membuat Proyek umum', peran: ['manager', 'lead'] },
     { kunci: 'proyek.ubah', grup: 'Proyek', label: 'Mengubah nama, platform, dan tujuan proyek', aksi: 'mengubah proyek', peran: ['manager'] },
     { kunci: 'proyek.urutan', grup: 'Proyek', label: 'Mengetatkan atau melonggarkan urutan ADDIE proyek', aksi: 'mengatur urutan ADDIE proyek', peran: ['manager', 'lead'] },
     // Sejak 2.42.0 (permintaan user) Lead juga boleh menghapus proyek.
@@ -907,8 +908,9 @@
     if (!String(f.title || '').trim()) throw new Error('Judul task wajib diisi.');
     const s = subTahap(f.sub);
     if (s && s.dihapus && !teks(f.induk)) throw new Error(`Sub-stage ${s.kode} sudah dihapus dari Master. Pilih sub-stage lain.`);
-    if (p && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
+    if (p && !proyekUmum(p) && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
     if (!p && s && s.tahap !== 'R') throw new Error('Task di luar proyek memakai sub-stage rutin (kode R).');
+    if (proyekUmum(p)) return taskUmumBaru(data, p, f, me, waktu, hariIni);
     if (!bolehBuatTask(me)) throw new Error('Pilih profil dulu.');
     if (orang(me).peran === 'staff') {
       if (f.pic !== me) throw new Error('Staff menambah task untuk dirinya sendiri. Penyerahan ke orang lain lewat Lead.');
@@ -950,12 +952,48 @@
     return t;
   }
 
+  /* Task Proyek umum (2.51.0): tanpa sub-stage; tahap bebas opsional; ditinjau seperti task proyek. */
+  function taskUmumBaru(data, p, f, me, waktu, hariIni) {
+    if (teks(f.sub)) throw new Error('Proyek umum tak memakai sub-stage. Pilih tahapnya saja.');
+    if (!String(f.title || '').trim()) throw new Error('Judul task wajib diisi.');
+    if (p.arsip) throw new Error(`Proyek ${p.name} sudah diarsipkan.`);
+    if (!bolehTaskUmum(p, me)) throw new Error(orang(me).peran === 'staff' ? `Staff menambah task di Proyek umum yang melibatkan timnya (${(p.timProyek || []).map(singkatTim).join(', ')}).` : 'Pilih profil dulu.');
+    const pic = teks(f.pic) || me;
+    if (orang(me).peran === 'staff' && pic !== me) throw new Error('Staff menambah task untuk dirinya sendiri. Penyerahan ke orang lain lewat Lead.');
+    if (!pilihanPicUmum(p, me).includes(pic)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim yang terlibat di proyek ini.');
+    const tahap = teks(f.tahapProyek);
+    if (!tahapUmumSah(p, tahap)) throw new Error('Tahap itu tidak ada di proyek ini.');
+    const pInduk = teks(f.induk) ? data.tasks.find(x => x.id === teks(f.induk)) || null : null;
+    if (teks(f.induk)) {
+      const salah = salahInduk(pInduk, me, { pic, project: p.id, cycle: 1, stage: '' });
+      if (salah) throw new Error(salah);
+    }
+    const t = {
+      id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
+      project: p.id, lane: 'proyek', kategori: '', title: String(f.title).trim(), platform: f.platform || p.platform || 'All Platform',
+      stage: '', sub: '', detail: String(f.detail || '').trim(), pic, support: (f.support || []).filter(x => x !== pic), priority: f.priority || 'Normal',
+      start: hariIni, due: f.due || '', status: 'Antre', tertahan: false, alasanTertahan: '',
+      output: String(f.output || '').trim(), deps: (f.deps || []).slice(), tunggu: [], lepasFase: false,
+      notes: '', assignedBy: me, cycle: 1, induk: pInduk ? pInduk.id : '', inisiatif: '', pembaruanProyek: '',
+      tahapProyek: pInduk ? pInduk.tahapProyek || '' : tahap,
+      createdAt: waktu, updatedAt: waktu, selesaiAt: 0, subtasks: [], comments: [], tinjauan: [], evidence: [],
+    };
+    data.tasks.unshift(t);
+    catatLog(data, 'create', `${t.id} · ${t.title}`, `Dibuat untuk ${orang(t.pic).pendek}${namaTahapUmum(p, t.tahapProyek) ? ' · tahap ' + namaTahapUmum(p, t.tahapProyek) : ''}${pInduk ? ' · task turunan ' + pInduk.id : ''}`, me, waktu);
+    if (pInduk && pInduk.status === 'Antre' && !pInduk.tertahan && !depsBelum(pInduk, indeks(data)).length) {
+      pInduk.status = 'Dikerjakan';
+      pInduk.updatedAt = waktu;
+      catatLog(data, 'update', `${pInduk.id} · ${pInduk.title}`, 'Mulai dikerjakan: dibagi ke task turunan', me, waktu);
+    }
+    return t;
+  }
+
   /* Task turunan dari detail task induk: sub-stage, proyek, siklus, dan platform ikut induknya. */
   function taskAnak(data, induk, f, me, waktu, hariIni) {
     const salah = salahInduk(induk, me, { pic: f.pic, project: induk ? induk.project || '' : '', cycle: induk ? induk.cycle || 1 : 1, stage: induk ? induk.stage : '' });
     if (salah) throw new Error(salah);
     return taskBaru(data, {
-      title: f.title, project: induk.project, sub: induk.sub, pic: f.pic, due: f.due, priority: f.priority || induk.priority,
+      title: f.title, project: induk.project, sub: induk.sub, pic: f.pic, due: f.due, priority: f.priority || induk.priority, tahapProyek: induk.tahapProyek || '',
       platform: induk.platform, detail: f.detail, kategori: induk.kategori, induk: induk.id, inisiatif: induk.inisiatif || '',
       pembaruanProyek: induk.pembaruanProyek || '',
     }, me, waktu, hariIni);
@@ -1064,13 +1102,19 @@
     const s = subTahap(kode);
     if (kode && !s) throw new Error('Sub-stage tidak dikenal.');
     if (kode !== t.sub && s && !subBolehBagi(me, kode)) throw new Error(`${kode} dipegang tim lain atau direview Manager. Staff memakai sub-stage milik timnya sendiri.`);
-    if (t.lane === 'proyek' && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
+    // Task Proyek umum (2.51.0): tanpa sub-stage; tahapnya bebas.
+    const pU = t.project ? data.projects.find(x => x.id === t.project) : null;
+    const umumKah = proyekUmum(pU);
+    if (umumKah && kode) throw new Error('Proyek umum tak memakai sub-stage. Pilih tahapnya saja.');
+    if (t.lane === 'proyek' && !umumKah && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
     if (t.lane !== 'proyek' && s && s.tahap !== 'R' && kode !== t.sub) throw new Error('Task di luar proyek memakai sub-stage rutin (kode R).');
+    const tahapU = umumKah ? teks(ambil('tahapProyek', t.tahapProyek || '')) : '';
+    if (umumKah && !tahapUmumSah(pU, tahapU)) throw new Error('Tahap itu tidak ada di proyek ini.');
     const pic = teks(ambil('pic', t.pic));
     // Pilihan yang ditampilkan browser juga diperiksa di server.
     const anak = data.tasks.filter(x => x.induk === t.id);
     const induk = t.induk ? data.tasks.find(x => x.id === t.induk) || null : null;
-    if (pic !== t.pic && !pilihanPicUbah(t, me, indeks(data), kode).includes(pic)) {
+    if (pic !== t.pic && !pilihanPicUbah(t, me, indeks(data), kode).includes(pic) && !(umumKah && !t.induk && !anak.length && pilihanPicUmum(pU, me).includes(pic))) {
       if (induk) throw new Error(`PIC task turunan: ${orang(picTurunan(induk)[0]).pendek} sendiri atau staff timnya.`);
       if (anak.length) throw new Error('Task ini sudah dibagi ke task turunan: pilih Lead atau staff aktif di tim yang sama.');
       throw new Error('PIC itu di luar tim Anda atau tim pemilik sub-stage ini.');
@@ -1091,6 +1135,10 @@
       else if (s) t.kategori = s.nama;
     }
     if (pic !== t.pic) { ubah.push('diserahkan ke ' + orang(pic).pendek); t.pic = pic; }
+    if (umumKah && tahapU !== (t.tahapProyek || '')) {
+      ubah.push(`tahap ${namaTahapUmum(pU, t.tahapProyek) || 'tanpa tahap'} → ${namaTahapUmum(pU, tahapU) || 'tanpa tahap'}`);
+      t.tahapProyek = tahapU;
+    }
     // Pindah fase atau tim bisa membuat urutan yang diatur saling mengunci (2.19.0).
     const putar = t.lane === 'proyek' && (t.sub !== lama.sub || t.pic !== lama.pic) ? putaranTunggu(t, indeks(data)) : null;
     if (putar) {
@@ -1109,9 +1157,163 @@
     return t;
   }
 
+  /* ---------- Proyek umum (2.51.0, permintaan user) ----------
+     Pekerjaan di luar rancangan paket dan ADDIE, untuk semua tim (contoh user: cari guru). Tanpa
+     sub-stage, fase, gerbang Manager, dan E12. Task-nya task proyek biasa (lane proyek, stage dan
+     sub kosong): hasil kerja, ceklis, bukti, diskusi; staff mengajukan, Lead-nya menyetujui, task
+     Lead ditinjau Manager. Keputusan user: tahap bebas (tahapUmum, hanya pengelompokan, tak
+     menahan task berikutnya; task.tahapProyek = ID tahap), task ditinjau Lead, pembuatnya Lead
+     (untuk timnya) dan Manager. timProyek = tim yang terlibat, yang pertama pemiliknya; lead =
+     Lead proyek; tenggat = tenggat proyek. */
+  const JENIS_UMUM = 'umum';
+  const proyekUmum = p => !!p && p.jenis === JENIS_UMUM;
+  const TAHAP_UMUM_MAKS = 12;
+  const TEMPLAT_TAHAP = {
+    rekrutmen: ['Lowongan', 'Seleksi', 'Wawancara', 'Onboarding'],
+    acara: ['Persiapan', 'Pelaksanaan', 'Tindak lanjut'],
+    kerjasama: ['Penjajakan', 'Kesepakatan', 'Pelaksanaan', 'Evaluasi'],
+  };
+  const timPemilikUmum = p => ((p && p.timProyek) || [])[0] || '';
+  /* Lead proyek, Lead tim pemiliknya, dan Manager mengelola Proyek umum (ubah, tahap, tunda, arsip). */
+  function bolehKelolaUmum(me, p) {
+    if (!proyekUmum(p)) return false;
+    if (me === DEV || orang(me).peran === 'manager') return true;
+    return orang(me).peran === 'lead' && (p.lead === me || (TIM[timPemilikUmum(p)] || {}).lead === me);
+  }
+  /* Tahap bebas: nama 1–40 huruf, tak kembar, paling banyak 12. ID tahap lama tetap (task-nya ikut);
+     yang baru diberi nomor sesudah yang terbesar. */
+  function rapikanTahapUmum(daftar, lama = []) {
+    const nomor = [...(lama || []), ...(Array.isArray(daftar) ? daftar : [])].map(x => /^tp(\d+)$/.exec((x && x.id) || '')).filter(Boolean).map(m => Number(m[1]));
+    let n = Math.max(0, ...nomor);
+    const kenal = new Set((lama || []).map(x => x.id));
+    const nama = new Set();
+    const out = [];
+    for (const x of Array.isArray(daftar) ? daftar : []) {
+      const isi = teks(typeof x === 'string' ? x : x && x.nama).replace(/\s+/g, ' ');
+      if (!isi) continue;
+      if (isi.length > 40) throw new Error(`Nama tahap "${isi.slice(0, 20)}…" paling panjang 40 huruf.`);
+      if (nama.has(isi.toLowerCase())) throw new Error(`Tahap "${isi}" tertulis dua kali.`);
+      nama.add(isi.toLowerCase());
+      const id = x && typeof x === 'object' && /^tp\d+$/.test(x.id || '') && (kenal.has(x.id) || !lama.length) && !out.some(y => y.id === x.id) ? x.id : 'tp' + ++n;
+      out.push({ id, nama: isi });
+    }
+    if (out.length > TAHAP_UMUM_MAKS) throw new Error(`Tahap paling banyak ${TAHAP_UMUM_MAKS}.`);
+    return out;
+  }
+  /* Tim terlibat dan Lead proyek. Lead pembuat: timnya sendiri pemiliknya. */
+  function timUmumSah(f, me, lama) {
+    const kode = [...new Set((Array.isArray(f.tim) ? f.tim : []).map(teks).filter(k => TIM_PROYEK.includes(k)))];
+    const pemilikMinta = teks(f.timPemilik) || kode[0] || '';
+    const timKu = orang(me).peran === 'lead' ? (timOrang(me) || {}).kode || '' : '';
+    const pemilik = lama ? timPemilikUmum(lama) : timKu || pemilikMinta;
+    if (!pemilik || !TIM_PROYEK.includes(pemilik)) throw new Error('Pilih tim pemilik proyek.');
+    if (!lama && timKu && pemilikMinta && pemilikMinta !== timKu) throw new Error(`Lead membuat Proyek umum untuk timnya sendiri (${singkatTim(timKu)}).`);
+    const tim = [pemilik, ...kode.filter(k => k !== pemilik)];
+    const lead = teks(f.lead === undefined ? (lama ? lama.lead : '') : f.lead) || TIM[pemilik].lead;
+    const leadTim = tim.map(k => TIM[k].lead);
+    if (!leadTim.includes(lead) && orang(lead).peran !== 'manager') throw new Error('Lead proyek adalah Lead salah satu tim yang terlibat, atau Manager.');
+    return { tim, lead };
+  }
+  function proyekUmumBaru(data, f, me, waktu) {
+    wajibIzin(me, 'proyek.buatUmum');
+    const nama = teks(f.name).replace(/\s+/g, ' ');
+    if (!nama) throw new Error('Nama proyek wajib diisi.');
+    if (nama.length > 200) throw new Error('Nama proyek paling panjang 200 karakter.');
+    const { tim, lead } = timUmumSah(f, me, null);
+    const tenggat = teks(f.tenggat);
+    if (tenggat && !isoSah(tenggat)) throw new Error('Tenggat proyek tidak sah.');
+    const p = {
+      id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ', data), name: nama, platform: teks(f.platform) || 'All Platform',
+      stage: '', cycle: 1, decision: 'Build', goal: String(f.goal || '').trim().slice(0, 2000), lead, arsip: false, paket: '', history: [],
+      jenis: JENIS_UMUM, timProyek: tim, tahapUmum: rapikanTahapUmum(f.tahap, []), tenggat,
+    };
+    data.projects.unshift(p);
+    catatLog(data, 'create', `${p.id} · ${p.name}`, `Proyek umum dibuat untuk tim ${tim.map(singkatTim).join(', ')}`, me, waktu);
+    return p;
+  }
+  /* Ubah Proyek umum: nama, platform, tujuan, tim, Lead, tenggat, dan tahap. Task di tahap yang
+     dihapus jadi "tanpa tahap"; tim pemilik tetap. */
+  function ubahProyekUmum(data, p, f, me, waktu) {
+    if (!bolehKelolaUmum(me, p)) throw new Error('Hanya Lead proyek, Lead tim pemiliknya, atau Manager yang mengubah Proyek umum ini.');
+    const nama = teks(f.name === undefined ? p.name : f.name).replace(/\s+/g, ' ');
+    if (!nama) throw new Error('Nama proyek wajib diisi.');
+    if (nama.length > 200) throw new Error('Nama proyek paling panjang 200 karakter.');
+    const { tim, lead } = f.tim === undefined && f.lead === undefined ? { tim: p.timProyek, lead: p.lead } : timUmumSah({ tim: f.tim === undefined ? p.timProyek : f.tim, lead: f.lead }, me, p);
+    const tenggat = f.tenggat === undefined ? p.tenggat || '' : teks(f.tenggat);
+    if (tenggat && !isoSah(tenggat)) throw new Error('Tenggat proyek tidak sah.');
+    const tahap = f.tahap === undefined ? p.tahapUmum || [] : rapikanTahapUmum(f.tahap, p.tahapUmum || []);
+    const ubah = [];
+    if (nama !== p.name) ubah.push(`nama dari "${p.name}"`);
+    if (JSON.stringify(tim) !== JSON.stringify(p.timProyek || [])) ubah.push('tim ' + tim.map(singkatTim).join(', '));
+    if (lead !== p.lead) ubah.push('Lead ' + orang(lead).pendek);
+    if (tenggat !== (p.tenggat || '')) ubah.push(`tenggat ${tenggat || '—'}`);
+    if (JSON.stringify(tahap) !== JSON.stringify(p.tahapUmum || [])) ubah.push('tahap ' + (tahap.map(x => x.nama).join(' › ') || '—'));
+    const platform = f.platform === undefined ? p.platform : teks(f.platform) || 'All Platform';
+    const goal = f.goal === undefined ? p.goal : String(f.goal || '').trim().slice(0, 2000);
+    if (platform !== p.platform) ubah.push(`platform ${platform}`);
+    if (goal !== (p.goal || '')) ubah.push('tujuan');
+    if (!ubah.length) return p;
+    const ada = new Set(tahap.map(x => x.id));
+    for (const t of data.tasks) if (t.project === p.id && t.tahapProyek && !ada.has(t.tahapProyek)) { t.tahapProyek = ''; t.updatedAt = waktu; }
+    Object.assign(p, { name: nama, platform, goal, timProyek: tim, lead, tenggat, tahapUmum: tahap });
+    catatLog(data, 'update', `${p.id} · ${nama}`, 'Proyek umum diubah: ' + ubah.join(', '), me, waktu);
+    return p;
+  }
+  const tahapUmumSah = (p, id) => !teks(id) || ((p && p.tahapUmum) || []).some(x => x.id === teks(id));
+  const namaTahapUmum = (p, id) => (((p && p.tahapUmum) || []).find(x => x.id === id) || {}).nama || '';
+  /* PIC task Proyek umum: staff dirinya; Lead timnya dan Lead tim lain yang terlibat; Manager siapa pun. */
+  function pilihanPicUmum(p, me) {
+    const r = orang(me).peran;
+    if (r === 'manager' || me === DEV) return ORANG.filter(o => o.aktif !== false).map(o => o.id);
+    if (r === 'lead') return [...new Set([me, ...timDari(me), ...((p && p.timProyek) || []).map(k => TIM[k].lead)])].filter(id => ORANG_PER_ID.has(id));
+    return ORANG_PER_ID.has(me) ? [me] : [];
+  }
+  /* Staff menambah task untuk dirinya di Proyek umum yang melibatkan timnya. */
+  function bolehTaskUmum(p, me) {
+    if (!proyekUmum(p) || p.arsip || !ORANG_PER_ID.has(me)) return false;
+    if (orang(me).peran !== 'staff') return true;
+    const tim = timOrang(me);
+    return !!tim && (p.timProyek || []).includes(tim.kode);
+  }
+  /* Memindah task Proyek umum ke tahap lain (papan per tahap, detail task). Tak mengubah status. */
+  function pindahTahapUmum(data, t, id, me, waktu) {
+    const p = t && t.project ? data.projects.find(x => x.id === t.project) : null;
+    if (!proyekUmum(p)) throw new Error('Tahap bebas hanya ada di Proyek umum.');
+    if (!bolehUbah(t, me) && !bolehKelolaUmum(me, p)) throw new Error('Hanya PIC, Lead-nya, Lead proyek, atau Manager yang memindah tahap task ini.');
+    const ke = teks(id);
+    if (!tahapUmumSah(p, ke)) throw new Error('Tahap itu tidak ada di proyek ini.');
+    if (ke === (t.tahapProyek || '')) return t;
+    const dari = namaTahapUmum(p, t.tahapProyek) || 'tanpa tahap';
+    t.tahapProyek = ke;
+    t.updatedAt = waktu;
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Pindah tahap: ${dari} → ${namaTahapUmum(p, ke) || 'tanpa tahap'}`, me, waktu);
+    return t;
+  }
+  /* Ringkasan Proyek umum per tahap (task induk dan turunan dihitung), dan tahap yang sedang
+     berjalan: tahap pertama yang masih punya task terbuka. */
+  function ringkasProyekUmum(data, p, hariIni) {
+    const tasks = data.tasks.filter(t => t.project === p.id);
+    const grup = id => tasks.filter(t => (t.tahapProyek || '') === id);
+    const isi = (id, nama) => { const xs = grup(id); return { id, nama, tasks: xs, total: xs.length, selesai: xs.filter(selesai).length, buka: xs.filter(aktif).length }; };
+    const tahap = (p.tahapUmum || []).map(x => isi(x.id, x.nama));
+    const ada = new Set((p.tahapUmum || []).map(x => x.id));
+    const tanpa = isi('', '');
+    tanpa.tasks = tasks.filter(t => !t.tahapProyek || !ada.has(t.tahapProyek));
+    Object.assign(tanpa, { total: tanpa.tasks.length, selesai: tanpa.tasks.filter(selesai).length, buka: tanpa.tasks.filter(aktif).length });
+    const buka = tasks.filter(aktif);
+    return {
+      tahap, tanpa, total: tasks.length, selesai: tasks.filter(selesai).length, buka: buka.length,
+      telat: buka.filter(t => telat(t, hariIni) && !t.tertahan).length, tertahan: buka.filter(ditandaiTertahan).length,
+      ditinjau: buka.filter(t => t.status === 'Ditinjau').length,
+      berjalan: (tahap.find(x => x.buka) || {}).id || '',
+      tenggat: p.tenggat || '', lewat: !!p.tenggat && !!hariIni && p.tenggat < hariIni && buka.length > 0,
+    };
+  }
+
   /* Proyek tidak punya Lead tetap (PRD 7 Okt): tanggung jawabnya mengikuti tim pemilik
-     sub-stage task-task di dalamnya. */
+     sub-stage task-task di dalamnya. Proyek umum (2.51.0): proyekUmumBaru. */
   function proyekBaru(data, f, me, waktu) {
+    if (f && f.jenis === JENIS_UMUM) return proyekUmumBaru(data, f, me, waktu);
     wajibIzin(me, 'proyek.buat');
     if (!String(f.name || '').trim()) throw new Error('Nama proyek wajib diisi.');
     const p = {
@@ -1126,6 +1328,7 @@
   /* Ubah proyek (2.28.0, permintaan user): nama, platform, dan tujuan proyek yang sudah dibuat.
      Hanya Manager, yang juga membuat proyek. ID, siklus, tahap, dan task-nya tetap. */
   function ubahProyek(data, p, f, me, waktu) {
+    if (proyekUmum(p) && data.projects.indexOf(p) >= 0) return ubahProyekUmum(data, p, f, me, waktu);
     wajibIzin(me, 'proyek.ubah');
     if (!p || data.projects.indexOf(p) < 0) throw new Error('Proyek tidak ditemukan.');
     const nama = teks(f.name === undefined ? p.name : f.name).replace(/\s+/g, ' ');
@@ -1178,6 +1381,7 @@
   function segarkanTahap(data, waktu, oleh = '') {
     const pindah = [];
     for (const p of data.projects) {
+      if (proyekUmum(p)) continue;   // Proyek umum tanpa fase ADDIE (2.51.0)
       const baru = tahapDihitung(data, p);
       if (baru === p.stage) continue;
       const dari = p.stage;
@@ -1220,9 +1424,10 @@
     const ditahan = p.decision === 'Hold';
     const tutup = siklusTutup(data, p);
     const siapMaju = !p.arsip && !ditahan && tutup;
+    // Proyek umum (2.51.0) tak ditutup E12: semua task selesai = tuntas, bukan "sepi".
     const keadaan = p.arsip ? 'arsip' : ditahan ? 'ditahan' : tutup ? 'tunggu' : !siklus.length ? 'kosong'
-      : !buka.length ? 'sepi' : (nTelat || nTertahan) ? 'risiko' : 'aman';
-    const tenggat = milik.filter(aktif).map(t => t.due).filter(Boolean).sort().pop() || '';
+      : !buka.length ? (proyekUmum(p) ? 'tuntas' : 'sepi') : (nTelat || nTertahan) ? 'risiko' : 'aman';
+    const tenggat = (proyekUmum(p) && p.tenggat) || milik.filter(aktif).map(t => t.due).filter(Boolean).sort().pop() || '';
     return {
       total: kini.length, selesai: kini.filter(selesai).length, telat: nTelat, tertahan: nTertahan, siapMaju, keadaan, tenggat,
       buka: buka.length, tutup, semua: milik.length, semuaSelesai: milik.filter(selesai).length,
@@ -1238,6 +1443,7 @@
 
   /* Sesudah E12 disetujui, Manager memulai siklus berikutnya: kembali ke Analysis. */
   function mulaiSiklus(data, p, me, waktu) {
+    if (proyekUmum(p)) throw new Error('Proyek umum tak memakai siklus ADDIE.');
     wajibIzin(me, 'proyek.siklus');
     if (!siklusTutup(data, p)) throw new Error('Siklus ditutup lewat task E12 · Final approval yang sudah disetujui.');
     const dari = p.cycle || 1;
@@ -1251,7 +1457,8 @@
   /* Keputusan proyek (PRD: dicatat di gate Analysis). Hold juga menahan proyek. */
   const KEPUTUSAN = ['Build', 'Improve', 'Maintain', 'Hold'];
   function setKeputusan(data, p, keputusan, me, waktu) {
-    wajibIzin(me, 'proyek.keputusan');
+    // Proyek umum (2.51.0): Lead proyek dan Lead tim pemiliknya juga boleh menunda dan melanjutkan.
+    if (!bolehKelolaUmum(me, p)) wajibIzin(me, 'proyek.keputusan');
     if (!KEPUTUSAN.includes(keputusan)) throw new Error('Keputusan tidak dikenal.');
     p.decision = keputusan;
     catatLog(data, 'gate', `${p.id} · ${p.name}`, keputusan === 'Hold' ? 'Proyek ditahan' : `Keputusan proyek: ${keputusan}`, me, waktu);
@@ -1260,7 +1467,7 @@
   /* Proyek yang seluruh pekerjaannya sudah selesai (termasuk kolaborasi v1 yang
      tuntas) diarsipkan: tak muncul di daftar aktif maupun antrean keputusan. */
   function setArsip(data, p, arsip, me, waktu) {
-    wajibIzin(me, 'proyek.arsip');
+    if (!bolehKelolaUmum(me, p)) wajibIzin(me, 'proyek.arsip');
     p.arsip = !!arsip;
     catatLog(data, 'gate', `${p.id} · ${p.name}`, arsip ? 'Proyek diarsipkan' : 'Proyek diaktifkan lagi', me, waktu);
   }
@@ -3082,8 +3289,10 @@
     const asal = data.tasks.find(x => x.id === m.sumber) || null;
     const p = asal && asal.project ? data.projects.find(x => x.id === asal.project) : null;
     const tunggu = asal && p && !selesai(asal) && (asal.cycle || 1) === (p.cycle || 1) ? [asal.id] : [];
+    // Lanjutan di Proyek umum (2.51.0): tanpa sub-stage, di tahap task asalnya.
     const t = taskBaru(data, {
-      title: m.judul, project: p ? p.id : '', sub: teks(f.sub) || m.sub, pic: teks(f.pic) || me,
+      title: m.judul, project: p ? p.id : '', sub: proyekUmum(p) ? '' : teks(f.sub) || m.sub, pic: teks(f.pic) || me,
+      tahapProyek: proyekUmum(p) && asal ? asal.tahapProyek || '' : '',
       due: f.due === undefined ? m.due : teks(f.due), detail: m.rincian, platform: asal ? asal.platform : '', deps: tunggu,
     }, me, waktu, hariIni);
     // Ditinjau tim peminta saat diajukan (peninjauMinta, 2.38.0).
@@ -3611,17 +3820,21 @@
      asalnya, atau dikosongkan. PIC yang sudah nonaktif diganti Lead tim pemilik sub-stage-nya.
      Proyek baru tak tertaut ke paket. */
   function duplikatProyek(data, p, f, me, waktu, hariIni) {
-    wajibIzin(me, 'proyek.buat');
-    const baru = proyekBaru(data, { name: teks(f.name) || `${p.name} (salinan)`, platform: p.platform, goal: p.goal }, me, waktu);
+    const umumKah = proyekUmum(p);
+    wajibIzin(me, umumKah ? 'proyek.buatUmum' : 'proyek.buat');
+    // Proyek umum (2.51.0): tim, Lead, dan tahapnya ikut (ID tahap sama, jadi task tetap di tahapnya).
+    const baru = umumKah
+      ? proyekUmumBaru(data, { name: teks(f.name) || `${p.name} (salinan)`, platform: p.platform, goal: p.goal, tim: p.timProyek, timPemilik: timPemilikUmum(p), lead: p.lead, tahap: p.tahapUmum, tenggat: '' }, me, waktu)
+      : proyekBaru(data, { name: teks(f.name) || `${p.name} (salinan)`, platform: p.platform, goal: p.goal }, me, waktu);
     if (p.ketat) baru.ketat = true;   // urutan ADDIE ketat ikut tersalin (2.43.0)
     const tasks = [];
     if (f.tasks !== false) {
-      const asal = tugasSiklus(data, p);
+      const asal = umumKah ? data.tasks.filter(t => t.project === p.id) : tugasSiklus(data, p);
       const dasar = asal.map(t => t.start || isoHari(t.createdAt)).filter(Boolean).sort()[0] || hariIni;
       const peta = new Map();
       // Yang paling lama lebih dulu, lalu ditaruh di depan: urutannya sama dengan proyek asalnya.
       for (const t of asal.slice().reverse()) {
-        const pic = ORANG_PER_ID.has(t.pic) ? t.pic : leadSub(t.sub) || MANAGER;
+        const pic = ORANG_PER_ID.has(t.pic) ? t.pic : leadSub(t.sub) || (umumKah && (TIM[timPemilikUmum(p)] || {}).lead) || MANAGER;
         const x = {
           id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
           project: baru.id, lane: 'proyek', kategori: '', title: t.title, platform: t.platform || baru.platform,
@@ -3632,6 +3845,7 @@
           subtasks: (t.subtasks || []).map((s, i) => ({ id: `s${waktu}-${tasks.length}-${i}`, title: s.title, pic, due: '', done: false, link: s.link || '' })),
           comments: [], tinjauan: [], evidence: [],
         };
+        if (umumKah) x.tahapProyek = t.tahapProyek || '';
         data.tasks.unshift(x);
         peta.set(t.id, x);
         tasks.push(x);
@@ -4858,6 +5072,8 @@
     aturTunggu: (d, x, me, w) => aturTunggu(d, tugas(d, x), x, me, w),
     hapusProyek: (d, x, me, w) => hapusProyek(d, proyekX(d, x), me, w),
     ubahProyek: (d, x, me, w) => ubahProyek(d, proyekX(d, x), x.f || {}, me, w),
+    // Proyek umum (2.51.0).
+    pindahTahapUmum: (d, x, me, w) => pindahTahapUmum(d, tugas(d, x), x.tahap || '', me, w),
     hapusTask: (d, x, me, w) => hapusTask(d, x.tasks || x.task, me, w),
     ubahNamaPaket: (d, x, me, w) => ubahNamaPaket(d, paketX(d, x), x.nama, me, w),
     elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
@@ -4989,6 +5205,8 @@
     pindahPembaruan, MAKS_PINDAH_PEMBARUAN,
     anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, pilihanPicUbah, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
+    JENIS_UMUM, TEMPLAT_TAHAP, TAHAP_UMUM_MAKS, proyekUmum, bolehKelolaUmum, rapikanTahapUmum, ubahProyekUmum, pilihanPicUmum, bolehTaskUmum,
+    pindahTahapUmum, ringkasProyekUmum, namaTahapUmum, timPemilikUmum,
     MAKS_SETUJUI_BANYAK, bolehSetujuiBanyak, versiTinjauan, setujuiBanyak,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,

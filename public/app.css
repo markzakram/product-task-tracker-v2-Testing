@@ -2657,3 +2657,26 @@ a.ini-chip:hover { border-color: var(--biru-garis); }
 .banner-panjang { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .banner-panjang p { margin: 0; }
 .detail-chip .tautan-kecil { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Proyek umum (2.51.0): penanda jenis, jalur tahap bebas, pilihan tampilan, papan per tahap, form. */
+.pill.jenis-umum { background: var(--ungu-muda); color: var(--ungu); font-weight: 700; }
+.pill.tahap-umum { background: var(--biru-muda); color: var(--biru); }
+.kd-tuntas { background: var(--hijau-muda); color: var(--hijau); }
+.teks-merah { color: var(--merah); font-weight: 600; }
+.jalur-umum { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tahap-umum-langkah { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px; border: 1px solid var(--garis); border-radius: 10px; background: var(--muka); color: var(--tinta-2); font: inherit; font-size: calc(13px * var(--skala-huruf)); cursor: pointer; }
+.tahap-umum-langkah small { color: var(--redup); font-size: calc(12px * var(--skala-huruf)); }
+.tahap-umum-langkah.kini { border-color: var(--biru); background: var(--biru-muda); color: var(--tinta); font-weight: 600; }
+.tahap-umum-langkah.kini small { color: var(--biru); }
+.tahap-umum-langkah.tuntas svg { color: var(--hijau); }
+.tahap-umum-panah { color: var(--samar); }
+.umum-alat { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.umum-alat .segmen button { display: inline-flex; align-items: center; gap: 6px; }
+.umum-bagian summary { display: flex; align-items: center; gap: 8px; }
+.papan.papan-umum { grid-template-columns: repeat(var(--kolom, 4), minmax(240px, 1fr)); min-width: calc(var(--kolom, 4) * 254px); }
+.pilih-tim-umum { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.tahap-templat { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: calc(13px * var(--skala-huruf)); color: var(--redup); }
+.tahap-umum-daftar { margin: 0; padding: 0 0 0 22px; display: flex; flex-direction: column; gap: 6px; }
+.tahap-isian { display: flex; align-items: center; gap: 6px; }
+.tahap-isian .input { flex: 1; min-width: 0; }
+.tahap-umum-isian > .tombol { align-self: flex-start; }

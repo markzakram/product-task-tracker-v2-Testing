@@ -316,6 +316,18 @@
       ],
     },
     {
+      id: 'lead-umum', peran: 'lead', judul: 'Membuat Proyek umum', tujuan: 'Menjalankan pekerjaan di luar rancangan paket, mis. rekrutmen atau acara.',
+      langkah: [
+        'Di **Proyek**, tekan **Proyek baru**. Lead membuat **Proyek umum** untuk timnya sendiri; Manager juga bisa memilih **Proyek ADDIE**.',
+        'Isi nama, tim lain yang ikut, **Lead proyek**, tenggat, dan **tahap** (mis. Lowongan, Seleksi, Wawancara, Onboarding). Mulai dari templat bila cocok; tahap boleh dikosongkan.',
+        'Tahap hanya mengelompokkan task: task di tahap berikutnya boleh mulai kapan saja. Tak ada sub-stage, fase, gerbang Manager, atau E12.',
+        'Tambah task dari halaman proyeknya: **Tambah task** di kepala, atau **+ Tambah task di …** di tiap tahap. PIC: Anda, staff tim Anda, atau Lead tim lain yang terlibat.',
+        'Task-nya ditinjau seperti task proyek: staff mengajukan, Anda menyetujui; task Anda ditinjau Manager.',
+        'Ganti tampilan lewat **Daftar**, **Papan** (seret kartu ke tahap lain), atau **Linimasa**. Manager dan tim membahas proyek di **Diskusi proyek**.',
+        'Selesai: arsipkan dari menu **⋯**. Tahap, tim, Lead, dan tenggat diubah lewat **Ubah**.',
+      ],
+    },
+    {
       id: 'lead-elaborasi', peran: 'lead', judul: 'Elaborasi rancangan paket jadi proyek', tujuan: 'Mengubah target paket menjadi langkah kerja.', ilustrasi: 'elaborasi', coba: true,
       langkah: [
         'Buka **Rancangan Paket**, pilih paketnya, lalu tekan **Elaborasi jadi proyek**.',

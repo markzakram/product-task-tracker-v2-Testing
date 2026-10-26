@@ -6,6 +6,27 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.51.0 — Proyek umum: proyek di luar rancangan paket dan ADDIE (2026-10-26)
+
+Permintaan user: proyek di luar rancangan paket untuk semua tim (contoh: cari guru). Sesudah
+kanvas rekomendasi, user memilih Opsi A (daftar per tahap) dengan tampilan Papan dan Linimasa
+sebagai pilihan, tahap bebas, task ditinjau Lead, dan pembuatnya Lead dan Manager.
+
+- **Proyek baru → Proyek umum**: tim pemilik dan tim lain yang ikut, Lead proyek, tenggat proyek,
+  dan tahap bebas (templat Rekrutmen, Acara, Kerja sama; boleh kosong; tak menahan task
+  berikutnya). Lead membuat untuk timnya (izin baru `proyek.buatUmum`), Manager untuk tim mana pun.
+- **Tanpa sub-stage, fase, gerbang Manager, siklus, maupun E12.** Task-nya task proyek biasa:
+  hasil kerja, ceklis, diskusi, dan tinjauan Lead (task Lead ditinjau Manager).
+- **Halaman Proyek umum**: kepala dengan progres dan tenggat, jalur tahap, lalu **Daftar** per
+  tahap (bawaan), **Papan** per tahap (seret kartu untuk memindah tahap), atau **Linimasa** tanggal.
+  Samping: Perlu perhatian, Diskusi proyek, Tentang, Acara.
+- **Daftar Proyek**: saringan Semua / ADDIE / Umum; baris Proyek umum menulis tim, tahap yang
+  sedang berjalan, task selesai, dan tenggat.
+- Lead proyek dan Lead tim pemilik mengubah proyek (tahap, tim, Lead, tenggat), menunda, dan
+  mengarsipkan. Tahap task bisa dipindah dari detail task.
+- Data: kolom baru di `projects`/`v2_projects` (`jenis`, `timProyek`, `tahapUmum`, `tenggat`) dan
+  `tasks`/`v2_tasks` (`tahapProyek`). Tes baru `test/proyek-umum.test.js`; panduan Lead diperbarui.
+
 ## 2.50.0 — Persetujuan pilihan dan notifikasi Pengembangan untuk Manager (2026-10-26)
 
 - **Setujui beberapa task** tersedia bagi Manager di Hari Ini, Task, dan daftar Proyek.

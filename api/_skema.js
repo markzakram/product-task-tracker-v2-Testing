@@ -20,10 +20,12 @@
    ========================================================================== */
 
 const TAB = {
-  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket', 'ketat'],
+  /* Proyek umum (2.51.0): jenis 'umum'; timProyek = tim terlibat (pemilik dulu); tahapUmum = JSON
+     [{ id, nama }]; tenggat = tenggat proyek. Proyek ADDIE: jenis kosong. */
+  projects: ['id', 'name', 'platform', 'stage', 'cycle', 'decision', 'goal', 'lead', 'arsip', 'paket', 'ketat', 'jenis', 'timProyek', 'tahapUmum', 'tenggat'],
   tasks: ['id', 'project', 'lane', 'kategori', 'title', 'platform', 'stage', 'sub', 'detail', 'pic', 'support',
     'priority', 'start', 'due', 'status', 'tertahan', 'alasanTertahan', 'output', 'deps', 'tunggu', 'lepasFase', 'notes', 'assignedBy',
-    'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk', 'inisiatif', 'diminta', 'pembaruanProyek', 'permintaanDae', 'peminta'],
+    'cycle', 'createdAt', 'updatedAt', 'selesaiAt', 'induk', 'inisiatif', 'diminta', 'pembaruanProyek', 'permintaanDae', 'peminta', 'tahapProyek'],
   subtasks: ['id', 'task', 'title', 'pic', 'due', 'done', 'link'],
   comments: ['id', 'task', 'author', 'text', 'at'],
   tinjauan: ['id', 'task', 'by', 'action', 'note', 'at'],
@@ -122,7 +124,9 @@ function pribadiDariBaris(judul, baris) {
 const TAB_PIN = 'pin';
 const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
 
-const DAFTAR = new Set(['support', 'deps', 'tunggu', 'menerima']);
+const DAFTAR = new Set(['support', 'deps', 'tunggu', 'menerima', 'timProyek']);
+/* Larik objek dalam satu sel, ditulis JSON (2.51.0): tahap bebas Proyek umum. */
+const JSON_SEL = new Set(['tahapUmum']);
 const ANGKA = new Set(['urutan', 'target', 'awal', 'jumlah', 'n', 'revisi']);
 const WAKTU = new Set(['createdAt', 'updatedAt', 'selesaiAt', 'at', 'jawabAt', 'dialihkanAt']);
 const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror', 'lepasFase', 'ketat']);
@@ -130,6 +134,7 @@ const BENAR = new Set(['tertahan', 'done', 'arsip', 'mirror', 'lepasFase', 'keta
 function keSel(kolom, nilai) {
   if (nilai === undefined || nilai === null) return '';
   if (DAFTAR.has(kolom)) return (Array.isArray(nilai) ? nilai : []).join(', ');
+  if (JSON_SEL.has(kolom)) return Array.isArray(nilai) && nilai.length ? JSON.stringify(nilai) : '';
   if (BENAR.has(kolom)) return nilai ? 'ya' : '';
   if (WAKTU.has(kolom)) {
     return typeof nilai === 'number' && Number.isFinite(nilai) && nilai > 0 ? new Date(nilai).toISOString() : '';
@@ -140,6 +145,9 @@ function keSel(kolom, nilai) {
 function dariSel(kolom, sel) {
   const s = sel === undefined || sel === null ? '' : String(sel);
   if (DAFTAR.has(kolom)) return s.split(',').map(x => x.trim()).filter(Boolean);
+  if (JSON_SEL.has(kolom)) {
+    try { const v = s.trim() ? JSON.parse(s) : []; return Array.isArray(v) ? v.filter(x => x && typeof x === 'object' && x.id) : []; } catch (e) { return []; }
+  }
   if (BENAR.has(kolom)) return /^(ya|true|1|x)$/i.test(s.trim());
   if (kolom === 'cycle') {
     const n = parseInt(s, 10);

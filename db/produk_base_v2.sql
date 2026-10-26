@@ -196,6 +196,8 @@ CREATE TABLE IF NOT EXISTS `v2_package_links` (
 --  PROYEK
 -- =============================================================================
 
+-- jenis (2.51.0): 'umum' = Proyek umum (tanpa ADDIE dan rancangan paket), kosong = proyek ADDIE.
+-- timProyek = kode tim terlibat dipisah koma (pemilik dulu); tahapUmum = JSON [{id, nama}]; tenggat proyek.
 -- ketat (2.43.0): urutan ADDIE proyek diketatkan; fase dan gerbang Manager kembali menahan.
 -- Bawaannya FALSE: fase dan gerbang hanya pengingat.
 CREATE TABLE IF NOT EXISTS `v2_projects` (
@@ -210,6 +212,10 @@ CREATE TABLE IF NOT EXISTS `v2_projects` (
   `arsip`      BOOLEAN      NOT NULL DEFAULT FALSE,
   `paket`      VARCHAR(64)  NULL,
   `ketat`      BOOLEAN      NOT NULL DEFAULT FALSE,
+  `jenis`      VARCHAR(10)  NOT NULL DEFAULT '',
+  `timProyek`  VARCHAR(100) NOT NULL DEFAULT '',
+  `tahapUmum`  JSON         NULL,
+  `tenggat`    DATE         NULL,
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_proyek_paket` (`paket`),
@@ -444,6 +450,7 @@ CREATE TABLE IF NOT EXISTS `v2_tasks` (
   `pembaruanProyek` VARCHAR(64) NULL,
   `permintaanDae`  VARCHAR(64)  NULL,
   `peminta`        VARCHAR(64)  NULL,
+  `tahapProyek`    VARCHAR(16)  NOT NULL DEFAULT '',
   `_diubah`        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_task_proyek` (`project`, `cycle`, `stage`),
