@@ -99,8 +99,10 @@ test('pindah tahap, ubah proyek (tahap dihapus = tanpa tahap), tunda dan arsip o
   assert.ok(I.bolehKelolaUmum('alya', p) && I.bolehKelolaUmum('dhea', p) && !I.bolehKelolaUmum('andika', p));
   I.setKeputusan(d, p, 'Hold', 'dhea', WAKTU + 6);
   assert.equal(I.ringkasProyek(d, p, HARI).keadaan, 'ditahan');
-  I.setArsip(d, p, true, 'alya', WAKTU + 7);
-  assert.equal(p.arsip, true);
+  // Menutup lewat tinjauan Manager (2.52.0): Lead tak mengarsipkan sendiri.
+  assert.throws(() => I.setArsip(d, p, true, 'alya', WAKTU + 7), /ditinjau Manager/);
+  I.setArsip(d, p, true, 'nynda', WAKTU + 7);
+  assert.deepEqual([p.arsip, p.penutupan.status, p.penutupan.peninjau], [true, 'disetujui', 'nynda']);
   assert.throws(() => tugas(d, p, { pic: 'nadya' }), /melibatkan timnya|diarsipkan|Pilih profil/);
   const addie = I.proyekBaru(d, { name: 'ADDIE' }, 'nynda', WAKTU);
   assert.throws(() => I.setArsip(d, addie, true, 'dhea', WAKTU), /Hanya Manager/);
@@ -116,4 +118,43 @@ test('duplikat Proyek umum membawa tim, tahap, dan task di tahapnya; lewat perin
   assert.deepEqual([h.project.jenis, h.project.timProyek, h.project.tahapUmum.map(x => x.id)], ['umum', ['CO'], ['tp1', 'tp2']]);
   assert.deepEqual(h.tasks.map(t => [t.title, t.tahapProyek, t.status, t.stage]), [['CV', 'tp2', 'Antre', '']]);
   assert.throws(() => I.duplikatProyek(d, p, {}, 'alya', WAKTU, HARI), /untuk timnya sendiri/);
+});
+
+test('penutupan Proyek umum (2.52.0): Lead mengajukan setelah semua task selesai, Manager meninjau', () => {
+  const d = data();
+  const p = rekrutmen(d);
+  const t = tugas(d, p, { title: 'CV', pic: 'nadya', tahapProyek: 'tp2' });
+  assert.equal(I.bolehAjukanTutup(d, p, 'dhea'), false, 'masih ada task terbuka');
+  assert.throws(() => I.ajukanTutupUmum(d, p, '', 'dhea', WAKTU), /setelah semua task proyek selesai/);
+  Object.assign(t, { status: 'Selesai', selesaiAt: WAKTU + 1 });
+  assert.equal(I.ringkasProyek(d, p, HARI).keadaan, 'tuntas');
+  assert.ok(I.bolehAjukanTutup(d, p, 'dhea') && !I.bolehAjukanTutup(d, p, 'nadya') && !I.bolehAjukanTutup(d, p, 'nynda'));
+  assert.throws(() => I.ajukanTutupUmum(d, p, '', 'nadya', WAKTU), /Hanya Lead proyek/);
+  I.ajukanTutupUmum(d, p, '8 guru siap mengajar', 'dhea', WAKTU + 2);
+  assert.deepEqual([p.penutupan.status, p.penutupan.oleh, p.arsip, I.ringkasProyek(d, p, HARI).keadaan], ['diajukan', 'dhea', false, 'tinjauTutup']);
+  assert.deepEqual(I.antreTutupUmum(d).map(x => x.id), [p.id]);
+  assert.ok(I.notifikasi(d, 'nynda').some(n => n.jenis === 'tutupAju' && n.proyek === p.id && n.oleh === 'dhea'));
+  assert.throws(() => I.ajukanTutupUmum(d, p, '', 'dhea', WAKTU), /sudah diajukan/);
+  assert.throws(() => I.jawabTutupUmum(d, p, true, '', 'alya', WAKTU), /Hanya Manager/);
+  // Dikembalikan dengan alasan; Lead diberi tahu, lalu mengajukan lagi.
+  assert.throws(() => I.jawabTutupUmum(d, p, false, '', 'nynda', WAKTU), /Tulis alasannya/);
+  I.jawabTutupUmum(d, p, false, 'Lampirkan daftar guru yang diterima', 'nynda', WAKTU + 3);
+  assert.deepEqual([p.penutupan.status, p.arsip], ['dikembalikan', false]);
+  assert.ok(I.notifikasi(d, 'dhea').some(n => n.jenis === 'tutupKembali' && n.teks === 'Lampirkan daftar guru yang diterima'));
+  I.ajukanTutupUmum(d, p, '', 'dhea', WAKTU + 4);
+  // Task baru membatalkan pengajuan.
+  const baru = tugas(d, p, { title: 'Daftar guru', pic: 'nadya' });
+  assert.equal(p.penutupan, null);
+  Object.assign(baru, { status: 'Selesai', selesaiAt: WAKTU + 5 });
+  I.ajukanTutupUmum(d, p, '', 'dhea', WAKTU + 6);
+  I.jawabTutupUmum(d, p, true, '', 'nynda', WAKTU + 7);
+  assert.deepEqual([p.arsip, p.penutupan.status, p.penutupan.peninjau, I.ringkasProyek(d, p, HARI).keadaan], [true, 'disetujui', 'nynda', 'arsip']);
+  assert.ok(I.notifikasi(d, 'dhea').some(n => n.jenis === 'tutupSetuju' && n.proyek === p.id));
+  assert.deepEqual(I.antreTutupUmum(d), []);
+  // Diaktifkan lagi oleh Lead: penutupan lama tak berlaku.
+  I.setArsip(d, p, false, 'dhea', WAKTU + 8);
+  assert.deepEqual([p.arsip, p.penutupan], [false, null]);
+  assert.ok(I.jalankanPerintah(d, { aksi: 'ajukanTutupUmum', isi: { proyek: p.id, catatan: '' }, oleh: 'dhea', at: WAKTU + 9 }).ok);
+  assert.ok(I.jalankanPerintah(d, { aksi: 'jawabTutupUmum', isi: { proyek: p.id, setuju: true }, oleh: 'nynda', at: WAKTU + 10 }).ok);
+  assert.equal(p.arsip, true);
 });

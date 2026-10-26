@@ -243,8 +243,8 @@ test('menyerah setelah jatah ulang habis, dan galat lain tak diulang sama sekali
 const { urai } = require('../api/_skema');
 
 const contoh = () => ({
-  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, paket: 'PKG-002', ketat: false, jenis: '', timProyek: [], tahapUmum: [], tenggat: '', history: [] },
-    { id: 'PRJ-4', name: 'Rekrutmen guru', platform: 'All Platform', stage: '', cycle: 1, decision: 'Build', goal: '', lead: 'dhea', arsip: false, paket: '', ketat: false, jenis: 'umum', timProyek: ['CO', 'LA'], tahapUmum: [{ id: 'tp1', nama: 'Lowongan, dibuka' }, { id: 'tp2', nama: 'Seleksi' }], tenggat: '2026-11-15', history: [] }],
+  projects: [{ id: 'PRJ-3', name: 'Proyek Uji', platform: 'PCPM', stage: 'V', cycle: 1, decision: 'Build', goal: '', lead: 'alya', arsip: false, paket: 'PKG-002', ketat: false, jenis: '', timProyek: [], tahapUmum: [], tenggat: '', penutupan: null, history: [] },
+    { id: 'PRJ-4', name: 'Rekrutmen guru', platform: 'All Platform', stage: '', cycle: 1, decision: 'Build', goal: '', lead: 'dhea', arsip: false, paket: '', ketat: false, jenis: 'umum', timProyek: ['CO', 'LA'], tahapUmum: [{ id: 'tp1', nama: 'Lowongan, dibuka' }, { id: 'tp2', nama: 'Seleksi' }], tenggat: '2026-11-15', penutupan: { status: 'diajukan', oleh: 'dhea', at: Date.parse('2026-10-26T03:00:00Z'), catatan: 'Selesai, "8 guru"', peninjau: '', jawabAt: 0, alasan: '' }, history: [] }],
   tasks: [
     {
       id: 'PRD-001', project: '', lane: 'rutin', kategori: 'RnD', title: 'Task lepas', platform: 'ASN', stage: '', sub: '', detail: '',

@@ -6,6 +6,20 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.52.0 — Penutupan Proyek umum ditinjau Manager (2026-10-26)
+
+Permintaan user: Proyek umum yang sudah beres seluruhnya tetap harus ditinjau Manager.
+
+- Setelah semua task selesai, Lead proyek atau Lead tim pemiliknya **mengajukan penutupan ke
+  Manager** (ringkasan hasil opsional). Lead tak lagi mengarsipkan Proyek umum sendiri.
+- Manager diberi tahu, melihatnya di kotak **Penutupan Proyek umum** di halaman Proyek, lalu
+  **Setujui dan arsipkan** atau **Kembalikan** dengan alasan. Pengaju dan Lead proyek diberi tahu
+  jawabannya, dan bisa mengajukan lagi.
+- Task baru membatalkan pengajuan yang masih menunggu. Keadaan proyeknya **Menunggu tinjauan
+  Manager**. Manager juga bisa menyetujui tanpa pengajuan bila semua task selesai.
+- Data: kolom `penutupan` (JSON) di tab `projects` dan `v2_projects`. Tes penutupan ditambahkan di
+  `test/proyek-umum.test.js`.
+
 ## 2.51.0 — Proyek umum: proyek di luar rancangan paket dan ADDIE (2026-10-26)
 
 Permintaan user: proyek di luar rancangan paket untuk semua tim (contoh: cari guru). Sesudah

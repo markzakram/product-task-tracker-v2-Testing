@@ -324,7 +324,8 @@
         'Tambah task dari halaman proyeknya: **Tambah task** di kepala, atau **+ Tambah task di …** di tiap tahap. PIC: Anda, staff tim Anda, atau Lead tim lain yang terlibat.',
         'Task-nya ditinjau seperti task proyek: staff mengajukan, Anda menyetujui; task Anda ditinjau Manager.',
         'Ganti tampilan lewat **Daftar**, **Papan** (seret kartu ke tahap lain), atau **Linimasa**. Manager dan tim membahas proyek di **Diskusi proyek**.',
-        'Selesai: arsipkan dari menu **⋯**. Tahap, tim, Lead, dan tenggat diubah lewat **Ubah**.',
+        'Setelah semua task selesai, tekan **Ajukan penutupan ke Manager**. Manager meninjau hasilnya, lalu menyetujui (proyek diarsipkan) atau mengembalikannya dengan alasan; Anda diberi tahu jawabannya.',
+        'Tahap, tim, Lead, dan tenggat diubah lewat **Ubah**.',
       ],
     },
     {

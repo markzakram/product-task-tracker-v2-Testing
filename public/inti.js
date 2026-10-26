@@ -963,6 +963,11 @@
     if (!pilihanPicUmum(p, me).includes(pic)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim yang terlibat di proyek ini.');
     const tahap = teks(f.tahapProyek);
     if (!tahapUmumSah(p, tahap)) throw new Error('Tahap itu tidak ada di proyek ini.');
+    // Task baru membatalkan pengajuan penutupan (2.52.0): pekerjaannya ternyata belum beres.
+    if (tutupDiajukan(p)) {
+      p.penutupan = null;
+      catatLog(data, 'gate', `${p.id} · ${p.name}`, 'Pengajuan penutupan dibatalkan: ada task baru', me, waktu);
+    }
     const pInduk = teks(f.induk) ? data.tasks.find(x => x.id === teks(f.induk)) || null : null;
     if (teks(f.induk)) {
       const salah = salahInduk(pInduk, me, { pic, project: p.id, cycle: 1, stage: '' });
@@ -1425,8 +1430,9 @@
     const tutup = siklusTutup(data, p);
     const siapMaju = !p.arsip && !ditahan && tutup;
     // Proyek umum (2.51.0) tak ditutup E12: semua task selesai = tuntas, bukan "sepi".
+    // Proyek umum yang tuntas menunggu tinjauan penutupan Manager (2.52.0) bila sudah diajukan.
     const keadaan = p.arsip ? 'arsip' : ditahan ? 'ditahan' : tutup ? 'tunggu' : !siklus.length ? 'kosong'
-      : !buka.length ? (proyekUmum(p) ? 'tuntas' : 'sepi') : (nTelat || nTertahan) ? 'risiko' : 'aman';
+      : !buka.length ? (proyekUmum(p) ? (tutupDiajukan(p) ? 'tinjauTutup' : 'tuntas') : 'sepi') : (nTelat || nTertahan) ? 'risiko' : 'aman';
     const tenggat = (proyekUmum(p) && p.tenggat) || milik.filter(aktif).map(t => t.due).filter(Boolean).sort().pop() || '';
     return {
       total: kini.length, selesai: kini.filter(selesai).length, telat: nTelat, tertahan: nTertahan, siapMaju, keadaan, tenggat,
@@ -1467,10 +1473,61 @@
   /* Proyek yang seluruh pekerjaannya sudah selesai (termasuk kolaborasi v1 yang
      tuntas) diarsipkan: tak muncul di daftar aktif maupun antrean keputusan. */
   function setArsip(data, p, arsip, me, waktu) {
+    // Proyek umum (2.52.0): menutup (mengarsipkan) lewat tinjauan Manager; Lead mengajukan dulu.
+    if (proyekUmum(p) && arsip && !peninjauTutup(me)) throw new Error('Penutupan Proyek umum ditinjau Manager. Ajukan penutupan dulu.');
     if (!bolehKelolaUmum(me, p)) wajibIzin(me, 'proyek.arsip');
     p.arsip = !!arsip;
+    // Diaktifkan lagi: penutupan sebelumnya tak berlaku; ditutup Manager langsung: tercatat disetujui.
+    if (proyekUmum(p)) p.penutupan = arsip ? { ...(p.penutupan || { oleh: me, at: waktu, catatan: '' }), status: 'disetujui', peninjau: me, jawabAt: waktu, alasan: '' } : null;
     catatLog(data, 'gate', `${p.id} · ${p.name}`, arsip ? 'Proyek diarsipkan' : 'Proyek diaktifkan lagi', me, waktu);
   }
+
+  /* ---------- Penutupan Proyek umum (2.52.0, permintaan user) ----------
+     "Ketika beres keseluruhan tetap harus ditinjau oleh Manager." Setelah semua task selesai, Lead
+     proyek atau Lead tim pemiliknya mengajukan penutupan; Manager menyetujui (proyek diarsipkan)
+     atau mengembalikannya dengan alasan. p.penutupan = { status: diajukan | dikembalikan |
+     disetujui, oleh, at, catatan, peninjau, jawabAt, alasan }. Task baru membatalkan pengajuan. */
+  const peninjauTutup = me => me === DEV || orang(me).peran === 'manager';
+  const semuaBeresUmum = (data, p) => { const xs = data.tasks.filter(t => t.project === p.id); return xs.length > 0 && xs.every(selesai); };
+  const tutupDiajukan = p => !!(proyekUmum(p) && !p.arsip && p.penutupan && p.penutupan.status === 'diajukan');
+  const bolehAjukanTutup = (data, p, me) => proyekUmum(p) && !p.arsip && p.decision !== 'Hold' && !tutupDiajukan(p)
+    && bolehKelolaUmum(me, p) && !peninjauTutup(me) && semuaBeresUmum(data, p);
+  function ajukanTutupUmum(data, p, catatan, me, waktu) {
+    if (!proyekUmum(p)) throw new Error('Pengajuan penutupan hanya untuk Proyek umum.');
+    if (!bolehKelolaUmum(me, p)) throw new Error('Hanya Lead proyek atau Lead tim pemiliknya yang mengajukan penutupan.');
+    if (peninjauTutup(me)) throw new Error('Manager langsung menyetujui penutupan.');
+    if (p.arsip) throw new Error(`Proyek ${p.name} sudah diarsipkan.`);
+    if (p.decision === 'Hold') throw new Error('Proyek sedang ditunda. Lanjutkan dulu.');
+    if (tutupDiajukan(p)) throw new Error('Penutupan sudah diajukan, menunggu tinjauan Manager.');
+    if (!semuaBeresUmum(data, p)) throw new Error('Penutupan diajukan setelah semua task proyek selesai.');
+    const isi = teks(catatan);
+    if (isi.length > 1000) throw new Error('Catatan paling panjang 1.000 huruf.');
+    p.penutupan = { status: 'diajukan', oleh: me, at: waktu, catatan: isi, peninjau: '', jawabAt: 0, alasan: '' };
+    catatLog(data, 'gate', `${p.id} · ${p.name}`, 'Penutupan diajukan ke Manager' + (isi ? `: ${isi}` : ''), me, waktu);
+    return p;
+  }
+  /* Manager menyetujui (juga tanpa pengajuan, bila semua task selesai) atau mengembalikan. */
+  function jawabTutupUmum(data, p, setuju, alasan, me, waktu) {
+    if (!proyekUmum(p)) throw new Error('Penutupan ini hanya untuk Proyek umum.');
+    if (!peninjauTutup(me)) throw new Error('Hanya Manager yang meninjau penutupan Proyek umum.');
+    if (p.arsip) throw new Error(`Proyek ${p.name} sudah diarsipkan.`);
+    const isi = teks(alasan);
+    const lama = p.penutupan || { oleh: me, at: waktu, catatan: '' };
+    if (setuju) {
+      if (!semuaBeresUmum(data, p)) throw new Error('Masih ada task yang belum selesai di proyek ini.');
+      p.penutupan = { ...lama, status: 'disetujui', peninjau: me, jawabAt: waktu, alasan: isi };
+      p.arsip = true;
+      catatLog(data, 'gate', `${p.id} · ${p.name}`, 'Penutupan disetujui Manager; proyek diarsipkan' + (isi ? `: ${isi}` : ''), me, waktu);
+      return p;
+    }
+    if (!tutupDiajukan(p)) throw new Error('Belum ada pengajuan penutupan untuk dikembalikan.');
+    if (isi.length < 3) throw new Error('Tulis alasannya, supaya Lead tahu yang perlu dibereskan.');
+    if (isi.length > 1000) throw new Error('Alasan paling panjang 1.000 huruf.');
+    p.penutupan = { ...lama, status: 'dikembalikan', peninjau: me, jawabAt: waktu, alasan: isi };
+    catatLog(data, 'gate', `${p.id} · ${p.name}`, `Penutupan dikembalikan Manager: ${isi}`, me, waktu);
+    return p;
+  }
+  const antreTutupUmum = data => (data.projects || []).filter(tutupDiajukan);
 
   /* ---------- Hari Ini ---------- */
 
@@ -2295,6 +2352,15 @@
         const t = m.task ? perId.get(m.task) : null;
         const setuju = t ? (t.tinjauan || []).filter(r => r.action === 'Disetujui').sort((a, b) => b.at - a.at)[0] : null;
         if (setuju && setuju.by !== me) out.push({ id: `daeSelesai-${m.id}`, jenis: 'daeSelesai', task: m.task, at: m.selesaiAt, oleh: setuju.by, teks: '', ...dasar });
+      }
+    }
+    // Penutupan Proyek umum (2.52.0): Manager diberi tahu pengajuannya; pengaju dan Lead proyek diberi tahu jawabannya.
+    for (const p of data.projects) {
+      const pen = proyekUmum(p) ? p.penutupan : null;
+      if (!pen) continue;
+      if (pen.status === 'diajukan' && !p.arsip && peninjauTutup(me) && pen.oleh !== me) out.push({ id: `tutupAju-${p.id}-${pen.at}`, jenis: 'tutupAju', proyek: p.id, task: '', at: pen.at, oleh: pen.oleh, teks: pen.catatan || '' });
+      if ((pen.status === 'disetujui' || pen.status === 'dikembalikan') && pen.jawabAt && pen.peninjau !== me && (pen.oleh === me || p.lead === me)) {
+        out.push({ id: `tutup${pen.status === 'disetujui' ? 'Setuju' : 'Kembali'}-${p.id}-${pen.jawabAt}`, jenis: pen.status === 'disetujui' ? 'tutupSetuju' : 'tutupKembali', proyek: p.id, task: '', at: pen.jawabAt, oleh: pen.peninjau, teks: pen.alasan || '' });
       }
     }
     if (orang(me).peran === 'manager') {
@@ -5074,6 +5140,9 @@
     ubahProyek: (d, x, me, w) => ubahProyek(d, proyekX(d, x), x.f || {}, me, w),
     // Proyek umum (2.51.0).
     pindahTahapUmum: (d, x, me, w) => pindahTahapUmum(d, tugas(d, x), x.tahap || '', me, w),
+    // Penutupan Proyek umum ditinjau Manager (2.52.0).
+    ajukanTutupUmum: (d, x, me, w) => ajukanTutupUmum(d, proyekX(d, x), x.catatan || '', me, w),
+    jawabTutupUmum: (d, x, me, w) => jawabTutupUmum(d, proyekX(d, x), !!x.setuju, x.alasan || '', me, w),
     hapusTask: (d, x, me, w) => hapusTask(d, x.tasks || x.task, me, w),
     ubahNamaPaket: (d, x, me, w) => ubahNamaPaket(d, paketX(d, x), x.nama, me, w),
     elaborasiPaket: (d, x, me, w, h) => elaborasiPaket(d, paketX(d, x), x.f || {}, me, w, h),
@@ -5207,6 +5276,7 @@
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
     JENIS_UMUM, TEMPLAT_TAHAP, TAHAP_UMUM_MAKS, proyekUmum, bolehKelolaUmum, rapikanTahapUmum, ubahProyekUmum, pilihanPicUmum, bolehTaskUmum,
     pindahTahapUmum, ringkasProyekUmum, namaTahapUmum, timPemilikUmum,
+    peninjauTutup, tutupDiajukan, bolehAjukanTutup, ajukanTutupUmum, jawabTutupUmum, antreTutupUmum, semuaBeresUmum,
     MAKS_SETUJUI_BANYAK, bolehSetujuiBanyak, versiTinjauan, setujuiBanyak,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,

@@ -1007,7 +1007,7 @@
   }
   const KEADAAN = {
     aman: 'Sesuai rencana', risiko: 'Berisiko', tunggu: 'Siklus selesai', sepi: 'Tak ada task terbuka', kosong: 'Belum ada task',
-    ditahan: 'Ditahan', arsip: 'Arsip', tuntas: 'Semua task selesai',
+    ditahan: 'Ditahan', arsip: 'Arsip', tuntas: 'Semua task selesai', tinjauTutup: 'Menunggu tinjauan Manager',
   };
   const chipKeadaan = k => `<span class="pill kd-${k}">${esc(tr(KEADAAN[k]))}</span>`;
 
@@ -1325,7 +1325,8 @@
     const angka = v => Number(v) || 0;
     return {
       projects: daftar(d.projects).map(p => ({ ...p, lead: p.lead || '', paket: p.paket || '', history: daftar(p.history),
-        jenis: p.jenis || '', timProyek: daftar(p.timProyek), tahapUmum: daftar(p.tahapUmum), tenggat: p.tenggat || '' })),
+        jenis: p.jenis || '', timProyek: daftar(p.timProyek), tahapUmum: daftar(p.tahapUmum), tenggat: p.tenggat || '',
+        penutupan: p.penutupan && typeof p.penutupan === 'object' && !Array.isArray(p.penutupan) ? p.penutupan : null })),
       tasks: daftar(d.tasks).map(t => ({
         ...t, sub: t.sub || '', support: daftar(t.support), deps: daftar(t.deps), subtasks: daftar(t.subtasks), comments: daftar(t.comments),
         tinjauan: daftar(t.tinjauan), evidence: daftar(t.evidence), output: t.output || '', selesaiAt: Number(t.selesaiAt) || 0,
@@ -2078,6 +2079,7 @@
     pengembangan: 'lapis',
     baru: 'tambah', tambah: 'tambah', serah: 'serah', siap: 'centang', tinjau: 'tugas', kembali: 'ulang', setuju: 'centang',
     komentar: 'obrolan', sebut: 'at', tanya: 'tanya', siklus: 'lapis', agenda: 'kalender',
+    tutupAju: 'tugas', tutupSetuju: 'centang', tutupKembali: 'ulang',
     undang: 'kalender', jadwal: 'kalender', jawab: 'centang', ikut: 'orang', notulen: 'catatan', batal: 'tutup',
     minta: 'serah', mintaTim: 'orang', mintaTerima: 'centang', mintaTolak: 'tutup', mintaAlih: 'serah',
     panjang: 'kalender', panjangSetuju: 'centang', panjangTolak: 'tutup',
@@ -2105,6 +2107,10 @@
       case 'sebut': return tr('{siapa}menyebut Anda di {judul}:{kutip}', v);
       case 'tanya': return tr('{siapa}menunggu jawaban Anda di {judul}:{kutip}', v);
       case 'siklus': { const p = proyekDari(n.proyek); return tr('Siklus <strong>{nama}</strong> selesai: E12 disetujui, perlu keputusan Anda', { nama: esc(p ? p.name : n.proyek) }); }
+      // Penutupan Proyek umum (2.52.0).
+      case 'tutupAju': { const p = proyekDari(n.proyek); return tr('{siapa}mengajukan penutupan <strong>{nama}</strong> untuk Anda tinjau.{kutip}', { ...v, nama: esc(p ? p.name : n.proyek) }); }
+      case 'tutupSetuju': { const p = proyekDari(n.proyek); return tr('{siapa}menyetujui penutupan <strong>{nama}</strong>; proyeknya diarsipkan', { ...v, nama: esc(p ? p.name : n.proyek) }); }
+      case 'tutupKembali': { const p = proyekDari(n.proyek); return tr('{siapa}mengembalikan penutupan <strong>{nama}</strong>.{kutip}', { ...v, nama: esc(p ? p.name : n.proyek) }); }
       case 'agenda': return `${tr('Pengingat agenda')}: <b>${esc(n.judul)}</b>${n.mulai ? ' · ' + esc(n.mulai) : ''} · ${esc(fmtTanggal(n.tanggal))}`;
       // Acara bersama (2.33.0).
       case 'undang': return tr('{siapa}mengundang Anda ke {acara}', { siapa, acara: acaraNotif(n) });
@@ -4149,6 +4155,7 @@
     const sepi = semua.filter(p => !p.arsip && ringkas.get(p.id).keadaan === 'sepi');
     const tinjau = S.data.tasks.filter(t => t.status === 'Ditinjau' && I.peninjau(t, perId) === S.me);
     const ditahan = semua.filter(p => !p.arsip && p.decision === 'Hold');
+    const antreTutup = I.antreTutupUmum(S.data);   // penutupan Proyek umum menunggu Manager (2.52.0)
     const nArsip = semua.filter(p => p.arsip).length;
 
     const baris = daftar.map(p => {
@@ -4197,6 +4204,9 @@
         <div class="samping-tumpuk kolom-sisi">
           <section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Keputusan siklus')} ${keputusan.length ? `<span class="lencana">${keputusan.length}</span>` : ''}${tanya('manager-siklus', tr('keputusan siklus'))}</p>
             ${kotakKeputusan || `<p class="hint">${tr('Belum ada siklus yang ditutup. Proyek muncul di sini setelah task E12 · Final approval-nya disetujui.')}</p>`}</section>
+          ${antreTutup.length && I.peninjauTutup(S.me) ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Penutupan Proyek umum')} <span class="lencana">${antreTutup.length}</span></p>
+            <p class="hint">${tr('Semua task-nya selesai; Lead proyek meminta Anda meninjau penutupannya.')}</p>
+            ${antreTutup.map(p => `<button type="button" class="baris-proyek ringkas" data-aksi="buka-proyek" data-id="${esc(p.id)}"><span class="baris-proyek-nama"><strong>${esc(p.name)}</strong><small>${esc(tr('Diajukan {nama} {waktu}', { nama: I.orang(p.penutupan.oleh).pendek, waktu: relatif(p.penutupan.at) }))}</small></span></button>`).join('')}</section>` : ''}
           ${tinjau.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Menunggu tinjauan Anda')} <span class="lencana">${tinjau.length}</span></p>
             <div class="grup">${tinjau.map(t => barisTask(t, tr('Dari {nama}', { nama: I.orang(t.pic).pendek }))).join('')}</div></section>` : ''}
           ${sepi.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Tak ada task terbuka')}</p>
@@ -4241,13 +4251,12 @@
       kelola ? `<button type="button" data-aksi="ubah-proyek" data-id="${esc(p.id)}">${ikon('sunting', 16)}<span>${tr('Ubah proyek')}</span></button>` : '',
       I.izin(S.me, 'proyek.buatUmum') ? `<button type="button" data-aksi="duplikat-proyek" data-id="${esc(p.id)}">${ikon('salin', 16)}<span>${tr('Duplikat proyek')}</span></button>` : '',
       kelola && !p.arsip ? `<button type="button" data-aksi="${p.decision === 'Hold' ? 'lanjutkan-proyek' : 'tahan-proyek'}" data-id="${esc(p.id)}">${ikon('jeda', 16)}<span>${p.decision === 'Hold' ? tr('Lanjutkan proyek') : tr('Tunda proyek')}</span></button>` : '',
-      kelola ? `<button type="button" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="${p.arsip ? '0' : '1'}">${ikon('kotak', 16)}<span>${p.arsip ? tr('Aktifkan lagi') : tr('Arsipkan proyek')}</span></button>` : '',
+      // Menutup (mengarsipkan) Proyek umum lewat tinjauan Manager (2.52.0); mengaktifkan lagi boleh pengelolanya.
+      (p.arsip ? kelola : I.peninjauTutup(S.me)) ? `<button type="button" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="${p.arsip ? '0' : '1'}">${ikon('kotak', 16)}<span>${p.arsip ? tr('Aktifkan lagi') : tr('Arsipkan proyek')}</span></button>` : '',
       I.izin(S.me, 'proyek.hapus') ? `<button type="button" class="bahaya" data-aksi="hapus-proyek" data-id="${esc(p.id)}">${ikon('hapus', 16)}<span>${tr('Hapus proyek')}</span></button>` : '',
     ].join('');
     const teksMaju = tr('{a} dari {b} task selesai', { a: u.selesai, b: u.total });
-    const banner = p.arsip ? `<div class="banner biru">${tr('Proyek ini diarsipkan.')}</div>`
-      : p.decision === 'Hold' ? `<div class="banner kuning">${tr('Proyek ditunda.')}${kelola ? ` <button type="button" class="tombol kecil" data-aksi="lanjutkan-proyek" data-id="${esc(p.id)}">${tr('Lanjutkan proyek')}</button>` : ''}</div>`
-      : u.total && !u.buka ? `<div class="banner hijau">${tr('Semua task proyek ini selesai.')}${kelola ? ` <button type="button" class="tombol kecil" data-aksi="arsip-proyek" data-id="${esc(p.id)}" data-nilai="1">${tr('Selesai, arsipkan')}</button>` : ''}</div>` : '';
+    const banner = bannerTutupUmum(p, u, kelola);
     const baris = (label, isi) => `<div class="ini-tentang-baris"><dt>${label}</dt><dd>${isi}</dd></div>`;
     return `<div class="baris-kembali"><button type="button" class="kembali" data-aksi="tutup-proyek">${ikon('kiri', 18)} ${tr('Semua proyek')}</button>
         <button type="button" class="tombol kecil" data-aksi="salin-tautan" data-alamat="#/proyek/${esc(p.id)}">${ikon('tautan', 16)} ${tr('Salin tautan')}</button></div>
@@ -4291,6 +4300,50 @@
           ${kartuAcara('proyek', p.id)}
         </div>
       </div>`;
+  }
+  /* Penutupan Proyek umum (2.52.0, permintaan user): setelah semua task selesai, Lead proyek
+     mengajukannya; Manager menyetujui (proyek diarsipkan) atau mengembalikannya dengan alasan. */
+  function bannerTutupUmum(p, u, kelola) {
+    const pen = p.penutupan || null;
+    const isM = I.peninjauTutup(S.me);
+    const id = esc(p.id);
+    if (p.arsip) {
+      return `<div class="banner biru">${pen && pen.status === 'disetujui' && pen.peninjau
+        ? tr('Proyek ini selesai: penutupannya disetujui {nama} {waktu}.', { nama: nama(pen.peninjau), waktu: esc(relatif(pen.jawabAt)) }) : tr('Proyek ini diarsipkan.')}</div>`;
+    }
+    if (p.decision === 'Hold') return `<div class="banner kuning">${tr('Proyek ditunda.')}${kelola ? ` <button type="button" class="tombol kecil" data-aksi="lanjutkan-proyek" data-id="${id}">${tr('Lanjutkan proyek')}</button>` : ''}</div>`;
+    if (I.tutupDiajukan(p)) {
+      return `<div class="banner biru banner-tutup"><p>${tr('{nama} mengajukan penutupan {waktu}. Menunggu tinjauan Manager.', { nama: nama(pen.oleh), waktu: esc(relatif(pen.at)) })}</p>
+        ${pen.catatan ? `<p class="hint">“${esc(pen.catatan)}”</p>` : ''}
+        ${isM ? `<div class="detail-aksi"><button type="button" class="tombol utama kecil" data-aksi="tutup-setuju" data-id="${id}">${ikon('centang', 16)} ${tr('Setujui dan arsipkan')}</button>
+          <button type="button" class="tombol kecil" data-aksi="tutup-kembali" data-id="${id}">${ikon('ulang', 16)} ${tr('Kembalikan')}</button></div>` : ''}</div>`;
+    }
+    const kembali = pen && pen.status === 'dikembalikan' ? `<p>${tr('Penutupan dikembalikan {nama}: {alasan}', { nama: nama(pen.peninjau), alasan: esc(pen.alasan) })}</p>` : '';
+    if (u.total && !u.buka) {
+      const aksi = isM ? `<button type="button" class="tombol utama kecil" data-aksi="tutup-setuju" data-id="${id}">${ikon('centang', 16)} ${tr('Setujui penutupan dan arsipkan')}</button>`
+        : I.bolehAjukanTutup(S.data, p, S.me) ? `<button type="button" class="tombol utama kecil" data-aksi="tutup-ajukan" data-id="${id}">${ikon('kirim', 16)} ${kembali ? tr('Ajukan penutupan lagi') : tr('Ajukan penutupan ke Manager')}</button>` : '';
+      return `<div class="banner hijau banner-tutup">${kembali}<p>${tr('Semua task proyek ini selesai.')} ${isM ? tr('Tinjau hasilnya, lalu setujui penutupannya.') : tr('Penutupan proyek ditinjau Manager.')}</p>
+        ${aksi ? `<div class="detail-aksi">${aksi}</div>` : ''}</div>`;
+    }
+    return kembali ? `<div class="banner kuning banner-tutup">${kembali}</div>` : '';
+  }
+  function formTutupAjukan(p) {
+    const n = S.data.tasks.filter(t => t.project === p.id).length;
+    return `<form data-form="modal" novalidate>
+      <h2>${tr('Ajukan penutupan ke Manager')}</h2>
+      <p class="label-tebal">${esc(p.name)}</p>
+      <p class="hint">${tr('{n} task selesai. Manager meninjau hasilnya, lalu menyetujui penutupan (proyek diarsipkan) atau mengembalikannya dengan alasan.', { n })}</p>
+      <label class="isian">${tr('Ringkasan hasil (opsional)')} <textarea name="catatan" maxlength="1000" placeholder="${tr('mis. 8 guru diterima dan sudah onboarding')}"></textarea></label>
+      ${kakiModal(tr('Ajukan penutupan'))}
+    </form>`;
+  }
+  function formTutupKembali(p) {
+    return `<form data-form="modal" novalidate>
+      <h2>${tr('Kembalikan penutupan')}</h2>
+      <p class="label-tebal">${esc(p.name)}</p>
+      <label class="isian">${tr('Alasan')} <textarea name="alasan" required maxlength="1000" placeholder="${tr('Yang perlu dibereskan dulu')}"></textarea></label>
+      ${kakiModal(tr('Kembalikan'))}
+    </form>`;
   }
   /* Jalur tahap bebas: jumlah selesai per tahap; yang sedang berjalan disorot. Klik = lompat ke bagiannya. */
   function jalurUmum(u) {
@@ -10968,6 +11021,16 @@
           return selesaiUbah(umum ? tr('{nama} dibuat sebagai Proyek umum. Tambahkan task pertamanya.', { nama: p.name })
             : tr('{nama} dibuat. Tambahkan task pertamanya; tahap proyek mengikuti task terbuka paling awal.', { nama: p.name }));
         }
+        case 'tutup-ajukan': {
+          const p = ubahData('ajukanTutupUmum', { proyek: m.id, catatan: f.catatan || '' });
+          tutupModal();
+          return selesaiUbah(tr('Penutupan {nama} diajukan ke Manager.', { nama: p.name }));
+        }
+        case 'tutup-kembali': {
+          const p = ubahData('jawabTutupUmum', { proyek: m.id, setuju: false, alasan: f.alasan || '' });
+          tutupModal();
+          return selesaiUbah(tr('Penutupan {nama} dikembalikan.', { nama: p.name }));
+        }
         case 'tambah-umum': {
           const t = ubahData('taskBaru', { f: { project: m.proyek, title: f.title, tahapProyek: f.tahapProyek || '', pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail } });
           tutupModal();
@@ -12099,6 +12162,18 @@
       /* Rancangan Paket */
       case 'paket-buka': bukaPaket(d.id); break;
       case 'hapus-proyek': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'hapus-proyek', id: p.id }, formHapusProyek(p)); break; }
+      // Penutupan Proyek umum ditinjau Manager (2.52.0).
+      case 'tutup-ajukan': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'tutup-ajukan', id: p.id }, formTutupAjukan(p)); break; }
+      case 'tutup-kembali': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'tutup-kembali', id: p.id }, formTutupKembali(p)); break; }
+      case 'tutup-setuju': {
+        const p = proyekDari(d.id);
+        if (!p || !confirm(tr('Setujui penutupan {nama}? Proyeknya diarsipkan dan bisa diaktifkan lagi nanti.', { nama: p.name }))) return;
+        try {
+          ubahData('jawabTutupUmum', { proyek: p.id, setuju: true });
+          selesaiUbah(tr('Penutupan {nama} disetujui; proyeknya diarsipkan.', { nama: p.name }));
+        } catch (err) { toast(err.message, true); }
+        break;
+      }
       case 'ubah-proyek': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'ubah-proyek', id: p.id }, formUbahProyek(p)); break; }
       case 'duplikat-proyek': { const p = proyekDari(d.id); if (p) bukaModal({ jenis: 'duplikat-proyek', id: p.id }, formDuplikatProyek(p)); break; }
       case 'paket-duplikat': { const p = paketDari(d.id); if (p) bukaModal({ jenis: 'duplikat-paket', id: p.id }, formDuplikatPaket(p)); break; }

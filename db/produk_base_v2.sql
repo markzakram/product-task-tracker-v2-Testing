@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS `v2_package_links` (
 
 -- jenis (2.51.0): 'umum' = Proyek umum (tanpa ADDIE dan rancangan paket), kosong = proyek ADDIE.
 -- timProyek = kode tim terlibat dipisah koma (pemilik dulu); tahapUmum = JSON [{id, nama}]; tenggat proyek.
+-- penutupan (2.52.0) = JSON {status, oleh, at, catatan, peninjau, jawabAt, alasan}: penutupan Proyek umum ditinjau Manager.
 -- ketat (2.43.0): urutan ADDIE proyek diketatkan; fase dan gerbang Manager kembali menahan.
 -- Bawaannya FALSE: fase dan gerbang hanya pengingat.
 CREATE TABLE IF NOT EXISTS `v2_projects` (
@@ -216,6 +217,7 @@ CREATE TABLE IF NOT EXISTS `v2_projects` (
   `timProyek`  VARCHAR(100) NOT NULL DEFAULT '',
   `tahapUmum`  JSON         NULL,
   `tenggat`    DATE         NULL,
+  `penutupan`  JSON         NULL,
   `_diubah`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `ix_proyek_paket` (`paket`),

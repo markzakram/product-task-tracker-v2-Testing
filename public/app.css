@@ -2680,3 +2680,7 @@ a.ini-chip:hover { border-color: var(--biru-garis); }
 .tahap-isian { display: flex; align-items: center; gap: 6px; }
 .tahap-isian .input { flex: 1; min-width: 0; }
 .tahap-umum-isian > .tombol { align-self: flex-start; }
+/* Penutupan Proyek umum ditinjau Manager (2.52.0). */
+.kd-tinjauTutup { background: var(--biru-muda); color: var(--biru); }
+.banner-tutup { display: flex; flex-direction: column; gap: 8px; }
+.banner-tutup p { margin: 0; }

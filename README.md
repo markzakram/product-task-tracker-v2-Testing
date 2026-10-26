@@ -998,9 +998,20 @@ daftar per tahap**, dengan Papan dan Linimasa sebagai pilihan tampilan lain sepe
     proyek di Komunikasi, tiga pesan terakhir; tempat Manager menanggapi proyek), Tentang, dan
     Acara.
 - **Yang mengelola** (`Inti.bolehKelolaUmum`): Lead proyek, Lead tim pemilik, dan Manager: ubah
-  proyek (nama, tim, Lead, tenggat, tahap; task di tahap yang dihapus jadi tanpa tahap), tunda,
-  arsipkan. Hapus proyek tetap izin `proyek.hapus`. Di detail task, tahap bisa dipindah oleh PIC,
-  Lead-nya, Lead proyek, atau Manager. Baris dan kartu task menulis nama tahapnya.
+  proyek (nama, tim, Lead, tenggat, tahap; task di tahap yang dihapus jadi tanpa tahap), tunda, dan
+  mengaktifkan lagi. Hapus proyek tetap izin `proyek.hapus`. Di detail task, tahap bisa dipindah
+  oleh PIC, Lead-nya, Lead proyek, atau Manager. Baris dan kartu task menulis nama tahapnya.
+- **Penutupan ditinjau Manager (2.52.0, permintaan user: "ketika beres keseluruhan tetap harus
+  ditinjau oleh Manager").** Setelah semua task selesai, Lead proyek atau Lead tim pemilik menekan
+  **Ajukan penutupan ke Manager** (ringkasan hasil opsional). Manager diberi tahu (notifikasi dan
+  kotak **Penutupan Proyek umum** di halaman Proyek), lalu **Setujui dan arsipkan** atau
+  **Kembalikan** dengan alasan; pengaju dan Lead proyek diberi tahu jawabannya. Lead tak bisa
+  mengarsipkan Proyek umum sendiri; Manager bisa menyetujui tanpa pengajuan bila semua task
+  selesai. Task baru membatalkan pengajuan yang masih menunggu. Keadaannya **Menunggu tinjauan
+  Manager** (`tinjauTutup`). Data: `p.penutupan` (JSON: status diajukan | dikembalikan | disetujui,
+  oleh, at, catatan, peninjau, jawabAt, alasan), kolom `penutupan` di tab `projects` dan
+  `v2_projects`. Aturannya `Inti.ajukanTutupUmum`, `jawabTutupUmum`, `bolehAjukanTutup`,
+  `antreTutupUmum`.
 - **Data**: kolom `jenis`, `timProyek` (dipisah koma), `tahapUmum` (JSON), dan `tenggat` di tab
   `projects` dan `v2_projects`; kolom `tahapProyek` di tab `tasks` dan `v2_tasks`. Aturannya
   `Inti.proyekBaru` (→ `proyekUmumBaru`), `ubahProyek` (→ `ubahProyekUmum`), `taskBaru` (→
