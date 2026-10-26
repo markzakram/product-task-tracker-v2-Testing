@@ -272,9 +272,10 @@
     {
       id: 'lead-terima-dae', peran: 'lead', judul: 'Menerima permintaan ke tim DAE (Lead DAE)', tujuan: 'Menjawab permintaan dari tim lain dan mengatur inisiatif tujuannya.',
       langkah: [
-        'Buka **Permintaan** (Pekerjaan, di bawah Inisiatif). Lencananya berisi yang **menunggu**. Saringan: Menunggu, Diterima, Ditolak. Permintaan baru juga masuk lonceng.',
+        'Buka **Permintaan** (Pekerjaan, di bawah Pengembangan). Lencananya berisi yang **menunggu**. Saringan: Menunggu, Diterima, Ditolak. Permintaan baru juga masuk lonceng.',
         'Pilih permintaan untuk membaca kebutuhan, bahan risetnya, proyek asal, dan diskusinya. Tiga pilihan: **Terima, buat task**, **Tanya dulu**, atau **Tolak**.',
         '**Terima, buat task**: pilih **Masuk ke inisiatif** (terisi dari jenis permintaan, hanya inisiatif Aktif, boleh diganti), **PIC** (anggota DAE), dan **Tenggat** (bawaan: tenggat yang diharapkan). Task DAE masuk Antre sebagai pembaruan inisiatif itu, memuat kebutuhan dan bahan riset, dan tertaut ke permintaan dan proyek asalnya.',
+        'Gunakan **Cari inisiatif** untuk memperpendek daftar tujuan: ketik nama, subinisiatif, atau ID, misalnya **Generator SKD**. Jalur lengkap membedakan nama anak yang sama. Kosongkan pencarian untuk menampilkan semua tujuan. Pilihan saat ini tetap terlihat dan tidak otomatis berganti; PIC dan tenggat tetap. Enter dari pencarian hanya menuju pilihan tujuan.',
         'Task ini **wajib ditinjau pengirim permintaan**: PIC mengisi output lalu mengajukan, pengirim menyetujui atau mengembalikan untuk revisi. PIC tidak bisa menyetujui task-nya sendiri, dan Manager tidak ikut meninjau. Menghapus task ini mengembalikan permintaan ke Menunggu; memulihkannya (Komunikasi) menautkannya lagi ke permintaan dan tetap ditinjau pengirim, kecuali permintaan itu sudah diterima lagi dengan task lain. Task-nya diberi penanda **Diminta dari <proyek> · <tim>** di halaman inisiatif.',
         '**Tanya dulu**: pertanyaan masuk ke diskusi permintaan dan pengirim diberi tahu. **Tolak**: alasan wajib, pengirim diberi tahu.',
         '**Peta jenis → inisiatif** (tombol di atas daftar) menentukan inisiatif bawaan tiap jenis. Jenis yang belum dipetakan: inisiatifnya dipilih saat menerima. Siapa yang boleh menerima dan memetakan diatur Dev di **Panel Dev → Izin** (bawaannya Lead DAE; Manager tidak pernah, kolomnya tak bisa dicentang). Hanya inisiatif **Aktif** yang bisa dipetakan; inisiatif yang ditunda tidak menerima permintaan.',
@@ -299,6 +300,7 @@
         'Di form pemindahan pembaruan, cari judul/ID/asal dan centang task. **Pilih hasil pencarian** mencentang hasil yang terlihat; centang sebelumnya tetap ikut walau tersembunyi oleh pencarian. Periksa jumlah pilihan, lalu **Pindahkan** (maksimal 200). Status, tanggal selesai, komentar, dan bukti tetap ikut. **Batal** tidak mengubah apa pun.',
         '**Termasuk turunan** menampilkan ringkasan, task berjalan, dan riwayat seluruh cabang; **Di sini saja** hanya menampilkan pembaruan langsung. Klik jalur nama untuk menuju asal pembaruan.',
         '**Tambah pembaruan** membuat task di wadah yang sedang dibuka. **Hapus** pada task berjalan atau riwayat menghapus task sesuai izin setelah konfirmasi, sementara wadah inisiatif tetap ada.',
+        'Saat menambah pembaruan, isi **Tautan hasil kerja (opsional)** dan **Label tautan (opsional)** bila ada dokumen, hasil scraping, atau dashboard. Keduanya boleh kosong. Tautan tampil pada pembaruan berjalan dan riwayat; untuk menambah atau menghapus tautan pada task yang sudah ada, buka detail task → **Hasil kerja**.',
       ],
     },
     {
@@ -380,6 +382,7 @@
         'Cakupan **Termasuk turunan** menggabungkan ringkasan, task berjalan, dan riwayat seluruh cabang; **Di sini saja** membatasi ke task yang langsung ditempel di wadah ini. Jalur nama pada pembaruan menunjukkan asalnya. Status dan PIC setiap wadah tetap diatur sendiri, tidak otomatis berubah saat induknya diubah.',
         'Gunakan **Hapus** pada task berjalan atau riwayat pembaruan untuk menghapus task sesuai izin. Konfirmasi menjelaskan data yang ikut terhapus; wadah inisiatif tetap ada. Wadah yang masih memiliki subinisiatif atau task tidak dapat dihapus.',
         'Pembaruan dikelompokkan per hari, terbaru di atas, lengkap dengan ringkasan, angka kerja, dan buktinya. Saringan **Belum ditanggapi** menyisakan yang belum dikomentari siapa pun.',
+        'Tautan hasil kerja pada pembaruan berjalan maupun riwayat bisa langsung dibuka. Saat **Tambah pembaruan**, tautan dan labelnya boleh diisi atau dikosongkan. Tautan tambahan dikelola dari **Hasil kerja** di detail task.',
         'Tekan **Tanggapi** di pembaruannya: pilih **Bagus**, **Perlu dibahas**, atau **Pertanyaan**, tambahkan teks bila perlu, lalu **Kirim tanggapan**. Centang **Perlu jawaban** supaya PIC diminta menjawab (tercentang sendiri untuk Pertanyaan dan Perlu dibahas).',
         'Tanggapan tersimpan di diskusi task pembaruannya: PIC diberi tahu, bisa membalas dari halaman ini, tab Diskusi task, atau Komunikasi. Tanggapan Anda bertanda **Manager**.',
         '**Pembaruan proyek**: task rutin tim DAE yang disambungkan ke sebuah proyek tampil di tab **Pembaruan** halaman proyek itu, dengan linimasa dan **Tanggapi** yang sama. Tab itu bertanda bila ada pembaruan 30 hari terakhir yang belum Anda tanggapi.',

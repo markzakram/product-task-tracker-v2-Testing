@@ -115,6 +115,26 @@ test('pindah pembaruan: satu perintah tersimpan, izin dan konflik asal ditolak t
   assert.equal(d.inisiatif.length,2);
 });
 
+test('pembaruan dengan tautan tersimpan bersama task; tautan salah tidak meninggalkan task kosong', async () => {
+  const p=sheetV2(), biasa=await masuk(), dev=pakai(await aksi(null,'masukDev',PIN_DEV));
+  await aksi(dev,'aturSumber','real');
+  const ali=await sebagai(biasa,'ali');
+  const x=await aksi(ali,'simpanReal',perintah('inisiatifBaru',{f:{nama:'Scraping'}}));
+  const inisiatif=x.json.peristiwa.hasil.id, sebelum=p.tab('data_real').values.length;
+  const f={title:'Hasil scraping',pic:'ali',inisiatif,tautan:{url:'javascript:alert(1)'}};
+  assert.equal((await aksi(ali,'simpanReal',perintah('taskBaru',{f}))).status,400);
+  assert.equal(p.tab('data_real').values.length,sebelum);
+  f.tautan={url:'docs.google.com/spreadsheets/d/hasil',label:'Data SKD'};
+  const r=await aksi(ali,'simpanReal',perintah('taskBaru',{f}));
+  assert.equal(r.status,200,r.teks);
+  assert.equal(p.tab('data_real').values.length,sebelum+1);
+  const d=I.dataKosong();
+  for(const e of (await sheet.bacaReal(p.k,ID,{segar:true})).peristiwa)I.terapkanUbah(d,e.ubah);
+  assert.equal(d.tasks.length,1);
+  assert.equal(d.tasks[0].evidence[0].url,'https://docs.google.com/spreadsheets/d/hasil');
+  assert.equal(d.tasks[0].evidence[0].label,'Data SKD');
+});
+
 test('sumber data: hanya mode Dev yang mengganti, untuk semua pengguna; data contoh tetap bawaan', async () => {
   const p = sheetV2();
   const biasa = await masuk();

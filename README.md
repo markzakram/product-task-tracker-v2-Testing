@@ -891,11 +891,18 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   https://…"). Yang boleh: Lead DAE dan Manager, lewat izin `inisiatif.kelola` (Panel Dev →
   Izin). Inisiatif yang sudah punya task tak bisa dihapus; tandai **Selesai** supaya riwayatnya
   tetap, dan inisiatif yang selesai tak menerima pembaruan baru.
-- **Pembaruan = task biasa**: tombol **Tambah pembaruan** membuka form Tambah task di jalur rutin
+- **Pembaruan = task biasa**: tombol **Tambah pembaruan** membuka form Tambah task di jalur **Pembaruan**
   dengan inisiatifnya terpilih (boleh tanpa jenis rutin). Task-nya tanpa tinjauan (PIC langsung
   menandai selesai), tak terkena fase atau gerbang ADDIE, dan tetap terhitung di Hari Ini, beban,
-  Dashboard, Laporan, dan telat. Form Tambah task biasa juga punya pilihan **Inisiatif** di jalur
-  rutin.
+  Dashboard, Laporan, dan telat. Form Tambah task biasa juga punya pilihan **Pembaruan untuk** di jalur
+  **Pembaruan**.
+- **Tautan pembaruan (2.49.0)**: form **Tambah pembaruan** menyediakan **Tautan hasil kerja
+  (opsional)** dan **Label tautan (opsional)**, misalnya dokumen hasil scraping atau dashboard.
+  Kosong tetap boleh; label kosong memakai nama layanan/domain. Tautan tersimpan bersama task
+  sebagai bukti dan muncul pada **Sedang berjalan**, **Riwayat pembaruan**, serta **Hasil kerja**
+  di detail task. Untuk task yang sudah ada atau lebih dari satu tautan, kelola dari **Hasil kerja**.
+  Alamat tanpa skema dilengkapi `https://`; alamat tidak valid ditolak sebelum membuat task.
+  Berlaku juga untuk form Pembaruan proyek. Menggunakan penyimpanan bukti yang sudah ada.
 - **Detail inisiatif**: pembaruan yang sedang berjalan, dan **Riwayat pembaruan** (yang selesai,
   terbaru di atas, dengan output-nya) seperti changelog.
 - **Hapus pembaruan (2.46.2)**: tombol **Hapus** tersedia langsung pada task di **Sedang berjalan**
@@ -1066,6 +1073,12 @@ hasil kerja DAE **wajib ditinjau pengirim permintaan**, dan **Manager hanya meng
      (bawaan: tenggat yang diharapkan). Terbentuk task DAE di jalur rutin yang menempel ke
      inisiatif itu, berjudul sama dengan permintaan, berketerangan kebutuhan + bahan riset,
      bertaut ke permintaan (`t.permintaanDae`) dan proyek asal (lewat permintaannya).
+     **Cari inisiatif (2.49.0)** menyaring tujuan berdasarkan nama, subinisiatif, jalur, atau ID;
+     misalnya `Generator SKD`. Jalur lengkap membedakan anak bernama sama. Jumlah hasil terlihat;
+     kosongkan pencarian untuk melihat semua tujuan Aktif. Pilihan saat ini tetap dipertahankan
+     meski di luar hasil, diberi penanda, dan tidak otomatis diganti hasil pertama. PIC dan tenggat
+     tetap terjaga, termasuk ketika ukuran layar berubah. Enter di pencarian hanya memindahkan
+     fokus ke pilihan tujuan; penerimaan tetap melalui **Terima, buat task**.
    - **Tanya dulu**: butir **tanya** di diskusi permintaan; status **ditanya** sampai pengirim
      membalas (kembali **menunggu**). Selama menunggu atau ditanya, pengirim bisa **Sunting**.
    - **Tolak**: alasan wajib; pengirim diberi tahu. Tak ada yang bisa dilakukan sesudahnya.

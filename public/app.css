@@ -2536,6 +2536,7 @@ button.chip-kait:hover { border-color: var(--biru-garis); color: var(--biru-tua)
 /* Halaman Permintaan (DAE): bagian Terima di dalam kartu permintaan. */
 .minta-terima { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--garis-halus); }
 .minta-terima .dua-isian { align-items: start; }
+.tautan-pembaruan-form { display: flex; flex-direction: column; gap: 12px; }
 .minta-bahan { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .banner-minta p { margin: 0 0 4px; }
 
@@ -2601,6 +2602,8 @@ button.ini-berjalan-judul:hover { color: var(--biru); text-decoration: underline
 .ini-pembaruan-chip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .ini-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid var(--garis); border-radius: 999px; background: var(--dasar); color: var(--tinta-2); font-size: calc(12px * var(--skala-huruf)); text-decoration: none; }
 a.ini-chip:hover { border-color: var(--biru-garis); }
+.ini-pembaruan-chip a.ini-chip { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.ini-pembaruan-chip a.ini-chip svg { flex-shrink: 0; }
 .ini-utas { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 10px; background: var(--dasar); }
 .ini-utas > .tautan-kecil { align-self: flex-start; }
 .ini-pesan { display: flex; align-items: flex-start; gap: 10px; }

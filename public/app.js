@@ -1935,11 +1935,13 @@
     // ulang di belakang (mis. tarikan data real berkala) memakai form yang sama, bukan
     // menggambarnya lagi dari data.
     const drafPaket = S.view === 'paket' && S.pkt.sunting && S.pkt.kotor ? $('#isi [data-form="paket"]') : null;
+    const drafTerima = S.view === 'permintaan' ? $('#isi [data-form="minta-dae-terima"]') : null;
     $('#isi').innerHTML = GAMBAR[S.view]();
     if (drafPaket) {
       const baru = $('#isi [data-form="paket"]');
       if (baru && baru.dataset.id === drafPaket.dataset.id) baru.replaceWith(drafPaket);
     }
+    if (drafTerima) pulihkanTerimaMintaDae(drafTerima);
     renderLaci();
     pulihkanGulir(foto);
     renderPemandu();
@@ -4561,16 +4563,19 @@
       <p class="ini-pesan-kepala"><b>${nama(u.oleh)}</b>${I.orang(u.oleh).peran === 'manager' ? ` <span class="lencana-manager">${tr('Manager')}</span>` : ''}
         <small>${u.jenis === 'tanya' ? tr('bertanya') : u.jenis === 'balas' ? tr('membalas') : u.jenis === 'komentar' ? tr('berkomentar') : tr('catatan')} · ${esc(relatif(u.at))}</small></p>
       <div class="ini-pesan-isi"><p>${teksBertaut(u.teks)}</p></div></div></div>`;
+  const pilihanInisiatifTerima = () => (S.data.inisiatif || []).filter(x => x.tim === I.TIM_DAE && x.status === 'aktif').sort(urutIdInisiatif);
   function formTerimaMintaDae(m) {
-    const daftar = (S.data.inisiatif || []).filter(x => x.tim === I.TIM_DAE && x.status === 'aktif').sort(urutIdInisiatif);
+    const daftar = pilihanInisiatifTerima();
     const bawaan = I.petaMintaDae(S.data)[m.jenis] || '';
     const anggota = I.anggotaDae().filter(id => I.picBoleh(S.me).includes(id) || I.orang(S.me).peran === 'manager');
     const picAwal = anggota.includes(S.me) ? S.me : anggota[0] || '';
-    return `<form class="minta-terima" data-form="minta-dae-terima" data-id="${esc(m.id)}" novalidate>
+    return `<form class="minta-terima" data-form="minta-dae-terima" data-id="${esc(m.id)}" data-oleh="${esc(S.me)}" novalidate>
       <p class="subjudul">${tr('Terima permintaan')}</p>
+      <label class="isian">${tr('Cari inisiatif')} <input type="search" data-cari-inisiatif-terima placeholder="${tr('Nama, subinisiatif, atau ID — mis. SKD')}" autocomplete="off" aria-describedby="cari-ini-${esc(m.id)}"></label>
       <label class="isian">${tr('Masuk ke inisiatif')}
-        <select name="inisiatif" required>${bawaan ? '' : `<option value="" selected disabled>${tr('— pilih inisiatif —')}</option>`}${opsiHtml(daftar.map(x => [x.id, `${namaJalurIni(x.id)} (${x.id})`]), bawaan)}</select>
+        <select name="inisiatif" data-pilih-inisiatif-terima required><option value="" ${bawaan ? '' : 'selected'}>${tr('— pilih inisiatif —')}</option>${opsiHtml(daftar.map(x => [x.id, `${namaJalurIni(x.id)} (${x.id})`]), bawaan)}</select>
         <small>${bawaan ? tr('Dari jenis {jenis}, bisa diganti.', { jenis: labelJenis(m.jenis) }) : tr('Jenis {jenis} belum dipetakan ke inisiatif: pilih sendiri.', { jenis: labelJenis(m.jenis) })}</small></label>
+      <p class="hint" id="cari-ini-${esc(m.id)}" data-hasil-inisiatif-terima role="status" aria-live="polite">${tr('{n} inisiatif tersedia.', { n: daftar.length })}</p>
       <div class="dua-isian">
         <label class="isian">${tr('PIC')} <select name="pic">${anggota.map(id => `<option value="${esc(id)}" ${id === picAwal ? 'selected' : ''}>${esc(id === S.me ? tr('Saya ({nama})', { nama: I.orang(id).pendek }) : I.orang(id).pendek)}</option>`).join('')}</select></label>
         <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(m.due || '')}"></label>
@@ -4586,6 +4591,29 @@
         <button type="button" class="tombol" data-aksi="minta-dae-tolak" data-id="${esc(m.id)}">${tr('Tolak')}</button>
       </div>
     </form>`;
+  }
+  // Pertahankan isian saat perubahan ukuran layar atau tarikan data menggambar ulang halaman.
+  // Form tetap dibuat ulang agar izin dan daftar tujuan mengikuti data terbaru.
+  function pulihkanTerimaMintaDae(lama) {
+    const baru = $('#isi [data-form="minta-dae-terima"]');
+    if (!baru || baru.dataset.id !== lama.dataset.id || baru.dataset.oleh !== lama.dataset.oleh) return;
+    $('[data-cari-inisiatif-terima]', baru).value = $('[data-cari-inisiatif-terima]', lama).value;
+    baru.elements.inisiatif.value = lama.elements.inisiatif.value;
+    if ([...baru.elements.pic.options].some(x => x.value === lama.elements.pic.value)) baru.elements.pic.value = lama.elements.pic.value;
+    baru.elements.due.value = lama.elements.due.value;
+    saringInisiatifTerima(baru);
+  }
+  function saringInisiatifTerima(form) {
+    const kata = $('[data-cari-inisiatif-terima]', form).value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const select = form.elements.inisiatif, lama = select.value;
+    const daftar = pilihanInisiatifTerima();
+    const cocok = daftar.filter(x => { const teks = `${namaJalurIni(x.id)} ${x.id}`.toLocaleLowerCase(); return kata.every(k => teks.includes(k)); });
+    const tetap = daftar.find(x => x.id === lama && !cocok.some(y => y.id === x.id));
+    const opsi = [...(tetap ? [tetap] : []), ...cocok];
+    select.innerHTML = `<option value="">${tr('— pilih inisiatif —')}</option>` + opsiHtml(opsi.map(x => [x.id, `${namaJalurIni(x.id)} (${x.id})${tetap && tetap.id === x.id ? ' · ' + tr('pilihan saat ini') : ''}`]), lama);
+    select.value = opsi.some(x => x.id === lama) ? lama : '';
+    const hasil = !kata.length ? tr('{n} inisiatif tersedia.', { n: cocok.length }) : cocok.length ? tr('{n} inisiatif cocok.', { n: cocok.length }) : tr('Tidak ada inisiatif yang cocok. Coba nama lain atau kosongkan pencarian.');
+    $('[data-hasil-inisiatif-terima]', form).textContent = hasil + (tetap ? ' ' + tr('Pilihan saat ini tetap {nama}.', { nama: namaJalurIni(tetap.id) }) : '');
   }
   function detailMintaDae(m) {
     const p = proyekDari(m.proyek);
@@ -4685,6 +4713,11 @@
     return p ? `<button type="button" class="ini-chip diminta" data-aksi="buka-proyek" data-id="${esc(p.id)}" title="${esc(tr('Buka proyek asal permintaan'))}">${isi}</button>` : `<span class="ini-chip diminta">${isi}</span>`;
   }
   const bolehPindahPembaruan = t => t.inisiatif && !t.project && I.bolehLihatInisiatif(S.me) && I.bolehUbah(t, S.me);
+  const tautanPembaruanHtml = t => {
+    const bukti = (t.evidence || []).filter(e => tautanAman(e.url));
+    return bukti.slice(0, 3).map(e => `<a class="ini-chip" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" title="${esc(e.label || e.url)}">${ikon('luar', 12)} ${esc(potong(e.label || I.judulTautan(e.url), 40))}</a>`).join('')
+      + (bukti.length > 3 ? `<button type="button" class="ini-chip" data-aksi="buka-task" data-id="${esc(t.id)}">${tr('+{n} tautan', { n: bukti.length - 3 })}</button>` : '');
+  };
   /* Aksi memakai izin task yang sama dengan detail; kartu proyek tidak mendapat aksi ini. */
   function tombolAksiPembaruan(t) {
     if (!t.inisiatif) return '';
@@ -4699,7 +4732,7 @@
       <div class="ini-task-kepala"><button type="button" class="ini-berjalan-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${judul}</button>${tombolAksiPembaruan(t)}</div>
       <small>${esc(t.id)} · ${esc(tr(t.status))}${t.due ? ' · ' + esc(tr('tenggat {tanggal}', { tanggal: fmtTanggal(t.due) })) : ''}</small>
       ${t.permintaanDae ? `<small class="ini-berjalan-orang">${tr('PIC')} ${avatar(t.pic, 'kecil')} ${nama(t.pic)}</small>` : ''}
-      ${asalPembaruanIni(t, x)}${chipDiminta(t)}</div>`;
+      ${asalPembaruanIni(t, x)}${chipDiminta(t)}${t.evidence && t.evidence.length ? `<div class="ini-pembaruan-chip">${tautanPembaruanHtml(t)}</div>` : ''}</div>`;
   }
   /* Spanduk di detail task yang lahir dari permintaan: dari siapa, siapa yang meninjau, putaran revisi. */
   function bannerMintaDae(t) {
@@ -4872,7 +4905,6 @@
     const nManager = tg.filter(m => I.orang(m.oleh).peran === 'manager').length;
     const angka = I.angkaKerja(t.output);
     const adaAngka = !!(angka.commit || angka.file || angka.sesi);
-    const bukti = (t.evidence || []).filter(e => tautanAman(e.url));
     const hidup = pesan.filter(m => !m.dihapus);
     const terakhir = hidup.slice(-3);
     const buka = S.ini.tanggap === t.id;
@@ -4889,8 +4921,7 @@
       <div class="ini-pembaruan-chip">
         ${chipDiminta(t)}
         ${adaAngka ? ANGKA_LABEL.filter(([k]) => angka[k]).map(([k, l]) => `<span class="ini-chip">${esc(tr(l, { n: angka[k] }))}</span>`).join('') : ''}
-        ${bukti.slice(0, 3).map(e => `<a class="ini-chip" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${ikon('luar', 12)} ${esc(potong(e.label || I.judulTautan(e.url), 40))}</a>`).join('')}
-        ${bukti.length > 3 ? `<span class="ini-chip">+${bukti.length - 3}</span>` : ''}
+        ${tautanPembaruanHtml(t)}
         <span class="spasi"></span>
         ${buka || (sendiri && !hidup.length) ? '' : `<button type="button" class="tombol kecil" data-aksi="ini-tanggapi" data-id="${esc(t.id)}">${ikon('obrolan', 14)} ${sendiri ? tr('Balas') : tr('Tanggapi')}</button>`}
       </div>
@@ -10111,6 +10142,10 @@
         </div>
       </details>
       <label class="isian">${tr('Keterangan')} <textarea name="detail" maxlength="4000">${esc(preset.detail || '')}</textarea></label>
+      <div class="tautan-pembaruan-form" data-bagian="inisiatif" ${tampil('inisiatif')}>
+        <label class="isian">${tr('Tautan hasil kerja (opsional)')} <input name="tautanUrl" inputmode="url" maxlength="2000" placeholder="https://…"><small>${tr('Dokumen, hasil scraping, dashboard, atau tautan hasil kerja lainnya. Boleh dikosongkan.')}</small></label>
+        <label class="isian">${tr('Label tautan (opsional)')} <input name="tautanLabel" maxlength="120" placeholder="${tr('mis. Hasil scraping SKD')}"></label>
+      </div>
       ${kakiModal(tr('Tambah task'))}
     </form>`;
   }
@@ -10528,6 +10563,7 @@
             title: f.title, project: proyek ? f.project : '', sub: proyek ? f.subProyek : f.subRutin || '',
             pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, induk: proyek ? f.induk || '' : '',
             inisiatif: ini && !keProyek ? f.inisiatif : '', pembaruanProyek: keProyek ? f.inisiatif : '',
+            ...(ini ? { tautan: { url: f.tautanUrl, label: f.tautanLabel } } : {}),
           } });
           // Dibuat dari baris catatan: nomor task-nya ditempel di ujung baris itu.
           const asal = m.catatan && S.data.notes.find(x => x.id === m.catatan && x.user === S.me);
@@ -11912,6 +11948,7 @@
 
   document.addEventListener('change', e => {
     const el = e.target;
+    if (el.matches('[data-pilih-inisiatif-terima]')) { saringInisiatifTerima(el.closest('form')); return; }
     if (el.matches('[data-pindah-induk]')) { $('.modal-kaki .utama', el.closest('form')).disabled = el.value === el.dataset.asal; return; }
     if (el.closest('.form-pindah-pembaruan')) {
       const form = el.closest('form');
@@ -12108,6 +12145,7 @@
 
   document.addEventListener('input', e => {
     const el = e.target;
+    if (el.matches('[data-cari-inisiatif-terima]')) { saringInisiatifTerima(el.closest('form')); return; }
     if (el.matches('[data-pindah-cari]')) { segarkanPindahPembaruan(el.closest('form')); return; }
     if (el.classList && el.classList.contains('ne-teks')) { inputBlok(el, e); return; }
     if (el.id === 'foto-zoom') { if (kerat) aturZoom(Number(el.value)); return; }
@@ -12172,6 +12210,12 @@
   });
 
   document.addEventListener('keydown', e => {
+    // Enter pada kotak cari hanya menyiapkan pilihan, tidak menerima permintaan tanpa klik.
+    if (e.key === 'Enter' && e.target.matches('[data-cari-inisiatif-terima]')) {
+      e.preventDefault();
+      e.target.closest('form').elements.inisiatif.focus();
+      return;
+    }
     const tombol = String(e.key || '').toLowerCase();
     const aplikasi = !$('#app').hidden && !!S.data;
     // Editor blok Catatan: panah, Tab, menu "/", format, dan urungkan (Enter/Backspace lewat beforeinput).

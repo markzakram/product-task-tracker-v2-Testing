@@ -903,6 +903,9 @@
       const salah = salahInduk(pInduk, me, { pic: f.pic, project: p ? p.id : '', cycle: p ? p.cycle || 1 : 1, stage: p ? s.tahap : '' });
       if (salah) throw new Error(salah);
     }
+    // Tautan awal pembaruan tersimpan bersama task dalam satu perintah (2.49.0).
+    // Validasi sebelum task/nomor/riwayat dibuat; jalur lain mengabaikan isian yang tersembunyi.
+    const buktiAwal = (ini || pb) && f.tautan && teks(f.tautan.url) ? bentukBukti(f.tautan, `e${waktu}-0`) : null;
     const t = {
       id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
       project: p ? p.id : '', lane: p ? 'proyek' : 'rutin', kategori: p ? '' : (s ? s.nama : ini ? ini.nama : pb ? pb.name : f.kategori || 'Umum'),
@@ -914,7 +917,7 @@
       notes: '', assignedBy: me, cycle: p ? p.cycle || 1 : 1, induk: pInduk ? pInduk.id : '', inisiatif: ini ? ini.id : '',
       pembaruanProyek: pb ? pb.id : '', permintaanDae: '', peminta: '',
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
-      subtasks: [], comments: [], tinjauan: [], evidence: [],
+      subtasks: [], comments: [], tinjauan: [], evidence: buktiAwal ? [buktiAwal] : [],
     };
     data.tasks.unshift(t);
     catatLog(data, 'create', `${t.id} · ${t.title}`, `Dibuat untuk ${orang(t.pic).pendek}${s ? ' · ' + s.kode : ''}${pInduk ? ' · task turunan ' + pInduk.id : ''}`, me, waktu);
@@ -1005,11 +1008,14 @@
     t.updatedAt = waktu;
     catatLog(data, 'update', `${t.id} · ${t.title}`, t.output ? 'Output diisi: ' + potong(t.output, 100) : 'Output dikosongkan', me, waktu);
   }
-  function tambahBukti(data, t, f, me, waktu) {
-    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang menambah bukti.');
+  function bentukBukti(f, id) {
     const url = tautanRapi(f.url);
     if (!url) throw new Error('Alamat bukti tidak valid. Contoh: https://docs.google.com/…');
-    const e = { id: `e${waktu}-${t.evidence.length}`, label: String(f.label || '').trim() || judulTautan(url), url };
+    return { id, label: String(f.label || '').trim() || judulTautan(url), url };
+  }
+  function tambahBukti(data, t, f, me, waktu) {
+    if (!bolehUbah(t, me)) throw new Error('Hanya PIC, Lead-nya, atau Manager yang menambah bukti.');
+    const e = bentukBukti(f, `e${waktu}-${t.evidence.length}`);
     t.evidence.push(e);
     t.updatedAt = waktu;
     catatLog(data, 'update', `${t.id} · ${t.title}`, 'Bukti ditambah: ' + e.label, me, waktu);

@@ -1,5 +1,31 @@
 # Changelog — ProductTrack v2
 
+## Belum dirilis — Agen rekap mengikuti hierarki Pengembangan (2026-10-22)
+
+- Pilihan task agen (CLI dan MCP yang dipakai Piastri/Agent Office) menampilkan jalur inisiatif/subinisiatif lengkap dalam urutan pohon. Format JSON v2 menambah `induk`, `tingkat`, dan `namaJalur`; task tetap memakai `jalur: rutin` dan ID `inisiatif` tujuan.
+- Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
+- Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
+
+## 2.49.0 — Tautan pembaruan dan pencarian inisiatif saat menerima permintaan (2026-10-26)
+
+- **Tautan hasil kerja (opsional)** dan **Label tautan (opsional)** tersedia saat menambah
+  pembaruan Pengembangan. Bisa untuk dokumen, hasil scraping, atau dashboard; boleh kosong.
+  Form Pembaruan proyek yang sama juga mendukungnya. Alamat tanpa skema dilengkapi `https://`;
+  alamat tidak valid ditolak sebelum task dibuat. Label kosong memakai nama layanan/domain.
+- Tautan tersimpan bersama task sebagai bukti dalam satu perintah. Tampil pada **Sedang berjalan**,
+  **Riwayat pembaruan**, dan **Hasil kerja** di detail task; tautan tambahan dapat dikelola dari
+  detail. Tautan tetap ikut saat task diedit atau dipindahkan. Memakai penyimpanan yang sudah ada.
+- **Cari inisiatif** di form penerimaan permintaan menyaring **Masuk ke inisiatif** berdasarkan
+  nama, subinisiatif, jalur lengkap, atau ID, tanpa membedakan huruf besar/kecil. Misalnya
+  `Generator SKD` menyisakan tujuan yang cocok. Tetap hanya menawarkan inisiatif DAE yang Aktif.
+- Jumlah hasil dan keadaan tanpa hasil tampil langsung. Pilihan yang sudah ditentukan tetap
+  terlihat dengan penanda **pilihan saat ini** meski di luar hasil pencarian; pencarian tidak
+  otomatis mengganti tujuan. PIC, tenggat, dan isian pencarian tetap saat halaman digambar ulang.
+  Enter pada pencarian memindahkan fokus ke pilihan tujuan tanpa menerima permintaan.
+- Panduan, README, dan terjemahan diperbarui. Tes mencakup tautan kosong/valid/tidak valid,
+  penyimpanan satu perintah, edit/pindah task, serta pemeriksaan browser untuk pencarian,
+  penerimaan permintaan, tema terang/gelap, dan layar kecil.
+
 ## 2.48.0 — Pindahkan inisiatif dan pembaruan pilihan (2026-10-22)
 
 Permintaan user: merapikan progres lama sendiri ke struktur Pengembangan yang baru melalui

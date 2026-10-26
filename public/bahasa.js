@@ -27,6 +27,18 @@
   'use strict';
 
   const EN = {
+    /* Tautan pembaruan dan pencarian tujuan permintaan (2.49.0). */
+    'Cari inisiatif': 'Search initiatives',
+    'Nama, subinisiatif, atau ID — mis. SKD': 'Name, subinitiative, or ID — e.g. SKD',
+    '{n} inisiatif tersedia.': '{n} initiatives available.',
+    '{n} inisiatif cocok.': '{n} matching initiatives.',
+    'pilihan saat ini': 'current selection',
+    'Tidak ada inisiatif yang cocok. Coba nama lain atau kosongkan pencarian.': 'No matching initiatives. Try another name or clear the search.',
+    'Pilihan saat ini tetap {nama}.': 'The current selection remains {nama}.',
+    '+{n} tautan': '+{n} links',
+    'Dokumen, hasil scraping, dashboard, atau tautan hasil kerja lainnya. Boleh dikosongkan.': 'Documents, scraped results, dashboards, or other work links. You can leave this blank.',
+    'Label tautan (opsional)': 'Link label (optional)',
+    'mis. Hasil scraping SKD': 'e.g. SKD scraping results',
     /* Pindah inisiatif dan pembaruan (2.48.0). */
     'Pindahkan task {id}': 'Move task {id}',
     'Pindahkan inisiatif': 'Move initiative',
