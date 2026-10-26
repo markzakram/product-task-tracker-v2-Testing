@@ -2596,6 +2596,15 @@ button.ini-berjalan-judul:hover { color: var(--biru); text-decoration: underline
 .pindah-baris small { color: var(--redup); font-size: calc(12px * var(--skala-huruf)); }
 .form-pindah-pembaruan input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; }
 .pindah-daftar > .hint { padding: 12px; }
+.modal-panel:has(.form-setujui-banyak) { max-width: 720px; }
+.setujui-baris + .setujui-baris { border-top: 1px solid var(--garis-halus); }
+.setujui-hasil { padding: 0 12px 12px 38px; font-size: calc(13px * var(--skala-huruf)); overflow-wrap: anywhere; }
+.setujui-hasil summary { cursor: pointer; color: var(--biru); }
+.setujui-hasil p { margin: 8px 0; }
+.ini-baru { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; width: fit-content; border: 1px solid var(--biru-garis); border-radius: 8px; padding: 4px 8px; color: var(--biru); background: var(--biru-muda); font-size: calc(12px * var(--skala-huruf)); }
+button.ini-baru { cursor: pointer; }
+.ini-kabar { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 14px 0; }
+.ini-kabar p { margin: 0; }
 .ini-pembaruan-judul { align-self: flex-start; max-width: 100%; padding: 0; border: 0; background: transparent; color: var(--tinta); font: inherit; font-size: calc(15px * var(--skala-huruf)); font-weight: 700; line-height: 1.4; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .ini-pembaruan-judul:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ini-pembaruan-ringkas { margin: 0; font-size: calc(13px * var(--skala-huruf)); line-height: 1.55; color: var(--tinta-2); overflow-wrap: anywhere; }

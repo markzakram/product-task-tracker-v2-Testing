@@ -826,6 +826,26 @@
     if (t.permintaanDae) selaraskanMintaDae(data, t, kunci, me, waktu);
   }
 
+  /* Persetujuan pilihan Manager (2.50.0). Periksa seluruh pilihan sebelum ada perubahan. */
+  const MAKS_SETUJUI_BANYAK = 200;
+  const bolehSetujuiBanyak = (t, me, perId) => me !== DEV && orang(me).peran === 'manager' && !!t
+    && t.status === 'Ditinjau' && aksiUntuk(t, me, perId).some(a => a.kunci === 'setujui' && !a.nonaktif);
+  const versiTinjauan = t => JSON.stringify([t.updatedAt || 0, waktuDiajukan(t)]);
+  function setujuiBanyak(data, ids, versi, me, waktu) {
+    if (me === DEV || orang(me).peran !== 'manager') throw new Error('Hanya Manager yang menyetujui beberapa task sekaligus.');
+    if (!Array.isArray(ids) || !ids.length || ids.length > MAKS_SETUJUI_BANYAK) throw new Error('Pilih 1–200 task untuk disetujui.');
+    if (new Set(ids).size !== ids.length) throw new Error('Pilihan task tidak boleh berulang.');
+    const perId = indeks(data);
+    const tasks = ids.map(id => {
+      const t = perId.get(id);
+      if (!bolehSetujuiBanyak(t, me, perId)) throw new Error('Ada task yang tidak lagi bisa Anda setujui. Tutup jendela ini dan pilih ulang task.');
+      if (!versi || versi[id] !== versiTinjauan(t)) throw new Error('Ada task yang berubah sejak daftar dibuka. Tutup jendela ini dan periksa ulang hasilnya.');
+      return t;
+    });
+    for (const t of tasks) terapkanAksi(data, t, 'setujui', me, waktu);
+    return { disetujui: tasks.length };
+  }
+
   /* Pindah kolom di papan → aksi yang setara. */
   function aksiPindah(t, ke, me, perId) {
     const dari = t.status;
@@ -1931,10 +1951,35 @@
     }
     return peta;
   }
+  /* Satu kabar terakhir per pembaruan: saat dibuat atau selesai, bukan tiap edit/komentar.
+     Lokasi mengikuti task saat ini, termasuk setelah dipindah. Penanda baca dipisah di browser. */
+  function notifikasiPengembangan(data, me) {
+    if (me === DEV || orang(me).peran !== 'manager') return [];
+    const wadah = new Set((data.inisiatif || []).map(x => x.id));
+    const logSelesai = new Map();
+    for (const l of data.log || []) {
+      if (!String(l.detail || '').startsWith(DESKRIPSI.selesai) && !String(l.detail || '').startsWith(DESKRIPSI.setujui)) continue;
+      const id = String(l.task || '').split(' · ')[0];
+      if (!logSelesai.has(id)) logSelesai.set(id, l);
+    }
+    return data.tasks.flatMap(t => {
+      if (!wadah.has(t.inisiatif)) return [];
+      const beres = selesai(t) && t.selesaiAt > 0;
+      const at = beres ? t.selesaiAt : t.createdAt;
+      const l = logSelesai.get(t.id);
+      const r = (t.tinjauan || []).find(r => r.action === 'Disetujui' && r.at === at);
+      const oleh = beres ? (r && r.by) || (l && l.at === at && l.by) || t.pic : t.assignedBy || t.pic;
+      if (!at || oleh === me) return [];
+      return [{ id: `pengembangan-${t.id}-${at}`, jenis: 'pengembangan', task: t.id, inisiatif: t.inisiatif,
+        at, oleh, selesai: !!beres, teks: t.title }];
+    }).sort((a, b) => b.at - a.at);
+  }
+  const pembaruanBelumDibaca = (daftar, dibaca = {}, sejak = 0) => daftar.filter(n => n.at >= sejak && n.at > (Number(dibaca[n.task]) || 0));
+
   function notifikasi(data, me, batas = 60, susunan = null) {
     const perId = indeks(data);
     const pendek = orang(me).pendek.toLowerCase();
-    const out = [];
+    const out = notifikasiPengembangan(data, me);
     let tahan = null;
     const sejakTertahan = x => (x.tertahan ? (tahan || (tahan = waktuTertahan(data))).get(x.id) || 0 : 0);
     const tambah = (jenis, t, at, oleh, isi = '', ai = false) => { if (at) out.push({ id: `${jenis}-${t.id}-${at}`, jenis, task: t.id, at, oleh, teks: isi, ...(ai ? { ai: true } : {}) }); };
@@ -4783,6 +4828,7 @@
     taskAnak: (d, x, me, w, h) => taskAnak(d, cariDi(d.tasks, x.induk, 'Task induk'), x.f || {}, me, w, h),
     ubahTask: (d, x, me, w) => ubahTask(d, tugas(d, x), x.f || {}, me, w),
     terapkanAksi: (d, x, me, w) => terapkanAksi(d, tugas(d, x), x.kunci, me, w, x.catatan),
+    setujuiBanyak: (d, x, me, w) => setujuiBanyak(d, x.tasks, x.versi, me, w),
     isiOutput: (d, x, me, w) => isiOutput(d, tugas(d, x), x.isi, me, w),
     tambahBukti: (d, x, me, w) => tambahBukti(d, tugas(d, x), x.f || {}, me, w),
     hapusBukti: (d, x, me, w) => hapusBukti(d, tugas(d, x), x.bukti, me, w),
@@ -4874,6 +4920,7 @@
     if (!h || typeof h !== 'object') return null;
     if (h.project && Array.isArray(h.tasks)) return { project: h.project.id, tasks: h.tasks.map(t => t.id) };
     if (Number.isInteger(h.dipindah) && h.inisiatif) return { dipindah: h.dipindah, tetap: h.tetap, inisiatif: h.inisiatif };
+    if (Number.isInteger(h.disetujui)) return { disetujui: h.disetujui };
     return h.id ? { id: h.id } : null;
   }
   /* Koleksi data real. Link Saya dan Catatan Saya tetap pribadi di browser. DEPAN = data baru
@@ -4942,6 +4989,7 @@
     pindahPembaruan, MAKS_PINDAH_PEMBARUAN,
     anakTask, bolehBuatAnak, alasanTakBisaBagi, picTurunan, pilihanPicUbah, taskAnak, tambahSubtask, ubahSubtask, hapusSubtask, tungguTahap,
     aksiUntuk, terapkanAksi, aksiPindah, catatLog, taskBaru, proyekBaru,
+    MAKS_SETUJUI_BANYAK, bolehSetujuiBanyak, versiTinjauan, setujuiBanyak,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,
     namaTahap, SINGKAT_TAHAP, singkatTahap, tahapBerikut, ringkasProyek, antreKeputusan, tahapDihitung, segarkanTahap, siklusTutup, mulaiSiklus,
@@ -4960,6 +5008,7 @@
     mintaDaeProyek, asalMintaDae, taskMintaDae, mintaDaeMenunggu, langkahMintaDae, mintaDaeTerbuka, keteranganMintaDae, revisiTerakhir,
     PERIODE, rentang, laporanPeriode, daftarTask, rentangTask, gridBulan, geserBulan,
     terlibat, notifikasi, JENIS_LOG, saringLog,
+    notifikasiPengembangan, pembaruanBelumDibaca,
     JENIS_PERISTIWA, REAKSI, BATAS_PESAN, ruangTask, ruangProyek, ruangTim, bacaRuang, anggotaTim, bolehRuang, ruangTimSaya,
     periksaPeristiwa, susunObrolan, sebutan, menyebut, tanyaTerbuka, aktivitasTask, daftarUtas,
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,

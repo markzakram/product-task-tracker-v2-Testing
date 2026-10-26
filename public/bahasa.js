@@ -27,6 +27,32 @@
   'use strict';
 
   const EN = {
+    /* Persetujuan pilihan dan kabar Pengembangan untuk Manager (2.50.0). */
+    'Pembaruan di {inisiatif}: {judul} · {status}': 'Update in {inisiatif}: {judul} · {status}',
+    'Baru dibuat': 'Newly created',
+    '{n} pembaruan belum dibaca': '{n} unread updates',
+    'Tandai pembaruan ini dibaca': 'Mark this update as read',
+    'Tandai dibaca': 'Mark as read',
+    'Task pembaruan baru atau baru selesai. Pilih pengembangan untuk melihat hasilnya.': 'Newly created or completed update tasks. Select an initiative to see the results.',
+    'Tandai {n} pembaruan dibaca': 'Mark {n} updates as read',
+    '{n} task disetujui dan selesai.': '{n} tasks approved and completed.',
+    'Setujui beberapa task': 'Approve multiple tasks',
+    'Task Ditinjau yang boleh Anda setujui. Periksa hasil kerja, lalu centang task yang ingin disetujui. Hanya pilihan Anda yang menjadi Selesai.': 'Tasks in review that you can approve. Check the results, then select the tasks to approve. Only your selections become Completed.',
+    'Cari task yang akan disetujui': 'Search tasks to approve',
+    'Judul, ID task, PIC, atau proyek': 'Title, task ID, assignee, or project',
+    'Lihat hasil kerja': 'View work results',
+    'Belum ada output tertulis.': 'No written output yet.',
+    'Tidak ada task yang cocok.': 'No matching tasks.',
+    'Maksimal 200 task sekali setujui. Pilihan tetap tersimpan saat pencarian berubah.': 'Approve up to 200 tasks at once. Selections are kept when the search changes.',
+    'Setujui pilihan': 'Approve selected tasks',
+    '{n} dipilih · {t} tersembunyi oleh pencarian': '{n} selected · {t} hidden by the search',
+    'Setujui {n} task': 'Approve {n} tasks',
+    'Tidak ada task yang bisa disetujui sekaligus.': 'No tasks are available for bulk approval.',
+    'Hanya Manager yang menyetujui beberapa task sekaligus.': 'Only the Manager can approve multiple tasks at once.',
+    'Pilih 1–200 task untuk disetujui.': 'Select 1–200 tasks to approve.',
+    'Pilihan task tidak boleh berulang.': 'Task selections must not contain duplicates.',
+    'Ada task yang tidak lagi bisa Anda setujui. Tutup jendela ini dan pilih ulang task.': 'Some tasks can no longer be approved by you. Close this dialog and select the tasks again.',
+    'Ada task yang berubah sejak daftar dibuka. Tutup jendela ini dan periksa ulang hasilnya.': 'Some tasks have changed since this list was opened. Close this dialog and review their results again.',
     /* Tautan pembaruan dan pencarian tujuan permintaan (2.49.0). */
     'Cari inisiatif': 'Search initiatives',
     'Nama, subinisiatif, atau ID — mis. SKD': 'Name, subinitiative, or ID — e.g. SKD',

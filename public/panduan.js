@@ -345,6 +345,16 @@
       ],
     },
     {
+      id: 'manager-setujui-banyak', peran: 'manager', judul: 'Menyetujui beberapa task sekaligus', tujuan: 'Menyelesaikan task yang sudah diperiksa melalui pilihan sendiri.',
+      langkah: [
+        'Buka **Hari Ini**, **Task**, atau daftar **Proyek**, lalu **Setujui beberapa task**. Daftarnya hanya berisi task **Ditinjau** yang boleh Anda setujui.',
+        'Cari berdasarkan judul, ID, PIC, atau proyek. Buka **Lihat hasil kerja** untuk membaca output, keterangan, dan tautan bukti, lalu centang task yang telah Anda periksa.',
+        '**Pilih hasil pencarian** memilih baris yang terlihat. Pilihan sebelumnya tetap ikut walau tersembunyi; jumlahnya ditampilkan. **Kosongkan** melepas semua centang.',
+        'Periksa jumlah pada **Setujui N task**, lalu tekan untuk menyetujui hanya pilihan itu (maksimal 200). **Batal** menutup tanpa perubahan.',
+        'Jika ada task yang berubah, hilang, atau tidak lagi bisa disetujui, seluruh proses ditolak. Tutup form dan periksa ulang daftar terbaru. Task permintaan yang menjadi tinjauan tim peminta tetap dipantau Manager.',
+      ],
+    },
+    {
       id: 'manager-siklus', peran: 'manager', judul: 'Keputusan sesudah siklus selesai', tujuan: 'Menutup proyek, atau mengulangnya untuk perbaikan.', ilustrasi: 'keputusan', coba: true,
       langkah: [
         'Proyek muncul di **Keputusan siklus** setelah task **E12 · Final approval** disetujui.',
@@ -374,6 +384,8 @@
     {
       id: 'manager-inisiatif', peran: 'manager', judul: 'Memantau dan menanggapi inisiatif', tujuan: 'Membaca pembaruan pekerjaan berkelanjutan dan memberi tanggapan.',
       langkah: [
+        'Lonceng memberi kabar saat task pembaruan dibuat atau selesai. Jalur lengkap menunjukkan pengembangan yang berubah; klik untuk membuka task di subinisiatifnya. Menu **Pengembangan** dan pohon induk/anak juga menampilkan **pembaruan belum dibaca**.',
+        'Membuka lonceng atau daftar saja tidak menghapus penanda Pengembangan. Gunakan **Tandai dibaca** pada task, atau **Tandai N pembaruan dibaca** untuk cakupan detail yang sedang dibuka. Ini tidak menambah tanggapan. Status baca tersimpan di browser per profil dan sumber data, belum tersinkron antarperangkat. Awalnya mencakup 30 hari terakhir.',
         'Buka **Pengembangan**. Inisiatif ditampilkan sebagai pohon; panah membuka atau melipat cabang. Setiap baris menampilkan progres seluruh task turunannya dan jumlah pembaruan yang **belum Anda tanggapi**.',
         'Buat wadah utama seperti **Generator Soal**, **Pengumpulan Data**, atau **Aplikasi Internal** melalui **Inisiatif baru**. Buka wadahnya, lalu **Tambah subinisiatif**, misalnya **Generator Soal OJK → Integrasi Platform Latihan**. PIC awal mengikuti induk, dan boleh diganti.',
         'Untuk menyusun pekerjaan lama, buka **Ubah → Inisiatif induk**. Seluruh cabang, task, dan diskusi tetap ikut tanpa berubah ID. Pilih tingkat utama untuk melepaskan dari induknya. Inisiatif tidak bisa diletakkan di dalam dirinya sendiri atau turunannya.',

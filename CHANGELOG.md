@@ -6,6 +6,33 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.50.0 — Persetujuan pilihan dan notifikasi Pengembangan untuk Manager (2026-10-26)
+
+- **Setujui beberapa task** tersedia bagi Manager di Hari Ini, Task, dan daftar Proyek.
+  Daftar hanya berisi task **Ditinjau** yang boleh disetujui Manager. Cari judul/ID/PIC/proyek,
+  periksa **Lihat hasil kerja** (output, keterangan, tautan bukti), lalu centang task pilihan.
+  **Pilih hasil pencarian** hanya mencentang yang tampil; centang tersembunyi tetap dihitung.
+  **Kosongkan** melepas pilihan; **Batal** tidak mengubah data. Maksimal 200 task sekali setujui.
+- **Setujui N task** menyimpan seluruh pilihan dalam satu perintah `setujuiBanyak`. Browser
+  dan server memeriksa izin, status, serta versi hasil kerja sebelum mengubah satu pun task.
+  Task hilang/berubah/tidak lagi berizin membatalkan seluruh pilihan. Tiap task mendapat
+  tinjauan Manager, waktu selesai, log, dan notifikasi PIC seperti persetujuan satu per satu;
+  progres tetap dihitung dari status task. Tinjauan tim peminta tidak diambil alih Manager.
+- **Kabar Pengembangan khusus Manager** muncul ketika task pembaruan dibuat atau selesai,
+  dengan satu kabar terakhir per task. Lonceng menyebut jalur inisiatif lengkap; klik membuka
+  task pada subinisiatif terkait dan menandai kabar itu dibaca. Tindakan Manager sendiri
+  tidak memberinya kabar; edit biasa dan komentar tidak membuat kabar pembaruan baru.
+- **Penanda belum dibaca** pada menu Pengembangan, pohon induk/anak, dan task pembaruan.
+  Ringkasan menampilkan tujuan tepat beserta jumlahnya, termasuk cabang terlipat atau status
+  lain. Hitungan menu tidak menggandakan task turunan. **Tandai dibaca** berlaku per task atau
+  cakupan detail (**Di sini saja / Termasuk turunan**), terpisah dari **Belum ditanggapi**.
+- Membuka lonceng/daftar saja tidak menghapus penanda Pengembangan. Status dibaca tersimpan
+  per profil dan sumber data di browser, bertahan setelah muat ulang, dan diperbarui antartab.
+  Pertama memakai fitur ini, kabar 30 hari terakhir ikut ditampilkan; berikutnya yang belum
+  dibaca tetap ditandai. Pemindahan task mengikuti tujuan baru tanpa mengulang kabar dibaca.
+- Panduan, README, bahasa Inggris, tes aturan/penyimpanan/pengulangan perintah diperbarui;
+  alur pilihan, notifikasi, cakupan baca, desktop/ponsel, dan tema diperiksa di browser.
+
 ## 2.49.0 — Tautan pembaruan dan pencarian inisiatif saat menerima permintaan (2026-10-26)
 
 - **Tautan hasil kerja (opsional)** dan **Label tautan (opsional)** tersedia saat menambah

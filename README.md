@@ -903,6 +903,18 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   di detail task. Untuk task yang sudah ada atau lebih dari satu tautan, kelola dari **Hasil kerja**.
   Alamat tanpa skema dilengkapi `https://`; alamat tidak valid ditolak sebelum membuat task.
   Berlaku juga untuk form Pembaruan proyek. Menggunakan penyimpanan bukti yang sudah ada.
+- **Kabar untuk Manager (2.50.0)**: task pembaruan yang baru dibuat atau selesai masuk lonceng,
+  menyebut jalur lengkap tujuan. Menu Pengembangan, pohon induk/anak, dan task menampilkan
+  jumlah/penanda **belum dibaca**. Ringkasan mengarah ke inisiatif tepat, termasuk cabang
+  terlipat atau di luar saringan status; task turunan hanya dihitung sekali di menu.
+  Klik kabar membuka task di inisiatifnya dan menandai kabar itu dibaca. **Tandai dibaca**
+  pada task atau **Tandai N pembaruan dibaca** dalam detail mengikuti cakupan **Di sini saja /
+  Termasuk turunan**. Membuka lonceng/daftar saja tidak menghapus penanda. Ini terpisah dari
+  **Belum ditanggapi**; membaca tidak menambah komentar. Status baca tersimpan per profil dan
+  sumber data di browser (belum tersinkron antarperangkat), termasuk setelah muat ulang dan
+  di tab lain. Awalnya mencakup 30 hari terakhir; kabar berikutnya bertahan sampai dibaca.
+  Satu kabar terakhir per task: edit biasa/komentar tidak menambah kabar, tindakan Manager
+  sendiri diabaikan, dan memindahkan task tidak mengulang kabar yang sudah dibaca.
 - **Detail inisiatif**: pembaruan yang sedang berjalan, dan **Riwayat pembaruan** (yang selesai,
   terbaru di atas, dengan output-nya) seperti changelog.
 - **Hapus pembaruan (2.46.2)**: tombol **Hapus** tersedia langsung pada task di **Sedang berjalan**
@@ -979,6 +991,22 @@ Pembaruan di proyek**, **sementara khusus tim DAE dan Manager** (sama dengan Ini
   `ringkasInisiatif`). Diuji di `test/pembaruan-proyek.test.js`.
 - Membuka untuk tim lain berarti mengubah `Inti.TIM_INISIATIF` (berlaku juga untuk Inisiatif);
   belum bisa diatur di Panel Dev → Izin, karena izin di sana per peran, bukan per tim.
+
+### Persetujuan beberapa task oleh Manager (2.50.0)
+
+Di **Hari Ini**, **Task**, atau daftar **Proyek**, tekan **Setujui beberapa task**. Daftarnya
+mencakup task **Ditinjau** yang boleh disetujui Manager dengan aturan persetujuan tunggal.
+Cari judul/ID/PIC/proyek; buka **Lihat hasil kerja** untuk membaca output, keterangan, dan bukti.
+Centang task yang telah diperiksa, lalu **Setujui N task**. Hanya pilihan itu menjadi Selesai.
+**Pilih hasil pencarian** berlaku pada baris terlihat; pilihan yang tersembunyi tetap ikut dan
+dihitung. **Kosongkan** melepas seluruh pilihan, **Batal** menutup tanpa menyetujui apa pun.
+
+Maksimal 200 task sekali proses. Satu perintah `setujuiBanyak` memeriksa seluruh izin/status
+dan versi task sebelum perubahan; task hilang, berubah, atau tak lagi berizin membatalkan
+seluruh pilihan. Tiap task memakai aksi persetujuan yang sama: riwayat tinjauan, log, waktu
+selesai, notifikasi PIC, dan progresnya tetap diperbarui. Pengulangan ID perintah yang sama
+tidak menggandakan persetujuan. Task permintaan yang ditinjau tim peminta tetap dipantau
+Manager dan tidak masuk pilihan ini. Lead, Staff, dan akun Dev tidak memakai aksi massal ini.
 
 ### Banding perpanjangan tenggat (2.41.0)
 
@@ -1222,7 +1250,8 @@ ke tim DAE** (Lead), **Mengawasi permintaan ke tim DAE** (Manager).
   catatan, dan link yang cocok. Panah atas/bawah memilih, Enter membuka.
 - **Notifikasi** di lonceng bilah atas: task baru untuk Anda, task yang diserahkan ke Anda, task
   Anda yang siap dimulai, tinjauan yang menunggu Anda, task yang dikembalikan atau disetujui,
-  komentar baru di task yang Anda ikuti, dan (Manager) siklus proyek yang selesai. Semuanya
+  komentar baru di task yang Anda ikuti, serta (Manager) siklus proyek yang selesai dan
+  task pembaruan Pengembangan yang baru dibuat/selesai. Semuanya
   dihitung dari data yang sudah ada (riwayat, tinjauan, komentar, keadaan task) oleh
   `notifikasi()` di `public/inti.js`, tidak disimpan terpisah. Tanda sudah dibaca disimpan per
   profil di browser itu.

@@ -135,6 +135,47 @@ test('pembaruan dengan tautan tersimpan bersama task; tautan salah tidak meningg
   assert.equal(d.tasks[0].evidence[0].label,'Data SKD');
 });
 
+test('persetujuan massal Manager: izin, versi terbaru, satu jurnal dan pembacaan klien lain', async () => {
+  const p = sheetV2(), biasa = await masuk(), dev = pakai(await aksi(null, 'masukDev', PIN_DEV));
+  await aksi(dev, 'aturSumber', 'real');
+  const manager = await sebagai(biasa, 'nynda'), lead = await sebagai(biasa, 'andika');
+  const kirim = async (cookie, nama, isi) => {
+    const r = await aksi(cookie, 'simpanReal', perintah(nama, isi));
+    assert.equal(r.status, 200, r.teks);
+    return r.json.peristiwa;
+  };
+  const proyek = (await kirim(manager, 'proyekBaru', { f: { name: 'Riset SKD', platform: 'CPNS' } })).hasil.id;
+  const ids = [];
+  for (const title of ['Riset awal', 'Riset lanjutan', 'Tetap ditinjau']) {
+    const task = (await kirim(manager, 'taskBaru', { f: { title, project: proyek, sub: 'A2', pic: 'andika', output: 'Hasil riset lengkap' } })).hasil.id;
+    await kirim(lead, 'tambahBukti', { task, f: { url: 'https://contoh.id/riset' } });
+    await kirim(lead, 'terapkanAksi', { task, kunci: 'mulai' });
+    await kirim(lead, 'terapkanAksi', { task, kunci: 'ajukan' });
+    ids.push(task);
+  }
+  const baca = async () => {
+    const d = I.dataKosong();
+    for (const e of (await sheet.bacaReal(p.k, ID, { segar: true })).peristiwa) I.terapkanUbah(d, e.ubah);
+    return d;
+  };
+  const d = await baca(), tasks = ids.slice(0, 2), versi = Object.fromEntries(d.tasks.map(t => [t.id, I.versiTinjauan(t)]));
+  const n = p.tab('data_real').values.length;
+  assert.equal((await aksi(lead, 'simpanReal', perintah('setujuiBanyak', { tasks, versi }))).status, 400);
+  assert.equal((await aksi(manager, 'simpanReal', perintah('setujuiBanyak', { tasks, versi: { ...versi, [tasks[1]]: 'stale' } }))).status, 400);
+  assert.equal(p.tab('data_real').values.length, n);
+  const per = perintah('setujuiBanyak', { tasks, versi });
+  const hasil = await aksi(manager, 'simpanReal', per);
+  assert.equal(hasil.status, 200, hasil.teks);
+  assert.deepEqual(hasil.json.peristiwa.hasil, { disetujui: 2 });
+  assert.equal(p.tab('data_real').values.length, n + 1);
+  assert.equal((await aksi(manager, 'simpanReal', per)).status, 200, 'retry id yang sama idempoten');
+  assert.equal(p.tab('data_real').values.length, n + 1);
+  const klien = I.dataKosong();
+  for (const e of (await aksi(lead, 'sinkron', { realSejak: 0 })).json.real.peristiwa) I.terapkanUbah(klien, e.ubah);
+  assert.equal(klien.tasks.filter(t => t.status === 'Selesai').length, 2);
+  assert.equal(klien.tasks.find(t => t.id === ids[2]).status, 'Ditinjau');
+});
+
 test('sumber data: hanya mode Dev yang mengganti, untuk semua pengguna; data contoh tetap bawaan', async () => {
   const p = sheetV2();
   const biasa = await masuk();
