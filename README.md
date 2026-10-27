@@ -1,17 +1,16 @@
-# ProductTrack v2 — sandbox
+# ProductTrack v2
 
-ProductTrack v2 (siklus ADDIE) yang dibangun **terpisah penuh** dari v1 yang sedang dipakai tim.
-Data tetap di Google Spreadsheet khusus v2. Sejak 0.15.2 repo ini juga menjadi isi repo GitLab
-`produk-cerebrum/product-task-tracker` dan jalan di Cloud Run, di domain yang semula disiapkan
-untuk v1 dan belum dipakai tim (lihat *Deploy ke Cloud Run*). v1 tetap di Vercel dengan
-Spreadsheet sampai digantikan.
+ProductTrack v2 (siklus ADDIE) memakai Google Spreadsheet khusus v2. Repo GitLabnya adalah
+`produk-cerebrum/product-task-tracker`. Sejak deployment v2.52.0 pada 27 Oktober 2026,
+domain produksi **https://product-task-tracker.cerehub.id/** menjalankan v2 di Cloud Run
+dengan data real project ini. Spreadsheet v1 tetap terpisah (lihat *Deploy ke Cloud Run*).
 
 Sejak **2.16.0** aplikasi bisa dipakai untuk pekerjaan sungguhan. Selain data contoh ada **data
 real**, yang mulai kosong dan tersimpan bersama di spreadsheet v2. Mode Dev memilih sumbernya
 untuk semua pengguna (lihat *Sumber data: contoh dan real*). Sejak versi itu nomornya juga
 berawal 2, lanjutan dari 0.15.2, supaya terbaca sebagai v2 di samping v1 (v1.121.0).
 
-| | v1 (sedang dipakai) | v2 (repo ini) |
+| | v1 (versi sebelumnya) | v2 (repo ini) |
 |---|---|---|
 | Repo | GitHub `product-task-tracker` | GitLab `produk-cerebrum/product-task-tracker` (riwayat v1 tetap tersimpan di sana) |
 | Deploy | Vercel, produksi dari `master` | Cloud Run `product-task-tracker-service` → `product-task-tracker.cerehub.id`, rilis lewat tag git; sandbox Vercel (GitHub `product-task-tracker-v2-Testing`) tetap ada untuk demo |
@@ -1724,38 +1723,54 @@ Label **Production** di project ini hanya berarti branch `main` milik v2. Tidak 
 
 ## Deploy ke Cloud Run (GitLab)
 
-Sejak 0.15.2 isi repo GitLab `produk-cerebrum/product-task-tracker` adalah v2. Domainnya,
-`product-task-tracker.cerehub.id`, semula disiapkan tim IT untuk v1 tetapi belum dipakai tim;
-v1 tetap di Vercel. `.gitlab-ci.yml`, `Dockerfile`, dan `server.js` disalin dari yang dibuat
-tim IT untuk v1, dengan Node 22 dan tanpa penjaga `gas/Index.html` milik v1.
+Sejak 0.15.2 isi repo GitLab `produk-cerebrum/product-task-tracker` adalah v2. Domain
+`product-task-tracker.cerehub.id` sudah menjalankan v2.52.0 sejak 27 Oktober 2026, terhubung
+ke spreadsheet data real v2 dan tetap memakai PIN domain yang sebelumnya. Runtime memakai
+Node 22 melalui `.gitlab-ci.yml`, `Dockerfile`, dan `server.js`.
 
 | Pemicu | Tes | Build | Deploy | `APP_ENV` |
 |---|---|---|---|---|
-| tag git | otomatis | manual | manual | `production` |
+| tag rilis `vX.Y.Z` | otomatis | otomatis setelah tes lolos | otomatis setelah build berhasil | `production` |
 
-Push ke branch tidak menjalankan apa pun. Rilis = buat tag `v` + versi di `package.json`,
-misalnya `v2.16.0`, push tag-nya, lalu jalankan **build-app-prod** dan **deploy-prod** dari
-halaman pipeline di GitLab. Sejak 2.16.0 versi v2 berawal 2, jadi tagnya tak tertukar dengan tag
-v1 (`v1.0.0`, `v1.0.1`) yang sudah ada di repo itu. Sebelumnya tag v2 diberi awalan `v2-`
-(mis. `v2-0.15.2`).
+**Mulai 2.52.1, rilis berjalan otomatis.** Perbarui versi di `package.json` dan `?v=` di
+`public/index.html`, commit perubahan, lalu buat dan push tag yang sama, misalnya `v2.52.1`.
+GitLab menjalankan `test`, `build-app-prod`, lalu `deploy-prod` tanpa tombol manual.
+Tag yang tidak cocok dengan versi aplikasi membuat job tes gagal sebelum build. Tes atau
+build yang gagal menghentikan tahap berikutnya. Push branch biasa dan tag selain format
+`vX.Y.Z` (termasuk tag percobaan/prarilis) tidak menjalankan pipeline produksi.
+
+Contoh setelah commit rilis berada di `main`:
+
+```bash
+git push gitlab main
+git tag v2.52.1
+git push gitlab v2.52.1
+git push origin main
+```
+
+Pantau hasilnya di **GitLab → Build → Pipelines**. Setelah pipeline berhasil, muat ulang
+domain produksi untuk memakai versi baru. Deployment memakai `resource_group` agar tidak
+berjalan bersamaan, lalu mengarahkan seluruh trafik ke revisi terbaru. Perubahan data lewat
+aplikasi tetap tersimpan dan tersinkron ke spreadsheet tanpa membutuhkan deployment.
 
 **Env di service Cloud Run** `product-task-tracker-service` diisi sekali (Edit & Deploy New
 Revision → Variables). Deploy dari CI hanya mengubah `APP_ENV`; env lain dipertahankan.
+Ingress produksi tetap `internal-and-cloud-load-balancing`, sesuai akses melalui domain
+utama. Pipeline mempertahankan izin akses service yang sudah ada.
 
 | Nama | Isi |
 |---|---|
 | `SPREADSHEET_ID` | ID spreadsheet v2 — **bukan** milik v1 |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | seluruh isi berkas kunci service account v2, satu baris |
-| `ACCESS_PIN` | PIN v2, jangan disamakan dengan PIN v1 |
+| `ACCESS_PIN` | PIN domain yang sudah dipakai; dipertahankan saat rilis baru |
 | `SESSION_SECRET` | acak, minimal 32 karakter |
 | `DEV_PIN` | (opsional) PIN mode Dev, berbeda dari `ACCESS_PIN` |
 | `AGEN_KUNCI` | (opsional) kunci agen AI Ali, minimal 32 karakter acak; nilai yang sama di `agen/.env` |
 
-Service itu sebelumnya menjalankan v1, jadi env lamanya masih berisi spreadsheet dan kunci v1.
-**Ganti dulu sebelum tag v2 pertama.** Kalau terlanjur, tak ada yang tertulis ke sheet v1: setiap
-baca-tulis v2 memeriksa penanda `_meta` lebih dulu (lihat *Dua pengaman*), jadi aplikasinya
-hanya menampilkan galat. Variabel khusus v1 (`MAGANG_PIN`, `VIEW_PIN`, `DATA_SOURCE`, `MYSQL_*`,
-`METRICS_*`, `OKR_*`, dst.) tak dibaca v2 dan sebaiknya dihapus dari service itu.
+Konfigurasi produksi sudah diarahkan ke spreadsheet dan akun layanan v2 saat deployment
+v2.52.0. Tidak perlu mengisi ulang konfigurasi atau mengganti PIN setiap rilis. Setiap baca-tulis
+tetap memeriksa penanda `_meta` lebih dulu (lihat *Dua pengaman*), sehingga sheet v1 tidak
+akan ditulis jika ID spreadsheet salah. Variabel khusus v1 tidak dibaca aplikasi v2.
 
 Data real tak butuh env baru: tab `setelan`, `data_real`, dan `obrolan_real` dibuat sendiri di
 spreadsheet v2 saat pertama dipakai. Deploy memakai `--max-instances 2`, dan data real memang

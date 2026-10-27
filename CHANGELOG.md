@@ -6,6 +6,20 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.52.1 — Deploy otomatis dari tag rilis (2026-10-27)
+
+- Push tag rilis `vX.Y.Z` ke GitLab otomatis menjalankan **tes → build image → deploy produksi**
+  ke `product-task-tracker.cerehub.id`. Tidak perlu menekan tombol Build atau Deploy lagi.
+  Push branch biasa dan tag di luar format rilis tidak memicu deployment.
+- Tag harus sama dengan `v` + versi `package.json`. Jika tag salah, tes gagal, atau build gagal,
+  tahap berikutnya tidak berjalan.
+- Deployment produksi diantrekan dengan `resource_group` agar satu deployment berjalan pada
+  satu waktu. Setelah berhasil, trafik diarahkan ke revisi terbaru.
+- Konfigurasi spreadsheet v2, PIN domain, dan kunci sesi tetap memakai konfigurasi Cloud Run
+  yang sudah terpasang. Ingress produksi tetap melalui load balancer; izin akses service
+  dipertahankan. Berkas kredensial CI sementara dibersihkan sesudah job.
+- README diperbarui sesuai deployment v2 yang sudah aktif dan alur rilis otomatis.
+
 ## 2.52.0 — Penutupan Proyek umum ditinjau Manager (2026-10-26)
 
 Permintaan user: Proyek umum yang sudah beres seluruhnya tetap harus ditinjau Manager.

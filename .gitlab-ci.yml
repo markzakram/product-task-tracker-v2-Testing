@@ -8,7 +8,7 @@
 #  Build/deploy disalin dari pipeline yang dibuat tim IT untuk v1 (pola backend-vitri):
 #    branch dev     → build manual → deploy dev     (APP_ENV=development)
 #    branch staging → build manual → deploy staging (APP_ENV=preview)
-#    tag git        → build manual → deploy prod manual (APP_ENV=production)
+#    tag vX.Y.Z     → tes → build otomatis → deploy prod otomatis (APP_ENV=production)
 #  (dev & staging sementara dinonaktifkan — lihat BUILD PHASE)
 #
 #  Beda dengan versi v1:
@@ -38,12 +38,12 @@ variables:
 
 image: node:22
 
-# Pipeline HANYA berjalan untuk tag git (rilis produksi). Push ke branch mana
+# Pipeline HANYA berjalan untuk tag vX.Y.Z (rilis produksi). Push ke branch mana
 # pun dan merge request tidak memicu pipeline sama sekali — tes ikut jalan di
 # pipeline tag, sebelum build.
 workflow:
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
 
 stages:
   - test
@@ -52,6 +52,9 @@ stages:
 
 test:
   stage: test
+  before_script:
+    # Salah tag berhenti sebelum build: image dan versi aplikasi harus sama.
+    - node -e "const versi = 'v' + require('./package.json').version; if (process.env.CI_COMMIT_TAG !== versi) { console.error('Tag rilis harus ' + versi); process.exit(1); }"
 
   # Unduhan npm disimpan antar-jalan, dikunci pada package.json: selama
   # dependensinya tak berubah, pemasangan berikutnya tak perlu mengunduh ulang.
@@ -84,7 +87,8 @@ test:
 .prod-rules:
   only:
     - tags
-  when: manual
+  when: on_success
+  allow_failure: false
 
 ### BUILD APP TEMPLATES
 .build-app-template:
@@ -110,11 +114,15 @@ test:
   stage: deploy
   image: google/cloud-sdk:alpine
   before_script:
-    - gcloud auth activate-service-account --key-file <(echo "$SERVICE_ACCOUNT_KEY")
+    - umask 077
+    - printf '%s' "$SERVICE_ACCOUNT_KEY" > /tmp/producttrack-deployer.json
+    - gcloud auth activate-service-account --key-file=/tmp/producttrack-deployer.json --quiet
   script:
     - gcloud config set project ${GCP_PROJECT_ID}
-    - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --max-instances 2 --port 8080 --allow-unauthenticated --ingress ${INGRESS} --update-env-vars APP_ENV=${APP_ENV}
+    - gcloud run deploy ${DEPLOYMENT_NAME} --image ${DOCKER_IMAGE_TAG}:${IMAGE_TAG} --region=${CLOUD_RUN_REGION} --platform managed --memory 512Mi --max-instances 2 --port 8080 --ingress ${INGRESS} --update-env-vars APP_ENV=${APP_ENV} --quiet
+    - gcloud run services update-traffic ${DEPLOYMENT_NAME} --region=${CLOUD_RUN_REGION} --to-latest --quiet
   after_script:
+    - rm -f /tmp/producttrack-deployer.json
     - |
       if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
         echo "[SKIP] DISCORD_WEBHOOK_URL belum di-set — notifikasi dilewati."
@@ -249,13 +257,16 @@ deploy-prod:
     - .prod-rules
   environment:
     name: production
+    url: https://product-task-tracker.cerehub.id
+  resource_group: producttrack-production
+  interruptible: false
   variables:
     GCP_PROJECT_ID: "${GCP_PROJECT}"
     CLOUD_RUN_REGION: "asia-southeast2"
     DOCKER_IMAGE_TAG: "${IMAGE_BASE}-prod"
     IMAGE_TAG: "$CI_COMMIT_TAG"
     DEPLOYMENT_NAME: "product-task-tracker-service"
-    INGRESS: "all"
+    INGRESS: "internal-and-cloud-load-balancing"
     APP_ENV: "production"
   needs:
     - build-app-prod
