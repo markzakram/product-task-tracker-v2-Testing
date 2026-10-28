@@ -104,7 +104,7 @@ dengan satu penyederhanaan: tetap empat status.
   belum selesai") dan di bagian **Menunggu** tab Riwayat ("pengingat urutan ADDIE, tak
   menahan"); label Menunggu, notifikasi "siap", dan hitungan yang menahan tak menghitungnya.
   Lead atau Manager (izin `proyek.urutan`) bisa memilih **Ketatkan urutan ADDIE** di menu ⋯
-  proyek: proyek itu (`p.ketat`, kolom `ketat` di tab projects dan `v2_projects`) kembali memakai
+  proyek: proyek itu (`p.ketat`, kolom `ketat` di tab projects dan `projects`) kembali memakai
   fase dan gerbang sebagai penahan, seperti sebelum 2.43.0. **Longgarkan urutan ADDIE**
   mengembalikannya; keduanya tercatat di Riwayat Aktivitas, dan keadaannya tertulis di kepala
   proyek ("Urutan ADDIE fleksibel/ketat"). Duplikat proyek ikut menyalin pengaturan ini. Skenario
@@ -162,7 +162,7 @@ dengan satu penyederhanaan: tetap empat status.
   bisa mencentangnya sendiri). Tautan
   (2.24.0) dirapikan (`https://` ditambahkan sendiri), hanya http(s), paling panjang 2000
   karakter, dan tampil di samping judul butirnya (di ponsel ikonnya saja). Nama di data tetap
-  (`subtasks`, kolom `link` di tab `subtasks` dan tabel `v2_subtasks`); agen AI mengisinya lewat
+  (`subtasks`, kolom `link` di tab `subtasks` dan tabel `subtasks`); agen AI mengisinya lewat
   `tambah_subtask`.
 - **Syarat ajukan.** Task proyek baru bisa diajukan kalau output terisi, semua ceklis pengerjaan
   selesai, semua task turunan selesai (kalau ada), task yang ditunggu sudah diajukan, tertahan
@@ -225,7 +225,7 @@ dengan satu penyederhanaan: tetap empat status.
   tertinggi yang pernah ada, juga sesudah ada yang dihapus (sebelumnya elaborasi ulang sesudah
   hapus proyek memakai lagi PRJ-… dan PRD-… yang dihapus, sehingga riwayat dan pesan Komunikasi
   task lama menempel ke task baru). Nomor tertinggi dicatat saat menghapus di koleksi `nomor`
-  (tab `nomor`, tabel `v2_nomor`, ikut data real).
+  (tab `nomor`, tabel `nomor`, ikut data real).
 - **Hapus task (2.23.0).** Di tab tim proyek, **⋯ → Pilih task untuk dihapus** memunculkan
   kotak centang di tiap task:
   - centang satu per satu (klik barisnya juga mencentang), **Pilih semua di <fase>**, atau
@@ -663,8 +663,8 @@ obrolannya juga mau dikosongkan.
 instance server menyala dan setiap kali browser baru pertama membuka data real. Satu perubahan
 rata-rata ±1 KB, jadi misalnya 300 perubahan sehari menjadi ±8 MB sebulan. Panel Dev
 menampilkan besarnya dan memberi peringatan di atas ±20 MB: saatnya pindah ke MySQL. Keadaan
-terkini cukup disusun sekali dari `data_real` lalu ditulis ke tabel `v2_` di
-`db/produk_base_v2.sql`; aksi API-nya (`simpanReal`, `sinkron`) bisa tetap.
+terkini cukup disusun sekali dari `data_real` lalu ditulis ke tabel MySQL di
+`db/produk_base.sql`; aksi API-nya (`simpanReal`, `sinkron`) bisa tetap.
 
 Aturannya di `public/inti.js` (`AKSI_DATA`, `jalankanPerintah`, `periksaPerintah`, `bedaData`,
 `terapkanUbah`), `api/_real.js`, dan `api/_sheets.js` (`bacaReal`, `tulisReal`, `bacaSetelan`),
@@ -947,8 +947,8 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
 - **Task lama** di luar proyek bisa ditempel ke inisiatif (atau dilepas) dari pilihan
   **Pembaruan untuk** (dulu **Inisiatif**) di detail task-nya. Task proyek tak bisa ditempel.
 - **Data**: tab `inisiatif` dan `inisiatif_links` (opsional; spreadsheet lama tetap terbaca) dan
-  kolom `inisiatif` di tab `tasks`; koleksi `inisiatif` ikut data real; tabel `v2_inisiatif`,
-  `v2_inisiatif_links`, dan kolom `v2_tasks.inisiatif` di MySQL (kini 27 tabel). Aturannya
+  kolom `inisiatif` di tab `tasks`; koleksi `inisiatif` ikut data real; tabel `inisiatif`,
+  `inisiatif_links`, dan kolom `tasks.inisiatif` di MySQL (32 tabel aplikasi). Aturannya
   `Inti.inisiatifBaru`, `ubahInisiatif`, `hapusInisiatif`, `tempelInisiatif`,
   `ringkasInisiatif`; tim yang memakainya `Inti.TIM_INISIATIF` (`['SI']`). Diuji di
   `test/inti.test.js`, `test/demo.test.js`, dan `test/sheets.test.js`.
@@ -1009,10 +1009,10 @@ daftar per tahap**, dengan Papan dan Linimasa sebagai pilihan tampilan lain sepe
   selesai. Task baru membatalkan pengajuan yang masih menunggu. Keadaannya **Menunggu tinjauan
   Manager** (`tinjauTutup`). Data: `p.penutupan` (JSON: status diajukan | dikembalikan | disetujui,
   oleh, at, catatan, peninjau, jawabAt, alasan), kolom `penutupan` di tab `projects` dan
-  `v2_projects`. Aturannya `Inti.ajukanTutupUmum`, `jawabTutupUmum`, `bolehAjukanTutup`,
+  `projects`. Aturannya `Inti.ajukanTutupUmum`, `jawabTutupUmum`, `bolehAjukanTutup`,
   `antreTutupUmum`.
 - **Data**: kolom `jenis`, `timProyek` (dipisah koma), `tahapUmum` (JSON), dan `tenggat` di tab
-  `projects` dan `v2_projects`; kolom `tahapProyek` di tab `tasks` dan `v2_tasks`. Aturannya
+  `projects` dan `projects`; kolom `tahapProyek` di tab `tasks` dan `tasks`. Aturannya
   `Inti.proyekBaru` (→ `proyekUmumBaru`), `ubahProyek` (→ `ubahProyekUmum`), `taskBaru` (→
   `taskUmumBaru`), `pindahTahapUmum`, `ringkasProyekUmum`, `rapikanTahapUmum`; diuji di
   `test/proyek-umum.test.js` dan `test/sheets.test.js`.
@@ -1044,7 +1044,7 @@ Pembaruan di proyek**, **sementara khusus tim DAE dan Manager** (sama dengan Ini
   tab itu bertanda bila ada pembaruan 30 hari terakhir yang belum ia tanggapi.
 - **Hapus proyek** tak menghapus pembaruannya: sambungannya dilepas dan task-nya tetap ada
   (jendela hapus menyebut jumlahnya).
-- **Data**: kolom `pembaruanProyek` di tab `tasks` dan `v2_tasks` (FK ke `v2_projects`, ON DELETE
+- **Data**: kolom `pembaruanProyek` di tab `tasks` dan `tasks` (FK ke `projects`, ON DELETE
   SET NULL). Aturannya `Inti.bolehPembaruanProyek`, `sambungProyek` (aksi data `sambungProyek`),
   `pembaruanProyek`, `ringkasPembaruanProyek`, dan `ringkasPembaruan` (dipakai bersama
   `ringkasInisiatif`). Diuji di `test/pembaruan-proyek.test.js`.
@@ -1090,7 +1090,7 @@ Permintaan user: fitur mengajukan banding supaya tenggat diperpanjang, langsung 
   Manager hanya mengawasi, jadi tak ikut menjawab.
 - **Data**: koleksi `perpanjangan` (ID `PJG-001`; status menunggu → disetujui, ditolak, atau batal;
   `dueJadi` = tanggal yang disetujui; `permintaanDae` sejak 2.46.0) ikut data real, tab
-  `perpanjangan` (opsional), dan tabel `v2_perpanjangan` (29 tabel). Jejaknya juga di Riwayat task. Aturannya `Inti.ajukanPerpanjangan`,
+  `perpanjangan` (opsional), dan tabel `perpanjangan` (32 tabel aplikasi). Jejaknya juga di Riwayat task. Aturannya `Inti.ajukanPerpanjangan`,
   `jawabPerpanjangan`, `batalkanPerpanjangan`, `panjangMasuk`; diuji di `test/perpanjangan.test.js`.
 
 ### Permintaan lanjutan lintas tim (2.36.0)
@@ -1115,7 +1115,7 @@ semua profil boleh meminta, dan permintaan boleh ke siapa pun dengan Lead-nya ik
     hanya memantau (tak bisa menyetujuinya). Contoh user: DAE membuat generator dari hasil kerja
     RAD, maka Andika (RAD) yang menyetujui task Ali. Peminta staff: Lead-nya yang meninjau. Tetap
     aturan biasa untuk sub-stage yang direview Manager, permintaan di dalam tim sendiri, dan task
-    turunannya. Penandanya kolom `diminta` di task (orang yang meminta; `v2_tasks.diminta` di
+    turunannya. Penandanya kolom `diminta` di task (orang yang meminta; `tasks.diminta` di
     MySQL), diisi saat diterima; aturannya `Inti.peninjauMinta` di dalam `Inti.peninjau`.
     Permintaan yang diterima sebelum 2.38.0 tak punya penanda itu, jadi tetap ke peninjau lama.
   - **Tolak**: alasan wajib, dikirim ke peminta.
@@ -1129,7 +1129,7 @@ semua profil boleh meminta, dan permintaan boleh ke siapa pun dengan Lead-nya ik
   **Batalkan** selama belum dijawab, dan **Kirim ulang** yang ditolak ke orang lain.
 - **Data**: koleksi `permintaan` (ID `MNT-001`, tak pernah dihapus; status menunggu → diterima,
   ditolak, atau batal) ikut data real (`KOLEKSI_REAL`), tab `permintaan` (opsional), dan tabel
-  `v2_permintaan` di MySQL (kini 28 tabel). Salinan cepat data real di browser kini mencatat
+  `permintaan` di MySQL (32 tabel aplikasi). Salinan cepat data real di browser kini mencatat
   koleksi yang dikenalnya: salinan dari versi lama yang belum mengenal `permintaan` disusun ulang
   dari awal sekali, supaya permintaan yang dibuat sebelum browser itu diperbarui tak terlewat.
   Aturannya `Inti.mintaLanjutan`, `terimaPermintaan`, `tolakPermintaan`, `batalkanPermintaan`,
@@ -1276,8 +1276,8 @@ Dev, dan centangnya dibuang saat disimpan maupun dibaca dari baris lama di tab m
   (opsional, seperti tab lain yang datang belakangan: sheet yang diimpor sebelum 2.46.0 tetap
   terbaca dengan daftar kosong) dan kolom baru di `tasks` dan `inisiatif`. Dibuat otomatis oleh
   impor berikutnya; tak ada yang rusak bila tak diimpor ulang.
-- MySQL: `v2_permintaan_dae`, `v2_permintaan_dae_links`, `v2_permintaan_dae_utas` (kini 32 tabel),
-  `v2_tasks.permintaanDae` dan `peminta`, `v2_inisiatif.menerima`, `v2_perpanjangan.permintaanDae`
+- MySQL: `permintaan_dae`, `permintaan_dae_links`, `permintaan_dae_utas` (32 tabel aplikasi),
+  `tasks.permintaanDae` dan `peminta`, `inisiatif.menerima`, `perpanjangan.permintaanDae`
   (kolom opsional: sheet lama tanpa kolom itu tetap terbaca).
 - Salinan cepat data real di browser (dan agen) yang belum mengenal `permintaanDae` disusun
   ulang dari awal **sekali** (`cacheRealKenal`), jadi tak ada permintaan yang terlewat.
@@ -1332,8 +1332,8 @@ Saya** di grup Ruang Saya.
 - **Email pribadi (opsional)** di pengaturan pengingat: disimpan untuk pengingat email di tahap
   berikutnya; **belum ada email yang dikirim**. Tahap 2 perlu akun pengirim email dan penjadwal
   dari IT.
-- **Privasi**: tersimpan di server per profil (tab `agenda` dan `pribadi`, tabel `v2_agenda` dan
-  `v2_pribadi`), dan hanya dikirim ke profil yang terbukti di sesi itu (lewat PIN-nya, atau tak
+- **Privasi**: tersimpan di server per profil (tab `agenda` dan `pribadi`, tabel `agenda` dan
+  `pribadi`), dan hanya dikirim ke profil yang terbukti di sesi itu (lewat PIN-nya, atau tak
   ber-PIN); tak ikut data yang dimuat semua orang. Profil tanpa PIN tetap bisa dipilih siapa pun
   dengan PIN aplikasi, jadi pasang PIN profil untuk agenda yang benar-benar pribadi. Tak
   tersedia untuk akun Dev, Lihat sebagai, dan mode uji Dev.
@@ -1393,7 +1393,7 @@ peserta, atau yang Terbuka.
   Perubahan sesudahnya perlu diunduh lagi (tanpa sinkron dua arah).
 - **Izin**: centang baru **Membuat acara bersama** (grup Kalender) di Panel Dev → Izin, bawaannya
   semua peran. Tanpa izin itu agenda pribadi tetap bisa dibuat, dan peserta lama bisa dilepas.
-- **Penyimpanan**: tetap satu baris per acara di tab `agenda` (`v2_agenda`), dengan peserta,
+- **Penyimpanan**: tetap satu baris per acara di tab `agenda` (`agenda`), dengan peserta,
   jawaban, kaitan, dan notulennya di kolom `data` (JSON); kolom `orang` = pembuatnya. Server
   hanya mengirim baris yang boleh dilihat profil sesi itu (miliknya, yang ia ikuti, yang Terbuka)
   dan tanda batal dua pekan terakhir. Tarikan ulang tiap dua menit selama aplikasi terbuka, dan
@@ -1471,7 +1471,7 @@ perangkat mana pun). Dibuka lewat foto sendiri di kanan atas → **Sesuaikan tam
   - Dipasang lewat satu lembar gaya (`#gaya-status`), jadi berganti tanpa menggambar ulang
     halaman. Teksnya di-escape per karakter.
 - **Penyimpanan**: tab `tampilan` (satu baris per orang: `orang`, `setelan` JSON, `diperbarui`,
-  `sampul`), tabel `v2_tampilan` di MySQL.
+  `sampul`), tabel `tampilan` di MySQL.
   - Aksi `muatTampilan(sejak)` (tanpa gambar, ditarik tiap 2 menit), `muatSampul(orang)`, dan
     `simpanTampilan({ orang, setelan, sampul? })`.
   - Seperti foto, profil ber-PIN hanya diubah dari sesi yang sudah memasukkan PIN-nya; sesi
@@ -1636,7 +1636,7 @@ scripts/_v1ke2.js     semua aturan pemetaan v1 → v2 (tabel yang bisa diubah)
 scripts/dev.js        server lokal yang meniru Vercel (tanpa Vercel CLI)
 server.js             server Node untuk Cloud Run (npm start); Dockerfile + .gitlab-ci.yml membangunnya
 test/                 npm test — Google Sheets ditiru, tanpa koneksi
-db/produk_base_v2.sql rancangan tabel MySQL v2 (belum dipakai aplikasi)
+db/produk_base.sql rancangan tabel MySQL v2 (belum dipakai aplikasi)
 logo/                 berkas logo asli (tak ikut image Docker)
 ```
 
@@ -1720,6 +1720,62 @@ baru, dan kepemilikan harus "Siap dipakai v2". Setelah impor (bagian berikut), b
 Label **Production** di project ini hanya berarti branch `main` milik v2. Tidak menyentuh v1 sama sekali.
 
 ---
+
+## Setup MySQL dan migrasi data
+
+Sejak 2.53.0 tersedia alat setup dan migrasi ke MySQL. Pada 28 Oktober 2026, sesuai
+permintaan user, tabel lama di `produk_base` sudah dicadangkan lalu diganti dengan
+**nama tabel tanpa awalan versi**, misalnya `tasks`, `projects`, `inisiatif`, dan `packages`.
+Ada 32 tabel aplikasi dan 4 tabel pendukung (`migrations`, `setelan`, `real`, `contoh`).
+
+**Status:** snapshot data spreadsheet sudah diimpor dan diverifikasi di MySQL. Backend
+aplikasi/domain produksi masih memakai Google Sheets. Menambahkan konfigurasi MySQL atau
+menjalankan impor tidak otomatis mengalihkan aplikasi ke database tersebut. Pengalihan
+memerlukan integrasi backend, sinkronisasi akhir saat penulisan dihentikan, lalu deployment.
+Perubahan setelah waktu snapshot masih masuk ke spreadsheet.
+
+Konfigurasi ada di `.env` lokal (lihat `.env.example`): `MYSQL_HOST`, `MYSQL_PORT`,
+`MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_SSL_MODE`, dan
+`MYSQL_CONNECTION_LIMIT`. Password tidak boleh masuk Git. Mode SSL `REQUIRED` mengenkripsi
+koneksi; `VERIFY_IDENTITY` juga memverifikasi sertifikat dan dapat memakai `MYSQL_SSL_CA_FILE`
+atau `MYSQL_SSL_CA`. Tidak ada penurunan otomatis ke koneksi tanpa TLS.
+
+Perintah dari folder project yang sudah memiliki `.env`:
+
+```bash
+npm run mysql:cek
+npm run mysql:setup
+npm run mysql:setup -- --terapkan
+npm run mysql:ekspor
+npm run mysql:impor -- db/backups/spreadsheet-WAKTU.json --kering
+npm run mysql:impor -- db/backups/spreadsheet-WAKTU.json --terapkan
+npm run mysql:verifikasi -- db/backups/spreadsheet-WAKTU.json
+```
+
+Di worktree, tambahkan `--env-file G:/Ali/code/product-tracker-v2/.env` agar konfigurasi dan
+jalur kredensial relatif dibaca dari project utama. Ganti `WAKTU` dengan nama backup yang
+dicetak oleh `mysql:ekspor`. Setup dan impor tanpa `--terapkan` hanya membuat rencana.
+Impor yang sama dapat diperiksa ulang tanpa menggandakan data; tujuan berisi data berbeda
+ditolak, sehingga impor tidak menyapu perubahan yang sudah ada di MySQL.
+
+Snapshot membawa jurnal asli, keadaan terkini, data contoh, orang, hash PIN profil, foto,
+tampilan, Master, agenda, email pribadi, dan komunikasi. Entri jurnal yang kalah/diulang
+tetap disimpan agar jejaknya tidak hilang. `_payload` menyimpan objek aplikasi utuh;
+kolom relasional tetap tersedia untuk query. `_position` menjaga urutan larik. ID log
+yang berulang dipertahankan dengan primary key internal terpisah.
+
+Impor berjalan dalam satu transaksi: semua tabel, objek aplikasi, data contoh, serta jurnal
+dibandingkan isinya sebelum commit. Sumber yang berubah selama proses, data yang tidak cocok,
+relasi yatim, atau teks yang melebihi ukuran kolom membatalkan impor. Berkas backup di
+`db/backups/` berisi data tim dan tidak dilacak Git.
+
+`db/produk_base.sql` adalah referensi struktur saat ini. Berkas di `db/migrations/` adalah
+baseline yang dibekukan; jangan menyunting berkas yang checksum-nya sudah tercatat di tabel
+`migrations`. Penggantian awal tabel lama merupakan perintah terpisah dengan nama database
+yang harus disebutkan secara eksplisit, dan tidak dijalankan setup rutin maupun pipeline.
+
+Hasil migrasi awal: 653 task, 9 proyek, 18 inisiatif, 6 paket, 161 setoran, dan 4.278 peristiwa
+jurnal, ditambah data pendukung. Hasil ini merupakan snapshot pada 28 Oktober 2026.
 
 ## Deploy ke Cloud Run (GitLab)
 
@@ -2015,14 +2071,12 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
 
 ## Langkah berikutnya
 
-1. Pindahkan data real dari spreadsheet ke MySQL sebelum riwayat `data_real` membesar (Panel
-   Dev memperingatkan di atas ±20 MB). Keputusan user: spreadsheet dulu, MySQL menyusul.
-   Tabelnya sudah dirancang di `db/produk_base_v2.sql`: 32 tabel berawalan `v2_` di skema
-   `produk_base` yang sudah ada (keputusan user: tanpa skema baru), berdampingan dengan 18 tabel
-   salinan v1 tanpa menghapusnya. `test/skema-mysql.test.js` menjaga tabel itu tetap sejalan
-   dengan `api/_skema.js`. Aturannya sudah berjalan di server (`api/_real.js`), dan nomor baru
-   sudah ditentukan server. MySQL hanya terjangkau dari jaringan kantor dan Cloud Run, tidak dari
-   Vercel.
+1. Integrasikan backend MySQL, lakukan sinkronisasi akhir saat penulisan dihentikan, lalu
+   alihkan produksi. Setup dan snapshot spreadsheet sudah dimigrasikan serta diverifikasi
+   pada 28 Oktober 2026 (lihat *Setup MySQL dan migrasi data*). Database `produk_base`
+   memakai nama tabel langsung sesuai keputusan user; tabel lama sudah dicadangkan lalu
+   diganti. API aplikasi masih menggunakan Sheets. MySQL dijangkau dari jaringan kantor
+   dan Cloud Run, bukan sandbox Vercel.
 2. Login per orang, supaya profil berasal dari login, data bisa disaring per peran, dan Link
    Saya kembali pribadi.
 3. Sebelum menggantikan v1: endpoint metrics dan MCP (dipakai sistem OKR manager), lalu migrasi

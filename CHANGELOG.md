@@ -6,6 +6,27 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.53.0 — Setup MySQL dan migrasi data spreadsheet (2026-10-28)
+
+- Konfigurasi MySQL di `.env.example`, koneksi pool dengan TLS, pemeriksaan server baca-saja,
+  serta perintah `mysql:cek`, `mysql:setup`, `mysql:ekspor`, `mysql:impor`, dan `mysql:verifikasi`.
+- Keputusan user: database `produk_base` memakai nama tabel langsung (`tasks`, `projects`,
+  `inisiatif`, dll.), tanpa awalan `v2_`. Skema referensi menjadi `db/produk_base.sql`.
+  Penggantian awal tabel lama harus eksplisit, hanya boleh di `produk_base`, dan membuat serta
+  memverifikasi backup lengkap sebelum menghapus tabel. Setup rutin tidak menghapus data.
+- Snapshot spreadsheet membawa data real, jurnal lengkap, data contoh, orang, PIN profil,
+  foto, tampilan, Master, agenda, dan komunikasi. Jurnal yang kalah/diulang tetap dibawa;
+  keadaan akhir disusun tanpa menjalankan ulang aturan bisnis lama.
+- Import berjalan dalam transaksi dan membandingkan isi semua tabel, payload aplikasi,
+  data contoh, dan seluruh jurnal sebelum commit. Sumber yang berubah, checksum salah,
+  relasi yatim, atau data tujuan yang sudah ada menghentikan impor. Backup dan password
+  tidak masuk Git. Kolom payload mempertahankan history, penanda AI, dan properti tambahan.
+- ID log yang berulang tetap disimpan memakai primary key internal, tanpa mengganti ID
+  aplikasi. Tanggal/waktu dipetakan ke UTC dan teks tidak dipotong diam-diam.
+- Migrasi awal pada 28 Oktober 2026 telah diverifikasi: 653 task, 9 proyek, 18 inisiatif,
+  6 paket, 161 setoran, dan 4.278 peristiwa jurnal. Domain produksi masih memakai spreadsheet;
+  integrasi backend/pengalihan produksi ke MySQL adalah tahap tersendiri.
+
 ## 2.52.1 — Deploy otomatis dari tag rilis (2026-10-27)
 
 - Push tag rilis `vX.Y.Z` ke GitLab otomatis menjalankan **tes → build image → deploy produksi**

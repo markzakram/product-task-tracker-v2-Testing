@@ -28,3 +28,7 @@ Thumbs.db
 agen/.data/
 # Laporan mingguan agen (berisi data tim): dibuat ulang kapan saja
 agen/laporan/
+
+# Salinan data dan laporan migrasi berisi data tim/PIN hash; jangan masuk Git.
+db/backups/
+db/laporan-migrasi/

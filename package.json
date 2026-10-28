@@ -1,18 +1,24 @@
 {
   "name": "product-tracker-v2",
-  "version": "2.52.1",
+  "version": "2.53.0",
   "private": true,
   "description": "ProductTrack v2 (siklus ADDIE) — aplikasi statis + API Node ke Google Spreadsheet khusus v2; jalan di Cloud Run (GitLab CI) dan sandbox Vercel.",
   "scripts": {
     "start": "node server.js",
     "dev": "node scripts/dev.js",
     "test": "node --test \"test/*.test.js\"",
-    "impor:v1": "node scripts/impor-v1.js"
+    "impor:v1": "node scripts/impor-v1.js",
+    "mysql:cek": "node scripts/mysql.js cek",
+    "mysql:setup": "node scripts/mysql.js setup",
+    "mysql:ekspor": "node scripts/mysql.js ekspor",
+    "mysql:impor": "node scripts/mysql.js impor",
+    "mysql:verifikasi": "node scripts/mysql.js verifikasi"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
-    "@googleapis/sheets": "^18.1.0"
+    "@googleapis/sheets": "^18.1.0",
+    "mysql2": "^3.24.6"
   }
 }
