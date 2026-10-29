@@ -1721,6 +1721,27 @@ Label **Production** di project ini hanya berarti branch `main` milik v2. Tidak 
 
 ---
 
+## Log penyimpanan untuk IT
+
+Sejak 2.53.1, buka `/diagnostik` dan masuk dengan PIN aplikasi yang sama (atau gunakan sesi
+yang sudah masuk). Tautannya juga ada di `/cek`. Halaman menunjukkan **backend aktif**,
+mode contoh/real, tujuan simpan, versi dan revisi server, serta penulisan MySQL aktif/tidak.
+Konfigurasi MySQL yang sudah diisi atau snapshot yang sudah diimpor tidak otomatis mengubah
+backend aplikasi. Pada versi ini, data real tetap ditulis ke Google Sheets, tab `data_real`.
+
+**Muat ulang log**, **Salin laporan IT**, dan **Unduh laporan .txt** membantu mencocokkan
+hasil pengujian. Jejak perubahan memuat ID permintaan/perintah, backend/target, nomor jurnal,
+durasi, keberhasilan, kiriman ulang, dan kode kegagalan. Tidak ada PIN, cookie, password,
+kunci Google, query, atau isi task. Log dibatasi **100 catatan pada instance yang menjawab**;
+Cloud Run dapat memakai beberapa instance, sehingga catatan dari instance lain tidak selalu
+muncul di halaman ini. Server lokal `npm run dev` memuat ulang modul per permintaan; pakai
+`npm start` untuk mempertahankan log proses selama pengujian.
+
+Untuk log lengkap di Cloud Logging, saring `jsonPayload.component="producttrack.storage"`,
+kemudian cocokkan `requestId`/`commandId`. ID permintaan juga ada pada header respons
+`X-Request-ID`. Aksi `simpanReal` mengembalikan `penyimpanan.backend` dan `penyimpanan.target`.
+Halaman diagnostik tidak mengubah data, mengeksekusi query, atau menjalankan migrasi.
+
 ## Setup MySQL dan migrasi data
 
 Sejak 2.53.0 tersedia alat setup dan migrasi ke MySQL. Pada 28 Oktober 2026, sesuai

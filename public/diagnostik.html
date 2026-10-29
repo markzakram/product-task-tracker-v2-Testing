@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Log Penyimpanan · ProductTrack</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f3f6fa; --panel:#fff; --text:#18314e; --muted:#52677f; --line:#dce4ee; --blue:#075eb8; --green:#16724d; --amber:#8b5000; --soft:#fff6e4; --bad:#bd3030; }
+    @media(prefers-color-scheme:dark) { :root { --bg:#0d1725; --panel:#172435; --text:#e3edf8; --muted:#b2c1d1; --line:#34465b; --blue:#83baff; --green:#6dd4a4; --amber:#ffd28b; --soft:#382b18; --bad:#ff9797; } }
+    * { box-sizing:border-box; } body { margin:0; font:15px/1.55 system-ui,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+    main { max-width:1080px; margin:auto; padding:32px 20px 56px; } h1 { margin:4px 0; font-size:28px; } h2 { font-size:18px; margin:0 0 12px; } p { margin:8px 0; }
+    a { color:var(--blue); } header { display:flex; justify-content:space-between; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:22px; }
+    .brand { color:var(--blue); font-weight:700; } .muted { color:var(--muted); } .small { font-size:13px; }
+    .panel { padding:22px; border:1px solid var(--line); border-radius:14px; background:var(--panel); margin-bottom:18px; }
+    .explanation { background:var(--soft); border-left:5px solid var(--amber); } .explanation h2 { color:var(--amber); }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0; }
+    button,input { font:inherit; border:1px solid var(--line); border-radius:8px; padding:9px 14px; background:var(--panel); color:var(--text); } button { cursor:pointer; } button:disabled { opacity:.55; cursor:wait; }
+    button.primary { background:var(--blue); color:var(--panel); border-color:var(--blue); } input { width:220px; max-width:100%; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 28px; } dl { display:grid; grid-template-columns:minmax(130px,auto) minmax(0,1fr); gap:9px 16px; margin:0; }
+    dt { color:var(--muted); } dd { margin:0; overflow-wrap:anywhere; font-weight:500; } code,pre { font-family:ui-monospace,Consolas,monospace; }
+    .code { display:inline-block; border:1px solid var(--line); border-radius:6px; padding:2px 8px; overflow-wrap:anywhere; }
+    .flow { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:18px 0 0; } .flow b { padding:9px 14px; border:1px solid var(--line); border-radius:8px; }
+    .yes { color:var(--green); } .bad { color:var(--bad); } .log { border-top:1px solid var(--line); padding:12px 0; } .log:first-child { border-top:0; }
+    .log-top { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; } .log pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; margin:6px 0 0; color:var(--muted); }
+    .notice { min-height:24px; } [hidden] { display:none !important; }
+    @media(max-width:650px) { main { padding:20px 14px 36px; } .panel { padding:16px; } .grid { grid-template-columns:1fr; gap:18px; } h1 { font-size:24px; } dl { grid-template-columns:120px minmax(0,1fr); } }
+  </style>
+</head>
+<body>
+<main>
+  <header><div><div class="brand">ProductTrack · Bantuan IT</div><h1>Log penyimpanan data</h1><p class="muted">Tujuan penyimpanan dan jejak perubahan dari server aplikasi.</p></div><a href="/">Buka aplikasi →</a></header>
+  <section id="login" class="panel" hidden>
+    <h2>Masuk dengan PIN aplikasi</h2><p>Gunakan PIN domain yang sama. Sesi masuk dari aplikasi juga dapat digunakan.</p>
+    <form id="login-form"><div class="actions"><input id="pin" aria-label="PIN aplikasi" type="password" autocomplete="current-password" required><button class="primary" type="submit">Masuk</button></div></form>
+  </section>
+  <p id="notice" class="notice muted" role="status" aria-live="polite">Memeriksa server…</p>
+  <div id="content" hidden>
+    <section class="panel explanation"><h2 id="summary-title"></h2><p id="summary"></p><p><code id="reason" class="code"></code></p><div id="flow" class="flow" aria-label="Alur penyimpanan aktif"></div></section>
+    <section class="panel"><h2>Status yang terbaca dari server</h2><div class="grid"><dl id="runtime"></dl><dl id="storage"></dl></div><p id="request" class="muted small"></p></section>
+    <section class="panel"><h2>Konfigurasi MySQL di server</h2><dl id="mysql"></dl><p class="muted small">Keberadaan konfigurasi MySQL tidak otomatis mengaktifkan backend MySQL. Status di atas menunjukkan penyimpanan yang benar-benar digunakan aplikasi.</p></section>
+    <div class="actions"><button id="reload" class="primary">Muat ulang log</button><button id="copy">Salin laporan IT</button><button id="download">Unduh laporan .txt</button><button id="logout">Keluar</button></div>
+    <section class="panel"><h2>Log penyimpanan terbaru</h2><p id="scope" class="muted small"></p><div id="logs"></div></section>
+    <p class="muted small">Untuk log lengkap di Cloud Logging, saring <code>jsonPayload.component="producttrack.storage"</code> dan cocokkan <code>requestId</code> atau <code>commandId</code>. ID permintaan juga ada pada header respons <code>X-Request-ID</code> di tab Network browser.</p>
+    <p class="muted small">Halaman ini membaca status dan log. Laporan tidak menyertakan PIN, password, cookie, kunci Google, maupun isi task.</p>
+  </div>
+  <p class="muted small"><a href="/cek">Cek sambungan spreadsheet</a></p>
+</main>
+<script src="/diagnostik.js?v=2.53.1"></script>
+</body>
+</html>

@@ -6,6 +6,19 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.53.1 — Log dan diagnostik tujuan penyimpanan untuk IT (2026-10-29)
+
+- Halaman `/diagnostik`, memakai PIN aplikasi, memperlihatkan backend aktif, mode data,
+  tujuan simpan, versi/revisi server, dan apakah penulisan MySQL memang dijalankan.
+  Konfigurasi MySQL yang terisi tidak disalahartikan sebagai backend yang sudah aktif.
+- Log JSON penyimpanan mencatat ID permintaan/perintah, tujuan, hasil, nomor jurnal,
+  durasi, kiriman ulang, serta kode kegagalan. Respons API menyertakan `X-Request-ID`;
+  balasan penyimpanan menampilkan target yang dipakai untuk pemeriksaan IT.
+- Log dibatasi 100 catatan per instance dan bisa disalin/diunduh. Log lengkap dapat
+  dicari di Cloud Logging. PIN, kredensial, cookie, query, dan isi task tidak dimasukkan.
+- Diagnostik tetap memperlihatkan status backend jika sumber data gagal dibaca, dengan
+  kode galat yang aman. Tidak mengaktifkan penulisan MySQL atau mengubah data operasional.
+
 ## 2.53.0 — Setup MySQL dan migrasi data spreadsheet (2026-10-28)
 
 - Konfigurasi MySQL di `.env.example`, koneksi pool dengan TLS, pemeriksaan server baca-saja,

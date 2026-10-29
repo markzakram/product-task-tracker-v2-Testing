@@ -112,7 +112,11 @@ const server = http.createServer(async (req, res) => {
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8080;
-  server.listen(port, () => console.log('ProductTrack v2 mendengar di :' + port));
+  server.listen(port, () => {
+    console.log('ProductTrack v2 mendengar di :' + port);
+    const backend = require(API.rpc).backend();
+    require('./api/_diagnostik').catat('STORAGE_RUNTIME_READY', { backend, target: backend === 'mysql' ? 'mysql:real/tasks' : 'sheets:data_real', reason: backend === 'mysql' ? 'MYSQL_PRIMARY' : 'MYSQL_BACKEND_NOT_ACTIVE' });
+  });
 }
 
 module.exports = server;

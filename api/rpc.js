@@ -55,6 +55,7 @@ const crypto = require('crypto');
 const sesi = require('./_sesi');
 const sheet = require('./_sheets');
 const dataReal = require('./_real');
+const diagnostik = require('./_diagnostik');
 // Aturan pesan yang sama dengan browser (public/inti.js), supaya isian diperiksa di dua sisi.
 const Inti = require('../public/inti.js');
 
@@ -181,6 +182,7 @@ function jedaPinSalah() {
 }
 
 function kirim(res, kode, isi, cookie) {
+  if (res.storageRequestId && kode >= 400) diagnostik.catat('WRITE_REQUEST_REJECTED', { requestId: res.storageRequestId, backend: module.exports.backend(), action: 'simpanReal', httpStatus: kode, errorCode: isi.kode || 'RPC_REJECTED' });
   res.statusCode = kode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -205,6 +207,15 @@ async function bacaBody(req) {
 
 /* Aksi di balik gerbang. Argumen dari browser diteruskan sesuai urutan. */
 const AKSI = {
+  async diagnostikPenyimpanan() {
+    let k = { backend: module.exports.backend() }, sumber = 'unknown', sourceError = '';
+    try { k = await sheet.klien(); sumber = await sheet.sumberData(k, sheet.idSpreadsheet()); }
+    catch (err) {
+      sourceError = diagnostik.errorCode(err);
+      diagnostik.catat('STORAGE_SOURCE_CHECK_FAILED', { requestId: this.requestId, backend: diagnostik.backend(k), errorCode: sourceError });
+    }
+    return { diagnostik: diagnostik.baca({ k, sumber, sourceError, id: this.requestId, lingkungan: lingkungan() }) };
+  },
   async status() {
     const k = await sheet.klien();
     return { akun: k.email, spreadsheet: await sheet.periksa(k, sheet.idSpreadsheet()) };
@@ -291,7 +302,8 @@ const AKSI = {
       bersih.isi.asal = x.task;
     }
     try {
-      return { peristiwa: await dataReal.simpan(k, id, bersih, me, { ai: !!this.agen }) };
+      return { peristiwa: await dataReal.simpan(k, id, bersih, me, { ai: !!this.agen, requestId: this.requestId }),
+        penyimpanan: { backend: diagnostik.backend(k), target: diagnostik.target(k), requestId: this.requestId } };
     } catch (err) {
       if (err instanceof dataReal.GalatAturan) throw new GalatIsian(err.message);
       throw err;
@@ -558,11 +570,14 @@ function kodeUntuk(err) {
 }
 
 module.exports = async (req, res) => {
+  const requestId = diagnostik.requestId(res);
   if (req.method === 'GET') {
     return kirim(res, 200, {
       ok: true,
       app: sheet.PENANDA.app,
       env: lingkungan(),
+      versi: versiPaket,
+      backend: module.exports.backend(),
       setelan: { ...sheet.setelanAda(), ...sesi.setelanAda() },
     });
   }
@@ -574,6 +589,10 @@ module.exports = async (req, res) => {
   const body = await bacaBody(req);
   const aksi = typeof body.action === 'string' ? body.action : '';
   const args = Array.isArray(body.args) ? body.args : [];
+  if (aksi === 'simpanReal') {
+    res.storageRequestId = requestId;
+    diagnostik.catat('WRITE_REQUEST_RECEIVED', { requestId, backend: module.exports.backend(), action: 'simpanReal' });
+  }
 
   // Gerbang yang belum disetel berarti TERTUTUP. Lihat catatan di _sesi.js.
   const kurang = sesi.kurangnya();
@@ -678,14 +697,15 @@ module.exports = async (req, res) => {
   if (!fungsi) return kirim(res, 400, { success: false, message: `Aksi tidak dikenal: ${aksi || '(kosong)'}` });
 
   try {
-    const konteks = { dev, devSampai: dev ? sesi.akhirDev(cookie) : 0, meKlaim: isi.me || '', meSidik: isi.meSidik || '', agen };
+    const konteks = { dev, devSampai: dev ? sesi.akhirDev(cookie) : 0, meKlaim: isi.me || '', meSidik: isi.meSidik || '', agen, requestId };
     return kirim(res, 200, { success: true, env: lingkungan(), dev, ...(dev ? { devSampai: konteks.devSampai } : {}), ...(await fungsi.apply(konteks, args)) });
   } catch (err) {
     const kode = kodeUntuk(err);
-    if (kode === 500 || kode === 502) console.error(`[rpc] aksi=${aksi}`, err);
+    if ((kode === 500 || kode === 502) && aksi !== 'simpanReal') console.error(`[rpc] aksi=${aksi}`, err);
     const akun = sheet.emailAkun();
     // Isian dan izin yang ditolak sudah berupa kalimat untuk orang; selain itu dijelaskan dari galat Google.
     const message = err instanceof GalatIsian || err instanceof GalatIzin ? err.message : sheet.jelaskanGalat(err, akun);
     return kirim(res, kode, { success: false, env: lingkungan(), akun, dev, message, ...(err && err.kode ? { kode: err.kode } : {}) });
   }
 };
+module.exports.backend = () => typeof sheet.backend === 'function' ? sheet.backend() : 'sheets';

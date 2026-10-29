@@ -20,6 +20,7 @@
 
 const Inti = require('../public/inti.js');
 const sheet = require('./_sheets');
+const diagnostik = require('./_diagnostik');
 
 /* Perintah yang ditolak aturan aplikasi (mis. bukan peninjaunya): 400 dengan pesannya. */
 class GalatAturan extends Error {}
@@ -68,8 +69,11 @@ let antrean = Promise.resolve();
 /* perintah sudah dibersihkan Inti.periksaPerintah; oleh = profil yang terbukti di sesi ini;
    opsi.ai = sesi agen AI. Mengembalikan perubahan yang tersimpan beserta nomor urutnya (seq)
    dan hasil ringkasnya. */
-function simpan(k, id, perintah, oleh, { sekarang = Date.now(), ai = false } = {}) {
+function simpan(k, id, perintah, oleh, { sekarang = Date.now(), ai = false, requestId = '' } = {}) {
+  const mulai = Date.now();
+  const log = { requestId, backend: diagnostik.backend(k), target: diagnostik.target(k), action: perintah.aksi, commandId: perintah.id };
   const kerja = antrean.then(async () => {
+    diagnostik.catat('DATA_WRITE_REQUESTED', log);
     const at = Math.abs((perintah.at || 0) - sekarang) <= MELESET_MAKS ? perintah.at : sekarang;
     const p = { ...perintah, oleh, at };
     let r = await sheet.bacaReal(k, id, { segar: true });
@@ -77,7 +81,10 @@ function simpan(k, id, perintah, oleh, { sekarang = Date.now(), ai = false } = {
       const s = keadaan(k, id, r);
       // Kiriman ulang (balasan pertama tak sampai ke browser): sudah tersimpan, jangan dua kali.
       const i = r.peristiwa.findIndex((e, n) => e.id === p.id && s.tanda[n]);
-      if (i >= 0) return { ...r.peristiwa[i], seq: i + 1, generasi: r.generasi, ulang: true };
+      if (i >= 0) {
+        diagnostik.catat('DATA_WRITE_DEDUPLICATED', { ...log, seq: i + 1, durationMs: Date.now() - mulai });
+        return { ...r.peristiwa[i], seq: i + 1, generasi: r.generasi, ulang: true };
+      }
       const salinan = structuredClone(s.data);
       const h = Inti.jalankanPerintah(salinan, p);
       if (!h.ok) throw new GalatAturan(h.galat);
@@ -85,14 +92,24 @@ function simpan(k, id, perintah, oleh, { sekarang = Date.now(), ai = false } = {
       if (ai) tandaiAi(ubah, s.data, oleh);
       const hasil = Inti.ringkasHasil(h.hasil);
       // Tak ada yang berubah: tak perlu baris baru.
-      if (!Object.keys(ubah).length) return { ...p, ubah, seq: r.peristiwa.length, generasi: r.generasi, kosong: true, hasil };
+      if (!Object.keys(ubah).length) {
+        diagnostik.catat('DATA_WRITE_SKIPPED', { ...log, reason: 'NO_CHANGE', seq: r.peristiwa.length, durationMs: Date.now() - mulai });
+        return { ...p, ubah, seq: r.peristiwa.length, generasi: r.generasi, kosong: true, hasil };
+      }
+      diagnostik.catat('DATA_WRITE_STARTED', log);
       r = await sheet.tulisReal(k, id, { ...p, ubah, dasar: r.peristiwa.length });
       const t = keadaan(k, id, r);
       const j = r.peristiwa.findLastIndex(e => e.id === p.id);
-      if (j >= 0 && t.tanda[j]) return { ...r.peristiwa[j], seq: j + 1, generasi: r.generasi, hasil };
+      if (j >= 0 && t.tanda[j]) {
+        diagnostik.catat('DATA_WRITE_SUCCEEDED', { ...log, seq: j + 1, durationMs: Date.now() - mulai });
+        return { ...r.peristiwa[j], seq: j + 1, generasi: r.generasi, hasil };
+      }
       // Kalah dari perubahan instance lain yang menyelip: diperiksa ulang terhadap keadaan terbaru.
       if (coba >= PERCOBAAN_MAKS) throw new Error('Spreadsheet sedang ramai menerima perubahan lain. Perubahan ini dicoba lagi sebentar lagi.');
     }
+  }).catch(err => {
+    diagnostik.catat('DATA_WRITE_FAILED', { ...log, errorCode: diagnostik.errorCode(err), durationMs: Date.now() - mulai });
+    throw err;
   });
   antrean = kerja.catch(() => {});
   return kerja;
