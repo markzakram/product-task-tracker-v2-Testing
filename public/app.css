@@ -2684,3 +2684,9 @@ a.ini-chip:hover { border-color: var(--biru-garis); }
 .kd-tinjauTutup { background: var(--biru-muda); color: var(--biru); }
 .banner-tutup { display: flex; flex-direction: column; gap: 8px; }
 .banner-tutup p { margin: 0; }
+
+/* Penugasan Manager di Pengembangan (2.54.0). */
+.pill.ditugaskan { background: var(--ungu-muda); color: var(--ungu); font-weight: 600; }
+.penugasan-cek { align-items: flex-start; }
+.penugasan-cek span { display: flex; flex-direction: column; gap: 2px; }
+.penugasan-cek small { color: var(--redup); font-weight: 400; }

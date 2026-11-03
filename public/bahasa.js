@@ -2937,6 +2937,18 @@
     'Masih ada task yang belum selesai di proyek ini.': 'This project still has unfinished tasks.',
     'Belum ada pengajuan penutupan untuk dikembalikan.': 'There\'s no closing submission to return.',
     'Tulis alasannya, supaya Lead tahu yang perlu dibereskan.': 'Write the reason so the Lead knows what to fix.',
+    /* ----- Penugasan Manager di Pengembangan (2.54.0) ----- */
+    'menunggu tinjauan {nama}': 'waiting for {nama}\'s review',
+    'terlambat {n} hari': '{n} days late',
+    'Ditugaskan Manager': 'Assigned by the Manager',
+    'Tidak ada pembaruan lain yang sedang berjalan.': 'No other updates in progress.',
+    'Penugasan: ditinjau saya sebelum selesai': 'Assignment: I review it before it\'s done',
+    'Untuk pembaruan inisiatif yang Anda berikan ke orang lain: isi tenggatnya; PIC mengajukannya dengan hasil kerja, lalu Anda menyetujui atau mengembalikannya.': 'For initiative updates you give to someone else: set a deadline; the owner submits it with the work result, then you approve or return it.',
+    'Ditinjau {nama} sebelum selesai': 'Reviewed by {nama} before it\'s done',
+    'Ditugaskan {nama}': 'Assigned by {nama}',
+    'Sedang ditinjau: setujui atau kembalikan dulu sebelum mengubahnya.': 'Under review: approve or return it first before changing this.',
+    'PIC mengajukannya dengan hasil kerja, lalu Anda menyetujui atau mengembalikannya.': 'The owner submits it with the work result, then you approve or return it.',
+    'Task ini sedang ditinjau: setujui atau kembalikan dulu sebelum mengubah penugasannya.': 'This task is under review: approve or return it first before changing its assignment.',
   };
 
   let kini = 'id';

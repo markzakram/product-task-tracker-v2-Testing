@@ -6,6 +6,20 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.54.0 — Penugasan Manager di Pengembangan (2026-11-03)
+
+Permintaan user: Manager memberi task yang masuk ke Pengembangan, dan perlu tenggat. Pilihan
+user: penugasan langsung yang ditinjau Manager; tenggat cukup per pembaruan.
+
+- **Tambah pembaruan → Penugasan** (khusus Manager, tercentang bawaan): pembaruan untuk orang lain
+  diberi tenggat dan **ditinjau Manager sebelum selesai**. PIC mengajukannya dengan hasil kerja;
+  Manager menyetujui atau mengembalikan; perpanjangan tenggat dimintakan ke Manager.
+- Pembaruan lama bisa dijadikan penugasan (atau dilepas) lewat **Ubah task**.
+- Halaman inisiatif: kotak **Ditugaskan Manager** berisi penugasan yang berjalan, urut tenggat, dengan
+  PIC, status, dan terlambat. Detail task menulis **Ditugaskan Nynda**.
+- Pembaruan yang dicatat sendiri, termasuk oleh agen, tetap tanpa tinjauan. Tanpa kolom atau
+  migrasi baru. Tes baru `test/penugasan.test.js`.
+
 ## 2.53.1 — Log dan diagnostik tujuan penyimpanan untuk IT (2026-10-29)
 
 - Halaman `/diagnostik`, memakai PIN aplikasi, memperlihatkan backend aktif, mode data,

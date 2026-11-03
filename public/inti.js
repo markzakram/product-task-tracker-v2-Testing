@@ -500,8 +500,16 @@
      selalu direview Manager; selainnya output staff oleh Lead-nya, output Lead oleh
      Manager. perId (indeks(data)) hanya dipakai task hasil permintaan ke DAE (peninjauDae); sebaiknya
      selalu dilewatkan supaya semua tempat memilih peninjau yang sama. */
+  /* Penugasan Manager di Pengembangan (2.54.0, permintaan user): pembaruan inisiatif yang
+     diberikan Manager ke orang lain sebagai penugasan (t.penugasan = ID Manager itu): bertenggat,
+     diajukan dengan hasil kerja, dan ditinjau Manager itu sebelum selesai. Pembaruan yang dicatat
+     sendiri (juga oleh agen) tetap tanpa tinjauan. Ditandai saat dibuat (form Tambah pembaruan)
+     atau lewat Ubah task; tersimpan di jurnal data real dan _payload MySQL, tanpa kolom baru. */
+  const penugasanManager = t => !!t && !!t.penugasan && !!t.inisiatif && t.lane !== 'proyek' && !t.permintaanDae
+    && t.penugasan !== t.pic && ORANG_PER_ID.has(t.penugasan) && orang(t.penugasan).peran === 'manager';
   function peninjau(t, perId) {
     if (t.permintaanDae) return peninjauDae(t, perId);
+    if (penugasanManager(t)) return t.penugasan;
     if (t.lane !== 'proyek') return t.status === 'Ditinjau' ? MANAGER : null;
     const o = orang(t.pic);
     if (o.peran === 'manager') return null;
@@ -721,7 +729,8 @@
     ];
   }
   // Task hasil permintaan ke tim DAE (2.46.0) juga memakai syarat ini: peminta meninjau hasilnya, jadi outputnya wajib.
-  const perluSyarat = t => t.lane === 'proyek' || !!t.permintaanDae;
+  // Penugasan Manager (2.54.0) juga diajukan dengan hasil kerja, seperti task proyek.
+  const perluSyarat = t => t.lane === 'proyek' || !!t.permintaanDae || penugasanManager(t);
 
   /* Keadaan yang di PRD berupa status sendiri (Ready, Revision, Blocked), di sini dihitung:
      orang cukup menggerakkan empat status, sisanya terbaca otomatis. */
@@ -938,6 +947,8 @@
       output: String(f.output || '').trim(), deps: (f.deps || []).slice(), tunggu: [], lepasFase: false,
       notes: '', assignedBy: me, cycle: p ? p.cycle || 1 : 1, induk: pInduk ? pInduk.id : '', inisiatif: ini ? ini.id : '',
       pembaruanProyek: pb ? pb.id : '', permintaanDae: '', peminta: '',
+      // Penugasan Manager (2.54.0): hanya pembaruan inisiatif dari Manager untuk orang lain.
+      ...(f.penugasan && ini && orang(me).peran === 'manager' && f.pic !== me ? { penugasan: me } : {}),
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
       subtasks: [], comments: [], tinjauan: [], evidence: buktiAwal ? [buktiAwal] : [],
     };
@@ -1140,6 +1151,15 @@
       else if (s) t.kategori = s.nama;
     }
     if (pic !== t.pic) { ubah.push('diserahkan ke ' + orang(pic).pendek); t.pic = pic; }
+    // Penugasan Manager (2.54.0): Manager menandai atau melepas pembaruan inisiatif sebagai penugasan.
+    if (f.penugasan !== undefined && t.inisiatif && t.lane !== 'proyek' && orang(me).peran === 'manager') {
+      const jadi = !!f.penugasan && t.pic !== me;
+      if (jadi !== !!t.penugasan) {
+        if (t.status === 'Ditinjau') throw new Error('Task ini sedang ditinjau: setujui atau kembalikan dulu sebelum mengubah penugasannya.');
+        if (jadi) t.penugasan = me; else delete t.penugasan;
+        ubah.push(jadi ? 'jadi penugasan Manager' : 'bukan penugasan lagi');
+      }
+    }
     if (umumKah && tahapU !== (t.tahapProyek || '')) {
       ubah.push(`tahap ${namaTahapUmum(pU, t.tahapProyek) || 'tanpa tahap'} → ${namaTahapUmum(pU, tahapU) || 'tanpa tahap'}`);
       t.tahapProyek = tahapU;
@@ -3731,6 +3751,7 @@
   function pemberiTask(t, perId) {
     if (!t) return '';
     if (t.permintaanDae) return peninjauDae(t, perId);
+    if (penugasanManager(t)) return t.penugasan;   // perpanjangan penugasan ke Manager penugasnya (2.54.0)
     if (t.assignedBy && t.assignedBy !== t.pic && ORANG_PER_ID.has(t.assignedBy)) return t.assignedBy;
     const lead = leadDari(t.pic);
     if (lead && lead !== t.pic && ORANG_PER_ID.has(lead)) return lead;
@@ -5277,6 +5298,7 @@
     JENIS_UMUM, TEMPLAT_TAHAP, TAHAP_UMUM_MAKS, proyekUmum, bolehKelolaUmum, rapikanTahapUmum, ubahProyekUmum, pilihanPicUmum, bolehTaskUmum,
     pindahTahapUmum, ringkasProyekUmum, namaTahapUmum, timPemilikUmum,
     peninjauTutup, tutupDiajukan, bolehAjukanTutup, ajukanTutupUmum, jawabTutupUmum, antreTutupUmum, semuaBeresUmum,
+    penugasanManager,
     MAKS_SETUJUI_BANYAK, bolehSetujuiBanyak, versiTinjauan, setujuiBanyak,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,

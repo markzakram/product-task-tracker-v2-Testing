@@ -853,6 +853,21 @@ terlalu berat untuk itu (fase, gerbang Manager, dan E12 per siklus), jadi Inisia
 yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara khusus tim DAE**
 (dan Manager).
 
+- **Penugasan Manager (2.54.0, permintaan user).** Manager sering memberi task yang masuk ke
+  Pengembangan, dan perlu tenggat. Keputusan user: **penugasan langsung** (bukan permintaan dulu),
+  **ditinjau Manager**, dan tenggat cukup **per pembaruan** (inisiatif tetap tanpa tanggal akhir).
+  Di form **Tambah pembaruan**, Manager mencentang **Penugasan: ditinjau saya sebelum selesai**
+  (tercentang bawaan) dan mengisi tenggat; pembaruan untuk orang lain lalu bertanda
+  `t.penugasan` = ID Manager itu. PIC mengajukannya dengan hasil kerja (output) seperti task proyek,
+  Manager menyetujui atau mengembalikan, dan perpanjangan tenggat dimintakan ke Manager itu.
+  Pembaruan lama bisa ditandai atau dilepas lewat **Ubah task** (Manager, selama tak sedang
+  ditinjau). Di halaman inisiatif, penugasan yang masih berjalan dikumpulkan di kotak **Ditugaskan
+  Manager** (urut tenggat, dengan PIC, status, dan terlambat); detail task menulis **Ditugaskan
+  Nynda**. Pembaruan yang dicatat sendiri, termasuk oleh agen, tetap tanpa tinjauan. Tandanya
+  tersimpan di jurnal data real dan kolom `_payload` MySQL, tanpa kolom atau migrasi baru. Aturannya
+  `Inti.penugasanManager` (peninjau, syarat ajukan, `pemberiTask`); diuji di
+  `test/penugasan.test.js`.
+
 - **Halaman Pengembangan** (grup Pekerjaan, di bawah Proyek): pohon inisiatif dengan status
   (Aktif, Ditunda, Selesai), PIC, progres task seluruh turunannya, dan permintaan terbuka.
   Klik panah untuk melipat cabang atau nama untuk membuka detail; akar terbaru diperbarui di atas. Hanya tampil untuk

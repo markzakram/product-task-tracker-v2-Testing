@@ -3572,7 +3572,7 @@
         ${induk ? `<p class="detail-induk">↳ ${tr('Task turunan dari')} <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
         ${dariMinta ? `<p class="detail-induk">↳ ${tr('Diminta {nama} dari', { nama: nama(dariMinta.dari) })} <button type="button" data-aksi="buka-task" data-id="${esc(dariMinta.sumber)}">${esc(dariMinta.sumber)}${asalMinta ? ' · ' + esc(potong(asalMinta.title, 80)) : ''}</button></p>` : ''}
         <p class="detail-sub">${[s || I.proyekUmum(p) ? '' : `<span class="pill lb-menunggu">${tr('Belum ber-sub-stage')}</span>`, I.proyekUmum(p) ? pilihTahapTask(t, p) : '', tim ? tr('Tim {tim}', { tim: esc(I.labelTim(tim.kode)) }) : '', s && s.reviewManager ? tr('direview Manager') : ''].filter(Boolean).join(' · ')}${I.proyekUmum(p) ? '' : tanya('konsep-kode', tr('sub-stage dan tim'))}</p>
-        <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)}
+        <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)} ${chipPenugasan(t)}
           ${I.bolehAjukanPanjang(S.data, t, me) ? `<button type="button" class="tautan-kecil" data-aksi="panjang-ajukan" data-id="${esc(t.id)}">${ikon('kalender', 14)} ${tr('Minta perpanjangan tenggat')}</button>` : ''}</div>
         <div class="detail-orang">${avatar(t.pic)} ${tr('PIC')} ${nama(t.pic)}${statusHtml(t.pic)}
           ${t.support.length ? ` · ${tr('bantuan')} ${t.support.map(nama).join(', ')}` : ''}
@@ -5099,8 +5099,8 @@
     const judul = esc(I.judulPembaruan(t, inisiatifDari(t.inisiatif) || x));
     return `<div class="ini-berjalan-baris ini-berjalan-task${t.permintaanDae ? ' ada-minta' : ''}">
       <div class="ini-task-kepala"><button type="button" class="ini-berjalan-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${judul}</button>${tombolAksiPembaruan(t)}</div>
-      <small>${esc(t.id)} · ${esc(tr(t.status))}${t.due ? ' · ' + esc(tr('tenggat {tanggal}', { tanggal: fmtTanggal(t.due) })) : ''}</small>
-      ${t.permintaanDae ? `<small class="ini-berjalan-orang">${tr('PIC')} ${avatar(t.pic, 'kecil')} ${nama(t.pic)}</small>` : ''}
+      <small>${esc(t.id)} · ${esc(t.status === 'Ditinjau' && I.penugasanManager(t) ? tr('menunggu tinjauan {nama}', { nama: I.orang(t.penugasan).pendek }) : tr(t.status))}${t.due ? ' · ' + esc(tr('tenggat {tanggal}', { tanggal: fmtTanggal(t.due) })) : ''}${I.telat(t, hariIni()) ? ` · <span class="teks-merah">${esc(tr('terlambat {n} hari', { n: I.selisihHari(t.due, hariIni()) }))}</span>` : ''}</small>
+      ${t.permintaanDae || I.penugasanManager(t) ? `<small class="ini-berjalan-orang">${tr('PIC')} ${avatar(t.pic, 'kecil')} ${nama(t.pic)} ${chipPenugasan(t)}</small>` : ''}
       ${penandaBaruTask(t)}${asalPembaruanIni(t, x)}${chipDiminta(t)}${t.evidence && t.evidence.length ? `<div class="ini-pembaruan-chip">${tautanPembaruanHtml(t)}</div>` : ''}</div>`;
   }
   /* Spanduk di detail task yang lahir dari permintaan: dari siapa, siapa yang meninjau, putaran revisi. */
@@ -5205,6 +5205,9 @@
   function viewInisiatifDetail(x) {
     const h = hariIni();
     const r = ringkasIniKini(x);
+    // Penugasan Manager (2.54.0) di atas, menurut tenggatnya; pembaruan lain di "Sedang berjalan".
+    const tugasIni = r.buka.filter(I.penugasanManager).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+    const lainIni = r.buka.filter(t => !I.penugasanManager(t));
     const anak = I.anakInisiatif(S.data, x.id);
     const kelola = I.bolehKelolaInisiatif(S.me, x);
     const tautan = (x.links || []).filter(l => tautanAman(l.url));
@@ -5249,9 +5252,11 @@
               ${baris(tr('Tautan'), tautan.length ? tautan.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${ikon('luar', 14)} ${esc(l.label || I.judulTautan(l.url))}</a>`).join('') : `<span class="hint">${kelola ? tr('Belum ada. Tambahkan repo, dokumen, atau dashboard lewat Ubah.') : tr('Belum ada.')}</span>`)}
               ${(x.menerima || []).length ? baris(tr('Menerima permintaan'), x.menerima.map(k => `<span class="ini-chip">${esc(labelJenis(k))}</span>`).join('')) : ''}
             </dl></section>
-          <section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Sedang berjalan')} ${r.buka.length ? `<span class="lencana">${r.buka.length}</span>` : ''}</p>
-            ${r.buka.length ? `<div class="ini-berjalan">${r.buka.map(t => barisBerjalanIni(t, x)).join('')}</div>`
-              : `<p class="hint">${tr('Tidak ada. Pembaruan yang belum selesai tampil di sini.')}</p>`}</section>
+          ${tugasIni.length ? `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Ditugaskan Manager')} <span class="lencana">${tugasIni.length}</span></p>
+            <div class="ini-berjalan">${tugasIni.map(t => barisBerjalanIni(t, x)).join('')}</div></section>` : ''}
+          <section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Sedang berjalan')} ${lainIni.length ? `<span class="lencana">${lainIni.length}</span>` : ''}</p>
+            ${lainIni.length ? `<div class="ini-berjalan">${lainIni.map(t => barisBerjalanIni(t, x)).join('')}</div>`
+              : `<p class="hint">${tugasIni.length ? tr('Tidak ada pembaruan lain yang sedang berjalan.') : tr('Tidak ada. Pembaruan yang belum selesai tampil di sini.')}</p>`}</section>
           ${kartuAcara('inisiatif', x.id)}
         </aside>
       </div>`;
@@ -5466,8 +5471,12 @@
   function opsiInisiatifForm(terpilih, jalur) {
     if (!adaTujuanPembaruan()) return '';
     return `<label class="isian" data-bagian="inisiatif" ${jalur === 'inisiatif' ? '' : 'hidden'}>${tr('Pembaruan untuk')} <select name="inisiatif"><option value="">${esc(tr('— pilih inisiatif atau proyek —'))}</option>${opsiTujuanPembaruan(terpilih || '')}</select>
-      <small>${tr('Tetap task rutin tanpa tinjauan; tampil di halaman inisiatif atau di tab Pembaruan proyeknya.')}</small></label>`;
+      <small>${tr('Tetap task rutin tanpa tinjauan; tampil di halaman inisiatif atau di tab Pembaruan proyeknya.')}</small></label>
+      ${I.orang(S.me).peran === 'manager' ? `<label class="dev-cek penugasan-cek" data-bagian="inisiatif" ${jalur === 'inisiatif' ? '' : 'hidden'}><input type="checkbox" name="penugasan" value="ya" checked>
+        <span><b>${tr('Penugasan: ditinjau saya sebelum selesai')}</b><small>${tr('Untuk pembaruan inisiatif yang Anda berikan ke orang lain: isi tenggatnya; PIC mengajukannya dengan hasil kerja, lalu Anda menyetujui atau mengembalikannya.')}</small></span></label>` : ''}`;
   }
+  /* Penugasan Manager (2.54.0): tanda di baris pembaruan dan detail task. */
+  const chipPenugasan = t => (I.penugasanManager(t) ? `<span class="pill ditugaskan" title="${esc(tr('Ditinjau {nama} sebelum selesai', { nama: I.orang(t.penugasan).pendek }))}">${esc(tr('Ditugaskan {nama}', { nama: I.orang(t.penugasan).pendek }))}</span>` : '');
   /* Pilihan tujuan pembaruan di detail task di luar proyek: inisiatif atau proyek (2.45.0). */
   function pilihSambungTask(t, boleh) {
     if (t.project || !boleh || !I.bolehLihatInisiatif(S.me)) return '';
@@ -10670,6 +10679,9 @@
       <label class="isian">${tr('Judul task')} <input name="title" required maxlength="200" value="${esc(t.title)}"></label>
       <label class="isian">${tr('Sub-stage')} <select name="sub" data-sub>${opsiSub(jenis, t.sub, false, tahap)}</select></label>
       <p class="hint" data-hint-sub>${esc(hintSub(t.sub))}</p>
+      ${t.inisiatif && t.lane !== 'proyek' && I.orang(S.me).peran === 'manager' && t.pic !== S.me ? `<input type="hidden" name="penugasanAda" value="1">
+        <label class="dev-cek penugasan-cek"><input type="checkbox" name="penugasan" value="ya" ${t.penugasan ? 'checked' : ''} ${t.status === 'Ditinjau' ? 'disabled' : ''}>
+        <span><b>${tr('Penugasan: ditinjau saya sebelum selesai')}</b><small>${t.status === 'Ditinjau' ? tr('Sedang ditinjau: setujui atau kembalikan dulu sebelum mengubahnya.') : tr('PIC mengajukannya dengan hasil kerja, lalu Anda menyetujui atau mengembalikannya.')}</small></span></label>` : ''}
       <div class="dua-isian">
         <label class="isian">${tr('PIC')} <select name="pic">${opsiPic(pilihanPicUbah(t, t.sub), t.pic, t.sub)}</select></label>
         <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(t.due || '')}"></label>
@@ -10991,6 +11003,7 @@
             title: f.title, project: proyek ? f.project : '', sub: proyek ? f.subProyek : f.subRutin || '',
             pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, induk: proyek ? f.induk || '' : '',
             inisiatif: ini && !keProyek ? f.inisiatif : '', pembaruanProyek: keProyek ? f.inisiatif : '',
+            penugasan: ini && !keProyek && f.penugasan === 'ya',
             ...(ini ? { tautan: { url: f.tautanUrl, label: f.tautanLabel } } : {}),
           } });
           // Dibuat dari baris catatan: nomor task-nya ditempel di ujung baris itu.
@@ -11007,7 +11020,8 @@
         }
         case 'ubah': {
           const lama = (S.data.tasks.find(x => x.id === m.id) || {}).pic;
-          ubahData('ubahTask', { task: m.id, f: { title: f.title, sub: f.sub, pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, ...(f.tahapProyek === undefined ? {} : { tahapProyek: f.tahapProyek }) } });
+          ubahData('ubahTask', { task: m.id, f: { title: f.title, sub: f.sub, pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, ...(f.tahapProyek === undefined ? {} : { tahapProyek: f.tahapProyek }),
+            ...(f.penugasanAda ? { penugasan: f.penugasan === 'ya' } : {}) } });
           const t = S.data.tasks.find(x => x.id === m.id);
           tutupModal();
           return selesaiUbah(t.pic !== lama ? tr('Task disimpan; PIC-nya kini {nama}.', { nama: I.orang(t.pic).pendek }) : tr('Task disimpan.'));
