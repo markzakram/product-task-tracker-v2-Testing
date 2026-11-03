@@ -602,8 +602,24 @@ details.ringkas[open] summary { margin-bottom: 6px; }
 .baris-proyek:hover { border-color: var(--biru-garis); }
 /* Inisiatif (2.31.0). */
 .ini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
-.ini-kartu { display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%; color: inherit; font: inherit; cursor: pointer; }
+/* Sejak 2.55.0 kartu berisi tombol buka (merentang ke seluruh kartu) dan baris tautan di bawahnya. */
+.ini-kartu { position: relative; display: flex; flex-direction: column; gap: 10px; }
 .ini-kartu:hover { border-color: var(--biru-garis); }
+.ini-kartu-buka { flex: 1; display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.ini-kartu-buka::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.ini-kartu-buka:focus-visible { outline: none; }
+.ini-kartu:has(.ini-kartu-buka:focus-visible) { outline: 2px solid var(--biru); outline-offset: 2px; }
+/* Tautan inisiatif sebagai tombol (2.55.0): daftar Pengembangan, kartu subinisiatif, kepala halaman. */
+.ini-tautan-baris { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 100%; }
+.ini-tautan-baris:has(details[open]) { z-index: 6; }
+.ini-tautan-baris .ini-chip { min-height: 28px; min-width: 0; max-width: 100%; cursor: pointer; }
+.ini-tautan-baris .ini-chip svg { flex-shrink: 0; }
+.ini-tautan-baris a.ini-chip span { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ini-tautan-lain { position: relative; }
+.ini-tautan-lain summary { list-style: none; }
+.ini-tautan-lain summary::-webkit-details-marker { display: none; }
+.ini-tautan-menu { position: absolute; top: calc(100% + 4px); left: 0; display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 200px; max-width: min(320px, 80vw); padding: 6px; border: 1px solid var(--garis); border-radius: 10px; background: var(--muka); box-shadow: var(--bayang); }
+.ini-tautan-menu a.ini-chip span { max-width: none; }
 .ini-kartu-atas { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .ini-kartu-atas strong { font-size: calc(15px * var(--skala-huruf)); }
 .ini-kartu small { font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }

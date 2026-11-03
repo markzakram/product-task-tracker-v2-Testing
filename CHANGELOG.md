@@ -6,6 +6,18 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.55.0 — Tautan inisiatif bisa dibuka dari daftar Pengembangan (2026-11-03)
+
+Permintaan user: kalau inisiatif sudah punya tautan, ada tombol untuk membukanya tanpa masuk ke
+inisiatifnya dulu.
+
+- Tautan inisiatif tampil sebagai tombol (buka di tab baru) di baris pohon **Pengembangan**, di
+  kartu **Subinisiatif**, dan di kepala halaman inisiatif. Tiga pertama tampil; sisanya di menu
+  **+n tautan**.
+- Kartu subinisiatif kini berupa kartu dengan tombol buka yang merentang ke seluruh kartu, jadi
+  tetap bisa diklik di mana saja; tombol tautan di bawahnya tidak ikut membuka detail.
+- Hanya tampilan: tanpa perubahan data, kolom, atau migrasi.
+
 ## 2.54.0 — Penugasan Manager di Pengembangan (2026-11-03)
 
 Permintaan user: Manager memberi task yang masuk ke Pengembangan, dan perlu tenggat. Pilihan

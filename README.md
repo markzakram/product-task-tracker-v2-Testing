@@ -872,6 +872,11 @@ yang lebih ringan. Keputusan user: pembaruan **tanpa tinjauan**, dan **sementara
   (Aktif, Ditunda, Selesai), PIC, progres task seluruh turunannya, dan permintaan terbuka.
   Klik panah untuk melipat cabang atau nama untuk membuka detail; akar terbaru diperbarui di atas. Hanya tampil untuk
   anggota tim DAE, Manager, dan Dev; alamatnya `#/inisiatif/INI-001`.
+- **Tautan sebagai tombol (2.55.0, permintaan user)**: tautan inisiatif (repo, dokumen, dashboard
+  yang diisi lewat **Ubah → Tautan**) tampil sebagai tombol di baris pohon Pengembangan, di kartu
+  subinisiatif, dan di kepala halaman inisiatif, jadi bisa dibuka di tab baru tanpa membuka
+  inisiatifnya dulu. Tiga tautan pertama tampil; sisanya di menu **+n tautan**. Kartu subinisiatif
+  tetap bisa diklik di mana saja untuk membuka detailnya.
 - **Hierarki (2.47.0)**: **Inisiatif baru** membuat wadah utama; **Tambah subinisiatif** di detail
   membuat anak yang boleh memiliki subinisiatif lagi. PIC awal mengikuti induk dan bisa diganti.
   Saran nama: **Generator Soal → Generator Soal OJK → Integrasi Platform Latihan**,

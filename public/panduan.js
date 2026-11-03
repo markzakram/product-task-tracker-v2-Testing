@@ -296,6 +296,7 @@
       langkah: [
         'Buka **Pengembangan**, lalu **Inisiatif baru** untuk wadah utama seperti **Generator Soal**. Buka wadahnya dan tekan **Tambah subinisiatif** untuk membuat **Generator Soal OJK**, lalu tambahkan turunan lagi sesuai kebutuhan. PIC awal mengikuti induk dan boleh diganti.',
         'Untuk menyusun inisiatif yang sudah ada, buka **Ubah → Inisiatif induk**. Task, ID, dan diskusi tetap ikut bersama cabangnya. Pilih tingkat utama untuk melepas cabang dari induknya.',
+        'Isi **Ubah → Tautan** dengan repo, dokumen, atau dashboard inisiatif. Tautannya tampil sebagai tombol di daftar **Pengembangan**, di kartu subinisiatif, dan di kepala halaman, jadi bisa langsung dibuka tanpa membuka inisiatifnya dulu.',
         '**Pindahkan inisiatif** membawa seluruh wadah beserta isinya ke induk lain, misalnya ProductTrack ke dalam ProdukApp. **Pindahkan pembaruan** hanya membawa task yang Anda centang ke tujuan pilihan; tombol **Pindahkan** di setiap pembaruan langsung memilih task tersebut.',
         'Di form pemindahan pembaruan, cari judul/ID/asal dan centang task. **Pilih hasil pencarian** mencentang hasil yang terlihat; centang sebelumnya tetap ikut walau tersembunyi oleh pencarian. Periksa jumlah pilihan, lalu **Pindahkan** (maksimal 200). Status, tanggal selesai, komentar, dan bukti tetap ikut. **Batal** tidak mengubah apa pun.',
         '**Termasuk turunan** menampilkan ringkasan, task berjalan, dan riwayat seluruh cabang; **Di sini saja** hanya menampilkan pembaruan langsung. Klik jalur nama untuk menuju asal pembaruan.',

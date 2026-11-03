@@ -2949,6 +2949,8 @@
     'Sedang ditinjau: setujui atau kembalikan dulu sebelum mengubahnya.': 'Under review: approve or return it first before changing this.',
     'PIC mengajukannya dengan hasil kerja, lalu Anda menyetujui atau mengembalikannya.': 'The owner submits it with the work result, then you approve or return it.',
     'Task ini sedang ditinjau: setujui atau kembalikan dulu sebelum mengubah penugasannya.': 'This task is under review: approve or return it first before changing its assignment.',
+    /* ----- Tautan inisiatif sebagai tombol (2.55.0) ----- */
+    'Tautan {nama}': 'Links for {nama}',
   };
 
   let kini = 'id';

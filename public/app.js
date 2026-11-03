@@ -5147,6 +5147,18 @@
   const ringkasIniKini = x => I.ringkasInisiatif(S.data, x, hariIni(), S.ini.cakupan === 'langsung');
   const jejakIniHtml = id => `<nav class="ini-jejak" aria-label="${tr('Lokasi inisiatif')}"><button type="button" data-aksi="tutup-inisiatif">${tr('Pengembangan')}</button>${I.jejakInisiatif(S.data, id).map((x, i, a) => `${ikon('kanan', 13)}${i === a.length - 1 ? `<span aria-current="page">${esc(x.nama)}</span>` : `<button type="button" data-aksi="buka-inisiatif" data-id="${esc(x.id)}">${esc(x.nama)}</button>`}`).join('')}</nav>`;
   const asalPembaruanIni = (t, x) => t.inisiatif && t.inisiatif !== x.id ? `<button type="button" class="ini-jalur" data-aksi="buka-inisiatif" data-id="${esc(t.inisiatif)}">${esc(namaJalurIni(t.inisiatif))}</button>` : '';
+  /* Tautan inisiatif sebagai tombol (2.55.0, permintaan user): repo, dokumen, atau dashboard dibuka
+     langsung dari daftar Pengembangan, kartu subinisiatif, dan kepala halaman, tanpa membuka
+     inisiatifnya dulu. Tiga pertama tampil; sisanya di menu "+n tautan". */
+  const TAUTAN_INI_TAMPIL = 3;
+  function tautanIniHtml(y) {
+    const daftar = (y.links || []).filter(l => tautanAman(l.url));
+    if (!daftar.length) return '';
+    const a = l => `<a class="ini-chip ini-tautan" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">${ikon('luar', 14)}<span>${esc(l.label || I.judulTautan(l.url))}</span></a>`;
+    const sisa = daftar.slice(TAUTAN_INI_TAMPIL);
+    return `<div class="ini-tautan-baris" role="group" aria-label="${esc(tr('Tautan {nama}', { nama: y.nama }))}">${daftar.slice(0, TAUTAN_INI_TAMPIL).map(a).join('')}${sisa.length
+      ? `<details class="ini-tautan-lain"><summary class="ini-chip">${esc(tr('+{n} tautan', { n: sisa.length }))}</summary><div class="ini-tautan-menu">${sisa.map(a).join('')}</div></details>` : ''}</div>`;
+  }
   function viewInisiatif() {
     const x = inisiatifDari(S.ini.pilih);
     if (x) return viewInisiatifDetail(x);
@@ -5176,6 +5188,7 @@
         ${anak.length ? `<button type="button" class="ini-lipat" data-aksi="ini-lipat" data-id="${esc(y.id)}" aria-expanded="${terbuka}" aria-label="${esc(tr('Buka atau tutup cabang {nama}', { nama: y.nama }))}">${ikon(terbuka ? 'bawah' : 'kanan', 16)}</button>` : `<span class="ini-lipat">${ikon('folder', 16)}</span>`}
         <div class="ini-pohon-nama"><button type="button" class="ini-berjalan-judul" data-aksi="buka-inisiatif" data-id="${esc(y.id)}">${esc(y.nama)}</button>
           <small>${esc(y.id)} · ${chipTim(y.tim)} · ${tr('PIC {nama}', { nama: nama(y.pic) })}${anak.length ? ' · ' + tr('{n} subinisiatif', { n: anak.length }) : ''}</small>
+          ${tautanIniHtml(y)}
           ${r.telat ? `<small class="teks-merah">${tr('{n} terlambat', { n: r.telat })}</small>` : ''}
           ${penandaBaruIni(r.tasks)}
           ${belumSaya(r) ? `<span class="ini-belum">${tr('{n} pembaruan belum Anda tanggapi', { n: belumSaya(r) })}</span>` : ''}
@@ -5224,6 +5237,7 @@
           <p class="detail-asal ini-kepala-meta">${esc(x.id)} · ${chipTim(x.tim)} · ${avatar(x.pic, 'kecil')} ${tr('PIC {nama}', { nama: nama(x.pic) })} · ${pillInisiatif(x.status)}</p>
           <h1 class="judul-besar">${esc(x.nama)}</h1>
           ${x.tujuan ? `<p class="teks-panjang">${teksBertaut(x.tujuan)}</p>` : kelola ? `<p class="hint">${tr('Belum ada tujuan. Tambahkan lewat Ubah supaya pembaca tahu arah pekerjaan ini.')}</p>` : ''}
+          ${tautanIniHtml(x)}
         </div>
         <div class="ini-kepala-tombol">
           ${kelola && !r.tasks.length && !anak.length ? `<button type="button" class="tombol bahaya" data-aksi="inisiatif-hapus" data-id="${esc(x.id)}">${ikon('hapus', 16)} ${tr('Hapus')}</button>` : ''}
@@ -5239,7 +5253,7 @@
       ${r.tasks.some(bolehPindahPembaruan) ? `<div class="ini-cakupan"><button type="button" class="tombol kecil" data-aksi="pindah-pembaruan" data-inisiatif="${esc(x.id)}">${ikon('serah', 16)} ${tr('Pindahkan pembaruan')}</button><span class="hint">${tr('Pilih satu atau beberapa task dalam cakupan ini untuk dipindahkan.')}</span></div>` : ''}
       ${ringkasKabarPengembangan(r.tasks, x.id)}
       <section class="ini-subbagian"><div class="ini-umpan-kepala"><h2>${tr('Subinisiatif')}${anak.length ? ` (${anak.length})` : ''}</h2>${kelola ? `<button type="button" class="tombol kecil" data-aksi="inisiatif-baru" data-induk="${esc(x.id)}">${ikon('tambah', 16)} ${tr('Tambah subinisiatif')}</button>` : ''}</div>
-        ${anak.length ? `<div class="ini-grid">${anak.map(y => { const a = I.ringkasInisiatif(S.data, y, h); return `<button type="button" class="kartu-polos ini-kartu" data-aksi="buka-inisiatif" data-id="${esc(y.id)}"><span class="ini-kartu-atas"><strong>${esc(y.nama)}</strong>${pillInisiatif(y.status)}</span><small>${esc(y.id)} · ${tr('PIC {nama}', { nama: nama(y.pic) })}</small><span class="ini-tujuan">${esc(potong(y.tujuan || '', 160))}</span><span class="ini-angka">${tr('{a} terbuka · {b} telat · {c} selesai 30 hari', { a: a.buka.length, b: a.telat, c: a.selesai30 })}</span></button>`; }).join('')}</div>` : `<p class="hint">${tr('Belum ada subinisiatif.')}</p>`}</section>
+        ${anak.length ? `<div class="ini-grid">${anak.map(y => { const a = I.ringkasInisiatif(S.data, y, h); return `<div class="kartu-polos ini-kartu"><button type="button" class="ini-kartu-buka" data-aksi="buka-inisiatif" data-id="${esc(y.id)}"><span class="ini-kartu-atas"><strong>${esc(y.nama)}</strong>${pillInisiatif(y.status)}</span><small>${esc(y.id)} · ${tr('PIC {nama}', { nama: nama(y.pic) })}</small><span class="ini-tujuan">${esc(potong(y.tujuan || '', 160))}</span><span class="ini-angka">${tr('{a} terbuka · {b} telat · {c} selesai 30 hari', { a: a.buka.length, b: a.telat, c: a.selesai30 })}</span></button>${tautanIniHtml(y)}</div>`; }).join('')}</div>` : `<p class="hint">${tr('Belum ada subinisiatif.')}</p>`}</section>
       <div class="ini-badan">
         <div class="ini-umpan-kolom" id="ini-umpan">${umpanInisiatif(x, r)}</div>
         <aside class="ini-samping">
@@ -11439,7 +11453,7 @@
     // Menu akun tertutup saat klik di luarnya atau memilih isinya (kecuali tema: hasilnya langsung terlihat).
     if (S.akun.buka && (!e.target.closest('.akun') || (e.target.closest('.panel-akun [data-aksi]') && !e.target.closest('[data-aksi="tema"]')))) bukaTutupAkun(false);
     if (sebutAktif && !e.target.closest('.km-sebut-pilih, .km-isian')) tutupSebutan();
-    for (const m of $$('details.menu-lagi[open]')) if (!m.contains(e.target) || e.target.closest('.menu-lagi-isi [data-aksi]')) m.open = false;
+    for (const m of $$('details.menu-lagi[open], details.ini-tautan-lain[open]')) if (!m.contains(e.target) || e.target.closest('.menu-lagi-isi [data-aksi], .ini-tautan-menu a')) m.open = false;
     const tautanLink = e.target.closest('a[data-link]');
     if (tautanLink) { hitungKlik(tautanLink.dataset.link); return; }
     // Di layar sentuh, mengetuk gelembung memunculkan tombol aksinya (reaksi, balas, ubah, hapus).
@@ -12902,7 +12916,7 @@
     }
     if (e.key === 'Escape') {
       if (tutupArti()) return;
-      const menu = $('details.menu-lagi[open]');
+      const menu = $('details.menu-lagi[open], details.ini-tautan-lain[open]');
       if (menu) { menu.open = false; return menu.querySelector('summary').focus(); }
       if (!$('#modal').hidden) return tutupModal();
       if (S.view === 'catatan' && S.ctt.banyak) { S.ctt.banyak = null; return render(); }
