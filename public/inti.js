@@ -4509,7 +4509,7 @@
   function simpanLink(data, me, f, id, waktu) {
     const url = tautanRapi(f.url);
     if (!url) throw new Error('Alamat link tidak valid. Contoh: https://docs.google.com/…');
-    const isi = { title: teks(f.title) || judulTautan(url), url, folder: folderSimpan(f.folder) };
+    const isi = { title: teks(f.title) || judulTautan(url), url, folder: folderSimpan(f.folder), updatedAt: waktu };
     if (id) return Object.assign(milikSaya(data.links, id, me), isi);
     const l = { id: `u${waktu}-${data.links.length}`, user: me, ...isi };
     data.links.push(l);
@@ -4548,6 +4548,134 @@
     links: gabungDaftarPribadi(asal && asal.links, saya && saya.links, kini && kini.links),
     notes: gabungDaftarPribadi(asal && asal.notes, saya && saya.notes, kini && kini.notes),
   });
+
+  /* ---------- Catatan & Link Saya di server (2.57.0, permintaan user) ----------
+     Dulu hanya di browser, jadi terlihat hilang saat dibuka dari alamat atau perangkat lain, dan
+     benar-benar hilang saat data situs terhapus. Kini tersimpan di Spreadsheet per profil, dan
+     browser tetap memegang salinannya supaya bisa dipakai saat koneksi putus.
+
+     gabungMilik menggabungkan salinan browser dengan server, per butir. basis[jenis][id] = { h:
+     sidik butir saat terakhir sama dengan server, r: versinya }. Yang hanya diubah satu pihak ikut
+     pihak itu; diubah keduanya, yang updatedAt-nya terbaru, dan yang kalah disimpan sebagai riwayat
+     versi catatan. Yang tak ada di server selalu dikirim.
+
+     Penghapusan tak pernah disimpulkan: butir yang tak ada di browser diambil lagi dari server,
+     kecuali ID-nya tercatat di dihapus (dicatat saat pengguna menekan hapus). Jadi salinan browser
+     yang kosong atau rusak hanya memulihkan, tak pernah menghapus isi server. */
+  const JENIS_MILIK = ['notes', 'links'];
+  const MILIK_BUTIR_MAKS = 190000;   // muat di empat sel Google Sheets
+  const MILIK_KIRIM_MAKS = 40;
+  function sidikMilik(x) {
+    const polos = JSON.stringify(Object.keys(x).sort().filter(k => x[k] !== undefined).map(k => [k, x[k]]));
+    let h = 0x811c9dc5;
+    for (let i = 0; i < polos.length; i++) h = Math.imul(h ^ polos.charCodeAt(i), 0x01000193);
+    return `${(h >>> 0).toString(36)}.${polos.length}`;
+  }
+  const waktuMilik = x => Number(x && (x.updatedAt || x.createdAt)) || 0;
+  /* Yang boleh disimpan di server: tak terlalu panjang, dan link hanya alamat web. */
+  const milikSah = (jenis, x) => JSON.stringify(x).length <= MILIK_BUTIR_MAKS && (jenis !== 'links' || /^https?:\/\//i.test(String(x.url || '')));
+  function periksaMilik(ubah, me) {
+    if (!Array.isArray(ubah) || !ubah.length || ubah.length > MILIK_KIRIM_MAKS) throw new Error(`Kirim 1–${MILIK_KIRIM_MAKS} butir sekaligus.`);
+    return ubah.map(u => {
+      const jenis = String(u && u.jenis);
+      const id = teks(u && u.id);
+      if (!JENIS_MILIK.includes(jenis)) throw new Error('Jenis butir tidak dikenal.');
+      if (!id || id.length > 120) throw new Error('ID butir tidak sah.');
+      const rev = Number(u.rev) || 0;
+      if (u.hapus) return { jenis, id, rev, hapus: true };
+      if (!u.data || typeof u.data !== 'object' || Array.isArray(u.data)) throw new Error('Isi butir tidak sah.');
+      const data = { ...u.data, id, user: me };
+      if (!milikSah(jenis, data)) throw new Error(jenis === 'links' ? 'Alamat link harus alamat web (http/https).' : 'Catatan ini terlalu panjang untuk disimpan di server.');
+      return { jenis, id, rev, data };
+    });
+  }
+  const ringkasMilik = butir => ({ rev: Math.max(0, ...butir.map(x => Number(x.rev) || 0)), n: butir.length });
+  function gabungDaftarMilik(jenis, { lokal, basis, server, dihapus, tahan }) {
+    const L = new Map(lokal.map(x => [x.id, x]));
+    const Sv = new Map(server.map(x => [x.id, x]));
+    const hapus = new Set(dihapus);
+    const out = { baru: [], basis: {}, kirim: [], kalah: [], hapusLokal: [], diambil: 0, takTerkirim: [] };
+    const kirim = (l, rev) => {
+      if (milikSah(jenis, l)) out.kirim.push({ jenis, id: l.id, rev, data: l });
+      else out.takTerkirim.push(l.id);
+    };
+    const buang = new Set();
+    const ganti = new Map();
+    const ambil = s => {
+      // Salinan sendiri: catatan disunting di tempat, jadi daftar server yang disimpan browser tak
+      // boleh ikut berubah. Kalau ikut, suntingan terbaca "sudah sama" dan tak pernah terkirim.
+      ganti.set(s.id, JSON.parse(JSON.stringify(s.data)));
+      out.basis[s.id] = { h: sidikMilik(s.data), r: s.rev };
+      out.diambil++;
+    };
+    for (const s of Sv.values()) {
+      const l = L.get(s.id), b = basis[s.id];
+      if (s.rusak) {
+        if (l) kirim(l, s.rev);   // baris server tak terbaca: diperbaiki dari salinan browser
+        continue;
+      }
+      const hL = l ? sidikMilik(l) : '';
+      if (s.dihapus) {
+        hapus.delete(s.id);
+        if (!l) continue;
+        if (b && b.h === hL) { buang.add(s.id); out.hapusLokal.push(s.id); }
+        else if (waktuMilik(l) > s.rev) { kirim(l, s.rev); if (b) out.basis[s.id] = b; }   // diubah sesudah dihapus: yang diubah menang
+        else { buang.add(s.id); out.kalah.push(l); }
+        continue;
+      }
+      const hS = sidikMilik(s.data);
+      if (!l) {
+        // Dihapus di sini, kecuali server berubah sesudah terakhir sama (yang diubah menang).
+        if (hapus.has(s.id) && (!b || b.h === hS)) { out.kirim.push({ jenis, id: s.id, rev: s.rev, hapus: true }); if (b) out.basis[s.id] = b; }
+        else { hapus.delete(s.id); ambil(s); }
+        continue;
+      }
+      hapus.delete(s.id);
+      if (hL === hS) { out.basis[s.id] = { h: hS, r: s.rev }; continue; }
+      const ubahL = !b || b.h !== hL, ubahS = !b || b.h !== hS;
+      if (!ubahS) { kirim(l, s.rev); out.basis[s.id] = b; continue; }
+      // Yang sedang dibuka di editor tak diganti dari bawah kursor; digabung sesudah ditinggalkan.
+      if (tahan.includes(s.id)) { if (ubahL) kirim(l, s.rev); if (b) out.basis[s.id] = b; if (ubahL) out.kalah.push(s.data); continue; }
+      if (!ubahL) { ambil(s); continue; }
+      if (waktuMilik(s.data) > waktuMilik(l)) { out.kalah.push(l); ambil(s); }
+      else { out.kalah.push(s.data); kirim(l, s.rev); if (b) out.basis[s.id] = b; }
+    }
+    for (const l of lokal) {
+      if (Sv.has(l.id)) continue;
+      hapus.delete(l.id);
+      kirim(l, 0);
+      if (basis[l.id]) out.basis[l.id] = basis[l.id];
+    }
+    for (const id of [...hapus]) if (!Sv.has(id)) hapus.delete(id);   // tak pernah sampai ke server
+    out.baru = [...lokal.filter(x => !buang.has(x.id)).map(x => ganti.get(x.id) || x),
+      ...[...ganti.values()].filter(x => !L.has(x.id))];
+    out.dihapus = [...hapus];
+    return out;
+  }
+  /* Satu profil (me); butir profil lain di browser yang sama tak disentuh. Hasilnya bisa dipakai
+     berulang: sesudah server menjawab, panggil lagi dengan daftar barunya sampai kirim kosong. */
+  function gabungMilik({ me, lokal, basis, dihapus, server, tahan = [] }) {
+    const hasil = { pribadi: {}, basis: {}, dihapus: {}, kirim: [], kalah: [], hapusLokal: [], diambil: 0, takTerkirim: [] };
+    for (const jenis of JENIS_MILIK) {
+      const semua = Array.isArray(lokal && lokal[jenis]) ? lokal[jenis] : [];
+      const r = gabungDaftarMilik(jenis, {
+        lokal: semua.filter(x => x && x.id && x.user === me),
+        basis: (basis && basis[jenis]) || {},
+        dihapus: (dihapus && dihapus[jenis]) || [],
+        server: (server || []).filter(x => x && x.jenis === jenis && x.id),
+        tahan,
+      });
+      hasil.pribadi[jenis] = [...semua.filter(x => !x || x.user !== me), ...r.baru];
+      hasil.basis[jenis] = r.basis;
+      hasil.dihapus[jenis] = r.dihapus;
+      hasil.kirim.push(...r.kirim);
+      hasil.diambil += r.diambil;
+      hasil.takTerkirim.push(...r.takTerkirim);
+      if (jenis === 'notes') hasil.kalah.push(...r.kalah);
+      if (jenis === 'notes') hasil.hapusLokal.push(...r.hapusLokal);
+    }
+    return hasil;
+  }
 
   function simpanCatatan(data, me, f, id, waktu) {
     const title = teks(f.title);
@@ -5417,7 +5545,7 @@
     KEPUTUSAN, setKeputusan, setArsip,
     pekerjaanSaya, perhatian, lingkupBoleh, lingkupAwal, lingkupSah, lingkupOrang, lingkupTask, lingkupKom, sorotProyek,
     angkaKerja, jumlahAngka, judulPembaruan, linimasaInisiatif, tanggapanPembaruan, belumDitanggapi,
-    gabungDaftarPribadi, gabungPribadi,
+    gabungDaftarPribadi, gabungPribadi, gabungMilik, periksaMilik, ringkasMilik, sidikMilik, MILIK_BUTIR_MAKS, MILIK_KIRIM_MAKS,
     ringkasPembaruan, bolehPembaruanProyek, sambungProyek, pembaruanProyek, ringkasPembaruanProyek,
     STATUS_PANJANG, pemberiTask, panjangMenunggu, panjangTask, bolehAjukanPanjang, bolehJawabPanjang, ajukanPerpanjangan, jawabPerpanjangan,
     batalkanPerpanjangan, panjangMasuk, pulihkanTask,

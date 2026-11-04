@@ -185,7 +185,8 @@
 
   const AWALAN = 'pt2_';
   const ambil = (k, bawaan) => { try { const v = localStorage.getItem(AWALAN + k); return v == null ? bawaan : JSON.parse(v); } catch (e) { return bawaan; } };
-  const simpan = (k, v) => { try { localStorage.setItem(AWALAN + k, JSON.stringify(v)); } catch (e) { /* penuh atau diblokir: tetap jalan */ } };
+  // true = tersimpan; false = penuh atau diblokir (aplikasi tetap jalan).
+  const simpan = (k, v) => { try { localStorage.setItem(AWALAN + k, JSON.stringify(v)); return true; } catch (e) { return false; } };
   const hapus = k => { try { localStorage.removeItem(AWALAN + k); } catch (e) { /* abaikan */ } };
   // Bahasa terakhir di perangkat ini, untuk layar sebelum profil dipilih.
   B.atur(ambil('bahasa', 'id'));
@@ -302,10 +303,11 @@
     /* Sumber data (2.16.0): 'contoh' atau 'real', dipilih mode Dev untuk semua pengguna. */
     mode: 'contoh',
     /* Data real (lihat ubahData): dasar = yang sudah tersimpan di server; tertunda = perintah
-       browser ini yang belum diterapkan di dasar. pribadi = Link Saya dan Catatan Saya di data
-       real, yang tetap di browser ini. */
+       browser ini yang belum diterapkan di dasar. pribadi = salinan browser ini dari Link Saya dan
+       Catatan Saya di data real; yang tersimpan ada di server (milik, 2.57.0). */
     real: { generasi: '', seq: 0, dasar: null, tertunda: [], mengirim: false, gagal: 0, galat: '' },
     pribadi: { links: [], notes: [] },
+    milik: { siap: false, jalan: false, lagi: false, perlu: false, mengirim: false, memuat: false, galat: '', gagal: 0, at: 0, server: null },
     proyekArsip: false,
     task: Object.assign({ tampilan: 'daftar', lingkup: '', fokus: '', proyek: '', ...SARING_KOSONG, status: 'aktif', urut: 'due', arah: 1 },
       prefTask(), { q: '', hal: 1, saringBuka: false }),
@@ -389,7 +391,14 @@
       simpanPribadi();
       return simpanCacheReal();
     }
-    simpan('data', { versi: S.versi, dimuat: S.dimuat, data: S.data });
+    if (!simpan('data', { versi: S.versi, dimuat: S.dimuat, data: S.data })) peringatanSimpan();
+  }
+  /* Penyimpanan browser penuh atau diblokir: dulu diam saja, dan layar tetap menulis "Tersimpan". */
+  let peringatanSimpanAt = 0;
+  function peringatanSimpan() {
+    if (Date.now() - peringatanSimpanAt < 60000) return;
+    peringatanSimpanAt = Date.now();
+    toast(tr('Penyimpanan browser penuh atau diblokir, jadi perubahan terakhir belum tersimpan di browser ini.'), true);
   }
 
   /* ---------- Data real (2.16.0) ----------
@@ -465,11 +474,174 @@
   }
   function simpanPribadi() {
     if (S.pratinjau) return;
+    const berubah = JSON.stringify(S.pribadi) !== JSON.stringify(S.pribadiAsal);
     S.pribadi = I.gabungPribadi(S.pribadiAsal, S.pribadi, ambil('pribadi_real', null) || PRIBADI_KOSONG());
-    simpan('pribadi_real', S.pribadi);
+    if (!simpan('pribadi_real', S.pribadi)) peringatanSimpan();
     S.pribadiAsal = structuredClone(S.pribadi);
     pasangPribadi();
+    if (berubah && milikAktif()) {
+      S.milik.perlu = true;
+      jadwalkanMilik(2500);
+      perbaruiStatusReal();
+    }
   }
+  /* ---------- Catatan Saya & Link Saya di server (2.57.0) ----------
+     Browser menulis ke salinannya dulu supaya terasa seketika dan tetap jalan tanpa koneksi, lalu
+     mengirimnya ke server. Aturan penggabungannya di Inti.gabungMilik. Hanya di data real, bagi
+     profil yang sedang dipakai; data contoh, mode uji, Lihat sebagai, dan akun Dev tetap di browser. */
+  const milikAktif = () => S.milik.siap && S.mode === 'real' && !S.uji && !S.pratinjau && !!S.me && S.me !== I.DEV && I.ORANG.some(o => o.id === S.me);
+  let jamMilik = null;
+  function jadwalkanMilik(ms) {
+    clearTimeout(jamMilik);
+    jamMilik = setTimeout(() => {
+      if (!milikAktif()) return;
+      // Tab di belakang tak perlu menarik; yang belum terkirim tetap dikirim.
+      if (document.hidden && !S.milik.perlu) return jadwalkanMilik(60000);
+      sinkronMilik({ tarik: !S.milik.perlu });
+    }, ms);
+  }
+  /* Dicatat saat pengguna menghapus: hanya ini yang boleh menghapus isi server. Dikirim sesudah masa
+     Urungkan (10 detik) lewat. */
+  function catatHapusMilik(jenis, ids) {
+    if (!milikAktif()) return;
+    const kunci = `milik_${S.me}`;
+    const m = ambil(kunci, null) || {};
+    const dihapus = m.dihapus || {};
+    dihapus[jenis] = [...new Set([...(dihapus[jenis] || []), ...ids])];
+    simpan(kunci, { ...m, dihapus });
+    S.milik.perlu = true;
+    jadwalkanMilik(12000);
+  }
+  /* Catatan yang sedang ditulis tak diganti dari bawah kursor. */
+  function editorMilik() {
+    const ed = $('[data-catatan]');
+    if (!ed || ed.dataset.catatan === '__baru') return [];
+    return ed.contains(document.activeElement) || (S.modal && S.modal.jenis === 'editor-catatan') ? [ed.dataset.catatan] : [];
+  }
+  function gabungKeLokal(me, butir) {
+    S.pribadi = I.gabungPribadi(S.pribadiAsal, S.pribadi, ambil('pribadi_real', null) || PRIBADI_KOSONG());
+    const kunci = `milik_${me}`;
+    const m = ambil(kunci, null) || {};
+    const g = I.gabungMilik({ me, lokal: S.pribadi, basis: m.basis, dihapus: m.dihapus, server: butir, tahan: editorMilik() });
+    // Per daftar: urutan kunci objeknya bisa beda, dan halaman tak perlu digambar ulang tanpa perubahan.
+    const berubah = ['notes', 'links'].some(j => JSON.stringify(g.pribadi[j]) !== JSON.stringify(S.pribadi[j]));
+    S.pribadi = g.pribadi;
+    // Isi yang kalah dari perangkat lain tetap bisa dipulihkan lewat Riwayat versi.
+    for (const n of g.kalah) simpanVersi(n.id, { title: String(n.title || ''), body: String(n.body || '') });
+    for (const id of g.hapusLokal) hapusVersi(id);
+    const tertulis = simpan('pribadi_real', S.pribadi);
+    S.pribadiAsal = structuredClone(S.pribadi);
+    pasangPribadi();
+    // Tanpa salinan yang tertulis, basisnya tak boleh maju: isi lama nanti terbaca sebagai suntingan.
+    if (tertulis) simpan(kunci, { basis: g.basis, dihapus: g.dihapus });
+    else { simpan(kunci, { ...m, dihapus: g.dihapus }); peringatanSimpan(); }
+    return { ...g, berubah };
+  }
+  const paketMilik = (me, h) => ({ orang: me, butir: h.butir || [], rev: h.rev || 0, n: h.n || 0 });
+  /* Tiap permintaan paling banyak MILIK_KIRIM_MAKS butir dan ±1 MB. */
+  function potongKirim(kirim) {
+    const out = [];
+    let ukuran = 0;
+    for (const u of kirim) {
+      const n = u.data ? JSON.stringify(u.data).length : 0;
+      if (out.length && (out.length >= I.MILIK_KIRIM_MAKS || ukuran + n > 1e6)) break;
+      out.push(u);
+      ukuran += n;
+    }
+    return out;
+  }
+  async function sinkronMilik({ tarik = false } = {}) {
+    if (!milikAktif()) return;
+    const M = S.milik;
+    if (M.jalan) { M.lagi = true; return; }
+    M.jalan = true;
+    clearTimeout(jamMilik);
+    const me = S.me;
+    const berganti = () => me !== S.me || !milikAktif();
+    const adaDiLayar = () => { if (S.view === 'catatan' || S.view === 'link') gambarUlangAman(); };
+    try {
+      simpanCatatanTertunda();
+      M.perlu = false;
+      // Sesi baru untuk profil yang diingat browser ini (mis. sesi lama sudah habis).
+      if (S.meSesi !== me) {
+        const c = await api('masukProfil', [me, '']);
+        if (berganti()) return;
+        if (!c.success) return gagalMilik(c);
+        S.meSesi = c.me || me;
+      }
+      const milikSaya = M.server && M.server.orang === me ? M.server : null;
+      const pertama = !ambil(`milik_${me}`, null);
+      if (tarik || !milikSaya) {
+        if (!milikSaya) { M.memuat = true; adaDiLayar(); }
+        const h = await api('muatMilik', [milikSaya ? { rev: milikSaya.rev, n: milikSaya.n } : {}]);
+        if (berganti()) return;
+        if (!h.success) return gagalMilik(h);
+        if (!h.sama) M.server = paketMilik(me, h);
+      }
+      let terkirim = 0, diambil = 0, berubah = false, takTerkirim = 0;
+      const percobaan = new Map();
+      for (;;) {
+        const g = gabungKeLokal(me, M.server.butir);
+        diambil += g.diambil;
+        berubah = berubah || g.berubah;
+        takTerkirim = g.takTerkirim.length;
+        // Butir yang tetap beda sesudah dua kali dikirim tak dikirim terus-menerus.
+        const kirim = potongKirim(g.kirim.filter(u => (percobaan.get(u.id) || 0) < 2));
+        if (!kirim.length) break;
+        M.mengirim = true;
+        perbaruiStatusMilik();
+        const h = await api('simpanMilik', [kirim], 45000);
+        if (berganti()) return;
+        if (!h.success) return gagalMilik(h);
+        for (const u of kirim) percobaan.set(u.id, (percobaan.get(u.id) || 0) + 1);
+        M.server = paketMilik(me, h);
+        terkirim += kirim.length - (h.konflik || []).length;
+      }
+      const pulih = !!M.galat;
+      Object.assign(M, { galat: '', gagal: 0, at: Date.now() });
+      if (pulih) toast(tr('Catatan dan link sudah terkirim lagi ke server.'));
+      if (pertama && terkirim) toast(tr('{n} catatan dan link dari browser ini sudah disimpan ke server.', { n: terkirim }));
+      else if (pertama && diambil) toast(tr('{n} catatan dan link dimuat dari server.', { n: diambil }));
+      if (takTerkirim && M.takTerkirim !== takTerkirim) toast(tr('{n} catatan terlalu panjang untuk server dan tetap di browser ini saja.', { n: takTerkirim }), true);
+      M.takTerkirim = takTerkirim;
+      if (berubah) adaDiLayar();
+      // Ada yang ditulis selagi mengirim: jangan menunggu tarikan berkala.
+      jadwalkanMilik(M.perlu ? 2500 : 60000);
+    } finally {
+      const sempatMemuat = M.memuat;
+      Object.assign(M, { jalan: false, mengirim: false, memuat: false });
+      perbaruiStatusMilik();
+      if (sempatMemuat && (S.view === 'catatan' || S.view === 'link')) gambarUlangAman();
+      if (M.lagi) { M.lagi = false; jadwalkanMilik(500); }
+    }
+  }
+  /* Gagal terkirim: isinya aman di salinan browser, dicoba lagi otomatis, dan orangnya diberi tahu. */
+  function gagalMilik(h) {
+    const M = S.milik;
+    const baru = !M.galat;
+    M.perlu = true;
+    M.gagal = Math.min(M.gagal + 1, 5);
+    M.galat = h.message || tr('Gagal menyimpan ke server.');
+    if (h.kode === 'PROFIL') S.meSesi = '';
+    if (baru) toast(tr('Catatan dan link belum terkirim ke server. Isinya aman di browser ini dan dicoba lagi otomatis.'), true);
+    jadwalkanMilik(Math.min(15000 * 2 ** (M.gagal - 1), 300000));
+  }
+  function perbaruiStatusMilik() {
+    perbaruiStatusReal();
+    const ed = $('[data-catatan]'), s = $('#catatan-status');
+    if (!ed || !s || !S.data || tundaCatatan || ed.dataset.catatan === '__baru') return;
+    const n = S.data.notes.find(x => x.id === ed.dataset.catatan);
+    if (n) s.innerHTML = statusCatatan(n);
+  }
+  // Menutup tab sebelum simpan otomatis 0,7 detik: ketikan terakhir tetap masuk salinan browser.
+  window.addEventListener('pagehide', () => { if (S.data) simpanCatatanTertunda(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!S.data || !milikAktif()) return;
+    if (document.hidden) {
+      simpanCatatanTertunda();
+      if (S.milik.perlu) sinkronMilik();
+    } else if (Date.now() - S.milik.at > 20000) sinkronMilik({ tarik: true });
+  });
   /* Tab lain menyimpan Catatan/Link pribadi: ikut diperbarui di sini (2.46.1). */
   window.addEventListener('storage', e => {
     if (S.data && e.key === AWALAN + kunciBacaPengembangan()) { gambarUlangAman(); return; }
@@ -636,6 +808,7 @@
     if (S.uji) return S.modeGlobal === 'real' ? tr('Mode uji Dev: data contoh di browser ini saja. Pengguna lain tetap di data real.') : tr('Mode uji Dev: data contoh di browser ini saja. Pengguna lain tetap di data contoh.');
     if (S.mode !== 'real') return tr('Data contoh. Perubahan hanya tersimpan di browser ini.');
     const n = S.real.tertunda.length;
+    if (!n && S.milik.galat && milikAktif()) return tr('Catatan dan link belum terkirim ke server: isinya aman di browser ini dan dicoba lagi otomatis.');
     if (!n) return tr('Data real. Semua perubahan tersimpan bersama di spreadsheet.');
     if (S.real.galat && !S.real.mengirim) return tr('{n} perubahan belum tersimpan: {galat}', { n, galat: trPola(S.real.galat) });
     return tr('Menyimpan {n} perubahan…', { n });
@@ -644,10 +817,26 @@
     const el = $('#status-data');
     if (el) {
       el.textContent = teksStatusData();
-      el.classList.toggle('merah', S.mode === 'real' && !!S.real.galat && S.real.tertunda.length > 0);
+      el.classList.toggle('merah', S.mode === 'real' && (!!S.real.galat && S.real.tertunda.length > 0 || !!S.milik.galat));
     }
     const b = $('#coba-simpan');
-    if (b) b.hidden = !(S.mode === 'real' && S.real.galat && S.real.tertunda.length && !S.real.mengirim);
+    if (b) b.hidden = !(S.mode === 'real' && (S.real.galat && S.real.tertunda.length && !S.real.mengirim || (S.milik.galat && !S.milik.jalan)));
+  }
+  /* Keluar (2.57.0): yang belum terkirim dikirim dulu selagi sesinya ada, paling lama 5 detik. Gagal
+     pun aman: tetap di browser ini dan terkirim saat profil itu masuk lagi. Profil tak diingat lagi. */
+  async function keluarAkun() {
+    S.navBuka = false;
+    simpanCatatanTertunda();
+    const kirimDulu = [];
+    if (milikAktif() && S.milik.perlu) kirimDulu.push(sinkronMilik());
+    if (S.mode === 'real' && !S.pratinjau && S.real.tertunda.length) kirimDulu.push(kirimTertunda());
+    if (kirimDulu.length) await Promise.race([Promise.all(kirimDulu), new Promise(r => setTimeout(r, 5000))]);
+    clearTimeout(jamMilik);
+    Object.assign(S.milik, { siap: false, server: null, galat: '', gagal: 0, perlu: false, lagi: false });
+    hapus('me');
+    S.sudahKeluar = true;
+    await api('keluar');
+    tampilKunci(tr('Anda sudah keluar. Masukkan PIN untuk masuk lagi.'), false);
   }
   /* Dev mengganti sumber data: semua browser memuat ulang aplikasinya. */
   function gantiSumber(mode) {
@@ -1458,6 +1647,8 @@
   /* Pilih profil (0.14.0): profil ber-PIN meminta PIN pribadinya; profil lain langsung masuk,
      sambil memberi tahu server profil mana yang dipakai sesi ini. Akun Dev tak lewat sini. */
   async function pilihProfil(id, tombol) {
+    // Sesi segera pindah profil: catatan profil ini dikirim dulu selagi masih bisa.
+    if (S.milik.perlu && milikAktif()) await sinkronMilik();
     if (id !== I.DEV && S.meSesi !== id) {
       if (S.berpin.has(id)) return bukaPinProfil(id);
       if (tombol) tombol.disabled = true;
@@ -1555,8 +1746,10 @@
     alamatGanti = true;
     // Salinan Kalender Saya di browser ini terbaca sebelum layar pertama; tarikannya menyusul.
     tarikAgenda();
+    S.milik.siap = true;
     render();
     bukaEditorDariAlamat();
+    sinkronMilik({ tarik: true });
     if (hasil.ditolak) toast(hasil.ditolak, true);
     else if (hasil.hilang) toast(S.mode === 'real' ? tr('{id} tidak ditemukan di data real.', { id: hasil.hilang })
       : tr('{id} tidak ada di data browser ini. Data contoh tersimpan per browser, jadi yang dibuat di browser lain tidak ikut.', { id: hasil.hilang }), true);
@@ -1621,13 +1814,23 @@
       S.sumber = h.sumber || '';
       simpanData();
       if (S.me === I.DEV && !S.dev) S.me = null;
+      // Sesudah Keluar, profil ditanyakan lagi (2.57.0): di browser bersama, profil orang sebelumnya
+      // dengan "0 catatan" terlihat seperti catatannya hilang.
+      if (S.sudahKeluar) { S.sudahKeluar = false; S.me = null; }
       // Profil ber-PIN yang belum terbukti di sesi ini (mis. sesudah keluar): PIN-nya diminta dulu.
       const dikenal = !!S.me && (S.me === I.DEV || I.ORANG.some(o => o.id === S.me));
       const perluPin = dikenal && S.me !== I.DEV && S.berpin.has(S.me) && S.meSesi !== S.me;
       if (!dikenal || perluPin) {
         tampilProfil();
         if (perluPin) bukaPinProfil(S.me);
-      } else masukApp();
+      } else {
+        // Sesi baru untuk profil tanpa PIN yang diingat browser ini: dibuktikan lagi di server.
+        if (S.me !== I.DEV && S.meSesi !== S.me) {
+          const c = await api('masukProfil', [S.me, '']);
+          if (c.success) S.meSesi = c.me || S.me;
+        }
+        masukApp();
+      }
     } catch (e) {
       return galatMuat(e);
     }
@@ -7038,8 +7241,8 @@
      terbuka di jendela). Daftar dikelompokkan per folder yang bisa diciutkan, yang disematkan
      paling atas. Sejak 0.14.0 editornya satu tampilan langsung ala Notion: blok judul, daftar,
      checklist yang bisa dicentang, tabel, kutipan, dan garis pemisah, dipilih lewat "/" atau
-     toolbar. Tersimpan otomatis; Ctrl+S menyimpan seketika. Catatan tetap di browser ini
-     (pribadi), begitu juga riwayat versinya. */
+     toolbar. Tersimpan otomatis; Ctrl+S menyimpan seketika. Sejak 2.57.0 catatan tersimpan di
+     server per profil (data real); riwayat versinya tetap di browser ini. */
 
   const catatanSaya = () => S.data.notes.filter(n => n.user === S.me);
   const urutCatatan = daftar => daftar.slice().sort((a, b) => (b.pin - a.pin) || (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -7057,7 +7260,13 @@
     const isi = baris.map((_, i) => (i === lewati ? '' : I.teksBarisCatatan(n.body, i))).filter(Boolean).join(' · ');
     return potong(isi, 120);
   }
-  const ringkasCatatan = () => tr('{n} catatan pribadi {nama} · tersimpan otomatis di browser ini', { n: catatanSaya().length, nama: I.orang(S.me).pendek });
+  const ringkasCatatan = () => {
+    const isi = { n: catatanSaya().length, nama: I.orang(S.me).pendek };
+    if (!milikAktif()) return tr('{n} catatan pribadi {nama} · tersimpan otomatis di browser ini', isi);
+    if (S.milik.memuat) return tr('{n} catatan pribadi {nama} · memuat dari server…', isi);
+    if (S.milik.galat) return tr('{n} catatan pribadi {nama} · belum terhubung ke server, disimpan di browser ini dulu', isi);
+    return tr('{n} catatan pribadi {nama} · tersimpan di server, bisa dibuka dari perangkat lain', isi);
+  };
   const SEMAT_CTT = '__semat';
   const WARNA_UI = [['', 'Tanpa warna'], ['biru', 'Biru'], ['hijau', 'Hijau'], ['kuning', 'Kuning'], ['merah', 'Merah'], ['ungu', 'Ungu']];
 
@@ -7103,7 +7312,7 @@
     return `${kepala}<div class="catatan-dua ${n ? 'ada-editor' : ''}">
         <aside class="catatan-panel kartu-polos rapat">${alat}<div id="hasil" class="catatan-list ctt-grup-daftar">${daftarCatatan()}</div></aside>
         ${n ? editorCatatan(n, folderSaya(milik)) : `<section class="kartu-polos catatan-editor catatan-kosong">${ikon('catatan', 28)}
-          <p><strong>${milik.length ? tr('Pilih catatan di kiri') : tr('Belum ada catatan')}</strong><br><span class="hint">${tr('Catatan tersimpan sendiri saat Anda menulis. Mulai dari templat bila perlu.')}</span></p>
+          <p><strong>${milik.length ? tr('Pilih catatan di kiri') : S.milik.memuat ? tr('Memuat catatan dari server…') : tr('Belum ada catatan')}</strong><br><span class="hint">${tr('Catatan tersimpan sendiri saat Anda menulis. Mulai dari templat bila perlu.')}</span></p>
           <button type="button" class="tombol utama" data-aksi="catatan-baru">${ikon('tambah', 16)} ${tr('Catatan baru')}</button></section>`}
       </div>`;
   }
@@ -7219,6 +7428,8 @@
 
   const statusCatatan = n => (n.id === '__baru'
     ? `${ikon('sunting', 16)} ${tr('Catatan baru: tersimpan begitu Anda mulai menulis')}`
+    : milikAktif() && S.milik.galat ? `${ikon('sunting', 16)} ${tr('Tersimpan di browser ini · belum terkirim ke server')}`
+    : milikAktif() && (S.milik.perlu || S.milik.mengirim) ? `${ikon('sunting', 16)} ${tr('Menyimpan ke server…')}`
     : `${ikon('centang', 16)} ${tr('Tersimpan · {waktu}', { waktu: esc(fmtWaktu(n.updatedAt)) })}`);
   const aksiCatatan = n => (n.id === '__baru' ? '' : `
     <button type="button" class="ikon-tombol ${n.pin ? 'nyala' : ''}" data-aksi="catatan-semat" aria-pressed="${n.pin}" title="${n.pin ? tr('Lepas sematan') : tr('Sematkan di atas')}" aria-label="${tr('Sematkan catatan')}">${ikon('semat', 18)}</button>
@@ -8499,8 +8710,11 @@
       S.ctt.pilih = null;
     }
     selesaiUbah();
+    catatHapusMilik('notes', jejak.map(x => x.catatan.id));
     const satu = jejak.length === 1;
     const pulihkan = () => {
+      // Waktunya maju: kalau hapusnya sudah terlanjur terkirim, yang dikembalikan tetap menang.
+      for (const { catatan } of jejak) catatan.updatedAt = Date.now();
       I.pulihkanCatatan(S.data, S.me, jejak);
       simpan('ctt_versi', Object.assign(semuaVersi(), versi));
       selesaiUbah(satu ? tr('Catatan dikembalikan.') : tr('{n} catatan dikembalikan.', { n: jejak.length }));
@@ -11828,7 +12042,7 @@
         });
         break;
       }
-      case 'coba-simpan': S.real.gagal = 0; kirimTertunda(); break;
+      case 'coba-simpan': S.real.gagal = 0; kirimTertunda(); S.milik.gagal = 0; sinkronMilik(); break;
       case 'dev-tarik-ulang': tarikUlangBersama(); break;
       case 'dev-siapkan':
         api('siapkan').then(h => toast(h.message || (h.success ? tr('Spreadsheet siap.') : tr('Gagal menyiapkan spreadsheet.')), !h.success));
@@ -11905,10 +12119,7 @@
         pilihProfil(d.id, el);
         break;
       case 'reset-data': resetData(); break;
-      case 'keluar':
-        S.navBuka = false;
-        api('keluar').then(() => tampilKunci(tr('Anda sudah keluar. Masukkan PIN untuk masuk lagi.'), false));
-        break;
+      case 'keluar': keluarAkun(); break;
       case 'coba-muat': muat().catch(galatMuat); break;
       case 'reset-lokal':
         if (!confirm(tr('Kosongkan data contoh yang tersimpan di browser ini?') + '\n\n' + tr('Perubahan Anda di browser ini hilang; data contoh dimuat lagi dari spreadsheet. Pesan Komunikasi tidak ikut terhapus.'))) return;
@@ -12488,7 +12699,7 @@
       case 'link-hapus': {
         const l = S.data.links.find(x => x.id === d.id);
         if (!l || !confirm(tr('Hapus link "{judul}"?', { judul: l.title }))) return;
-        try { I.hapusMilik(S.data.links, l.id, S.me); selesaiUbah(tr('Link dihapus.')); } catch (err) { toast(err.message, true); }
+        try { I.hapusMilik(S.data.links, l.id, S.me); selesaiUbah(tr('Link dihapus.')); catatHapusMilik('links', [l.id]); } catch (err) { toast(err.message, true); }
         break;
       }
       /* Catatan Saya */

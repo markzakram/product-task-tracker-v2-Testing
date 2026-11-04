@@ -59,6 +59,16 @@ function sheetPalsu(tabs, { judul = 'Sheet Uji', email = 'producttrack-v2@contoh
           isi.forEach((b, i) => { t.values[awal + i] = b.map(String); });
           return { data: {} };
         },
+        async batchUpdate({ requestBody }) {
+          tulisan.push({ jenis: 'values.batchUpdate', ranges: requestBody.data.map(x => x.range) });
+          for (const { range, values } of requestBody.data) {
+            const t = tabDari(range);
+            const awal = barisAwal(range);
+            if (awal + values.length > t.rowCount) throw galat(400, `Range (${range}) exceeds grid limits. Max rows: ${t.rowCount}`);
+            values.forEach((b, i) => { t.values[awal + i] = b.map(String); });
+          }
+          return { data: {} };
+        },
         /* INSERT_ROWS seperti aslinya: baris baru ditaruh sesudah baris terakhir yang berisi,
            dan grid bertambah sendiri. */
         async append({ range, requestBody }) {

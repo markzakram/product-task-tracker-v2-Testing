@@ -25,6 +25,7 @@
                     isian { kunci, dihapus: true } menghapus sub-stage yang belum dipakai (2.24.0)
      POST /api/rpc  { action: 'pindahSub', args: [dari, ke] }  [Lead/Manager/Dev] pindahkan sub-stage ke kode lain (2.25.0)
      POST /api/rpc  { action: 'muatAgenda' | 'simpanAgenda' | 'hapusAgenda' | 'simpanPribadi' }  Kalender Saya profil sesi ini (2.28.0)
+     POST /api/rpc  { action: 'muatMilik' | 'simpanMilik' }  Catatan Saya & Link Saya profil sesi ini (2.57.0)
      POST /api/rpc  { action: 'jawabAcara' | 'simpanNotulen' | 'tandaiTindak' | 'sibukAcara' }  acara bersama (2.33.0)
      POST /api/rpc  { action: 'aturPin', args: [orang, pin] }    [Dev] atur atau hapus (pin '') PIN profil
      POST /api/rpc  { action: 'aturSumber', args: ['contoh'|'real'] }  [Dev] sumber data untuk SEMUA pengguna
@@ -115,6 +116,15 @@ async function profilAgenda(konteks, k) {
   const me = await meSah(konteks, k);
   if (!me || !Inti.ORANG.some(o => o.id === me && o.aktif !== false)) throw new GalatIzin('Pilih profil Anda dulu: Kalender Saya hanya untuk profil yang sedang dipakai.');
   return me;
+}
+/* Catatan Saya & Link Saya (2.57.0): hanya profil yang terbukti di sesi ini, dan hanya miliknya.
+   Profil ber-PIN yang belum terbukti diminta PIN-nya lagi (PERLU_PIN). */
+async function profilMilik(konteks, k) {
+  await terapkanOrang(k);
+  const me = await meSah(konteks, k);
+  if (me && Inti.ORANG.some(o => o.id === me && o.aktif !== false)) return me;
+  if (konteks.meKlaim) await wajibProfil(konteks, k, konteks.meKlaim);
+  throw Object.assign(new GalatIzin('Pilih profil Anda dulu: Catatan dan Link Saya hanya untuk profil yang sedang dipakai.'), { kode: 'PROFIL' });
 }
 /* Semua baris agenda yang terbaca, dengan pembuatnya (pemilik) — 2.33.0. Acara contoh dari
    impor --demo hanya terlihat selama sumber data contoh, supaya tak muncul di kalender orang
@@ -485,6 +495,24 @@ const AKSI = {
     try { email = Inti.periksaEmail(isian && isian.email); } catch (err) { throw new GalatIsian(err.message); }
     await sheet.tulisPribadi(k, sheet.idSpreadsheet(), { orang: me, email });
     return { pribadi: { email } };
+  },
+  /* ----- Catatan Saya & Link Saya (2.57.0) -----
+     opsi.rev dan opsi.n = yang sudah dimiliki browser: tak ada yang berubah, isinya tak dikirim. */
+  async muatMilik(opsi) {
+    const k = await sheet.klien();
+    const me = await profilMilik(this, k);
+    const butir = await sheet.bacaMilik(k, sheet.idSpreadsheet(), me);
+    const ringkas = Inti.ringkasMilik(butir);
+    if (opsi && opsi.rev === ringkas.rev && opsi.n === ringkas.n) return { orang: me, sama: true, ...ringkas };
+    return { orang: me, butir, ...ringkas };
+  },
+  async simpanMilik(ubah) {
+    const k = await sheet.klien();
+    const me = await profilMilik(this, k);
+    let bersih;
+    try { bersih = Inti.periksaMilik(ubah, me); } catch (err) { throw new GalatIsian(err.message); }
+    const hasil = await sheet.tulisMilik(k, sheet.idSpreadsheet(), me, bersih);
+    return { orang: me, ...hasil, ...Inti.ringkasMilik(hasil.butir) };
   },
   /* ----- Master & PIN (0.14.0) ----- */
   async simpanMaster(jenis, isian) {

@@ -6,6 +6,27 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.57.0 — Catatan Saya dan Link Saya tersimpan di server per profil (2026-11-04)
+
+Keluhan user: catatan pribadi terlihat hilang sesudah keluar lalu masuk lagi. Hasil uji: keluar tak
+menghapus apa pun, tetapi catatan hanya ada di browser tempatnya ditulis, jadi kosong dari alamat,
+browser, atau perangkat lain, dan hilang kalau data situs terhapus. Keputusan user: pindahkan ke
+Spreadsheet, dengan konsekuensi isinya terbaca oleh yang punya akses ke file itu.
+
+- **Tersimpan di server:** di data real, Catatan Saya dan Link Saya tersimpan di tab baru `milik_saya`,
+  per profil, dan hanya dikirim ke profil yang terbukti di sesi itu. Sama di alamat, browser, dan
+  perangkat mana pun. Catatan yang sudah ada di browser ikut terkirim otomatis.
+- **Tetap bisa tanpa koneksi:** browser memegang salinannya. Yang belum terkirim ditandai di atas
+  editor dan di kaki sidebar, dicoba lagi otomatis, dan ada tombol **Coba simpan lagi**.
+- **Tidak saling menimpa:** dua perangkat digabung per butir. Kalau butir yang sama diubah di keduanya,
+  yang terbaru dipakai dan isi yang lain masuk Riwayat versi.
+- **Penghapusan hanya kalau pengguna menghapus:** salinan browser yang kosong atau rusak hanya
+  memulihkan dari server. Baris yang dihapus tetap menyimpan isinya di tab untuk pemulihan manual.
+- **Keluar:** yang belum terkirim dikirim dulu, dan sesudah masuk lagi profil ditanyakan lagi.
+- **Peringatan yang jujur:** penyimpanan browser yang penuh kini diberi tahu, bukan tetap menulis
+  "Tersimpan"; menutup tab sesaat sesudah mengetik tak lagi kehilangan ketikan terakhir.
+- Tes baru `test/milik.test.js`. Tanpa perubahan MySQL.
+
 ## 2.56.0 — PIC dari tim lain di task turunan, dengan konfirmasi (2026-11-04)
 
 Permintaan user: anggota tim lain bisa membantu lewat task turunan, mis. Dhea (CLO) membantu tim

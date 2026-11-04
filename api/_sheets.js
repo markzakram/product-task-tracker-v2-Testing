@@ -22,6 +22,7 @@ const {
   TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   TAB_TAMPILAN, TAMPILAN, tampilanKeBaris, tampilanDariBaris,
   TAB_AGENDA, AGENDA_KOLOM, TAB_PRIBADI, PRIBADI_KOLOM, agendaKeBaris, agendaDariBaris, pribadiKeBaris, pribadiDariBaris,
+  TAB_MILIK, MILIK_KOLOM, milikKeBaris, milikDariBaris,
 } = require('./_skema');
 
 const PENANDA = { tab: '_meta', app: 'producttrack-v2' };
@@ -746,6 +747,75 @@ async function tulisPribadi(k, id, p) {
   await timpaAtauTambah(k, id, TAB_PRIBADI, PRIBADI_KOLOM, sama, pribadiKeBaris({ ...p, diperbarui: Date.now() }));
 }
 
+/* ----- Catatan Saya & Link Saya (2.57.0) -----
+   Bacaan tab dipakai bersama sebentar seperti obrolan; penulisan selalu membaca yang terbaru. */
+let milikHangat = null;
+async function semuaMilik(k, id, { segar = false } = {}) {
+  const h = milikHangat;
+  if (!segar && h && h.k === k && h.id === id && Date.now() - h.waktu < UMUR_BACAAN) return h;
+  const nilai = await tabAplikasi(k, id, TAB_MILIK, MILIK_KOLOM);
+  const [judul = MILIK_KOLOM, ...isi] = nilai || [];
+  const baris = isi.map((b, i) => ({ ...milikDariBaris(judul, b), n: i + 2 })).filter(x => x.id && x.orang);
+  milikHangat = { k, id, waktu: Date.now(), ada: !!nilai, baris };
+  return milikHangat;
+}
+/* Per butir satu profil; kalau baris ganda (dua penulisan bersamaan), yang terbaru. */
+function petaMilik(baris, orang) {
+  const per = new Map();
+  for (const x of baris) {
+    if (x.orang !== orang) continue;
+    const kunci = `${x.jenis}|${x.id}`;
+    const ada = per.get(kunci);
+    if (!ada || x.rev >= ada.rev) per.set(kunci, x);
+  }
+  return per;
+}
+/* Yang dikirim ke browser: isi JSON-nya saja untuk yang masih ada, tanpa isi untuk yang dihapus. */
+const butirMilik = per => [...per.values()].map(x => {
+  if (x.dihapus) return { jenis: x.jenis, id: x.id, rev: x.rev, dihapus: true };
+  try {
+    const data = JSON.parse(x.json);
+    if (data && typeof data === 'object' && !Array.isArray(data)) return { jenis: x.jenis, id: x.id, rev: x.rev, data };
+  } catch (e) { /* jatuh ke rusak */ }
+  return { jenis: x.jenis, id: x.id, rev: x.rev, rusak: true };
+});
+async function bacaMilik(k, id, orang) {
+  await pastikanV2(k, id);
+  return butirMilik(petaMilik((await semuaMilik(k, id)).baris, orang));
+}
+/* ubah = [{ jenis, id, rev, data | hapus }] yang sudah dibersihkan Inti.periksaMilik. rev = versi
+   server yang terakhir dilihat browser; beda = ada perangkat lain lebih dulu, jadi butir itu tak
+   ditimpa dan browser menggabungkannya lagi. */
+async function tulisMilik(k, id, orang, ubah) {
+  await pastikanV2(k, id);
+  const kini = await semuaMilik(k, id, { segar: true });
+  if (!kini.ada) await buatTabAplikasi(k, id, TAB_MILIK, MILIK_KOLOM, 200);
+  const per = petaMilik(kini.baris, orang);
+  const konflik = [], ganti = [], tambah = [];
+  for (const u of ubah) {
+    const kunci = `${u.jenis}|${u.id}`;
+    const lama = per.get(kunci);
+    if ((lama ? lama.rev : 0) !== u.rev) { konflik.push(u.id); continue; }
+    const baru = {
+      id: u.id, orang, jenis: u.jenis, rev: Math.max(Date.now(), lama ? lama.rev + 1 : 0), dihapus: !!u.hapus,
+      json: u.hapus ? (lama ? lama.json : '') : JSON.stringify(u.data),
+    };
+    if (lama) ganti.push({ range: rentang(TAB_MILIK, `A${lama.n}:${String.fromCharCode(64 + MILIK_KOLOM.length)}${lama.n}`), values: [milikKeBaris(baru)] });
+    else tambah.push(milikKeBaris(baru));
+    per.set(kunci, baru);
+  }
+  if (ganti.length) {
+    await panggil(() => k.api.spreadsheets.values.batchUpdate({ spreadsheetId: id, requestBody: { valueInputOption: 'RAW', data: ganti } }), { tulis: true });
+  }
+  if (tambah.length) {
+    await panggil(() => k.api.spreadsheets.values.append({
+      spreadsheetId: id, range: rentang(TAB_MILIK, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', requestBody: { values: tambah },
+    }), { tulis: true });
+  }
+  milikHangat = null;
+  return { butir: butirMilik(per), konflik };
+}
+
 async function bacaMaster(k, id) {
   await pastikanV2(k, id);
   return barisMasterDari(await tabAplikasi(k, id, TAB_MASTER, MASTER_KOLOM));
@@ -918,5 +988,5 @@ module.exports = {
   periksa, siapkan, tulisContoh, bacaContoh, bacaObrolan, tulisObrolan, bacaFoto, tulisFoto, bacaTampilan, bacaSampul, tulisTampilan,
   bacaSetelan, tulisSetelan, sumberData, bacaReal, tulisReal,
   bacaOrang, tulisOrang, bacaMaster, tulisMaster, bacaPin, tulisPin, hitungTab, jelaskanGalat,
-  bacaAgenda, bacaSemuaAgenda, tulisAgenda, bacaPribadi, tulisPribadi,
+  bacaAgenda, bacaSemuaAgenda, tulisAgenda, bacaPribadi, tulisPribadi, bacaMilik, tulisMilik,
 };

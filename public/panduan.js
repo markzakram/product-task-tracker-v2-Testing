@@ -81,6 +81,7 @@
       id: 'mulai-ruang', peran: 'mulai', judul: 'Link Saya', tujuan: 'Menyimpan tautan kerja, serapi apa pun banyaknya.', coba: true,
       langkah: [
         'Tempel alamat di kotak atas lalu **Enter**; judulnya terisi sendiri. Bisa juga cukup **Ctrl+V** di halaman itu.',
+        'Di data real, link tersimpan di server untuk profil Anda, jadi sama di alamat, browser, dan perangkat mana pun.',
         'Link dikelompokkan dalam kartu per folder. Klik **nama folder** untuk menciutkan atau membukanya, atau **Ciutkan semua** sekaligus. Pilihan ini diingat di browser ini.',
         'Menu **⋯** di kartu folder: **Sematkan ke atas** (paling atas, di atas Tautan tim), buka semua link sekaligus, ganti nama, atau hapus folder. Kartu berisi lebih dari 6 link dipotong; **Lihat semua** membukanya.',
         'Ikon di atas kartu berganti antara tampilan **kartu** dan **daftar ringkas**. Di komputer, **seret** link ke kartu folder lain untuk memindahkannya; ke Favorit berarti menandainya **★**.',
@@ -99,10 +100,11 @@
         '**Pindah baris**: seret pegangan **⋮⋮** ke tempat garis biru. Pintasan lain: **Ctrl+Enter** mencentang checklist, **Ctrl+Shift+X** mencoret, **Ctrl+E** menandai kode.',
         '**Jadikan task** membuat task dari satu blok catatan; nomor task-nya ditempel di ujung blok itu dan bisa diklik. **Ctrl+Z** mengurungkan perubahan.',
         'Beri **warna** untuk menandai catatan dan saring menurut warnanya. **Riwayat versi** menyimpan isi lama, jadi suntingan yang keliru bisa dipulihkan.',
-        'Catatan tersimpan di browser ini saja. Di data real, Catatan Saya boleh dibuka di beberapa tab sekaligus: isinya digabung dan tab lain ikut diperbarui. Catatan yang hilang tanpa dihapus, tetapi riwayat versinya masih ada, ditawarkan lewat **Lihat dan pulihkan** di atas daftar.',
+        'Di data real, catatan tersimpan di server untuk profil Anda, jadi tetap ada saat Anda masuk dari alamat, browser, atau perangkat lain, juga sesudah **Keluar**. Kalau koneksi putus Anda tetap bisa menulis: isinya aman di browser dan terkirim otomatis begitu tersambung, dan keterangan di atas editor memberi tahu kalau belum terkirim.',
+        'Catatan Saya boleh dibuka di beberapa tab sekaligus: isinya digabung dan tab lain ikut diperbarui. Kalau catatan yang sama diubah di dua perangkat, yang terbaru dipakai dan isi yang lain masuk **Riwayat versi**. Catatan yang hilang tanpa dihapus, tetapi riwayat versinya masih ada, ditawarkan lewat **Lihat dan pulihkan** di atas daftar.',
         'Tombol **Pilih** di atas daftar memilih beberapa catatan sekaligus untuk dihapus, dipindah ke folder, atau diberi warna. Catatan juga bisa diseret ke folder lain, atau ke **Disematkan**.',
         'Salah hapus? Tekan **Urungkan** pada pesan yang muncul (atau **Ctrl+Z**) dalam 10 detik; catatan dan riwayat versinya kembali.',
-        'Catatan pribadi dan hanya ada di **browser ini**; tidak terkirim ke spreadsheet. Unduh sebagai .txt bila perlu disimpan di tempat lain.',
+        'Catatan pribadi hanya tampil untuk profil Anda di aplikasi, tetapi tersimpan di Spreadsheet tim. Profil tanpa PIN bisa dibuka siapa saja yang tahu PIN umum, jadi pasang **PIN profil** kalau isinya penting. **Riwayat versi** tetap di browser tempat catatan ditulis. Unduh sebagai .txt bila perlu disimpan di tempat lain.',
       ],
     },
     {

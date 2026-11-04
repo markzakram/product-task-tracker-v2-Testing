@@ -122,6 +122,37 @@ function pribadiDariBaris(judul, baris) {
   const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
   return { orang: sel('orang'), email: sel('email'), diperbarui: dariSel('at', sel('diperbarui')) };
 }
+/* Catatan Saya & Link Saya di server (2.57.0): satu baris = satu butir milik satu profil, hanya
+   dikirim ke profil itu. jenis = notes | links. diperbarui = nomor versi dari server. Baris tak
+   pernah dibuang (nomor barisnya bisa dipakai bersamaan oleh orang lain): yang dihapus ditandai,
+   dan isinya tetap ada untuk pemulihan manual. Isi JSON dipecah ke data–data4, karena satu sel
+   Google Sheets paling banyak 50.000 karakter. */
+const TAB_MILIK = 'milik_saya';
+const MILIK_KOLOM = ['id', 'orang', 'jenis', 'diperbarui', 'dihapus', 'data', 'data2', 'data3', 'data4'];
+const MILIK_SEL = 49000;
+function pecahMilik(json) {
+  const out = [];
+  for (let i = 0; i < json.length;) {
+    let akhir = i + MILIK_SEL;
+    // Emoji (pasangan surrogate) tak boleh terbelah di dua sel.
+    if (akhir < json.length && /[\ud800-\udbff]/.test(json[akhir - 1])) akhir--;
+    out.push(json.slice(i, akhir));
+    i = akhir;
+  }
+  return out;
+}
+function milikKeBaris(m) {
+  const potong = pecahMilik(String(m.json || ''));
+  return [String(m.id || ''), String(m.orang || ''), String(m.jenis || ''), keSel('at', m.rev), m.dihapus ? 'ya' : '',
+    ...['', '', '', ''].map((kosong, i) => potong[i] || kosong)];
+}
+function milikDariBaris(judul, baris) {
+  const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
+  return {
+    id: sel('id'), orang: sel('orang'), jenis: sel('jenis'), rev: dariSel('at', sel('diperbarui')),
+    dihapus: /^(ya|true|1)$/i.test(sel('dihapus').trim()), json: ['data', 'data2', 'data3', 'data4'].map(sel).join(''),
+  };
+}
 const TAB_PIN = 'pin';
 const PIN_KOLOM = ['orang', 'hash', 'garam', 'diperbarui'];
 
@@ -390,6 +421,7 @@ module.exports = {
   TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
   TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, SEL_MAKS, TAB_TAMPILAN, TAMPILAN,
   TAB_AGENDA, AGENDA_KOLOM, TAB_PRIBADI, PRIBADI_KOLOM, agendaKeBaris, agendaDariBaris, pribadiKeBaris, pribadiDariBaris,
+  TAB_MILIK, MILIK_KOLOM, MILIK_SEL, milikKeBaris, milikDariBaris,
   keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris, tampilanKeBaris, tampilanDariBaris,
   masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   urai, rakit, nomorTerbesar,

@@ -2994,6 +2994,27 @@
     'Alasan paling panjang 1000 karakter.': 'The reason can be at most 1000 characters.',
     'Task ini sedang ditinjau: setujui atau kembalikan dulu sebelum menyerahkannya ke tim lain.': 'This task is under review: approve or return it first before handing it to another team.',
     'Perlu konfirmasi bantuan': 'Help to confirm',
+    /* ----- Catatan dan Link Saya di server (2.57.0) ----- */
+    'Penyimpanan browser penuh atau diblokir, jadi perubahan terakhir belum tersimpan di browser ini.': 'Browser storage is full or blocked, so your latest change isn\'t saved in this browser yet.',
+    'Catatan dan link sudah terkirim lagi ke server.': 'Notes and links have reached the server again.',
+    '{n} catatan dan link dari browser ini sudah disimpan ke server.': '{n} notes and links from this browser were saved to the server.',
+    '{n} catatan dan link dimuat dari server.': '{n} notes and links were loaded from the server.',
+    '{n} catatan terlalu panjang untuk server dan tetap di browser ini saja.': '{n} notes are too long for the server and stay in this browser only.',
+    'Catatan dan link belum terkirim ke server. Isinya aman di browser ini dan dicoba lagi otomatis.': 'Notes and links haven\'t reached the server yet. They\'re safe in this browser and will be retried automatically.',
+    'Catatan dan link belum terkirim ke server: isinya aman di browser ini dan dicoba lagi otomatis.': 'Notes and links haven\'t reached the server yet: they\'re safe in this browser and will be retried automatically.',
+    '{n} catatan pribadi {nama} · memuat dari server…': '{n} private notes for {nama} · loading from the server…',
+    '{n} catatan pribadi {nama} · belum terhubung ke server, disimpan di browser ini dulu': '{n} private notes for {nama} · not connected to the server, saved in this browser for now',
+    '{n} catatan pribadi {nama} · tersimpan di server, bisa dibuka dari perangkat lain': '{n} private notes for {nama} · saved on the server, available from other devices',
+    'Memuat catatan dari server…': 'Loading notes from the server…',
+    'Tersimpan di browser ini · belum terkirim ke server': 'Saved in this browser · not on the server yet',
+    'Menyimpan ke server…': 'Saving to the server…',
+    'Pilih profil Anda dulu: Catatan dan Link Saya hanya untuk profil yang sedang dipakai.': 'Choose your profile first: My Notes and My Links are only for the profile in use.',
+    'Kirim 1–40 butir sekaligus.': 'Send 1–40 items at a time.',
+    'Jenis butir tidak dikenal.': 'Unknown item type.',
+    'ID butir tidak sah.': 'Invalid item ID.',
+    'Isi butir tidak sah.': 'Invalid item content.',
+    'Alamat link harus alamat web (http/https).': 'The link must be a web address (http/https).',
+    'Catatan ini terlalu panjang untuk disimpan di server.': 'This note is too long to save on the server.',
   };
 
   let kini = 'id';

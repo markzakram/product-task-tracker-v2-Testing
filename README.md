@@ -390,8 +390,9 @@ Halaman pendukung, setara v1:
     Di ponsel tetap lewat tombol Pindah folder.
   - Folder yang diciutkan, yang disematkan, dan bentuk tampilan diingat per profil di browser
     itu. Ini preferensi tampilan, jadi tidak ikut Reset data contoh.
-- **Catatan Saya** (gaya ide v2, diperluas di 0.11.0). Catatan tetap pribadi dan hanya ada di
-  browser itu (tidak terkirim ke spreadsheet).
+- **Catatan Saya** (gaya ide v2, diperluas di 0.11.0). Catatan tetap pribadi. Sejak 2.57.0 di data
+  real tersimpan di server per profil, dengan salinan di browser (lihat *Catatan & Link Saya di
+  server*); di data contoh tetap di browser itu.
   - **Dua panel** (daftar di kiri, editor besar di kanan) atau **kartu** ala Google Keep
     (editor terbuka di jendela). Daftar dikelompokkan per folder yang bisa diciutkan, dengan
     kelompok **Disematkan** paling atas. Folder catatan bisa diganti nama dan dihapus lewat ⋯.
@@ -615,7 +616,7 @@ yang sedang tak dipakai tetap utuh, jadi sumbernya bisa dipindah bolak-balik.
 | Isi awal | impor v1 dan skenario contoh (*Data contoh dari v1*) | kosong |
 | Task, proyek, paket, setoran, Tautan tim | diubah di browser masing-masing; **Reset data contoh** membuangnya | tersimpan bersama di tab `data_real`, terlihat semua orang |
 | Komunikasi | tab `obrolan` | tab `obrolan_real`, karena nomor task-nya bisa sama |
-| Link Saya & Catatan Saya | di browser itu | tetap di browser itu, terpisah dari milik data contoh |
+| Link Saya & Catatan Saya | di browser itu | tersimpan di tab `milik_saya` per profil, dengan salinan di browser (2.57.0) |
 | Panduan · **Coba sekarang** | membuka contoh nyata | diganti keterangan, karena mencoba berarti mengubah pekerjaan sungguhan |
 
 Kaki sidebar (di ponsel: Menu) menunjukkan sumber yang dipakai dan keadaan simpanannya: semua
@@ -2063,8 +2064,31 @@ versinya berawal 2 (v2): angka tengah naik untuk fitur, angka akhir untuk perbai
   dan **tautan ke task yang dibuat di browser lain tidak ditemukan** (aplikasi memberi tahu
   "tidak ada di data browser ini"). Di **data real** semua itu tersimpan bersama (lihat *Sumber
   data*).
-- **Link Saya dan Catatan Saya tetap di browser itu**, di data contoh maupun data real, jadi
-  belum terbagi antarperangkat.
+- **Catatan & Link Saya di server (2.57.0, keluhan user: catatan hilang sesudah keluar lalu
+  masuk).** Keluar sendiri tak pernah menghapus catatan, tetapi catatan dulu hanya ada di browser
+  tempatnya ditulis, jadi tampak kosong dari alamat, browser, atau perangkat lain, dan benar-benar
+  hilang saat data situs terhapus. Kini di data real keduanya tersimpan di tab `milik_saya`
+  (satu baris per butir, per profil), hanya untuk profil yang terbukti di sesi itu.
+  - **Browser tetap memegang salinan** (`pt2_pribadi_real`): menulis terasa seketika, tetap bisa
+    tanpa koneksi, dan terkirim otomatis sekitar 3 detik kemudian. Yang belum terkirim ditandai di
+    atas editor dan di kaki sidebar, dengan tombol **Coba simpan lagi**. Catatan yang sudah ada di
+    browser ikut terkirim saat profilnya pertama kali membuka versi ini.
+  - **Penggabungan** (`Inti.gabungMilik`, per butir, dengan basis di `pt2_milik_<profil>`): yang
+    diubah satu pihak ikut pihak itu; diubah keduanya, yang `updatedAt`-nya terbaru, dan isi yang
+    kalah masuk Riwayat versi. Server menolak menimpa butir yang versinya sudah berubah (`rev`),
+    jadi dua perangkat tak saling menimpa. Catatan yang sedang ditulis tak diganti dari bawah kursor.
+  - **Penghapusan hanya kalau pengguna menghapus.** ID yang dihapus dicatat saat tombolnya ditekan.
+    Butir yang sekadar tak ada di browser diambil lagi dari server, jadi salinan yang kosong atau
+    rusak hanya memulihkan. Baris yang dihapus tak dibuang dari tab: ditandai `dihapus`, dan isinya
+    tetap ada untuk pemulihan manual.
+  - **Batas:** satu butir paling banyak ±190.000 karakter (empat sel Sheets); yang lebih panjang
+    tetap di browser dengan peringatan. Riwayat versi, folder yang diciutkan, dan hitungan klik link
+    tetap per browser. Isinya terbaca oleh yang punya akses ke Spreadsheet, dan profil tanpa PIN
+    bisa dibuka siapa saja yang tahu PIN umum (keputusan user, jadi pasang PIN profil untuk isi
+    penting). Tab ini tak ikut alat migrasi MySQL. Data contoh, mode uji, Lihat sebagai, dan akun Dev
+    tetap di browser. Diuji di `test/milik.test.js`.
+  - **Keluar:** yang belum terkirim dikirim dulu, dan sesudah masuk lagi profil ditanyakan lagi,
+    supaya di browser bersama tak terbuka profil orang sebelumnya dengan "0 catatan".
   - **Beberapa tab (2.46.1, keluhan user: catatan yang sudah dimasukkan hilang).** Sampai 2.46.0
     tiap tab v2 menulis ulang salinan Catatan/Link pribadinya setiap kali ada perubahan data real
     dari tim, jadi tab yang lama terbuka menimpa catatan yang baru ditulis di tab lain. Kini
