@@ -84,6 +84,23 @@ dengan satu penyederhanaan: tetap empat status.
   PIC-nya boleh **Lead itu sendiri**: turunan yang ia pegang tak ditinjau lagi dan langsung
   ditandai selesai, karena induknya tetap mengikuti aturan tinjauan PIC-nya. Lead tanpa staff
   pun bisa memecah task-nya.
+- **Bantuan luar tim di task turunan (2.56.0, permintaan user).** Contoh user: Dhea (CLO) membantu
+  tim RAD, dan task-nya tetap di RAD. Di form Task turunan, Lead pembagi memilih PIC dari kelompok
+  **Tim lain** (anggota aktif selain Manager) dan wajib mengisi **Catatan untuk PIC** dan tenggat.
+  PIC itu mendapat notifikasi dengan catatannya, lalu **Ambil** atau **Tolak** dengan alasan; bagi
+  staff, Lead-nya juga boleh menjawab dan selalu diberi tahu (keputusan user). Catatannya tersimpan
+  di Keterangan task, jadi tetap ada sesudah diambil. Selama belum dijawab, PIC belum bisa
+  mengerjakannya, dan tenggatnya ditanggung tim pemilik, bukan PIC itu (keputusan user). Yang ditolak
+  kembali ke Lead pembagi beserta alasannya. Sesudah diambil task berjalan biasa: ditinjau Lead
+  pembagi (Lead yang membantu pun ditinjau; turunan rutin tetap tanpa tinjauan), perpanjangan
+  tenggat dimintakan ke Lead pembagi, dan Lead yang membantu boleh mengalihkannya ke staff-nya tanpa
+  konfirmasi lagi. Task tetap di tab tim pemilik, saringan Tim, dan **Tim saya** Lead pembagi, dengan
+  tanda **Bantuan untuk RAD**. Di tim PIC, task sudah terbaca di **Task saya** dan **Tim saya** untuk
+  dijawab, tetapi baru masuk angka dan beban kerjanya sesudah diambil. Laporan tim pemilik mendapat
+  baris tambahan untuk PIC yang membantu. Perubahan PIC lewat **Ubah task** memakai aturan yang
+  sama. Tandanya `t.bantuan` (Lead pembagi) dan `t.bantuanTunggu` tersimpan di jurnal data real dan
+  kolom `_payload` MySQL, tanpa kolom atau migrasi baru. Aturannya `Inti.bantuanLuarTim`,
+  `menungguAmbil`, `penanggung`, dan `menanggung`; diuji di `test/bantuan.test.js`.
 - **ADDIE per tim (2.19.0, keputusan user 13 Okt 2026).** Halaman proyek dibagi per tim: tab
   **DAE · RAD · LNA · CLO** ditambah **Ringkasan**, dan tiap tim menjalankan ADDIE-nya sendiri.
   Sebuah task proyek menunggu (`Inti.ditunggu`):
@@ -169,7 +186,7 @@ dengan satu penyederhanaan: tetap empat status.
   (2.34.2), atau selesai (2.30.0), dan tidak tertahan. Sejak 2.28.0 (permintaan user) bagian **Output** di detail task
   berisi output saja; **tautan hasil kerja opsional** dan tak lagi menjadi syarat. Daftar
   periksanya tampil di detail task.
-- **Tinjauan:** task staff oleh Lead-nya (termasuk task turunan), task Lead oleh Manager, sub-stage
+- **Tinjauan:** task staff oleh Lead-nya (termasuk task turunan; bantuan luar tim oleh Lead pembaginya), task Lead oleh Manager, sub-stage
   bertanda Manager oleh Manager. Pekerjaan rutin tanpa tinjauan; PIC langsung menandai selesai.
 - **Tab bawaan (2.23.0).** Setiap kali proyek dibuka, halaman proyek langsung terbuka di tab
   tim sendiri (Lead dan staff, mis. Lead dan staff RAD di tab RAD); Manager di **Ringkasan**. Tab

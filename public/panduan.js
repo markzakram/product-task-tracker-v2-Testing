@@ -167,6 +167,7 @@
       id: 'staff-hari', peran: 'staff', judul: 'Melihat pekerjaan hari ini', tujuan: 'Tahu apa yang dikerjakan lebih dulu.', coba: true,
       langkah: [
         'Buka **Hari Ini**. **Kerjakan sekarang** berisi task yang terlambat dan yang bertenggat hari ini, dengan tombol **Mulai** langsung di barisnya; di bawahnya **7 hari ke depan**. Angka di bawah sapaan bisa diklik untuk melompat ke bagiannya.',
+        'Baris **Konfirmasi** berarti tim lain meminta bantuan Anda. Baca catatannya, lalu tekan **Ambil** atau **Tolak** (wajib beri alasan). Sesudah diambil, catatannya ada di **Keterangan** task dan hasilnya ditinjau Lead yang meminta. Lead Anda juga bisa menjawabnya.',
         'Yang belum perlu ditindak dilipat dengan jumlahnya; klik judulnya untuk membuka. **Nanti**: tenggat lebih dari seminggu lagi, atau tanpa tenggat. **Belum bisa dikerjakan**: menunggu task lain, sedang ditinjau, atau tertahan, lengkap dengan alasannya.',
         '**Saya bantu** berisi task orang lain yang melibatkan Anda. Ceklis pengerjaan milik PIC task-nya, jadi ada di task Anda sendiri.',
         'Klik sebuah task untuk membuka detail dan tombol-tombolnya.',
@@ -264,6 +265,7 @@
       langkah: [
         'Langkah proyek yang sub-stage-nya milik tim Anda dan sudah bisa dimulai masuk **Kerjakan sekarang** di Hari Ini, bertanda **Siap dibagi**. Tekan **Bagi ke staff** di barisnya (atau di kartu **Perlu perhatian Anda** di halaman proyek): detail task terbuka di bagian **Task turunan**, siap diisi. **Kerjakan sendiri** memulainya tanpa task turunan.',
         'Buka langkahnya. Di bagian **Task turunan**, tulis bagian pekerjaannya, pilih PIC-nya (staff tim, atau **Anda sendiri**) dan tenggat, lalu tekan **Buat task turunan**. Ulangi untuk bagian lain.',
+        '**Perlu bantuan tim lain?** Pilih PIC dari kelompok **Tim lain**, misalnya Dhea dari CLO, lalu isi **Catatan untuk PIC** dan tenggatnya (keduanya wajib). PIC itu atau Lead-nya menjawab **Ambil** atau **Tolak**. Task tetap di tim Anda, bertanda **Bantuan untuk** tim Anda, dan hasilnya Anda tinjau. Yang ditolak kembali ke Anda beserta alasannya; yang belum dijawab tampil di **Bantuan belum dijawab** di Hari Ini.',
         'Task turunan tampil menjorok di bawah langkah Anda. Yang dipegang staff Anda tinjau; yang Anda pegang sendiri langsung ditandai selesai. Lewat **Ubah task**, PIC langkah utama juga bisa diganti ke Lead atau staff aktif tim Anda, termasuk sesudah dibagi. PIC tiap task turunan tetap masing-masing.',
         'Setelah semua task turunan selesai, PIC langkah utama melengkapi output dan mengajukan ke peninjaunya. Tanpa task turunan pun bisa: kerjakan sendiri lewat **Mulai kerjakan**.',
         'Task tim Anda yang PIC-nya staff (di tahap mana pun, mis. Design) juga bisa Anda bagi dari detail task-nya. Task yang sudah selesai atau sedang ditinjau tak bisa ditambah task turunan; alasannya tampil di bagian itu.',

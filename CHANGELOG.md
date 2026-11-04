@@ -6,6 +6,28 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.56.0 — PIC dari tim lain di task turunan, dengan konfirmasi (2026-11-04)
+
+Permintaan user: anggota tim lain bisa membantu lewat task turunan, mis. Dhea (CLO) membantu tim
+akademik, dan task-nya tetap di RAD. Keputusan user: PIC dari tim lain mengambil atau menolak dulu
+dengan catatannya; PIC atau Lead-nya boleh menjawab; selama belum diambil, keterlambatannya dihitung
+ke tim pemilik.
+
+- **Form Task turunan:** PIC bisa dipilih dari kelompok **Tim lain** (anggota aktif selain Manager),
+  dengan **Catatan untuk PIC** dan tenggat yang wajib. **Ubah task** memakai aturan yang sama.
+- **Konfirmasi:** PIC mendapat notifikasi dengan catatannya, baris **Konfirmasi** di Hari Ini, dan
+  kotak di detail task berisi **Ambil** dan **Tolak**. Staff atau Lead-nya boleh menjawab, dan Lead-nya
+  selalu diberi tahu. Sebelum dijawab, PIC belum bisa mengerjakannya.
+- **Kalau diambil:** catatan tetap di Keterangan task; task berjalan biasa dan ditinjau Lead pembagi,
+  juga bila yang membantu seorang Lead. Lead yang membantu boleh mengalihkannya ke staff-nya tanpa
+  konfirmasi lagi. Perpanjangan tenggat dimintakan ke Lead pembagi.
+- **Kalau ditolak:** task kembali ke Lead pembagi beserta alasannya, untuk diberikan ke orang lain
+  atau dikerjakan sendiri.
+- **Tetap milik tim pembagi:** tab tim di proyek, saringan Tim, **Tim saya** Lead pembagi, dan laporan
+  timnya (dengan baris tambahan untuk PIC yang membantu). Tandanya **Bantuan untuk RAD**. Selama belum
+  diambil, keterlambatan dan beban kerjanya dihitung ke tim pemilik, bukan PIC itu.
+- Tanpa kolom atau migrasi baru. Tes baru `test/bantuan.test.js`.
+
 ## 2.55.0 — Tautan inisiatif bisa dibuka dari daftar Pengembangan (2026-11-03)
 
 Permintaan user: kalau inisiatif sudah punya tautan, ada tombol untuk membukanya tanpa masuk ke

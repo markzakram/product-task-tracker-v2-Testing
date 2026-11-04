@@ -180,5 +180,6 @@ test('PIC task turunan (2.27.0): pembaginya Lead tim walau induknya dipegang sta
   I.ubahTask(d, anak, { pic: 'kiki' }, 'alya', WAKTU + 2);
   assert.equal(anak.pic, 'kiki', 'dulu ditolak: "PIC task turunan: Kiki sendiri atau staff timnya"');
   I.ubahTask(d, anak, { pic: 'alya' }, 'alya', WAKTU + 3);
-  assert.throws(() => I.ubahTask(d, anak, { pic: 'uma' }, 'alya', WAKTU + 4), /di luar tim Anda|PIC task turunan/, 'staff tim lain tetap ditolak');
+  assert.throws(() => I.ubahTask(d, anak, { pic: 'uma' }, 'alya', WAKTU + 4), /Tulis catatan/, 'staff tim lain perlu catatan (2.56.0)');
+  assert.throws(() => I.ubahTask(d, anak, { pic: 'nynda' }, 'alya', WAKTU + 4), /PIC task turunan/, 'Manager bukan calon');
 });

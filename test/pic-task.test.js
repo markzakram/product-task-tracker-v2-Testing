@@ -49,7 +49,8 @@ test('induk dengan lima turunan bisa berpindah Lead ↔ staff tanpa mengubah PIC
     }
   }
   I.ubahTask(d, t, { pic: 'uma' }, 'andika', WAKTU + 11);
-  assert.deepEqual(I.pilihanPicUbah(anak[0], 'andika', I.indeks(d)), ['andika', 'uma', 'tri', 'wildan']);
+  const timAnak = ['andika', 'uma', 'tri', 'wildan'];
+  assert.deepEqual(I.pilihanPicUbah(anak[0], 'andika', I.indeks(d)), [...timAnak, ...I.calonBantuan(timAnak)], 'turunan: tim pembagi, lalu tim lain (2.56.0)');
   I.ubahTask(d, anak[0], { pic: 'andika' }, 'andika', WAKTU + 12);
   I.ubahTask(d, anak[0], { pic: 'wildan' }, 'andika', WAKTU + 13);
   assert.equal(I.peninjau(anak[0]), 'andika');

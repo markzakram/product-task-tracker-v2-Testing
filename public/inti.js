@@ -507,12 +507,21 @@
      atau lewat Ubah task; tersimpan di jurnal data real dan _payload MySQL, tanpa kolom baru. */
   const penugasanManager = t => !!t && !!t.penugasan && !!t.inisiatif && t.lane !== 'proyek' && !t.permintaanDae
     && t.penugasan !== t.pic && ORANG_PER_ID.has(t.penugasan) && orang(t.penugasan).peran === 'manager';
+  /* Bantuan luar tim (2.56.0, permintaan user): PIC task turunan boleh dari tim lain, mis. Dhea
+     (CLO) membantu tim RAD, dan task-nya tetap milik tim pembaginya. t.bantuan = ID Lead pembagi,
+     t.bantuanTunggu = PIC belum menjawab. Keduanya hanya ada selama PIC di luar tim pembagi. */
+  const bantuanLuarTim = t => !!t && !!t.induk && !!t.bantuan && t.bantuan !== t.pic;
+  const menungguAmbil = t => bantuanLuarTim(t) && aktif(t) && !!t.bantuanTunggu;
+  // Yang belum diambil ditanggung Lead pemiliknya, bukan PIC yang belum menyetujui (keputusan user).
+  const penanggung = t => (menungguAmbil(t) ? t.bantuan : t.pic);
   function peninjau(t, perId) {
     if (t.permintaanDae) return peninjauDae(t, perId);
     if (penugasanManager(t)) return t.penugasan;
     if (t.lane !== 'proyek') return t.status === 'Ditinjau' ? MANAGER : null;
     const o = orang(t.pic);
     if (o.peran === 'manager') return null;
+    // Bantuan luar tim ditinjau Lead pembaginya, bukan atasan PIC-nya; Lead yang membantu juga ditinjau.
+    if (bantuanLuarTim(t)) return ORANG_PER_ID.has(t.bantuan) ? t.bantuan : MANAGER;
     // Task turunan ditinjau atasan PIC-nya (Lead yang membaginya), juga untuk sub-stage bertanda Manager.
     if (t.induk && o.peran === 'staff') return o.lead || MANAGER;
     // Turunan yang dikerjakan Lead itu sendiri (2.21.0) tak ditinjau lagi: induknya tetap
@@ -578,8 +587,10 @@
 
   function bolehUbah(t, me) {
     const r = orang(me).peran;
+    // Bantuan yang belum diambil: PIC dan Lead-nya baru bisa mengisi sesudah mengambilnya.
+    if (menungguAmbil(t)) return r === 'manager' || t.bantuan === me;
     if (r === 'manager' || t.pic === me) return true;
-    if (r === 'lead') return orang(t.pic).lead === me || t.assignedBy === me;
+    if (r === 'lead') return orang(t.pic).lead === me || t.assignedBy === me || t.bantuan === me;
     return false;
   }
 
@@ -609,7 +620,8 @@
   const bolehUbahTask = (t, me) => bolehUbah(t, me) && (orang(me).peran !== 'staff' || (t.assignedBy === me && t.pic === me));
 
   /* ---------- Task turunan (0.15.0) ----------
-     Lead bisa membagi pekerjaan menjadi task turunan untuk staff timnya di bawah task itu.
+     Lead bisa membagi pekerjaan menjadi task turunan untuk staff timnya di bawah task itu
+     (sejak 2.56.0 juga untuk anggota tim lain: lihat bantuanLuarTim).
      Anak ada di proyek, siklus, dan tahap yang sama dengan induknya, ditinjau Lead itu,
      dan tak beranak lagi; induknya baru bisa diajukan atau
      ditandai selesai setelah semua turunannya selesai. */
@@ -645,6 +657,12 @@
     const pembagi = o.peran === 'lead' ? induk.pic : tim && orang(tim.lead).peran === 'lead' ? tim.lead : o.lead;
     return [...new Set([pembagi, ...timDari(pembagi)].filter(Boolean))];
   }
+  /* Calon PIC bantuan bagi sebuah tim: anggota aktif di luar tim itu, selain Manager. */
+  const calonBantuan = tim => ORANG.filter(o => o.peran !== 'manager' && !tim.includes(o.id)).map(o => o.id);
+  const isiBantuan = (induk, pic, me) => (induk && pic !== me && !timDari(me).includes(pic) ? { bantuan: me, bantuanTunggu: true } : {});
+  // PIC dari tim lain belum tahu konteksnya, jadi catatan dan tenggat wajib.
+  const salahBantuan = (catatan, due) => (!teks(catatan) ? 'Tulis catatan untuk PIC dari tim lain: apa yang perlu dibantu.'
+    : !teks(due) ? 'Isi tenggat untuk PIC dari tim lain.' : '');
   /* Pilihan PIC form Ubah dan validasi server (2.38.1). Lead dan seluruh staff aktif tim
      pemilik ikut ditawarkan, juga saat PIC sekarang Lead atau task sudah punya turunan.
      Keluarga task tetap di tim pembaginya; mengganti PIC induk tak mengganti PIC turunannya.
@@ -653,9 +671,11 @@
     if (!bolehUbahTask(t, me)) return [];
     if (orang(me).peran === 'staff') return [t.pic];
     const induk = t.induk ? perId.get(t.induk) : null;
+    // Lead tim lain yang membantu hanya mengalihkan ke staff-nya sendiri (2.56.0).
+    if (bantuanLuarTim(t) && t.bantuan !== me && orang(me).peran !== 'manager') return [...new Set([...anggotaTimLead(me), t.pic])];
     const dibagi = anakTask(perId, t.id).length > 0;
     const pemilik = leadSub(kode) || (timOrang(t.pic) || {}).lead;
-    let daftar = induk ? picTurunan(induk) : dibagi ? picTurunan(t)
+    let daftar = induk ? [...picTurunan(induk), ...calonBantuan(picTurunan(induk))] : dibagi ? picTurunan(t)
       : [pemilik, ...timDari(pemilik), ...picBoleh(me)];
     if (dibagi) {
       const pembagi = picTurunan(t)[0];
@@ -666,7 +686,11 @@
   function salahInduk(induk, me, anak) {
     if (!induk) return 'Task induk tidak ditemukan.';
     if (!bolehBuatAnak(induk, me)) return 'Task turunan dibuat Lead yang memegang task itu atau Lead tim pemiliknya, selama task itu belum diajukan atau selesai.';
-    if (anak.pic !== me && !timDari(me).includes(anak.pic)) return 'PIC task turunan: Anda sendiri atau staff tim Anda.';
+    if (anak.pic !== me && !timDari(me).includes(anak.pic)) {
+      if (!calonBantuan([me, ...timDari(me)]).includes(anak.pic)) return 'PIC task turunan: Anda, staff tim Anda, atau anggota aktif tim lain selain Manager.';
+      const kurang = salahBantuan(anak.detail, anak.due);
+      if (kurang) return kurang;
+    }
     if ((induk.project || '') !== (anak.project || '')) return 'Task turunan ada di proyek yang sama dengan induknya.';
     if (induk.project && ((induk.cycle || 1) !== anak.cycle || induk.stage !== anak.stage)) {
       return `Task turunan ada di tahap yang sama dengan induknya (${namaTahap(induk.stage)}).`;
@@ -679,6 +703,7 @@
   /* Alasan task belum bisa jalan, dalam kalimat untuk layar. */
   function alasanTunggu(t, perId) {
     if (t.tertahan) return 'Tertahan: ' + (t.alasanTertahan || 'tanpa alasan');
+    if (menungguAmbil(t)) return `Menunggu konfirmasi ${orang(t.pic).pendek}`;
     const d = tungguBelum(t, perId);
     if (d.length && tungguTahap(t)) {
       const sebut = x => `${x.id} "${potong(x.title, 40)}" (${singkatTim(timJalur(x, perId))} · ${orang(x.pic).pendek})`;
@@ -705,6 +730,7 @@
   }
   /* Versi singkat untuk kartu kanban: "Menunggu RAD · PRD-12", "Menunggu fase Design LNA", … */
   function tungguSingkat(t, perId) {
+    if (menungguAmbil(t)) return `Menunggu konfirmasi ${orang(t.pic).pendek}`;
     const d = tungguBelum(t, perId);
     if (!d.length) return '';
     if (!tungguTahap(t)) return 'Menunggu ' + d[0].t.id;
@@ -737,6 +763,7 @@
   function labelKeadaan(t, perId) {
     if (selesai(t)) return '';
     if (t.tertahan) return 'Tertahan';
+    if (menungguAmbil(t)) return 'Menunggu';
     if (t.status === 'Dikerjakan') {
       const akhir = (t.tinjauan || []).reduce((a, r) => (!a || r.at >= a.at ? r : a), null);
       return akhir && akhir.action === 'Dikembalikan' ? 'Revisi' : '';
@@ -749,6 +776,7 @@
 
   /* Daftar aksi yang tersedia bagi `me`, sudah dengan alasan kalau nonaktif. */
   function aksiUntuk(t, me, perId) {
+    if (menungguAmbil(t)) return [];   // dijawab dulu lewat ambilBantuan atau tolakBantuan (2.56.0)
     const tinjau = peninjau(t, perId);
     if (selesai(t)) {
       if (!bolehUbah(t, me)) return [];
@@ -830,6 +858,7 @@
       case 'tahan': t.tertahan = true; t.alasanTertahan = teks; break;
       case 'lanjutkan': t.tertahan = false; t.alasanTertahan = ''; break;
     }
+    if (['mulai', 'ajukan', 'selesai'].includes(kunci)) { delete t.bantuanDitolak; delete t.bantuanDitolakOleh; }
     t.updatedAt = waktu;
     catatLog(data, ['ajukan', 'setujui', 'kembalikan', 'tarik'].includes(kunci) ? 'tinjau' : 'update',
       `${t.id} · ${t.title}`, DESKRIPSI[kunci] + (teks ? ': ' + teks : ''), me, waktu);
@@ -925,13 +954,13 @@
       if (f.pic !== me) throw new Error('Staff menambah task untuk dirinya sendiri. Penyerahan ke orang lain lewat Lead.');
       if (s && !subBolehBagi(me, s.kode)) throw new Error(`${s.kode} dipegang tim lain atau direview Manager. Staff memakai sub-stage milik timnya sendiri.`);
     }
-    if (!picSah(me, f.pic, f.sub)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
+    if (!teks(f.induk) && !picSah(me, f.pic, f.sub)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim pemilik sub-stage ini.');
     const pInduk = teks(f.induk) ? data.tasks.find(x => x.id === teks(f.induk)) || null : null;
     const ini = inisiatifUntukTask(data, f.inisiatif, p, me);
     const pb = proyekUntukPembaruan(data, f.pembaruanProyek, p, me);
     if (ini && pb) throw new Error('Pembaruan disambungkan ke satu tempat saja: inisiatif atau proyek.');
     if (teks(f.induk)) {
-      const salah = salahInduk(pInduk, me, { pic: f.pic, project: p ? p.id : '', cycle: p ? p.cycle || 1 : 1, stage: p ? s.tahap : '' });
+      const salah = salahInduk(pInduk, me, { pic: f.pic, project: p ? p.id : '', cycle: p ? p.cycle || 1 : 1, stage: p ? s.tahap : '', detail: f.detail, due: f.due });
       if (salah) throw new Error(salah);
     }
     // Tautan awal pembaruan tersimpan bersama task dalam satu perintah (2.49.0).
@@ -949,6 +978,7 @@
       pembaruanProyek: pb ? pb.id : '', permintaanDae: '', peminta: '',
       // Penugasan Manager (2.54.0): hanya pembaruan inisiatif dari Manager untuk orang lain.
       ...(f.penugasan && ini && orang(me).peran === 'manager' && f.pic !== me ? { penugasan: me } : {}),
+      ...isiBantuan(pInduk, f.pic, me),
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
       subtasks: [], comments: [], tinjauan: [], evidence: buktiAwal ? [buktiAwal] : [],
     };
@@ -971,7 +1001,7 @@
     if (!bolehTaskUmum(p, me)) throw new Error(orang(me).peran === 'staff' ? `Staff menambah task di Proyek umum yang melibatkan timnya (${(p.timProyek || []).map(singkatTim).join(', ')}).` : 'Pilih profil dulu.');
     const pic = teks(f.pic) || me;
     if (orang(me).peran === 'staff' && pic !== me) throw new Error('Staff menambah task untuk dirinya sendiri. Penyerahan ke orang lain lewat Lead.');
-    if (!pilihanPicUmum(p, me).includes(pic)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim yang terlibat di proyek ini.');
+    if (!teks(f.induk) && !pilihanPicUmum(p, me).includes(pic)) throw new Error('PIC itu di luar tim Anda, dan bukan Lead tim yang terlibat di proyek ini.');
     const tahap = teks(f.tahapProyek);
     if (!tahapUmumSah(p, tahap)) throw new Error('Tahap itu tidak ada di proyek ini.');
     // Task baru membatalkan pengajuan penutupan (2.52.0): pekerjaannya ternyata belum beres.
@@ -981,7 +1011,7 @@
     }
     const pInduk = teks(f.induk) ? data.tasks.find(x => x.id === teks(f.induk)) || null : null;
     if (teks(f.induk)) {
-      const salah = salahInduk(pInduk, me, { pic, project: p.id, cycle: 1, stage: '' });
+      const salah = salahInduk(pInduk, me, { pic, project: p.id, cycle: 1, stage: '', detail: f.detail, due: f.due });
       if (salah) throw new Error(salah);
     }
     const t = {
@@ -991,6 +1021,7 @@
       start: hariIni, due: f.due || '', status: 'Antre', tertahan: false, alasanTertahan: '',
       output: String(f.output || '').trim(), deps: (f.deps || []).slice(), tunggu: [], lepasFase: false,
       notes: '', assignedBy: me, cycle: 1, induk: pInduk ? pInduk.id : '', inisiatif: '', pembaruanProyek: '',
+      ...isiBantuan(pInduk, pic, me),
       tahapProyek: pInduk ? pInduk.tahapProyek || '' : tahap,
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0, subtasks: [], comments: [], tinjauan: [], evidence: [],
     };
@@ -1006,13 +1037,54 @@
 
   /* Task turunan dari detail task induk: sub-stage, proyek, siklus, dan platform ikut induknya. */
   function taskAnak(data, induk, f, me, waktu, hariIni) {
-    const salah = salahInduk(induk, me, { pic: f.pic, project: induk ? induk.project || '' : '', cycle: induk ? induk.cycle || 1 : 1, stage: induk ? induk.stage : '' });
+    const salah = salahInduk(induk, me, { pic: f.pic, project: induk ? induk.project || '' : '', cycle: induk ? induk.cycle || 1 : 1, stage: induk ? induk.stage : '', detail: f.detail, due: f.due });
     if (salah) throw new Error(salah);
     return taskBaru(data, {
       title: f.title, project: induk.project, sub: induk.sub, pic: f.pic, due: f.due, priority: f.priority || induk.priority, tahapProyek: induk.tahapProyek || '',
       platform: induk.platform, detail: f.detail, kategori: induk.kategori, induk: induk.id, inisiatif: induk.inisiatif || '',
       pembaruanProyek: induk.pembaruanProyek || '',
     }, me, waktu, hariIni);
+  }
+
+  /* Jawaban bantuan luar tim (2.56.0): PIC atau Lead-nya mengambil atau menolak. Catatan Lead
+     pembagi tetap di Keterangan task. Yang ditolak kembali ke Lead pembagi beserta alasannya. */
+  const bolehJawabBantuan = (t, me) => menungguAmbil(t) && ORANG_PER_ID.has(me) && (t.pic === me || leadDari(t.pic) === me);
+  const tolakJawabBantuan = () => new Error('Bantuan ini sudah dijawab, atau bukan untuk Anda.');
+  function ambilBantuan(data, t, me, waktu) {
+    if (!bolehJawabBantuan(t, me)) throw tolakJawabBantuan();
+    delete t.bantuanTunggu;
+    t.updatedAt = waktu;
+    catatLog(data, 'update', `${t.id} · ${t.title}`, t.pic === me ? 'Bantuan diambil' : `Bantuan diambil untuk ${orang(t.pic).pendek}`, me, waktu);
+    return t;
+  }
+  function tolakBantuan(data, t, alasan, me, waktu) {
+    if (!bolehJawabBantuan(t, me)) throw tolakJawabBantuan();
+    const isi = teks(alasan);
+    if (!isi) throw new Error('Tulis alasannya dulu.');
+    if (isi.length > 1000) throw new Error('Alasan paling panjang 1000 karakter.');
+    const induk = data.tasks.find(x => x.id === t.induk);
+    t.pic = ORANG_PER_ID.has(t.bantuan) ? t.bantuan : picTurunan(induk)[0];
+    for (const s of t.subtasks || []) s.pic = t.pic;
+    t.support = (t.support || []).filter(x => x !== t.pic);
+    delete t.bantuan;
+    delete t.bantuanTunggu;
+    Object.assign(t, { bantuanDitolak: isi, bantuanDitolakOleh: me, updatedAt: waktu });
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Bantuan ditolak: ${isi}`, me, waktu);
+    return t;
+  }
+  /* Sesudah PIC task turunan berganti: Lead yang mengalihkan ke staff-nya sendiri tak perlu konfirmasi lagi. */
+  function aturBantuan(t, induk, me) {
+    const tim = picTurunan(induk);
+    delete t.bantuanDitolak;
+    delete t.bantuanDitolakOleh;
+    if (tim.includes(t.pic)) {
+      delete t.bantuan;
+      delete t.bantuanTunggu;
+      return;
+    }
+    t.bantuan = t.bantuan || tim[0];
+    if (aktif(t) && leadDari(t.pic) !== me) t.bantuanTunggu = true;
+    else delete t.bantuanTunggu;
   }
 
   /* Ceklis (daftar periksa di dalam task): ditambah, diubah, dan dihapus PIC task, Lead-nya,
@@ -1131,9 +1203,14 @@
     const anak = data.tasks.filter(x => x.induk === t.id);
     const induk = t.induk ? data.tasks.find(x => x.id === t.induk) || null : null;
     if (pic !== t.pic && !pilihanPicUbah(t, me, indeks(data), kode).includes(pic) && !(umumKah && !t.induk && !anak.length && pilihanPicUmum(pU, me).includes(pic))) {
-      if (induk) throw new Error(`PIC task turunan: ${orang(picTurunan(induk)[0]).pendek} sendiri atau staff timnya.`);
+      if (induk) throw new Error(bantuanLuarTim(t) && t.bantuan !== me && orang(me).peran !== 'manager' ? 'PIC task turunan: alihkan ke Anda sendiri atau staff tim Anda.' : `PIC task turunan: ${orang(picTurunan(induk)[0]).pendek}, staff timnya, atau anggota aktif tim lain selain Manager.`);
       if (anak.length) throw new Error('Task ini sudah dibagi ke task turunan: pilih Lead atau staff aktif di tim yang sama.');
       throw new Error('PIC itu di luar tim Anda atau tim pemilik sub-stage ini.');
+    }
+    if (induk && pic !== t.pic && !picTurunan(induk).includes(pic)) {
+      if (t.status === 'Ditinjau') throw new Error('Task ini sedang ditinjau: setujui atau kembalikan dulu sebelum menyerahkannya ke tim lain.');
+      const kurang = salahBantuan(ambil('detail', t.detail), ambil('due', t.due));
+      if (kurang) throw new Error(kurang);
     }
     if (anak.length && (pic !== t.pic || kode !== t.sub)
       && picTurunan({ ...t, pic, sub: kode })[0] !== picTurunan(t)[0]) {
@@ -1170,6 +1247,7 @@
       Object.assign(t, lama);
       throw new Error(`Perubahan ini membuat task saling menunggu: ${putar.join(' → ')}. Atur ulang urutan tunggunya dulu.`);
     }
+    if (induk && t.pic !== lama.pic) aturBantuan(t, induk, me);
     // Butir ceklis milik PIC task (2.29.0): ikut pindah bersama task-nya.
     if (t.pic !== lama.pic) for (const s of t.subtasks || []) s.pic = t.pic;
     Object.assign(t, {
@@ -1373,8 +1451,7 @@
     const kode = new Set();
     for (const t of data.tasks) {
       if (t.project !== p.id || selesai(t)) continue;
-      const s = subTahap(t.sub);
-      const tim = s && s.tim ? s.tim : (timOrang(t.pic) || {}).kode;
+      const tim = timTask(t);
       if (tim) kode.add(tim);
     }
     return Object.keys(TIM).filter(k => kode.has(k));
@@ -1432,7 +1509,7 @@
   function sorotProyek(data, p, hariIni, me) {
     const tim = orang(me).peran === 'manager' ? null : timOrang(me);
     const ids = tim ? anggotaTimLead(tim.lead) : null;
-    const buka = data.tasks.filter(t => t.project === p.id && (t.cycle || 1) === (p.cycle || 1) && aktif(t) && (!ids || ids.includes(t.pic)));
+    const buka = data.tasks.filter(t => t.project === p.id && (t.cycle || 1) === (p.cycle || 1) && aktif(t) && menanggung(t, ids, true));
     return {
       telat: buka.filter(t => telat(t, hariIni) && !t.tertahan).length, tertahan: buka.filter(ditandaiTertahan).length,
       lingkup: ids ? 'tim' : 'semua', tim: tim ? tim.kode : '',
@@ -1556,7 +1633,7 @@
   function pekerjaanSaya(data, me, hariIni) {
     const perId = indeks(data);
     const mau = (t, alasan = '') => ({ t, alasan });
-    const milik = data.tasks.filter(t => t.pic === me && aktif(t));
+    const milik = data.tasks.filter(t => t.pic === me && aktif(t) && !menungguAmbil(t));
     const tunggu = milik.filter(t => terhambat(t, perId) || t.status === 'Ditinjau');
     /* Antrean tim (PRD): langkah proyek milik tim Lead ini yang sudah bisa dimulai, tetapi
        belum dimulai dan belum dibagi ke staff lewat task turunan. */
@@ -1567,6 +1644,7 @@
     const batasMinggu = tambahHari(hariIni, 7);
 
     const grup = [
+      ['konfirmasi', 'Perlu konfirmasi bantuan', data.tasks.filter(t => bolehJawabBantuan(t, me)).map(t => mau(t, `Bantuan untuk ${singkatTim((timOrang(t.bantuan) || {}).kode)}, dari ${orang(t.bantuan).pendek}`))],
       ['tinjau', 'Perlu Anda tinjau', data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t, perId) === me).map(t => mau(t, 'Dari ' + orang(t.pic).pendek))],
       ['antrean', 'Antrean tim · siap dibagi', antrean.map(t => mau(t, `${namaSub(t.sub)} siap. Kerjakan sendiri, atau bagi ke staff lewat task turunan di detail task.`))],
       ['telat', 'Terlambat', jalan.filter(t => t.due && t.due < hariIni).map(t => mau(t))],
@@ -1574,6 +1652,7 @@
       ['minggu', '7 hari ke depan', jalan.filter(t => t.due > hariIni && t.due <= batasMinggu).map(t => mau(t))],
       ['nanti', 'Nanti', jalan.filter(t => !t.due || t.due > batasMinggu).map(t => mau(t))],
       ['tunggu', 'Belum bisa dikerjakan', tunggu.map(t => mau(t, alasanTunggu(t, perId)))],
+      ['jawabBantuan', 'Bantuan belum dijawab', data.tasks.filter(t => menungguAmbil(t) && t.bantuan === me).map(t => mau(t, alasanTunggu(t, perId)))],
       ['bantu', 'Saya bantu', data.tasks.filter(t => aktif(t) && t.pic !== me && (t.support || []).includes(me)).map(t => mau(t, 'PIC: ' + orang(t.pic).pendek))],
       // Pengawasan (2.46.0): hasil permintaan ke DAE yang menunggu peninjau tapi tak ada peninjau aktif; hanya dilihat, tak bisa disetujui.
       ['pantau', 'Menunggu peninjau · dipantau', pengawasDae(me) ? mintaDaeTanpaPeninjau(data, perId).map(t => mau(t, peringatanPeninjauDae(t, perId))) : []],
@@ -1587,7 +1666,7 @@
 
   /* Ringkasan untuk Lead (timnya) dan Manager (seluruh divisi). */
   function perhatian(data, ids, me, hariIni) {
-    const dalam = t => !ids || ids.includes(t.pic);
+    const dalam = t => menanggung(t, ids, true);
     const perId = indeks(data);
     return {
       tinjau: data.tasks.filter(t => t.status === 'Ditinjau' && peninjau(t, perId) === me).length,
@@ -1625,9 +1704,21 @@
     if (proyek && lingkup === 'tim' && orang(me).peran === 'staff') { const tim = timOrang(me); return tim ? anggotaTimLead(tim.lead) : [me]; }
     return lingkupOrang(me, lingkup);
   }
+  /* Lingkup setingkat tim, bukan "Saya"? Di sana bantuan luar tim ikut tim pemiliknya (2.56.0). */
+  const lingkupSetim = (me, lingkup, proyek) => (!!proyek && lingkup === 'tim' && orang(me).peran === 'staff') || lingkupSah(me, lingkup) === 'tim';
+  /* Masuk angka daftar orang ini? Bantuan luar tim dihitung untuk tim pemiliknya; PIC dan timnya
+     baru menanggungnya sesudah diambil (keputusan user, 2.56.0). */
+  function menanggung(t, ids, setim = false) {
+    if (!ids) return true;
+    if (bantuanLuarTim(t)) {
+      if (setim && ids.includes(t.bantuan)) return true;
+      if (menungguAmbil(t)) return false;
+    }
+    return ids.includes(t.pic);
+  }
 
-  /* Tim pemilik sebuah task: dari sub-stage-nya; kalau tak berkode, tim PIC-nya. */
-  const timTask = t => { const s = subTahap(t.sub); return (s && s.tim) || (timOrang(t.pic) || {}).kode || ''; };
+  /* Tim pemilik sebuah task: dari sub-stage-nya; kalau tak berkode, tim PIC-nya (bantuan luar tim: tim Lead pembaginya). */
+  const timTask = t => { const s = subTahap(t.sub); return (s && s.tim) || (timOrang(bantuanLuarTim(t) ? t.bantuan : t.pic) || {}).kode || ''; };
   /* proyek = di dalam proyek · rutin = R1–R4 (atau belum berkode) · lepas = pekerjaan produk
      di luar proyek. "Lepas" hanya ada di data warisan v1; task baru di luar proyek selalu rutin. */
   function jenisJalur(t) {
@@ -1644,7 +1735,7 @@
     const cocok = t => [t.id, t.title, orang(t.pic).nama, t.platform, t.kategori, t.sub, namaProyek.get(t.project) || '']
       .join(' ').toLowerCase().includes(kata);
     return data.tasks.filter(t => (!kata || cocok(t))
-      && (!f.orang || f.orang.includes(t.pic))
+      && (!f.orang || f.orang.includes(t.pic) || (!!f.setim && bantuanLuarTim(t) && f.orang.includes(t.bantuan)))
       && (!f.proyek || t.project === f.proyek)
       && (!f.jalur || jenisJalur(t) === f.jalur)
       && (!f.platform || t.platform === f.platform)
@@ -1652,7 +1743,7 @@
       && (!f.tahap || (f.tahap === 'R' ? jenisJalur(t) === 'rutin' : t.stage === f.tahap))
       && (!f.sub || t.sub === f.sub)
       && (!f.fokus
-        || (f.fokus === 'telat' && telat(t, hariIni) && !t.tertahan)
+        || (f.fokus === 'telat' && telat(t, hariIni) && !t.tertahan && menanggung(t, f.orang, f.setim))
         || (f.fokus === 'tertahan' && ditandaiTertahan(t))
         || (f.fokus === 'tinjau' && t.status === 'Ditinjau' && peninjau(t, perId) === f.me)));
   }
@@ -1675,7 +1766,7 @@
 
   function bebanOrang(data, ids) {
     return ids.map(id => {
-      const n = data.tasks.filter(t => t.pic === id && aktif(t)).length;
+      const n = data.tasks.filter(t => penanggung(t) === id && aktif(t)).length;
       return { id, aktif: n, persen: Math.min(100, Math.round(n / KAPASITAS * 100)), penuh: n >= KAPASITAS };
     });
   }
@@ -1689,8 +1780,8 @@
   }
 
   /* Angka Dashboard. ids = orang yang dihitung (null = seluruh divisi). */
-  function laporan(data, hariIni, ids = null) {
-    const dalam = t => !ids || ids.includes(t.pic);
+  function laporan(data, hariIni, ids = null, setim = false) {
+    const dalam = t => menanggung(t, ids, setim);
     const tasks = data.tasks.filter(dalam);
     const tiga0 = tambahHari(hariIni, -29);
     const dalam30 = t => selesai(t) && isoHari(t.selesaiAt) >= tiga0;
@@ -1730,12 +1821,12 @@
       perTim: Object.values(TIM).map(x => ({ kode: x.kode, nama: x.nama, jumlah: aktifSemua.filter(t => timTask(t) === x.kode).length })),
       mingguan,
       perOrang: (ids ? ids.map(orang) : ORANG).map(o => {
-        const nTelat = aktifSemua.filter(t => t.pic === o.id && telat(t, hariIni) && !t.tertahan).length;
+        const nTelat = aktifSemua.filter(t => penanggung(t) === o.id && telat(t, hariIni) && !t.tertahan).length;
         const menahan = ditahanOleh(o.id);
         const tinjau = tinjauanOleh(o.id);
         return {
           id: o.id,
-          aktif: aktifSemua.filter(t => t.pic === o.id).length,
+          aktif: aktifSemua.filter(t => penanggung(t) === o.id).length,
           telat: nTelat, menahan, tinjau, bottleneck: menahan * 2 + tinjau * 2 + nTelat,
           selesai30: tasks.filter(t => t.pic === o.id && dalam30(t)).length,
         };
@@ -1764,11 +1855,16 @@
   function laporanPeriode(data, ids, dari, sampai, hariIni) {
     const dalam = ms => { const h = isoHari(ms); return !!h && h >= dari && h <= sampai; };
     const daftar = ids || ORANG.map(o => o.id);
-    const baris = daftar.map(id => {
-      const milik = data.tasks.filter(t => t.pic === id);
+    // Bantuan dari tim lain ikut laporan tim pemiliknya (2.56.0), sebagai baris tambahan PIC-nya.
+    const bantuanTim = t => !!ids && bantuanLuarTim(t) && !menungguAmbil(t) && ids.includes(t.bantuan) && !ids.includes(t.pic);
+    const pembantu = [...new Set(data.tasks.filter(t => bantuanTim(t) && (aktif(t) || dalam(t.selesaiAt) || dalam(t.createdAt))).map(t => t.pic))];
+    const sumber = [...daftar.map(id => [id, t => penanggung(t) === id, false]), ...pembantu.map(id => [id, t => t.pic === id && bantuanTim(t), true])];
+    const baris = sumber.map(([id, punya, bantuan]) => {
+      const milik = data.tasks.filter(punya);
       const beres = milik.filter(t => selesai(t) && dalam(t.selesaiAt)).sort((a, b) => b.selesaiAt - a.selesaiAt);
       return {
         id,
+        ...(bantuan ? { bantuan: true } : {}),
         aktif: milik.filter(aktif).length,
         selesai: beres,
         tepat: beres.filter(t => !t.due || isoHari(waktuKumpul(t)) <= t.due).length,
@@ -2139,7 +2235,7 @@
   /* Orang yang terlibat di sebuah task: PIC, pendukung, pemberi, peninjau, yang ikut berdiskusi,
      dan yang disebut atau ditanya di utasnya. pesan = pesan ruang task itu (bila sudah disusun). */
   function terlibat(t, me, pesan, perId) {
-    if (t.pic === me || (t.support || []).includes(me) || t.assignedBy === me || peninjau(t, perId) === me) return true;
+    if (t.pic === me || (t.support || []).includes(me) || t.assignedBy === me || t.bantuan === me || peninjau(t, perId) === me) return true;
     const daftar = pesan || (t.comments || []).map(k => ({ oleh: k.author, teks: String(k.text || ''), tanya: [] }));
     return daftar.some(m => m.oleh === me || m.tanya.includes(me) || menyebut(m.teks, me));
   }
@@ -2309,12 +2405,23 @@
       if (!t) continue;
       // Lead diberi tahu saat staff-nya menambah task untuk dirinya sendiri.
       if (l.type === 'create' && t.pic === l.by && orang(l.by).peran === 'staff' && orang(l.by).lead === me) { tambah('tambah', t, l.at, l.by, '', l.ai); continue; }
-      if (t.pic !== me) continue;
       const d = String(l.detail || '');
       const dibuat = /^Dibuat untuk (.+?)(?: · |$)/.exec(d);
       const serah = /(?:diserahkan|didelegasikan) ke ([^,.;]+)/i.exec(d);
-      if (l.type === 'create' && dibuat && dibuat[1].trim().toLowerCase() === pendek) tambah('baru', t, l.at, l.by, '', l.ai);
-      else if (serah && serah[1].trim().toLowerCase() === pendek) tambah('serah', t, l.at, l.by, '', l.ai);
+      // Bantuan luar tim (2.56.0): jawabannya untuk Lead pembagi; permintaannya juga untuk Lead PIC.
+      const jawab = /^Bantuan (diambil|ditolak)(?:: ([\s\S]*))?/.exec(d);
+      if (jawab) {
+        if (t.bantuan === me || t.assignedBy === me) tambah(jawab[1] === 'diambil' ? 'bantuanAmbil' : 'bantuanTolak', t, l.at, l.by, jawab[2] || '', l.ai);
+        continue;
+      }
+      if (t.pic !== me) {
+        const namaPic = orang(t.pic).pendek.toLowerCase();
+        const kePic = (l.type === 'create' && dibuat && dibuat[1].trim().toLowerCase() === namaPic) || (serah && serah[1].trim().toLowerCase() === namaPic);
+        if (kePic && bantuanLuarTim(t) && leadDari(t.pic) === me) tambah('bantuanTim', t, l.at, l.by, t.detail, l.ai);
+        continue;
+      }
+      if (l.type === 'create' && dibuat && dibuat[1].trim().toLowerCase() === pendek) tambah(bantuanLuarTim(t) ? 'bantuan' : 'baru', t, l.at, l.by, bantuanLuarTim(t) ? t.detail : '', l.ai);
+      else if (serah && serah[1].trim().toLowerCase() === pendek) tambah(menungguAmbil(t) ? 'bantuan' : 'serah', t, l.at, l.by, menungguAmbil(t) ? t.detail : '', l.ai);
     }
     // Permintaan lanjutan (2.36.0): untuk saya (dan, bagi Lead, untuk staff saya), jawabannya
     // untuk peminta, dan pengalihannya untuk penerima lama dan peminta.
@@ -3752,6 +3859,7 @@
     if (!t) return '';
     if (t.permintaanDae) return peninjauDae(t, perId);
     if (penugasanManager(t)) return t.penugasan;   // perpanjangan penugasan ke Manager penugasnya (2.54.0)
+    if (bantuanLuarTim(t) && ORANG_PER_ID.has(t.bantuan)) return t.bantuan;   // bantuan luar tim ke Lead pembaginya (2.56.0)
     if (t.assignedBy && t.assignedBy !== t.pic && ORANG_PER_ID.has(t.assignedBy)) return t.assignedBy;
     const lead = leadDari(t.pic);
     if (lead && lead !== t.pic && ORANG_PER_ID.has(lead)) return lead;
@@ -3760,7 +3868,7 @@
   const daftarPanjang = data => data.perpanjangan || (data.perpanjangan = []);
   const panjangMenunggu = (data, id) => (data.perpanjangan || []).find(x => x.task === id && x.status === 'menunggu') || null;
   const panjangTask = (data, id) => (data.perpanjangan || []).filter(x => x.task === id);
-  const bolehAjukanPanjang = (data, t, me) => !!t && aktif(t) && t.pic === me && !!t.due && !!pemberiTask(t, indeks(data)) && !panjangMenunggu(data, t.id);
+  const bolehAjukanPanjang = (data, t, me) => !!t && aktif(t) && !menungguAmbil(t) && t.pic === me && !!t.due && !!pemberiTask(t, indeks(data)) && !panjangMenunggu(data, t.id);
   /* Yang menjawab: pemberi yang dituju, atau Manager. Pengajuan untuk task hasil permintaan ke DAE hanya
      dijawab pemberi yang dituju (pengirim permintaan): Manager hanya mengawasi. */
   const bolehJawabPanjang = (x, me) => !!x && x.status === 'menunggu' && ORANG_PER_ID.has(me) && (x.ke === me || (orang(me).peran === 'manager' && !x.permintaanDae)) && x.dari !== me;
@@ -5127,6 +5235,8 @@
   const AKSI_DATA = {
     taskBaru: (d, x, me, w, h) => taskBaru(d, x.f || {}, me, w, h),
     taskAnak: (d, x, me, w, h) => taskAnak(d, cariDi(d.tasks, x.induk, 'Task induk'), x.f || {}, me, w, h),
+    ambilBantuan: (d, x, me, w) => ambilBantuan(d, tugas(d, x), me, w),
+    tolakBantuan: (d, x, me, w) => tolakBantuan(d, tugas(d, x), x.alasan, me, w),
     ubahTask: (d, x, me, w) => ubahTask(d, tugas(d, x), x.f || {}, me, w),
     terapkanAksi: (d, x, me, w) => terapkanAksi(d, tugas(d, x), x.kunci, me, w, x.catatan),
     setujuiBanyak: (d, x, me, w) => setujuiBanyak(d, x.tasks, x.versi, me, w),
@@ -5299,6 +5409,7 @@
     pindahTahapUmum, ringkasProyekUmum, namaTahapUmum, timPemilikUmum,
     peninjauTutup, tutupDiajukan, bolehAjukanTutup, ajukanTutupUmum, jawabTutupUmum, antreTutupUmum, semuaBeresUmum,
     penugasanManager,
+    bantuanLuarTim, menungguAmbil, penanggung, menanggung, lingkupSetim, calonBantuan, bolehJawabBantuan, ambilBantuan, tolakBantuan,
     MAKS_SETUJUI_BANYAK, bolehSetujuiBanyak, versiTinjauan, setujuiBanyak,
     TIM, SUB_TAHAP, subTahap, leadSub, namaSub, timOrang, timTask, jenisJalur, tahapDariKode, picSah,
     syaratAjukan, labelKeadaan, isiOutput, tambahBukti, hapusBukti, ubahTask, timProyek,

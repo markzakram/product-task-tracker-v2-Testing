@@ -2703,6 +2703,11 @@ a.ini-chip:hover { border-color: var(--biru-garis); }
 
 /* Penugasan Manager di Pengembangan (2.54.0). */
 .pill.ditugaskan { background: var(--ungu-muda); color: var(--ungu); font-weight: 600; }
+/* Bantuan luar tim di task turunan (2.56.0). */
+.pill.bantuan-tim { background: var(--info-muda); color: var(--info-tua); font-weight: 600; }
+.anak-bantuan { flex: 1 1 100%; display: flex; flex-direction: column; gap: 6px; }
+.anak-bantuan textarea { width: 100%; }
+.anak-bantuan .hint { margin: 0; }
 .penugasan-cek { align-items: flex-start; }
 .penugasan-cek span { display: flex; flex-direction: column; gap: 2px; }
 .penugasan-cek small { color: var(--redup); font-weight: 400; }

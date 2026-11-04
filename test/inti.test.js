@@ -522,7 +522,7 @@ test('task turunan: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, 
   assert.equal(I.peninjau(I.taskAnak(d, a1, { title: 'Rekap request', pic: 'wildan' }, 'andika', WAKTU + 1, HARI)), 'andika',
     'anak di sub-stage bertanda Manager pun ditinjau Lead yang membaginya');
   assert.ok(!I.bolehBuatAnak(anak, 'andika'), 'task turunan tak beranak lagi');
-  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'andika', WAKTU + 2, HARI), /staff tim Anda/);
+  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'andika', WAKTU + 2, HARI), /Tulis catatan/, 'PIC tim lain perlu catatan (2.56.0)');
   assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'kiki' }, 'alya', WAKTU + 2, HARI), /Lead yang memegang task itu atau Lead tim pemiliknya/);
 
   // Induk baru bisa diajukan setelah semua turunannya selesai.
@@ -537,7 +537,7 @@ test('task turunan: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, 
   assert.equal(ajukan().nonaktif, false);
 
   // PIC induk dan turunan bisa diganti dalam tim pembaginya; tahap keduanya tetap.
-  assert.throws(() => I.ubahTask(d, anak, { pic: 'kiki' }, 'nynda', WAKTU + 6), /Andika sendiri atau staff timnya/);
+  assert.throws(() => I.ubahTask(d, anak, { pic: 'kiki' }, 'nynda', WAKTU + 6), /Tulis catatan/, 'PIC tim lain perlu catatan (2.56.0)');
   I.ubahTask(d, anak, { pic: 'tri' }, 'andika', WAKTU + 6);
   assert.throws(() => I.ubahTask(d, induk, { pic: 'alya' }, 'nynda', WAKTU + 7), /sudah dibagi/);
   assert.throws(() => I.ubahTask(d, anak, { sub: 'E1' }, 'andika', WAKTU + 7), /tetap di tahap Development/);
@@ -560,7 +560,7 @@ test('task turunan: Lead membagi task-nya ke staff tim; anak ditinjau Lead itu, 
   assert.deepEqual(I.aksiUntuk(sendiri, 'andika', I.indeks(d)).filter(a => a.utama).map(a => a.kunci), ['selesai'], 'langsung ditandai selesai');
   I.ubahTask(d, anak, { pic: 'andika' }, 'andika', WAKTU + 12);
   assert.equal(anak.pic, 'andika', 'turunan staff boleh diambil Lead-nya');
-  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'alya' }, 'andika', WAKTU + 13, HARI), /Anda sendiri atau staff tim Anda/);
+  assert.throws(() => I.taskAnak(d, induk, { title: 'x', pic: 'alya' }, 'andika', WAKTU + 13, HARI), /Tulis catatan/, 'Lead tim lain juga (2.56.0)');
   // Lead tanpa staff pun bisa memecah task-nya untuk dirinya sendiri.
   I.aturOrang([{ id: 'dhea', nama: 'Dhea', pendek: 'Dhea', peran: 'lead', tim: 'CO', lead: 'nynda', aktif: true },
     { id: 'nadya', nama: 'Nadya', pendek: 'Nadya', peran: 'staff', lead: 'dhea', aktif: false },
