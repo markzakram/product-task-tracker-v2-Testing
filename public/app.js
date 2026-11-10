@@ -922,6 +922,7 @@
     ulang: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
     keluar: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
     unduh: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+    unduhPdf: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/>',
     sunting: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
     hapus: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
     folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>',
@@ -1012,6 +1013,7 @@
   const fmtTanggalPendek = iso => (iso ? keDate(iso).toLocaleDateString(B.lokal(), { day: 'numeric', month: 'short' }) : '—');
   const fmtTanggalPanjang = iso => (iso ? keDate(iso).toLocaleDateString(B.lokal(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—');
   const fmtWaktu = ms => (ms ? new Date(ms).toLocaleString(B.lokal(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+  const fmtWaktuPanjang = ms => (ms ? new Date(ms).toLocaleString(B.lokal(), { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
   const fmtJam = ms => new Date(ms).toLocaleTimeString(B.lokal(), { hour: '2-digit', minute: '2-digit' });
   const fmtAngka = n => (Number.isInteger(n) ? String(n) : Number(n).toLocaleString(B.lokal()));
   const namaBulan = bulan => { const [y, m] = bulan.split('-').map(Number); return `${(B.bahasa() === 'en' ? BULAN_EN : BULAN)[m - 1]} ${y}`; };
@@ -2171,7 +2173,8 @@
     gulirPesan('detail', foto);
     for (const ta of $$('.km-isian')) if (ta.value) tumbuhkan(ta);
     const h = HALAMAN.find(x => x.id === S.view);
-    document.title = (h ? tr(h.judul) : 'ProductTrack') + ' · ProductTrack v2';
+    // Selama Unduh PDF, judul halaman = nama berkas PDF-nya; jangan ditimpa render.
+    if (!beresCetak) document.title = (h ? tr(h.judul) : 'ProductTrack') + ' · ProductTrack v2';
     catatAlamat();
   }
 
@@ -7434,7 +7437,8 @@
   const aksiCatatan = n => (n.id === '__baru' ? '' : `
     <button type="button" class="ikon-tombol ${n.pin ? 'nyala' : ''}" data-aksi="catatan-semat" aria-pressed="${n.pin}" title="${n.pin ? tr('Lepas sematan') : tr('Sematkan di atas')}" aria-label="${tr('Sematkan catatan')}">${ikon('semat', 18)}</button>
     <button type="button" class="ikon-tombol" data-aksi="ctt-versi" title="${tr('Riwayat versi')}" aria-label="${tr('Riwayat versi catatan')}">${ikon('riwayat', 18)}</button>
-    <button type="button" class="ikon-tombol" data-aksi="catatan-unduh" title="${tr('Unduh sebagai .txt')}" aria-label="${tr('Unduh catatan')}">${ikon('unduh', 18)}</button>
+    <button type="button" class="ikon-tombol" data-aksi="catatan-unduh" title="${tr('Unduh sebagai .txt')}" aria-label="${tr('Unduh catatan sebagai .txt')}">${ikon('unduh', 18)}</button>
+    <button type="button" class="ikon-tombol" data-aksi="catatan-pdf" title="${tr('Unduh PDF')}" aria-label="${tr('Unduh catatan sebagai PDF')}">${ikon('unduhPdf', 18)}</button>
     <button type="button" class="ikon-tombol" data-aksi="catatan-hapus" title="${tr('Hapus')}" aria-label="${tr('Hapus catatan')}">${ikon('hapus', 18)}</button>`);
   const warnaCatatanHtml = n => (n.id === '__baru' ? '' : `<span class="ctt-warna" role="group" aria-label="${tr('Warna catatan')}">${WARNA_UI.map(([w, l]) => `<button type="button" class="ctt-warna-titik w-${w || 'polos'}" data-aksi="ctt-warna" data-warna="${w}" aria-pressed="${(n.warna || '') === w}" title="${tr(l)}" aria-label="${tr('Warna: {warna}', { warna: tr(l) })}"></button>`).join('')}</span>`);
   /* Toolbar editor: jenis blok untuk blok yang sedang diketik, lalu format teks. Semuanya juga
@@ -7499,8 +7503,10 @@
     </section>`;
   }
 
-  /* Pratinjau kartu (tampilan Keep): blok-blok dibaca saja. batas = jumlah baris paling banyak. */
-  function renderIsiCatatan(isi, batas = 0) {
+  /* Pratinjau kartu (tampilan Keep): blok-blok dibaca saja. batas = jumlah baris paling banyak.
+     fmt = format teks per baris; Unduh PDF (2.58.0) memakai formatCetak supaya tautannya tetap
+     tautan. */
+  function renderIsiCatatan(isi, batas = 0, fmt = formatPratinjau) {
     const teks = String(isi || '');
     if (!teks.trim()) return '';
     const blok = I.blokCatatan(teks);
@@ -7511,13 +7517,13 @@
     for (; i < blok.length && sisa > 0; i++) {
       const b = blok[i];
       const gaya = b.tingkat ? ` style="--tingkat:${b.tingkat}"` : '';
-      const isiTeks = formatPratinjau(b.teks) || '&nbsp;';
+      const isiTeks = fmt(b.teks) || '&nbsp;';
       if (b.jenis === 'tabel') {
         const baris = b.sel.slice(0, Math.max(1, sisa));
         sisa -= baris.length;
         keluar.push(`<table class="ctt-tabel-kecil"><tbody>${baris.map((r, k) => {
           const t = k === 0 && b.kepala ? 'th' : 'td';
-          return `<tr>${r.map(x => `<${t}>${formatPratinjau(x)}</${t}>`).join('')}</tr>`;
+          return `<tr>${r.map(x => `<${t}>${fmt(x)}</${t}>`).join('')}</tr>`;
         }).join('')}</tbody></table>`);
         continue;
       }
@@ -7537,6 +7543,8 @@
   /* Di dalam kartu (yang sendirinya tombol) tak boleh ada tombol atau tautan lain. */
   const formatPratinjau = s => formatPesan(s).replace(/<a [^>]*>/g, '<span class="ctt-tautan">').replace(/<\/a>/g, '</span>')
     .replace(/→ (PRD-\d+)/g, '→ <span class="ctt-rujuk-task">$1</span>');
+  /* Di PDF tautan tetap tautan (bisa diklik di PDF-nya); nomor task cukup label. */
+  const formatCetak = s => formatPesan(s).replace(/→ (PRD-\d+)/g, '→ <span class="ctt-rujuk-task">$1</span>');
 
   /* ----- Editor blok (0.14.0) -----
      Tiap blok (paragraf, judul, butir daftar, checklist, kutipan) adalah satu kotak teks
@@ -8904,14 +8912,78 @@
     toast(tr('Versi {waktu} dipulihkan. Versi sebelumnya tetap ada di riwayat.', { waktu: fmtWaktu(v.at) }));
   }
 
+  const namaBerkasCatatan = n => I.namaBerkas(judulCatatan(n), tr('catatan'));
   function unduhCatatan(n) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([n.title ? `${n.title}\n\n${n.body}` : n.body], { type: 'text/plain;charset=utf-8' }));
-    a.download = `${judulCatatan(n).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) || tr('catatan')}.txt`;
+    a.download = `${namaBerkasCatatan(n)}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  /* Unduh PDF (2.58.0), tanpa pustaka luar: catatan digambar ulang di #cetak-catatan (tak tampil
+     di layar), lalu jendela cetak browser dibuka dan pengguna memilih "Simpan sebagai PDF". Saat
+     mencetak hanya #cetak-catatan yang tampil, putih dan berteks hitam di tema apa pun (app.css,
+     @media print). Judul halaman sementara = nama berkas, yang dipakai browser sebagai nama PDF.
+     Isinya sama dengan kartu catatan (renderIsiCatatan), jadi judul bagian, daftar, checklist,
+     tabel, kutipan, dan format teks ikut; tautan tetap bisa diklik. Catatan tanpa judul tak diberi
+     judul tambahan: baris pertamanya sudah di isi, sama seperti .txt. */
+  function htmlCetakCatatan(n) {
+    const c = I.hitungChecklist(n.body);
+    const meta = [
+      `${tr('Folder')}: ${esc(n.folder || tr(I.FOLDER_UMUM))}`,
+      tr('Diperbarui {waktu}', { waktu: esc(fmtWaktuPanjang(n.updatedAt)) }),
+      c.total ? tr('{a} dari {b} butir selesai', { a: c.selesai, b: c.total }) : '',
+    ].filter(Boolean);
+    const isi = renderIsiCatatan(n.body, 0, formatCetak);
+    return `<article class="cetak-ctt">
+      ${n.title ? `<h1 class="cetak-judul">${esc(n.title)}</h1>` : ''}
+      <p class="cetak-meta">${meta.join(' · ')}</p>
+      <div class="cetak-isi">${isi || `<p class="cetak-kosong">${tr('Kosong')}</p>`}</div>
+    </article>`;
+  }
+  /* Dibereskan pada ketukan atau tombol berikutnya, bukan pada afterprint: di ponsel window.print()
+     tak menunggu jendela cetak ditutup, dan Safari bisa memanggil afterprint sebelum halamannya
+     selesai dicetak. Selama itu tak ada yang berubah di layar; Ctrl+P berikutnya mencetak halaman
+     biasa lagi. */
+  let beresCetak = null;
+  function unduhPdfCatatan(n) {
+    if (beresCetak) beresCetak();
+    let wadah = document.getElementById('cetak-catatan');
+    if (!wadah) {
+      wadah = document.createElement('div');
+      wadah.id = 'cetak-catatan';
+      document.body.appendChild(wadah);
+    }
+    wadah.innerHTML = htmlCetakCatatan(n);
+    const akar = document.documentElement;
+    const judulLama = document.title;
+    const nama = namaBerkasCatatan(n);
+    const beres = () => {
+      if (beresCetak !== beres) return;
+      beresCetak = null;
+      for (const j of ['pointerdown', 'keydown']) document.removeEventListener(j, beres, true);
+      akar.classList.remove('cetak-catatan');
+      wadah.innerHTML = '';
+      if (document.title === nama) document.title = judulLama;
+    };
+    beresCetak = beres;
+    akar.classList.add('cetak-catatan');
+    document.title = nama;
+    toast(tr('Di jendela cetak, pilih Simpan sebagai PDF.'));
+    try {
+      window.print();
+    } catch (e) {
+      beres();
+      toast(tr('Browser ini tak bisa membuka jendela cetak. Pakai Unduh sebagai .txt, atau coba di Chrome, Edge, atau Safari.'), true);
+      return;
+    }
+    // Sesudah ketukan yang membuka jendela cetak ini, supaya ketukan itu sendiri tak membereskannya.
+    setTimeout(() => {
+      if (beresCetak === beres) for (const j of ['pointerdown', 'keydown']) document.addEventListener(j, beres, true);
+    }, 0);
   }
 
   /* ---------- Foto profil (0.12.0) ----------
@@ -12807,6 +12879,12 @@
         simpanCatatanTertunda();
         const n = catatanAktif();
         if (n && n.id !== '__baru') unduhCatatan(n);
+        break;
+      }
+      case 'catatan-pdf': {
+        simpanCatatanTertunda();
+        const n = catatanAktif();
+        if (n && n.id !== '__baru') unduhPdfCatatan(n);
         break;
       }
       case 'catatan-hapus': {

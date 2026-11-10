@@ -104,7 +104,7 @@
         'Catatan Saya boleh dibuka di beberapa tab sekaligus: isinya digabung dan tab lain ikut diperbarui. Kalau catatan yang sama diubah di dua perangkat, yang terbaru dipakai dan isi yang lain masuk **Riwayat versi**. Catatan yang hilang tanpa dihapus, tetapi riwayat versinya masih ada, ditawarkan lewat **Lihat dan pulihkan** di atas daftar.',
         'Tombol **Pilih** di atas daftar memilih beberapa catatan sekaligus untuk dihapus, dipindah ke folder, atau diberi warna. Catatan juga bisa diseret ke folder lain, atau ke **Disematkan**.',
         'Salah hapus? Tekan **Urungkan** pada pesan yang muncul (atau **Ctrl+Z**) dalam 10 detik; catatan dan riwayat versinya kembali.',
-        'Catatan pribadi hanya tampil untuk profil Anda di aplikasi, tetapi tersimpan di Spreadsheet tim. Profil tanpa PIN bisa dibuka siapa saja yang tahu PIN umum, jadi pasang **PIN profil** kalau isinya penting. **Riwayat versi** tetap di browser tempat catatan ditulis. Unduh sebagai .txt bila perlu disimpan di tempat lain.',
+        'Catatan pribadi hanya tampil untuk profil Anda di aplikasi, tetapi tersimpan di Spreadsheet tim. Profil tanpa PIN bisa dibuka siapa saja yang tahu PIN umum, jadi pasang **PIN profil** kalau isinya penting. **Riwayat versi** tetap di browser tempat catatan ditulis. Unduh sebagai .txt atau **PDF** bila perlu disimpan di tempat lain; untuk PDF, pilih **Simpan sebagai PDF** di jendela cetak yang terbuka.',
       ],
     },
     {

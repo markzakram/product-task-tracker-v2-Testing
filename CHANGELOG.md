@@ -6,6 +6,30 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.58.0 — Unduh catatan sebagai PDF (2026-11-10)
+
+Permintaan user: catatan di Catatan Saya bisa diunduh sebagai PDF, bukan hanya .txt.
+
+- **Tombol Unduh PDF** di samping Unduh sebagai .txt di kepala editor catatan (dua panel, kartu, dan
+  ponsel). PDF-nya berisi judul, folder, waktu diperbarui (lengkap dengan tahun), jumlah butir checklist
+  yang selesai, dan isi catatan dengan format yang sama seperti di layar: judul bagian, daftar titik dan
+  bernomor beserta jorokannya, checklist (yang selesai dicentang dan dicoret), tabel, kutipan, garis
+  pemisah, tebal/miring/coret/kode, nomor task, dan tautan yang tetap bisa diklik.
+- **Lewat jendela cetak browser, tanpa pustaka luar.** Catatan digambar ulang di wadah cetak
+  tersembunyi, lalu jendela cetak terbuka; pengguna memilih **Simpan sebagai PDF**. Dipilih karena v2
+  sengaja tanpa dependensi frontend dan pustaka PDF di browser (mis. jsPDF) perlu font tersemat untuk
+  huruf seperti "→" di "→ PRD-…" dan emoji, serta menata ulang tabel dan checklist sendiri. Browser
+  menata dan menyematkan hurufnya sendiri, jadi isinya persis sama dengan yang terlihat.
+- **Nama berkas** mengikuti judul catatan seperti versi .txt (lewat judul halaman saat mencetak).
+  Aturannya kini satu, `Inti.namaBerkas`, dipakai .txt dan PDF: karakter yang ditolak Windows, macOS,
+  atau Android dibuang, titik/spasi di ujung dibuang, paling banyak 80 karakter tanpa membelah emoji.
+- **Tetap terbaca di tema gelap:** saat mencetak hanya catatan yang tampil, putih dengan teks hitam apa
+  pun temanya (termasuk margin halaman). Kotak checklist dan titik daftar memakai garis, jadi tetap
+  tercetak walau "Grafik latar" dimatikan. Catatan panjang berlanjut ke halaman berikutnya.
+- Label tombol .txt untuk pembaca layar kini "Unduh catatan sebagai .txt", supaya beda dengan tombol
+  PDF. Teks baru punya terjemahan Inggris; panduan Catatan Saya ikut diperbarui.
+- Hanya tampilan: tanpa perubahan data, kolom, atau migrasi. Tes baru `test/catatan-pdf.test.js`.
+
 ## 2.57.0 — Catatan Saya dan Link Saya tersimpan di server per profil (2026-11-04)
 
 Keluhan user: catatan pribadi terlihat hilang sesudah keluar lalu masuk lagi. Hasil uji: keluar tak

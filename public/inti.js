@@ -4906,6 +4906,18 @@
     baris[n] = baris[n].replace(/\s+$/, '') + ' → ' + idTask;
     return baris.join('\n');
   }
+  /* Nama berkas unduhan catatan (.txt, dan PDF sejak 2.58.0): dari judulnya, tanpa karakter yang
+     ditolak Windows, macOS, atau Android, tanpa titik/spasi di ujung (Windows membuangnya, macOS
+     menyembunyikan berkas berawalan titik), paling banyak 80 karakter. Kosong = cadangan. */
+  function namaBerkas(judul, cadangan = 'catatan') {
+    const bersih = String(judul == null ? '' : judul)
+      .replace(/[\u0000-\u001f\u007f\\/:*?"<>|]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s.]+|[\s.]+$/g, '');
+    // Per karakter, bukan per unit UTF-16: emoji di karakter ke-80 tak terbelah.
+    const nama = Array.from(bersih).slice(0, 80).join('').replace(/[\s.]+$/, '');
+    return nama || String(cadangan);
+  }
 
   function hapusMilik(daftar, id, me) {
     const x = milikSaya(daftar, id, me);
@@ -5564,7 +5576,7 @@
     setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
     FOLDER_UMUM, tautanRapi, judulTautan, kartuTautan, pesanCepatUntuk, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
-    WARNA_CATATAN, warnaiCatatan, pindahFolderCatatan, hapusCatatan, pulihkanCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask,
+    WARNA_CATATAN, warnaiCatatan, pindahFolderCatatan, hapusCatatan, pulihkanCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask, namaBerkas,
     JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar, pindahBlokKe, geserBlok, duplikatBlok,
     FOTO_MAKS, fotoSah, periksaFoto,
     AKSEN, AKSEN_BAWAAN, LATAR, KUAT_LATAR, PADAT, HURUF, HALAMAN_AWAL, BAHASA_TAMPILAN, STATUS_SIAP, EMOJI_STATUS, STATUS_TEKS_MAKS, SAMPUL_MAKS, sampulSah,

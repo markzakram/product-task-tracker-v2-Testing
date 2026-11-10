@@ -437,8 +437,20 @@ Halaman pendukung, setara v1:
     lalu paling sering tiap 10 menit; maksimal 15 versi per catatan) dan bisa dipulihkan.
     Memulihkan tidak menghapus versi sekarang.
   - Tetap **tersimpan sendiri** 0,7 detik setelah berhenti mengetik; Ctrl+S menyimpan seketika.
-    Bisa disematkan, diunduh sebagai .txt, dan dihapus. Catatan tanpa judul memakai baris
+    Bisa disematkan, diunduh sebagai .txt atau PDF, dan dihapus. Catatan tanpa judul memakai baris
     pertamanya. Di ponsel daftar dulu, lalu editor penuh.
+  - **Unduh PDF (2.58.0, permintaan user)**: tombol di samping Unduh sebagai .txt membuka jendela
+    cetak browser; pilih **Simpan sebagai PDF**. Tanpa pustaka luar: catatan digambar ulang di
+    `#cetak-catatan` (tak pernah tampil di layar), dan selama `html.cetak-catatan` hanya wadah itu
+    yang tercetak (`@media print` di `public/app.css`). Isinya judul, folder, waktu diperbarui,
+    jumlah checklist selesai, lalu isi catatan dengan format yang sama seperti kartu catatan
+    (`renderIsiCatatan` dengan `formatCetak`, jadi tautan tetap bisa diklik). Selalu putih berteks
+    hitam, juga di tema gelap; kotak checklist dan titik daftar memakai garis supaya tercetak walau
+    "Grafik latar" mati. Nama PDF = judul halaman saat mencetak = nama .txt (`Inti.namaBerkas`).
+    Keadaan cetak dibereskan pada ketukan atau tombol berikutnya, bukan `afterprint`, karena di
+    ponsel `window.print()` tak menunggu dan Safari bisa memanggil `afterprint` terlalu awal. Diuji
+    di `test/catatan-pdf.test.js`. Catatan tanpa judul tak diberi judul tambahan (baris pertamanya
+    sudah di isi), sama dengan .txt.
   - **Pilih banyak catatan (2.34.0)**: tombol **Pilih** (atau Ctrl+A bila tak ada catatan yang
     terbuka) memunculkan kotak centang; Shift+klik memilih satu rentang, Esc keluar. Bilahnya:
     Pilih semua, Pindah ke folder, warna, dan Hapus. Catatan juga bisa **diseret** (tetikus)
