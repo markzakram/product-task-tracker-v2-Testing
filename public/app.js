@@ -10087,7 +10087,18 @@
     if (!h.success || !Array.isArray(h.master)) return gagalMaster(h.message || tr('Gagal menyimpan.'), form);
     S.masterBaris = h.master;
     S.masterSalah = I.aturMaster(S.masterBaris);
+    if (!masterBerlaku(bersih)) return gagalMaster(masterTakTerbaca(), form);
     return true;
+  }
+  /* Sampai 2.58.0 pesan "ditambahkan" muncul selama server menjawab, walau tab master-nya tak
+     terbaca kembali (baris judulnya rusak), jadi perubahannya hilang saat dimuat ulang (keluhan
+     user, 2.58.1). Kini perubahan baru dianggap tersimpan kalau berlaku di daftar yang dikirim balik
+     server: kodenya ada dan isiannya sama dengan yang dikirim. */
+  const masterTakTerbaca = () => tr('Server menjawab tersimpan, tetapi perubahan ini tidak terbaca kembali dari tab master, jadi belum berlaku. Muat ulang halaman; kalau tetap begitu, beri tahu Dev.');
+  function masterBerlaku(x) {
+    if (S.masterSalah[x.jenis]) return false;
+    const kini = I.daftarMaster(x.jenis).find(d => String(d.kunci).toLowerCase() === String(x.kunci).toLowerCase());
+    return !!kini && Object.keys(x).filter(k => k !== 'jenis' && k !== 'diperbarui').every(k => JSON.stringify(kini[k]) === JSON.stringify(x[k]));
   }
   /* Mode uji Dev (2.25.0): Master diubah di browser ini saja, tak dikirim ke server. */
   function terapkanMasterUji(tulis) {
@@ -10112,6 +10123,7 @@
     if (!h.success || !Array.isArray(h.master)) return gagalMaster(h.message || tr('Gagal memindahkan sub-stage.'), form);
     S.masterBaris = h.master;
     S.masterSalah = I.aturMaster(S.masterBaris);
+    if (S.masterSalah.substage || !I.daftarMaster('substage').some(s => s.kunci === tulis[0].kunci && !s.dihapus)) return gagalMaster(masterTakTerbaca(), form);
     return tulis;
   }
   function gagalMaster(pesan, form) {

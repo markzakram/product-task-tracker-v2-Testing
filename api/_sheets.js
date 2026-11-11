@@ -18,7 +18,7 @@ const path = require('path');
 const {
   TAB, TAB_OPSIONAL, USANG, TAB_OBROLAN, OBROLAN, TAB_FOTO, FOTO, TAB_ORANG, ORANG_KOLOM, TAB_MASTER, MASTER_KOLOM, TAB_PIN, PIN_KOLOM,
   dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris,
-  masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, rakit, nomorTerbesar,
+  masterKeBaris, tabelMaster, pinKeBaris, pinDariBaris, rakit, nomorTerbesar,
   TAB_SETELAN, SETELAN_KOLOM, TAB_REAL, REAL_KOLOM, TAB_OBROLAN_REAL, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   TAB_TAMPILAN, TAMPILAN, tampilanKeBaris, tampilanDariBaris,
   TAB_AGENDA, AGENDA_KOLOM, TAB_PRIBADI, PRIBADI_KOLOM, agendaKeBaris, agendaDariBaris, pribadiKeBaris, pribadiDariBaris,
@@ -349,15 +349,26 @@ async function bacaContoh(k, id) {
   }
   const semua = Object.keys(TAB);
   const kurang = semua.filter(n => !keadaan.tab.includes(n));
-  if (kurang.length === semua.length || !keadaan.contoh) return { versi: '', sumber: '', data: null };
+  const adaOrang = keadaan.tab.includes(TAB_ORANG);
+  const adaMaster = keadaan.tab.includes(TAB_MASTER);
+  const rentangAplikasi = [...(adaOrang ? [rentang(TAB_ORANG, 'A:I')] : []), ...(adaMaster ? [rentang(TAB_MASTER, 'A:F')] : [])];
+  if (kurang.length === semua.length || !keadaan.contoh) {
+    // Belum ada data contoh: organogram dan Master tetap berlaku. Sampai 2.58.0 keduanya ikut tak
+    // terbaca di sini, jadi perubahan Master di data contoh yang belum diimpor hilang saat dimuat ulang.
+    const r = rentangAplikasi.length ? await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges: rentangAplikasi })) : null;
+    const h = (r && r.data.valueRanges) || [];
+    return {
+      versi: '', sumber: '', data: null,
+      orang: adaOrang ? barisOrangDari((h[0] || {}).values) : [],
+      master: adaMaster ? barisMasterDari((h[adaOrang ? 1 : 0] || {}).values) : [],
+    };
+  }
   const wajibKurang = kurang.filter(n => !TAB_OPSIONAL.has(n));
   if (wajibKurang.length) {
     throw new GalatDitolak(`Tab data contoh tidak lengkap (tak ada: ${wajibKurang.join(', ')}). Jalankan ulang npm run impor:v1.`);
   }
   const nama = semua.filter(n => keadaan.tab.includes(n));
-  const adaOrang = keadaan.tab.includes(TAB_ORANG);
-  const adaMaster = keadaan.tab.includes(TAB_MASTER);
-  const ranges = [...nama.map(n => rentang(n, 'A:Z')), ...(adaOrang ? [rentang(TAB_ORANG, 'A:I')] : []), ...(adaMaster ? [rentang(TAB_MASTER, 'A:F')] : [])];
+  const ranges = [...nama.map(n => rentang(n, 'A:Z')), ...rentangAplikasi];
   const r = await panggil(() => k.api.spreadsheets.values.batchGet({ spreadsheetId: id, ranges }));
   const tabs = Object.fromEntries(kurang.map(n => [n, []]));
   const hasil = r.data.valueRanges || [];
@@ -676,10 +687,8 @@ async function tulisOrang(k, id, o) {
    Tab `master`: satu baris per isian daftar pilihan (jenis + kunci), ditimpa seperti orang.
    Tab `pin`: PIN tiap profil sebagai hash scrypt bergaram; hanya dibaca server, tak pernah
    dikirim ke browser. Keduanya bukan data contoh: impor ulang tak menyentuhnya. */
-function barisMasterDari(nilai) {
-  const [judul = [], ...isi] = nilai || [];
-  return isi.filter(b => b.some(sel => String(sel).trim())).map(b => masterDariBaris(judul, b)).filter(m => m.jenis && m.kunci);
-}
+/* Tahan baris judul yang rusak atau hilang (2.58.1): lihat tabelMaster di api/_skema.js. */
+const barisMasterDari = nilai => tabelMaster(nilai).baris.map(x => x.m);
 const tabAplikasi = async (k, id, nama, kolom) => {
   try {
     const r = await panggil(() => k.api.spreadsheets.values.get({ spreadsheetId: id, range: rentang(nama, 'A:' + String.fromCharCode(64 + kolom.length)) }));
@@ -820,12 +829,34 @@ async function bacaMaster(k, id) {
   await pastikanV2(k, id);
   return barisMasterDari(await tabAplikasi(k, id, TAB_MASTER, MASTER_KOLOM));
 }
-/* m sudah dibersihkan Inti.periksaMaster. Mengembalikan semua baris sesudah ditulis. */
+/* m sudah dibersihkan Inti.periksaMaster. Mengembalikan semua baris sesudah ditulis.
+   Sejak 2.58.1 baris yang ditimpa dicari dengan tabelMaster (juga di tab yang baris judulnya
+   rusak), isinya ditulis menurut urutan judul tab kalau judulnya sah, dan baris judul yang kosong
+   atau tak lengkap ditulis ulang. Baris 1 yang berisi data tak disentuh: tetap terbaca menurut
+   posisi. */
 async function tulisMaster(k, id, m) {
   await pastikanV2(k, id);
-  const baris = { ...m, diperbarui: Date.now() };
-  const sama = (judul, b) => { const x = masterDariBaris(judul, b); return x.jenis === m.jenis && x.kunci.toLowerCase() === String(m.kunci).toLowerCase(); };
-  await timpaAtauTambah(k, id, TAB_MASTER, MASTER_KOLOM, sama, masterKeBaris(baris));
+  let nilai = await tabAplikasi(k, id, TAB_MASTER, MASTER_KOLOM);
+  if (!nilai) {
+    await buatTabAplikasi(k, id, TAB_MASTER, MASTER_KOLOM, 200);
+    nilai = [MASTER_KOLOM];
+  }
+  const tabel = tabelMaster(nilai);
+  const akhir = String.fromCharCode(64 + MASTER_KOLOM.length);
+  const tulisBaris = (n, isi) => panggil(() => k.api.spreadsheets.values.update({
+    spreadsheetId: id, range: rentang(TAB_MASTER, `A${n}:${akhir}${n}`), valueInputOption: 'RAW', requestBody: { values: [isi] },
+  }), { tulis: true });
+  if (tabel.keadaan === 'kosong' || tabel.keadaan === 'rusak') await tulisBaris(1, MASTER_KOLOM);
+  const posisi = masterKeBaris({ ...m, diperbarui: Date.now() });
+  const isi = tabel.keadaan === 'sah' ? tabel.judul.map(j => (MASTER_KOLOM.includes(j) ? posisi[MASTER_KOLOM.indexOf(j)] : '')) : posisi;
+  const kunci = String(m.kunci).toLowerCase();
+  const sama = tabel.baris.filter(x => x.m.jenis === m.jenis && String(x.m.kunci).toLowerCase() === kunci);
+  if (sama.length) await tulisBaris(sama[sama.length - 1].n, isi);
+  else {
+    await panggil(() => k.api.spreadsheets.values.append({
+      spreadsheetId: id, range: rentang(TAB_MASTER, 'A1'), valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', requestBody: { values: [isi] },
+    }), { tulis: true });
+  }
   return bacaMaster(k, id);
 }
 

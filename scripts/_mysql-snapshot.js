@@ -57,7 +57,8 @@ function susun(raw, sumber = {}) {
     pin: terbaru(isi(raw, 'pin', S.pinDariBaris), x => x.orang),
     foto: terbaru(isi(raw, 'foto', S.fotoDariBaris), x => x.orang),
     tampilan: terbaru(isi(raw, 'tampilan', S.tampilanDariBaris), x => x.orang),
-    master: terbaru(isi(raw, 'master', S.masterDariBaris), x => x.jenis && x.kunci ? x.jenis + ':' + x.kunci.toLowerCase() : ''),
+    // Tahan baris judul yang rusak atau hilang, sama dengan aplikasi (2.58.1).
+    master: terbaru(S.tabelMaster(raw.master).baris.map(x => x.m), x => x.jenis && x.kunci ? x.jenis + ':' + x.kunci.toLowerCase() : ''),
     agenda: terbaru(isi(raw, 'agenda', S.agendaDariBaris), x => x.id),
     pribadi: terbaru(isi(raw, 'pribadi', S.pribadiDariBaris), x => x.orang),
     setelan: terbaru(isi(raw, 'setelan', S.setelanDariBaris), x => x.kunci),

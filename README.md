@@ -833,6 +833,29 @@ dengan alasannya. Aksi `simpanMaster`, `aturPin`, dan `masukProfil` di `/api/rpc
 `obrolan` dan `foto`, tab `master` dan `pin` tak disentuh impor ulang maupun Reset data contoh.
 Diuji di `test/master.test.js` dan `test/rpc.test.js`.
 
+**Tab master yang baris judulnya rusak (2.58.1, keluhan user: sub-stage yang ditambah hilang
+sesudah dimuat ulang).** Aplikasi selalu menulis baris master menurut urutan kolom di atas,
+tetapi sampai 2.58.0 membacanya hanya menurut judul di baris 1. Di spreadsheet tim, tab `master`
+berisi 69 baris yang terbaca 0, jadi setiap perubahan Master tersimpan dan pesannya "berhasil",
+tetapi tak satu pun berlaku: Master selalu kembali ke bawaan, dan kode baru selalu menawarkan
+nomor yang sama (D8 berkali-kali). Kini (`tabelMaster` di `api/_skema.js`):
+- baris 1 yang memuat semua judul kolom dibaca menurut nama (huruf besar-kecil, spasi, dan
+  urutan kolom bebas), dan baris baru ditulis menurut urutan judul itu;
+- baris 1 yang kosong, judul yang tak lengkap, judul yang terhapus atau tergeser karena tabnya
+  diurutkan, atau judul yang diganti nama: tab dibaca menurut posisi kolom. Baris 1 yang kosong
+  atau tak lengkap ditulis ulang jadi judul pada simpan berikutnya; baris 1 yang berisi data tak
+  disentuh, dan baris judul yang tergeser ke tengah dilewati;
+- baris yang sama ditulis lebih dari sekali: yang paling bawah (terbaru) yang berlaku;
+- pesan "ditambahkan"/"disimpan" baru muncul kalau perubahannya berlaku di daftar yang dikirim
+  balik server; kalau tidak, jendelanya menampilkan galat yang menjelaskan;
+- alat migrasi MySQL (`scripts/_mysql-snapshot.js`) membaca tab ini dengan aturan yang sama;
+- data contoh yang belum diimpor tetap mengirim Master dan organogram saat dimuat (sebelumnya
+  keduanya ikut tak terbaca di sana).
+
+Akibatnya, begitu 2.58.1 terpasang, **semua perubahan Master lama di tab itu berlaku sekaligus**.
+Periksa halaman Master (dan Panel Dev → Izin) sekali sesudah deploy. Diuji di
+`test/master-tab.test.js`.
+
 ### Izin per peran (2.29.0)
 
 Permintaan user: di mode Dev ada satu daftar semua yang boleh dilakukan Manager, Lead, dan Staff,

@@ -265,6 +265,35 @@ function masterDariBaris(judul, baris) {
   return { ...data, jenis: sel('jenis'), kunci: sel('kunci'), aktif: !/^(tidak|no|false|0)$/i.test(sel('aktif').trim()),
     urutan: Number(sel('urutan')) || 0, diperbarui: dariSel('at', sel('diperbarui')) };
 }
+/* Isi tab master apa adanya (nilai dari values.get 'A:F', mulai baris 1) → { judul, keadaan, baris }.
+   Aplikasi selalu menulis baris master menurut urutan MASTER_KOLOM. Sampai 2.58.0 tab ini hanya
+   dibaca menurut judul di baris 1, jadi tab yang baris judulnya kosong, terhapus, tergeser karena
+   tabnya diurutkan, atau diganti namanya terbaca kosong: perubahan Master tersimpan (dan pesannya
+   "berhasil"), tetapi tak pernah berlaku (keluhan user, 2.58.1). Kini:
+   - keadaan 'sah': baris 1 memuat semua MASTER_KOLOM (huruf besar-kecil dan spasi diabaikan,
+     urutan bebas) → dibaca menurut judul itu;
+   - 'kosong' (baris 1 kosong), 'rusak' (baris 1 judul yang tak lengkap), atau 'data' (baris 1
+     berisi data) → dibaca menurut posisi MASTER_KOLOM; baris 1 ikut dibaca kalau berisi data.
+   Baris judul yang tergeser ke tengah tab dilewati. baris = [{ m, n }], n = nomor baris di tab. */
+const kolomNormal = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase();
+function tabelMaster(nilai) {
+  const semua = Array.isArray(nilai) ? nilai : [];
+  const pertama = (semua[0] || []).map(kolomNormal);
+  const sah = MASTER_KOLOM.every(k => pertama.includes(k));
+  const keadaan = sah ? 'sah' : !pertama.some(Boolean) ? 'kosong' : pertama[0] === 'jenis' ? 'rusak' : 'data';
+  const judul = sah ? pertama : MASTER_KOLOM;
+  const iJenis = judul.indexOf('jenis');
+  const iKunci = judul.indexOf('kunci');
+  const baris = [];
+  semua.forEach((b, i) => {
+    if (i === 0 && keadaan !== 'data') return;
+    if (!Array.isArray(b) || !b.some(sel => String(sel == null ? '' : sel).trim())) return;
+    if (kolomNormal(b[iJenis]) === 'jenis' && kolomNormal(b[iKunci]) === 'kunci') return;   // judul yang tergeser
+    const m = masterDariBaris(judul, b);
+    if (m.jenis && m.kunci) baris.push({ m, n: i + 1 });
+  });
+  return { judul, keadaan, baris };
+}
 const pinKeBaris = p => [String(p.orang || ''), String(p.hash || ''), String(p.garam || ''), keSel('at', p.diperbarui)];
 function pinDariBaris(judul, baris) {
   const sel = k => { const i = judul.indexOf(k); return i >= 0 && baris[i] != null ? String(baris[i]) : ''; };
@@ -423,6 +452,6 @@ module.exports = {
   TAB_AGENDA, AGENDA_KOLOM, TAB_PRIBADI, PRIBADI_KOLOM, agendaKeBaris, agendaDariBaris, pribadiKeBaris, pribadiDariBaris,
   TAB_MILIK, MILIK_KOLOM, MILIK_SEL, milikKeBaris, milikDariBaris,
   keBaris, dariBaris, obrolanKeBaris, obrolanDariBaris, fotoKeBaris, fotoDariBaris, orangKeBaris, orangDariBaris, tampilanKeBaris, tampilanDariBaris,
-  masterKeBaris, masterDariBaris, pinKeBaris, pinDariBaris, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
+  masterKeBaris, masterDariBaris, tabelMaster, pinKeBaris, pinDariBaris, setelanKeBaris, setelanDariBaris, realKeBaris, realDariBaris,
   urai, rakit, nomorTerbesar,
 };

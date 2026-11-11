@@ -370,7 +370,8 @@ test('tab wajib yang hilang tetap ditolak dengan pesan yang jelas', async () => 
 test('bacaContoh: belum pernah diimpor → data null; belum disiapkan → ditolak', async () => {
   const siap = kosong();
   await sheet.siapkan(siap.k, ID);
-  assert.deepEqual(await sheet.bacaContoh(siap.k, ID), { versi: '', sumber: '', data: null });
+  // Organogram dan Master tetap dikirim (2.58.1); di sini belum ada tabnya.
+  assert.deepEqual(await sheet.bacaContoh(siap.k, ID), { versi: '', sumber: '', data: null, orang: [], master: [] });
   await assert.rejects(sheet.bacaContoh(kosong().k, ID), /belum disiapkan untuk v2/);
 });
 

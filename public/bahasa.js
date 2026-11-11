@@ -1456,6 +1456,7 @@
     'ID dibuat dari nama panggilan dan tak bisa diubah sesudahnya.': 'The ID is made from the nickname and can\'t be changed afterwards.',
     'Lead baru menggantikan Lead lama timnya? Ubah dulu Lead lama (jadikan Staff), baru jadikan yang baru Lead.': 'Is a new Lead replacing their team\'s old Lead? First edit the old Lead (make them Staff), then make the new one Lead.',
     'Gagal menyimpan.': 'Could not save.',
+    'Server menjawab tersimpan, tetapi perubahan ini tidak terbaca kembali dari tab master, jadi belum berlaku. Muat ulang halaman; kalau tetap begitu, beri tahu Dev.': 'The server reported it as saved, but the change could not be read back from the master tab, so it is not in effect yet. Reload the page; if it stays like this, tell Dev.',
     '{nama} disimpan. Orang lain melihat perubahannya saat membuka aplikasi lagi.': '{nama} saved. Others see the change when they open the app again.',
     '{nama} ditambahkan. Orang lain melihat perubahannya saat membuka aplikasi lagi.': '{nama} added. Others see the change when they open the app again.',
     'Pesan terbaru': 'Latest messages',

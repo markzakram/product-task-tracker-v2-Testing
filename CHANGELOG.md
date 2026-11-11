@@ -6,6 +6,29 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.58.1 — Perubahan Master kini benar-benar berlaku sesudah dimuat ulang (2026-11-12)
+
+Keluhan user: menambah sub-stage memunculkan pesan "berhasil ditambahkan", tetapi sesudah halaman
+dimuat ulang sub-stage-nya tak ada. Hasil pemeriksaan di data real: tab `master` di spreadsheet
+berisi 69 baris, tetapi server membacanya 0 baris. Aplikasi menulis baris master menurut posisi
+kolom, tetapi membacanya hanya menurut judul di baris 1, dan baris judul tab itu sudah tak
+dikenali (kosong, terhapus, tergeser, atau diganti nama). Jadi setiap perubahan Master tersimpan,
+tetapi tak satu pun pernah berlaku, dan kode baru selalu menawarkan nomor yang sama.
+
+- **Tab master tetap terbaca** walau baris judulnya rusak atau hilang: dibaca menurut nama kolom
+  kalau judulnya lengkap (huruf besar-kecil dan urutan bebas), selain itu menurut posisi kolom.
+  Judul yang kosong atau tak lengkap ditulis ulang pada simpan berikutnya; baris data tak disentuh.
+- **Tak ada baris ganda baru:** menyimpan isian yang sudah ada menimpa barisnya, juga di tab tanpa
+  judul. Baris ganda yang sudah terlanjur ada: yang terbaru yang berlaku.
+- **Pesan yang jujur:** "ditambahkan"/"disimpan" hanya muncul kalau perubahannya berlaku di daftar
+  yang dikirim balik server; kalau tidak, jendelanya menjelaskan bahwa perubahan belum berlaku.
+- **Data contoh yang belum diimpor** kini tetap memuat Master dan organogram (sebelumnya perubahan
+  Master di sana juga hilang sesudah dimuat ulang).
+- **Migrasi MySQL** membaca tab master dengan aturan yang sama, jadi Master tak hilang saat migrasi.
+- **Perlu diperiksa sesudah deploy:** semua perubahan Master lama di tab itu (sub-stage, kategori,
+  platform, izin, dan lainnya) langsung berlaku. Cek halaman Master dan Panel Dev → Izin sekali.
+- Tanpa kolom atau migrasi baru. Tes baru `test/master-tab.test.js`.
+
 ## 2.58.0 — Unduh catatan sebagai PDF (2026-11-10)
 
 Permintaan user: catatan di Catatan Saya bisa diunduh sebagai PDF, bukan hanya .txt.
