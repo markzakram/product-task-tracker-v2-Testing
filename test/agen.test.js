@@ -175,7 +175,9 @@ const tanpaEnv = path.join(os.tmpdir(), 'tak-ada-agen.env');
 
 test('klien agen: ringkasan pagi, pengingat tanpa ulangan, pesan dan perubahan atas nama Ali', async () => {
   sheetV2();
-  const besok = I.tambahHari(I.isoHari(Date.now()), 1);
+  // Tenggat harus hari kerja (2.59.0): "besok" = hari kerja berikutnya, supaya tes ini jalan di hari apa pun.
+  const besok = I.hariKerjaBerikut(I.tambahHari(I.isoHari(Date.now()), 1));
+  const kataBesok = besok === I.tambahHari(I.isoHari(Date.now()), 1) ? 'besok' : 'hari kerja berikutnya';
   const { nynda } = await siapkanReal({ due: besok });
   const tanya = await aksi(nynda, 'kirimObrolan', { jenis: 'pesan', ruang: 'task:PRD-001', oleh: 'nynda', teks: 'Ali, skripnya sudah jalan?', tanya: ['ali'] });
   assert.equal(tanya.status, 200);
@@ -197,7 +199,7 @@ test('klien agen: ringkasan pagi, pengingat tanpa ulangan, pesan dan perubahan a
 
     const p1 = pengingat(k, null);
     assert.deepEqual(p1.baris.map(b => b.replace(/ \(\d+ \w+\)$/, '')), [
-      '• PRD-001 Skrip tarik data: tenggat besok',
+      `• PRD-001 Skrip tarik data: tenggat ${kataBesok}`,
       '• pertanyaan dari Nynda: "Ali, skripnya sudah jalan?"',
       '• task baru untuk Anda: PRD-001',
     ]);
@@ -236,7 +238,7 @@ function jalankanSkrip(nama, args, env) {
 
 test('pekerjaan Lead: rekap tim, antrean, cek data, dan laporan mingguan jalan sebagai skrip', async () => {
   sheetV2();
-  await siapkanReal({ due: I.tambahHari(I.isoHari(Date.now()), 3) });
+  await siapkanReal({ due: I.tambahHariKerja(I.isoHari(Date.now()), 3) });
   const { srv, alamat } = await nyalakanServer();
   const folder = folderSementara();
   const laporan = folderSementara();

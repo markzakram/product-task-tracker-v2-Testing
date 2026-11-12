@@ -1042,11 +1042,24 @@
     // Sudah diajukan = sudah dikumpulkan: tak ditandai telat (2.30.0).
     if (t.status === 'Ditinjau') return `<span class="tenggat" title="${tr('Sudah diajukan, tak dihitung telat')}">${esc(fmtTanggal(t.due))}</span>`;
     const n = I.selisihHari(hariIni(), t.due);
-    if (n < 0) return `<span class="tenggat telat">${tr('Telat {n} hr', { n: -n })}</span>`;
+    // Telat dihitung dalam hari kerja (2.59.0): Sabtu dan Minggu tak menambah keterlambatan.
+    if (n < 0) return `<span class="tenggat telat" title="${esc(tr('Tenggat {tanggal} · terlambat {n} hari kerja; Sabtu dan Minggu tak dihitung', { tanggal: fmtTanggal(t.due), n: I.hariTelat(t.due, hariIni()) }))}">${tr('Telat {n} hr', { n: I.hariTelat(t.due, hariIni()) })}</span>`;
     if (n === 0) return `<span class="tenggat hari">${tr('Hari ini')}</span>`;
     if (n === 1) return `<span class="tenggat">${tr('Besok')}</span>`;
     return `<span class="tenggat">${esc(fmtTanggal(t.due))}</span>`;
   }
+  /* Tenggat hanya hari kerja (2.59.0): isian tanggal tenggat langsung memberi tahu kalau Sabtu atau
+     Minggu dipilih. Aturannya tetap di I.wajibHariKerja, yang menolak saat disimpan; tenggat lama
+     yang sudah di akhir pekan boleh dibiarkan selama tak diubah. */
+  const ISIAN_TENGGAT = 'input[type="date"][name="due"], input[type="date"][name="tenggat"], input[type="date"][name="t-due"]';
+  function periksaIsianTenggat(el, beriTahu) {
+    const salah = !!el.value && el.value !== el.defaultValue && I.akhirPekan(el.value);
+    el.setCustomValidity(salah ? tr(I.TENGGAT_AKHIR_PEKAN) : '');
+    if (salah && beriTahu) el.reportValidity();
+    return !salah;
+  }
+  /* Tanggal bawaan/minimum isian tenggat: Sabtu atau Minggu menjadi Senin sesudahnya. */
+  const tglKerja = iso => I.hariKerjaBerikut(iso);
   /* Kode sub-stage (PRD v3): kode ADDIE di dalam proyek; kode R = rutin; kode ADDIE di luar
      proyek = pekerjaan "lepas" warisan v1. Task lama tanpa kode memakai huruf tahapnya. */
   function chipJalur(t) {
@@ -1293,7 +1306,7 @@
       }
     }
     for (const t of aktif.filter(x => dalam(x) && I.telat(x, h) && !x.tertahan)) {
-      tambah(t, tr('{judul} terlambat {n} hari · {nama}', { judul: judul(t), n: I.selisihHari(t.due, h), nama: nama(t.pic) }), tombol('buka-task', t, tr('Lihat')), t.pic);
+      tambah(t, tr('{judul} terlambat {n} hari kerja · {nama}', { judul: judul(t), n: I.hariTelat(t.due, h), nama: nama(t.pic) }), tombol('buka-task', t, tr('Lihat')), t.pic);
     }
     for (const t of aktif.filter(x => dalam(x) && x.tertahan)) {
       tambah(t, tr('{nama} tertahan di {judul}: {alasan}', { nama: nama(t.pic), judul: judul(t), alasan: esc(t.alasanTertahan || tr('tanpa alasan')) }), tombol('buka-task', t, tr('Lihat')), t.pic);
@@ -3457,7 +3470,8 @@
     I.bolehJawabPanjang(x, S.me) ? `<button type="button" class="tombol kecil utama" data-aksi="panjang-setuju" data-id="${esc(x.id)}">${tr('Setujui')}</button><button type="button" class="tombol kecil" data-aksi="panjang-tolak" data-id="${esc(x.id)}">${tr('Tolak')}</button>` : '',
     x.status === 'menunggu' && x.dari === S.me ? `<button type="button" class="tombol kecil" data-aksi="panjang-batal" data-id="${esc(x.id)}">${tr('Batalkan pengajuan')}</button>` : '',
   ].join('');
-  const tambahHariTeks = x => { const n = I.selisihHari(x.dueLama, x.dueBaru); return n > 0 ? tr('+{n} hari', { n }) : ''; };
+  // Tambahan waktu dalam hari kerja (2.59.0): Jumat → Senin = +1 hari kerja.
+  const tambahHariTeks = x => { const n = I.hariKerja(x.dueLama, x.dueBaru); return n > 0 ? tr('+{n} hari kerja', { n }) : ''; };
   /* Spanduk di detail task selama ada pengajuan yang menunggu. */
   function bannerPanjang(t) {
     const x = I.panjangMenunggu(S.data, t.id);
@@ -3503,7 +3517,7 @@
     </form>`;
   }
   function formAjukanPanjang(t) {
-    const min = [I.tambahHari(t.due, 1), hariIni()].sort().pop();
+    const min = tglKerja([I.tambahHari(t.due, 1), hariIni()].sort().pop());
     const ke = I.pemberiTask(t, perIdKini());
     const siapa = t.permintaanDae ? (ke === t.peminta ? tr('pengirim permintaan') : tr('tim peminta')) : ke === t.assignedBy ? tr('pemberi task ini') : I.orang(ke).peran === 'manager' ? tr('Manager') : tr('Lead Anda');
     return `<form data-form="modal" novalidate>
@@ -3521,7 +3535,7 @@
       <h2>${setuju ? tr('Setujui perpanjangan tenggat?') : tr('Tolak perpanjangan tenggat?')}</h2>
       <p class="label-tebal">${esc(t ? t.title : x.task)}</p>
       <p class="hint">${tr('{siapa} meminta {lama} → {baru}: “{alasan}”', { siapa: nama(x.dari), lama: esc(fmtTanggal(x.dueLama)), baru: esc(fmtTanggal(x.dueBaru)), alasan: esc(x.alasan) })}</p>
-      ${setuju ? `<label class="isian">${tr('Tenggat yang disetujui')} <input type="date" name="due" required min="${esc(I.tambahHari(x.dueLama, 1))}" value="${esc(x.dueBaru)}"></label>
+      ${setuju ? `<label class="isian">${tr('Tenggat yang disetujui')} <input type="date" name="due" required min="${esc(tglKerja(I.tambahHari(x.dueLama, 1)))}" value="${esc(tglKerja(x.dueBaru))}"></label>
       <label class="isian">${tr('Catatan (opsional)')} <textarea name="catatan" maxlength="1000" rows="2"></textarea></label>`
         : `<label class="isian">${esc(tr('Alasan (wajib, dikirim ke {nama})', { nama: I.orang(x.dari).pendek }))} <textarea name="catatan" required maxlength="1000" rows="3"></textarea></label>`}
       ${kakiModal(setuju ? tr('Setujui') : tr('Tolak'))}
@@ -3630,7 +3644,7 @@
       </div>
       <label class="isian">${tr('Yang dibutuhkan')} <input name="judul" required maxlength="200" value="${esc(awal.judul || '')}" placeholder="${esc(tr('Mis. Prototype dari blueprint soal'))}"></label>
       <label class="isian">${tr('Rincian')} <textarea name="rincian" maxlength="2000" rows="3" placeholder="${esc(tr('Apa yang sudah siap, apa yang dibutuhkan, dan di mana bahannya.'))}">${esc(awal.rincian || '')}</textarea></label>
-      <label class="isian">${tr('Tenggat harapan')} <input type="date" name="due" min="${esc(hariIni())}" value="${esc(awal.due || '')}"></label>
+      <label class="isian">${tr('Tenggat harapan')} <input type="date" name="due" min="${esc(hariIni())}" value="${esc(awal.due ? tglKerja(awal.due) : '')}"></label>
       ${kakiModal(tr('Kirim permintaan'))}
     </form>`;
   }
@@ -3661,7 +3675,7 @@
         <label class="isian">${tr('PIC')} <select name="pic">${pic.map(id => `<option value="${esc(id)}" ${id === picAwal ? 'selected' : ''}>${esc(id === S.me ? tr('Saya ({nama})', { nama: I.orang(id).pendek }) : I.orang(id).pendek)}</option>`).join('')}</select></label>
         ${I.proyekUmum(p) ? '' : `<label class="isian">${tr('Sub-stage')} <select name="sub" required>${opsiSubMinta(picAwal, !!p, x.sub, 'Pilih sub-stage…', s => !staff || I.subBolehBagi(S.me, s.kode))}</select></label>`}
       </div>
-      <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(x.due || '')}"></label>
+      <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(x.due ? tglKerja(x.due) : '')}"></label>
       <div class="kotak-minta-info">${info.map(s => `<p>${s}</p>`).join('')}</div>
       ${kakiModal(tr('Terima dan buat task'))}
     </form>`;
@@ -3917,7 +3931,7 @@
     const telat = S.data.tasks.filter(t => I.menanggung(t, ids, I.lingkupSetim(S.me, S.dash.lingkup)) && I.telat(t, h) && !t.tertahan).sort((a, b) => a.due.localeCompare(b.due));
     if (telat.length) {
       const t = telat[0];
-      baris.push(['merah', tr('{judul} terlambat {n} hari · {nama}', { judul: `<b>${esc(potong(t.title, 80))}</b>`, n: I.selisihHari(t.due, h), nama: nama(t.pic) })
+      baris.push(['merah', tr('{judul} terlambat {n} hari kerja · {nama}', { judul: `<b>${esc(potong(t.title, 80))}</b>`, n: I.hariTelat(t.due, h), nama: nama(t.pic) })
         + (telat.length > 1 ? ' ' + tr('(dan {n} lainnya)', { n: telat.length - 1 }) : ''), tombol('buka-task', tr('Buka task'), `data-id="${esc(t.id)}"`)]);
     }
     if (r.kpi.tertahan) baris.push(['kuning', tr('{n} task tertahan', { n: r.kpi.tertahan }), tombol('fokus-papan', tr('Lihat'), 'data-fokus="tertahan"')]);
@@ -4680,7 +4694,7 @@
     const buka = S.data.tasks.filter(t => t.project === p.id && I.aktif(t));
     const tinjau = buka.filter(t => t.status === 'Ditinjau' && I.peninjau(t, perId) === S.me);
     const telat = buka.filter(t => !tinjau.includes(t) && I.telat(t, h) && !t.tertahan && (t.pic === S.me || I.bolehUbah(t, S.me)));
-    const isi = [...tinjau.map(t => [t, tr('Menunggu tinjauan Anda')]), ...telat.map(t => [t, tr('Terlambat {n} hari', { n: I.selisihHari(t.due, h) })])];
+    const isi = [...tinjau.map(t => [t, tr('Menunggu tinjauan Anda')]), ...telat.map(t => [t, tr('Terlambat {n} hari kerja', { n: I.hariTelat(t.due, h) })])];
     if (!isi.length) return '';
     return `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Perlu perhatian Anda')} <span class="lencana">${isi.length}</span></p>
       <div class="ini-berjalan">${isi.slice(0, 8).map(([t, ket]) => `<button type="button" class="ini-berjalan-baris" data-aksi="buka-task" data-id="${esc(t.id)}"><span>${esc(t.title)}</span><small>${esc(t.id)} · ${nama(t.pic)} · ${esc(ket)}</small></button>`).join('')}</div></section>`;
@@ -5198,7 +5212,7 @@
       <p class="hint" id="cari-ini-${esc(m.id)}" data-hasil-inisiatif-terima role="status" aria-live="polite">${tr('{n} inisiatif tersedia.', { n: daftar.length })}</p>
       <div class="dua-isian">
         <label class="isian">${tr('PIC')} <select name="pic">${anggota.map(id => `<option value="${esc(id)}" ${id === picAwal ? 'selected' : ''}>${esc(id === S.me ? tr('Saya ({nama})', { nama: I.orang(id).pendek }) : I.orang(id).pendek)}</option>`).join('')}</select></label>
-        <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(m.due || '')}"></label>
+        <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(m.due ? tglKerja(m.due) : '')}"></label>
       </div>
       <div class="kotak-minta-info">
         <p>${tr('Masuk Antre sebagai pembaruan inisiatif yang dipilih, tertaut ke permintaan ini dan ke {id}.', { id: esc(m.proyek) })}</p>
@@ -5350,7 +5364,7 @@
     const judul = esc(I.judulPembaruan(t, inisiatifDari(t.inisiatif) || x));
     return `<div class="ini-berjalan-baris ini-berjalan-task${t.permintaanDae ? ' ada-minta' : ''}">
       <div class="ini-task-kepala"><button type="button" class="ini-berjalan-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${judul}</button>${tombolAksiPembaruan(t)}</div>
-      <small>${esc(t.id)} · ${esc(t.status === 'Ditinjau' && I.penugasanManager(t) ? tr('menunggu tinjauan {nama}', { nama: I.orang(t.penugasan).pendek }) : tr(t.status))}${t.due ? ' · ' + esc(tr('tenggat {tanggal}', { tanggal: fmtTanggal(t.due) })) : ''}${I.telat(t, hariIni()) ? ` · <span class="teks-merah">${esc(tr('terlambat {n} hari', { n: I.selisihHari(t.due, hariIni()) }))}</span>` : ''}</small>
+      <small>${esc(t.id)} · ${esc(t.status === 'Ditinjau' && I.penugasanManager(t) ? tr('menunggu tinjauan {nama}', { nama: I.orang(t.penugasan).pendek }) : tr(t.status))}${t.due ? ' · ' + esc(tr('tenggat {tanggal}', { tanggal: fmtTanggal(t.due) })) : ''}${I.telat(t, hariIni()) ? ` · <span class="teks-merah">${esc(tr('terlambat {n} hari kerja', { n: I.hariTelat(t.due, hariIni()) }))}</span>` : ''}</small>
       ${t.permintaanDae || I.penugasanManager(t) ? `<small class="ini-berjalan-orang">${tr('PIC')} ${avatar(t.pic, 'kecil')} ${nama(t.pic)} ${chipPenugasan(t)}</small>` : ''}
       ${penandaBaruTask(t)}${asalPembaruanIni(t, x)}${chipDiminta(t)}${t.evidence && t.evidence.length ? `<div class="ini-pembaruan-chip">${tautanPembaruanHtml(t)}</div>` : ''}</div>`;
   }
@@ -10903,7 +10917,7 @@
       <p class="hint" data-hint-sub>${esc(hintSub(kode))}</p>
       <div class="dua-isian">
         <label class="isian">${tr('PIC')} <select name="pic" data-otomatis="${picPreset ? '0' : '1'}">${opsiPic(pilihanPic(kode), picPreset || picBawaan(kode), kode)}</select></label>
-        <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(preset.due || '')}"></label>
+        <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(preset.due ? tglKerja(preset.due) : '')}"></label>
       </div>
       ${lead ? `<label class="isian" data-bagian-induk hidden>${tr('Task induk')} <select name="induk"><option value="">${tr('— tanpa task induk —')}</option></select>
         <small>${tr('Task untuk staff Anda, atau untuk Anda sendiri, bisa dipasang di bawah task yang Anda pegang di tahap ini sebagai task turunan: tampil menjorok di bawahnya, dan task induknya baru bisa diajukan setelah semua turunannya selesai.')}</small></label>` : ''}
@@ -12940,6 +12954,7 @@
 
   document.addEventListener('change', e => {
     const el = e.target;
+    if (el.matches(ISIAN_TENGGAT)) periksaIsianTenggat(el, true);
     // Form task turunan (2.56.0): catatan hanya perlu untuk PIC dari tim lain.
     if (el.matches('[data-anak-pic]')) {
       const luar = I.calonBantuan([...I.timDari(S.me), S.me]).includes(el.value);

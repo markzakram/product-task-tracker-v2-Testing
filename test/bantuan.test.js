@@ -147,7 +147,7 @@ test('Ubah task ke PIC tim lain: perlu catatan dan tenggat, dan tak boleh selagi
 
 test('hitungan: belum diambil dan terlambat ditanggung tim pemilik; sesudah diambil tampil di kedua tim', () => {
   const x = dasar();
-  const t = bantuan(x, 'dhea', { due: '2026-11-01' });
+  const t = bantuan(x, 'dhea', { due: '2026-11-02' });
   const ANDIKA = I.lingkupOrang('andika', 'tim'), DHEA = I.lingkupOrang('dhea', 'tim');
   const papan = (ids, setim, fokus = '') => I.kolomPapan(x.d, { orang: ids, setim, fokus }, H).flatMap(k => k.isi).map(y => y.id);
 

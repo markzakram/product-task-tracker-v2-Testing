@@ -173,7 +173,7 @@ const PERIKSA = [
   ['tungguHilang', 'Menunggu task yang tidak ada lagi'],
   ['picNonaktif', 'PIC profilnya sudah dinonaktifkan'],
   ['tertahanTanpaAlasan', 'Tertahan tanpa alasan'],
-  ['telatBelumMulai', 'Lewat tenggat lebih dari 14 hari dan belum dimulai'],
+  ['telatBelumMulai', 'Lewat tenggat lebih dari 10 hari kerja dan belum dimulai'],
 ];
 
 function cekData(k) {
@@ -198,7 +198,7 @@ function cekData(k) {
     if (hilang.length) catat('tungguHilang', t, hilang.join(', '));
     if (nonaktif.has(t.pic)) catat('picNonaktif', t);
     if (t.tertahan && !String(t.alasanTertahan || '').trim()) catat('tertahanTanpaAlasan', t);
-    if (t.status === 'Antre' && t.due && K.selisihHari(t.due, k.hari) > 14) catat('telatBelumMulai', t);
+    if (t.status === 'Antre' && t.due && I.hariTelat(t.due, k.hari) > 10) catat('telatBelumMulai', t);
   }
   const w = penulis(`Cek kerapian data tim ${l.label} · ${K.tglPanjang(k.hari)} · ${sumber(k)}`);
   let n = 0;
@@ -250,7 +250,7 @@ function laporanMingguan(k, kunci = 'minggu') {
     { judul: 'Diajukan, menunggu tinjauan', daftar: diajukan.filter(x => x.t.status === 'Ditinjau').map(x => `${t1(x.t)} (${K.pendek(x.r.by)}, ${ditinjauOleh(x.t, k)})`), kosong: 'Tidak ada.' },
     { judul: `Tinjauan oleh ${K.pendek(k.me)}`, daftar: ditinjauSaya.map(x => `${t1(x.t)}: ${x.r.action.toLowerCase()}${x.r.note ? ` ("${K.potong(x.r.note, 90)}")` : ''}`), kosong: 'Tidak ada tinjauan di periode ini.' },
     { judul: 'Terlambat & tertahan', daftar: [
-      ...telat.map(t => `${t1(t)} (${K.pendek(t.pic)}, tenggat ${K.tglPendek(t.due)}, telat ${K.selisihHari(t.due, k.hari)} hari)`),
+      ...telat.map(t => `${t1(t)} (${K.pendek(t.pic)}, tenggat ${K.tglPendek(t.due)}, telat ${I.hariTelat(t.due, k.hari)} hari kerja)`),
       ...tertahan.map(t => `${t1(t)} (${K.pendek(t.pic)}, tertahan${t.alasanTertahan ? `: ${K.potong(t.alasanTertahan, 80)}` : ''})`),
     ], kosong: 'Tidak ada.' },
     { judul: `Rencana 7 hari ke depan (sampai ${K.tglPendek(batas)})`, daftar: rencana.map(t => `${t1(t)} (${K.pendek(t.pic)}, tenggat ${K.tglPendek(t.due)})`), kosong: 'Belum ada tenggat di 7 hari ke depan.' },

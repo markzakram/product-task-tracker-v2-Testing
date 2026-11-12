@@ -140,7 +140,7 @@ test('simulasi acak: ratusan perintah sungguhan, perubahan yang diteruskan selal
       else if (j < 0.58) p = perintah('tambahBukti', { task: t.id, f: { url: 'https://contoh.id/' + i } }, t.pic, w);
       else if (j < 0.7) p = perintah('taskAnak', { induk: t.id, f: { title: 'Bagian ' + i, pic: pilih(I.timDari(t.pic).concat('kiki')) } }, t.pic, w);
       else if (j < 0.78) p = perintah('ubahTask', { task: t.id, f: { pic: pilih(ORANG) } }, oleh, w);
-      else if (j < 0.84) p = perintah('ubahTask', { task: t.id, f: { sub: pilih(I.SUB_TAHAP).kode, due: '2026-11-0' + (1 + (i % 9)) } }, oleh, w);
+      else if (j < 0.84) p = perintah('ubahTask', { task: t.id, f: { sub: pilih(I.SUB_TAHAP).kode, due: I.hariKerjaBerikut('2026-11-0' + (1 + (i % 9))) } }, oleh, w);
       else if (j < 0.9) p = perintah('tambahSubtask', { task: t.id, f: { title: 'Cek ' + i, pic: t.pic } }, oleh, w);
       else {
         const s = t.subtasks.length ? pilih(t.subtasks) : null;

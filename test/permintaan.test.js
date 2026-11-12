@@ -36,10 +36,10 @@ test('yang boleh meminta: PIC, Lead-nya, atau Manager, dari task yang sudah diaj
 test('Andika meminta Ali, Ali menerima: task baru di proyek yang sama, tertaut, Andika diberi tahu', () => {
   const asal = task({ title: 'Blueprint soal SKD', status: 'Selesai', selesaiAt: WAKTU });
   const d = data([asal]);
-  const m = I.mintaLanjutan(d, asal, { ke: 'ali', judul: '  Prototype   dari blueprint ', rincian: 'Uji 20 soal', sub: 'DV7', due: '2026-10-24' }, 'andika', WAKTU + 1, HARI);
+  const m = I.mintaLanjutan(d, asal, { ke: 'ali', judul: '  Prototype   dari blueprint ', rincian: 'Uji 20 soal', sub: 'DV7', due: '2026-10-23' }, 'andika', WAKTU + 1, HARI);
   assert.equal(m.id, 'MNT-001');
   assert.equal(m.judul, 'Prototype dari blueprint');
-  assert.deepEqual([m.status, m.dari, m.ke, m.sub, m.due], ['menunggu', 'andika', 'ali', 'DV7', '2026-10-24']);
+  assert.deepEqual([m.status, m.dari, m.ke, m.sub, m.due], ['menunggu', 'andika', 'ali', 'DV7', '2026-10-23']);
   assert.equal(d.log[0].type, 'update', 'bukan create: notifikasi tak membacanya sebagai task baru');
   assert.deepEqual(I.permintaanMasuk(d, 'ali').map(x => [x.m.id, x.tim]), [['MNT-001', false]]);
   assert.equal(notif(d, 'ali', 'minta').length, 1);
@@ -48,7 +48,7 @@ test('Andika meminta Ali, Ali menerima: task baru di proyek yang sama, tertaut, 
 
   assert.throws(() => I.terimaPermintaan(d, m, { pic: 'ali', sub: 'DV7' }, 'andika', WAKTU + 2, HARI), /bukan untuk Anda/);
   const baru = I.terimaPermintaan(d, m, { pic: 'ali', sub: 'DV7' }, 'ali', WAKTU + 2, HARI);
-  assert.deepEqual([baru.project, baru.sub, baru.pic, baru.status, baru.due, baru.detail], ['PRJ-1', 'DV7', 'ali', 'Antre', '2026-10-24', 'Uji 20 soal']);
+  assert.deepEqual([baru.project, baru.sub, baru.pic, baru.status, baru.due, baru.detail], ['PRJ-1', 'DV7', 'ali', 'Antre', '2026-10-23', 'Uji 20 soal']);
   assert.deepEqual(baru.deps, [], 'task asal sudah selesai: tak perlu ditunggu');
   assert.deepEqual([m.status, m.task, m.oleh], ['diterima', baru.id, 'ali']);
   assert.equal(I.asalPermintaan(d, baru.id), m);

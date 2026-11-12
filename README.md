@@ -1140,6 +1140,36 @@ selesai, notifikasi PIC, dan progresnya tetap diperbarui. Pengulangan ID perinta
 tidak menggandakan persetujuan. Task permintaan yang ditinjau tim peminta tetap dipantau
 Manager dan tidak masuk pilihan ini. Lead, Staff, dan akun Dev tidak memakai aksi massal ini.
 
+### Tenggat hanya hari kerja (2.59.0)
+
+Permintaan user: keterlambatan tak lagi dihitung bersama Sabtu dan Minggu, dan tenggat awal tak
+boleh jatuh di akhir pekan. Libur nasional belum dihitung.
+
+- **Tenggat harus Senin–Jumat** setiap kali dipilih atau diubah: task baru, task turunan, Ubah task,
+  tenggat Proyek umum, permintaan lanjutan dan saat diterima, permintaan ke tim DAE dan saat
+  diterima, elaborasi paket, pulihkan task, perpanjangan (diajukan maupun disetujui), dan tindak
+  lanjut notulen. Aturannya satu, `Inti.wajibHariKerja`, dijalankan sebelum data diubah, jadi
+  berlaku sama di browser, server, dan agen AI. Isian tanggal tenggat langsung memberi tahu kalau
+  Sabtu/Minggu dipilih, dan tanggal bawaan atau minimum yang jatuh di akhir pekan diisi Senin
+  sesudahnya.
+- **Tenggat lama tetap sah**: yang sudah jatuh di akhir pekan sebelum 2.59.0 tak perlu diubah dan
+  tak menghalangi mengubah isian lain task itu. Riwayat data real tak diputar ulang dengan aturan
+  baru (jurnalnya berisi perubahan, bukan perintah).
+- **Dihitung dalam hari kerja** (`Inti.hariKerja`, `hariTelat`, `tambahHariKerja`):
+  keterlambatan di chip "Telat N hr", Hari Ini, notifikasi, Perlu perhatian, dan detail task
+  (tenggat Jumat: Sabtu, Minggu, dan Senin sama-sama telat 1 hari kerja, Selasa 2); tambahan
+  perpanjangan ("+N hari kerja"); dan geseran tenggat saat **Duplikat proyek** (jaraknya dari awal
+  proyek dalam hari kerja, hasilnya selalu hari kerja; sebelumnya bisa jatuh Minggu). Task tetap
+  terbaca telat sejak sehari sesudah tenggatnya; yang berubah adalah jumlah harinya. "Hari ini",
+  "Besok", dan "7 hari ke depan" tetap hari kalender.
+- **Agen AI**: tenggat bawaan `buat_task` (tanggal rekap) yang jatuh Sabtu/Minggu memakai Senin
+  sesudahnya dengan peringatan; tenggat akhir pekan yang ditulis di butir ditolak. Ringkasan,
+  rekap tim, dan pengingat menulis telat dalam hari kerja; pengingat "tenggat besok" pada Jumat
+  mengingatkan tenggat Senin ("hari kerja berikutnya"); cek kerapian memakai "lewat tenggat lebih
+  dari 10 hari kerja".
+- Data contoh (`scripts/_demo.js`) membuat tenggat di hari kerja. Diuji di
+  `test/hari-kerja.test.js`.
+
 ### Banding perpanjangan tenggat (2.41.0)
 
 Permintaan user: fitur mengajukan banding supaya tenggat diperpanjang, langsung ke pemberi task.

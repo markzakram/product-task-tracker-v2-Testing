@@ -235,11 +235,23 @@ test('inisiatif: ditunda diterima dengan peringatan; profil di luar tim DAE dito
   assert.equal(satu(luar, rutin({ id: 'n' })).status, 'sah');
 });
 
+test('tenggat hari kerja (2.59.0): rekap Sabtu memakai Senin sesudahnya; tenggat Sabtu/Minggu yang ditulis ditolak', () => {
+  const { k } = keadaanUji();
+  const sabtu = satu(k, rutin({ status: 'Selesai' }), { ...CTX, tanggal: '2026-10-17', hari: '2026-10-19' });
+  assert.equal(sabtu.status, 'sah', sabtu.alasan);
+  assert.deepEqual([sabtu.tenggat, sabtu.f.due], ['2026-10-19', '2026-10-19']);
+  assert.ok(sabtu.peringatan.includes('Tanggal rekap 2026-10-17 jatuh di akhir pekan, jadi tenggat bawaan digeser ke 2026-10-19 (Senin).'), sabtu.peringatan.join(' | '));
+  const minggu = satu(k, rutin({ tenggat: '2026-10-18' }));
+  assert.notEqual(minggu.status, 'sah');
+  assert.match(minggu.alasan, /Tenggat 2026-10-18 jatuh pada hari Sabtu atau Minggu\. Pilih hari kerja/);
+  assert.equal(satu(k, rutin()).tenggat, HARI, 'rekap hari kerja: tenggat bawaan tetap tanggal rekap');
+});
+
 test('peringatan: tenggat yang sudah lewat, tenggat sebelum tanggal rekap, dan bukti yang tak muat di Keterangan', () => {
   const { k } = keadaanUji();
-  const lewat = satu(k, rutin({ tenggat: '2026-10-10', status: 'Dikerjakan' }));
+  const lewat = satu(k, rutin({ tenggat: '2026-10-09', status: 'Dikerjakan' }));
   assert.deepEqual(lewat.peringatan, ['Tenggat lebih awal dari tanggal rekap.', 'Tenggat sudah lewat, jadi task langsung terbaca terlambat.']);
-  assert.deepEqual(satu(k, rutin({ tenggat: '2026-10-10', status: 'Selesai' })).peringatan, ['Tenggat lebih awal dari tanggal rekap.'], 'yang selesai tak dihitung terlambat');
+  assert.deepEqual(satu(k, rutin({ tenggat: '2026-10-09', status: 'Selesai' })).peringatan, ['Tenggat lebih awal dari tanggal rekap.'], 'yang selesai tak dihitung terlambat');
   const kemarin = satu(k, rutin({ status: 'Dikerjakan' }), { ...CTX, tanggal: '2026-10-15' });
   assert.deepEqual([kemarin.tenggat, kemarin.peringatan], ['2026-10-15', ['Tenggat sudah lewat, jadi task langsung terbaca terlambat.']], 'rekap kemarin: tenggat bawaan sudah lewat');
   const panjang = satu(k, rutin({ deskripsi: 'd'.repeat(3000), bukti: Array.from({ length: 40 }, (_, i) => `commit-${i}-` + 'x'.repeat(200)) }));

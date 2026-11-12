@@ -136,7 +136,7 @@ Berkas JSON, biasanya di `agen/.data/usulan/`:
 | `sub` | kode sub-stage. Proyek: sub-stage ADDIE aktif, wajib. Rutin: R1–R4 (atau yang aktif di Master), wajib. Inisiatif: R-kode, boleh kosong |
 | `pic` | id orang (nama pendek juga diterima). Bawaan: Ali sendiri. Harus sah menurut Inti: anggota tim Ali, atau Lead tim pemilik sub-stage |
 | `pendukung` | opsional, daftar id orang (di luar kontrak minimal; form Tambah task belum punya isian ini) |
-| `tenggat` | `YYYY-MM-DD`. Kosong = `tanggal` berkas |
+| `tenggat` | `YYYY-MM-DD`, hari kerja (Senin–Jumat; Sabtu/Minggu ditolak sejak 2.59.0). Kosong = `tanggal` berkas; kalau itu Sabtu/Minggu, Senin sesudahnya (dengan peringatan) |
 | `status` | status awal, tanpa beda huruf. Kosong = `Antre`. Proyek: `Antre`, `Dikerjakan`, `Ditinjau`. Rutin dan inisiatif: `Antre`, `Dikerjakan`, `Selesai` |
 | `deskripsi` | opsional, paling panjang 3000 karakter; jadi Keterangan task |
 | `output` | opsional, paling panjang 200 karakter; **wajib** untuk status `Ditinjau` |

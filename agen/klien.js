@@ -104,7 +104,7 @@ function judulRuang(data, ruang, susunan = null) {
 /* Satu baris ringkas untuk sebuah task. */
 function barisTask(t, k, catatan = '') {
   // Yang sudah diajukan tak dihitung telat (2.30.0), sama dengan I.telat.
-  const tenggat = t.due ? ` · tenggat ${tglPendek(t.due)}${I.telat(t, k.hari) ? ` (telat ${selisihHari(t.due, k.hari)} hari)` : ''}` : '';
+  const tenggat = t.due ? ` · tenggat ${tglPendek(t.due)}${I.telat(t, k.hari) ? ` (telat ${I.hariTelat(t.due, k.hari)} hari kerja)` : ''}` : '';
   const label = I.labelKeadaan(t, k.perId);
   return `${t.id}${t.sub ? ' · ' + t.sub : ''} · ${potong(t.title, 80)} — ${t.status}${label ? ', ' + label : ''}${tenggat}${catatan ? ` · ${catatan}` : ''}`;
 }

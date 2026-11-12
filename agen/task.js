@@ -176,7 +176,7 @@ function susunPilihan(k, { sekarang = Date.now() } = {}) {
     },
     tenggat: {
       format: 'YYYY-MM-DD', wajib: false, bawaan: 'tanggal-rekap',
-      keterangan: 'Kosong = tanggal rekap (tanggal di berkas butir). Task Antre atau Dikerjakan dengan tenggat sebelum hari ini langsung terbaca terlambat.',
+      keterangan: 'Kosong = tanggal rekap (tanggal di berkas butir); rekap Sabtu/Minggu memakai Senin sesudahnya. Tenggat harus hari kerja (Senin–Jumat). Task Antre atau Dikerjakan dengan tenggat sebelum hari ini langsung terbaca terlambat.',
     },
     batas: { judul: BATAS.judul, deskripsi: BATAS.deskripsi, output: BATAS.output, bukti: BATAS.bukti, panjangBukti: BATAS.panjangBukti, pendukung: BATAS.pendukung },
     aturan: [
@@ -369,12 +369,14 @@ function periksaButir(k, b, { tanggal, hari }) {
     }
   }
 
-  // Tenggat: kosong = tanggal rekap.
-  let tenggat = tanggal;
+  // Tenggat: kosong = tanggal rekap. Sejak 2.59.0 tenggat harus hari kerja: rekap Sabtu/Minggu
+  // memakai Senin sesudahnya, dan tenggat Sabtu/Minggu yang ditulis di butir ditolak.
+  let tenggat = I.hariKerjaBerikut(tanggal);
   const tenggatMentah = satuBaris(teks('tenggat', b.tenggat));
   if (tenggatMentah) {
-    if (tanggalSah(tenggatMentah)) tenggat = tenggatMentah;
-    else galat.push(`Tenggat "${tenggatMentah}" bukan tanggal YYYY-MM-DD yang sah.`);
+    if (!tanggalSah(tenggatMentah)) galat.push(`Tenggat "${tenggatMentah}" bukan tanggal YYYY-MM-DD yang sah.`);
+    else if (I.akhirPekan(tenggatMentah)) galat.push(`Tenggat ${tenggatMentah} jatuh pada hari Sabtu atau Minggu. Pilih hari kerja (Senin–Jumat).`);
+    else tenggat = tenggatMentah;
   }
 
   // Status awal.
@@ -414,6 +416,7 @@ function periksaButir(k, b, { tanggal, hari }) {
   if (asing.length) peringatan.push(`Kolom tak dikenal diabaikan: ${asing.join(', ')}.`);
   if (galat.length) return { ok: false, id, alasan: galat.join(' ') };
 
+  if (!tenggatMentah && tenggat !== tanggal) peringatan.push(`Tanggal rekap ${tanggal} jatuh di akhir pekan, jadi tenggat bawaan digeser ke ${tenggat} (Senin).`);
   if (tenggat < tanggal) peringatan.push('Tenggat lebih awal dari tanggal rekap.');
   if (tenggat < hari && (status === 'Antre' || status === 'Dikerjakan')) peringatan.push('Tenggat sudah lewat, jadi task langsung terbaca terlambat.');
   const ket = susunKeterangan(deskripsi, bukti, tanggal);

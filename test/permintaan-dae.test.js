@@ -477,7 +477,7 @@ test('butir 3b: banding perpanjangan task dari permintaan diputuskan pengirim, b
   // Task biasa: Manager tetap bisa menjawab (tak berubah).
   I.aturOrang([]);
   const biasa = I.taskBaru(d, { title: 'Rutin', pic: 'ali', due: DUE }, 'ali', jam(8), HARI);
-  const z = I.ajukanPerpanjangan(d, biasa, { due: I.tambahHari(DUE, 3), alasan: 'butuh waktu' }, 'ali', jam(9), HARI);
+  const z = I.ajukanPerpanjangan(d, biasa, { due: I.tambahHari(DUE, 4), alasan: 'butuh waktu' }, 'ali', jam(9), HARI);
   assert.deepEqual([z.ke, z.permintaanDae, I.bolehJawabPanjang(z, 'nynda')], ['nynda', '', true]);
 });
 

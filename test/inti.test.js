@@ -159,7 +159,7 @@ test('Hari Ini: dikelompokkan per tenggat, yang terhambat dan yang ditinjau terp
     task({ pic: 'kiki', due: '2026-10-05', title: 'telat' }),
     task({ pic: 'kiki', due: '2026-10-07', title: 'hari ini' }),
     task({ pic: 'kiki', due: '2026-10-09', title: 'minggu' }),
-    task({ pic: 'kiki', due: '2026-11-01', title: 'nanti' }),
+    task({ pic: 'kiki', due: '2026-11-02', title: 'nanti' }),
     task({ pic: 'kiki', due: '2026-10-01', tertahan: true, alasanTertahan: 'tunggu Tri', title: 'tertahan' }),
     task({ lane: 'proyek', pic: 'kiki', status: 'Ditinjau', title: 'ditinjau' }),
     task({ pic: 'bilar', support: ['kiki'], title: 'bantu' }),
@@ -266,7 +266,7 @@ test('keadaan proyek: risiko kalau ada yang telat; ditahan tak masuk antrean kep
 test('membuat task: sub-stage wajib & menentukan tahap; Lead untuk timnya atau Lead tim pemilik', () => {
   const p = proyek();
   const d = data([task({})], [p]);
-  const t = I.taskBaru(d, { title: 'QC paket 4', project: 'PRJ-1', sub: 'E4', pic: 'kiki', due: '2026-10-10' }, 'alya', WAKTU, HARI);
+  const t = I.taskBaru(d, { title: 'QC paket 4', project: 'PRJ-1', sub: 'E4', pic: 'kiki', due: '2026-10-09' }, 'alya', WAKTU, HARI);
   assert.deepEqual([t.id, t.lane, t.stage, t.sub, t.status, t.assignedBy], ['PRD-002', 'proyek', 'E', 'E4', 'Antre', 'alya']);
   assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', pic: 'kiki' }, 'alya', WAKTU, HARI), /Pilih sub-stage/);
   assert.throws(() => I.taskBaru(d, { title: 'x', project: 'PRJ-1', sub: 'R1', pic: 'kiki' }, 'alya', WAKTU, HARI), /Pilih sub-stage ADDIE/);
@@ -897,7 +897,8 @@ test('duplikat proyek (2.30.0): task siklus aktif jadi rencana baru — turunan,
   const anakBaru = tasks.find(t => t.induk);
   assert.deepEqual([anakBaru.induk, anakBaru.pic, anakBaru.title], [per('D2').id, 'uma', anak.title]);
   assert.deepEqual(per('D2').subtasks.map(s => [s.title, s.done, s.link, s.pic]), [['Cek norma', false, 'https://contoh.id/norma', 'andika']]);
-  assert.deepEqual([per('A1').due, per('D2').due, per('DV7').due], ['2026-10-18', '2026-10-22', '2026-10-30'], 'tenggat digeser, jaraknya sama');
+  assert.deepEqual([per('A1').due, per('D2').due, per('DV7').due], ['2026-10-20', '2026-10-22', '2026-10-30'],
+    'tenggat digeser dengan jarak hari kerja yang sama dari awal proyek, selalu di hari kerja (2.59.0; dulu A1 jatuh Minggu 18 Okt)');
   assert.equal((d.setoran || []).filter(s => tasks.some(t => t.id === s.task)).length, 0, 'setoran tak ikut');
   const kosong = I.duplikatProyek(d, asal, { tasks: false }, 'nynda', WAKTU + 11 * 864e5, '2026-10-18');
   assert.deepEqual([kosong.project.name, kosong.tasks.length], ['Paket Uji (salinan)', 0]);

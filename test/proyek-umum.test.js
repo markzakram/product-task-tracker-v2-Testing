@@ -8,14 +8,14 @@ const I = require('../public/inti');
 const HARI = '2026-10-26';
 const WAKTU = Date.UTC(2026, 9, 26, 3, 0, 0);
 const data = () => ({ tasks: [], projects: [], log: [], packages: [], setoran: [], dashboards: [], links: [], notes: [], inisiatif: [], permintaan: [] });
-const rekrutmen = (d, me = 'dhea') => I.proyekBaru(d, { jenis: 'umum', name: 'Rekrutmen guru liveclass', tim: ['CO', 'LA'], tahap: I.TEMPLAT_TAHAP.rekrutmen, tenggat: '2026-11-15' }, me, WAKTU);
+const rekrutmen = (d, me = 'dhea') => I.proyekBaru(d, { jenis: 'umum', name: 'Rekrutmen guru liveclass', tim: ['CO', 'LA'], tahap: I.TEMPLAT_TAHAP.rekrutmen, tenggat: '2026-11-16' }, me, WAKTU);
 const tugas = (d, p, f, me = 'dhea') => I.taskBaru(d, { project: p.id, title: 'Task', ...f }, me, WAKTU, HARI);
 const lengkap = t => Object.assign(t, { output: 'Hasil', evidence: [{ id: 'e1', label: 'Bukti', url: 'https://contoh.id/b' }] });
 
 test('membuat Proyek umum: Lead untuk timnya, Manager untuk tim mana pun; staff tidak', () => {
   const d = data();
   const p = rekrutmen(d);
-  assert.deepEqual([p.jenis, p.stage, p.timProyek, p.lead, p.tenggat, p.paket], ['umum', '', ['CO', 'LA'], 'dhea', '2026-11-15', '']);
+  assert.deepEqual([p.jenis, p.stage, p.timProyek, p.lead, p.tenggat, p.paket], ['umum', '', ['CO', 'LA'], 'dhea', '2026-11-16', '']);
   assert.deepEqual(p.tahapUmum.map(x => [x.id, x.nama]), [['tp1', 'Lowongan'], ['tp2', 'Seleksi'], ['tp3', 'Wawancara'], ['tp4', 'Onboarding']]);
   assert.ok(I.proyekUmum(p));
   assert.throws(() => I.proyekBaru(d, { jenis: 'umum', name: 'X', tim: ['AK'], timPemilik: 'AK' }, 'dhea', WAKTU), /untuk timnya sendiri \(CLO\)/);
@@ -57,7 +57,7 @@ test('ringkasan per tahap, tak ada fase ADDIE: tahap proyek tak berpindah, tak m
   const d = data();
   const p = rekrutmen(d);
   const t1 = tugas(d, p, { title: 'Kriteria', pic: 'dhea', tahapProyek: 'tp1' });
-  const t2 = tugas(d, p, { title: 'CV', pic: 'nadya', tahapProyek: 'tp2', due: '2026-10-24' });
+  const t2 = tugas(d, p, { title: 'CV', pic: 'nadya', tahapProyek: 'tp2', due: '2026-10-23' });
   tugas(d, p, { title: 'Lain', pic: 'nadya' });
   Object.assign(t1, { status: 'Selesai', selesaiAt: WAKTU });
   const nLog = d.log.length;
@@ -66,7 +66,7 @@ test('ringkasan per tahap, tak ada fase ADDIE: tahap proyek tak berpindah, tak m
   assert.equal(d.log.length, nLog, 'tanpa catatan perpindahan tahap otomatis');
   const r = I.ringkasProyekUmum(d, p, HARI);
   assert.deepEqual(r.tahap.map(x => [x.nama, x.selesai, x.total]), [['Lowongan', 1, 1], ['Seleksi', 0, 1], ['Wawancara', 0, 0], ['Onboarding', 0, 0]]);
-  assert.deepEqual([r.tanpa.total, r.total, r.selesai, r.telat, r.berjalan, r.tenggat], [1, 3, 1, 1, 'tp2', '2026-11-15']);
+  assert.deepEqual([r.tanpa.total, r.total, r.selesai, r.telat, r.berjalan, r.tenggat], [1, 3, 1, 1, 'tp2', '2026-11-16']);
   assert.equal(I.ringkasProyek(d, p, HARI).keadaan, 'risiko');
   for (const t of d.tasks) Object.assign(t, { status: 'Selesai', selesaiAt: WAKTU });
   assert.equal(I.ringkasProyek(d, p, HARI).keadaan, 'tuntas', 'bukan "sepi" yang menunggu E12');

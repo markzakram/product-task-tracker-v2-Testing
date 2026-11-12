@@ -16,8 +16,8 @@ const lengkap = t => Object.assign(t, { output: 'Integrasi berjalan', evidence: 
 
 test('Manager menugaskan pembaruan bertenggat: ditinjau Manager, diajukan dengan hasil kerja', () => {
   const { d, x } = dasar();
-  const t = I.taskBaru(d, { title: 'Integrasi bank soal ke latihan', pic: 'ali', due: '2026-11-07', inisiatif: x.id, penugasan: true }, 'nynda', W, H);
-  assert.deepEqual([t.penugasan, t.lane, t.due, I.penugasanManager(t), I.peninjau(t)], ['nynda', 'rutin', '2026-11-07', true, 'nynda']);
+  const t = I.taskBaru(d, { title: 'Integrasi bank soal ke latihan', pic: 'ali', due: '2026-11-06', inisiatif: x.id, penugasan: true }, 'nynda', W, H);
+  assert.deepEqual([t.penugasan, t.lane, t.due, I.penugasanManager(t), I.peninjau(t)], ['nynda', 'rutin', '2026-11-06', true, 'nynda']);
   I.terapkanAksi(d, t, 'mulai', 'ali', W + 1);
   const aksi = I.aksiUntuk(t, 'ali', I.indeks(d));
   assert.ok(!aksi.some(a => a.kunci === 'selesai'), 'tak bisa langsung ditandai selesai');

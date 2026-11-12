@@ -32,10 +32,10 @@ test('pulihkanTask: ID sama, jadi task rutin di luar proyek; ceklis, output, buk
   const asal = structuredClone(t);
   I.hapusProyek(d, p, 'nynda', WAKTU + 2);
   assert.equal(d.tasks.length, 0, 'task ikut terhapus bersama proyeknya');
-  const r = I.jalankanPerintah(d, { aksi: 'pulihkanTask', isi: { task: t.id, asal, inisiatif: ini.id, due: '2026-10-24' }, oleh: 'ali', at: WAKTU + 3 });
+  const r = I.jalankanPerintah(d, { aksi: 'pulihkanTask', isi: { task: t.id, asal, inisiatif: ini.id, due: '2026-10-23' }, oleh: 'ali', at: WAKTU + 3 });
   assert.equal(r.ok, true, r.galat);
   const b = d.tasks.find(x => x.id === t.id);
-  assert.deepEqual([b.project, b.lane, b.sub, b.stage, b.status, b.due, b.inisiatif, b.kategori], ['', 'rutin', '', '', 'Dikerjakan', '2026-10-24', ini.id, 'ProductKnowledge']);
+  assert.deepEqual([b.project, b.lane, b.sub, b.stage, b.status, b.due, b.inisiatif, b.kategori], ['', 'rutin', '', '', 'Dikerjakan', '2026-10-23', ini.id, 'ProductKnowledge']);
   assert.deepEqual([b.title, b.pic, b.assignedBy, b.output], ['Membangun sistem Product Knowledge', 'ali', 'nynda', 'Draf sistem']);
   assert.deepEqual([b.subtasks.length, b.evidence.length, b.tinjauan.length, b.createdAt], [2, 1, 1, asal.createdAt]);
   assert.equal(I.peninjau(b), null, 'task rutin tak ditinjau');
@@ -125,9 +125,9 @@ test('taskTerhapus + simpanReal pulihkanTask: isi diambil server dari riwayat da
   const tolak = await aksi(kiki, 'simpanReal', perintah('pulihkanTask', { task: tid, asal: x.task }));
   assert.deepEqual([tolak.status, tolak.json.message], [400, 'Hanya Lead atau Manager yang memulihkan task yang terhapus.']);
   const palsu = { ...x.task, title: 'Judul karangan browser', pic: 'kiki' };
-  const e = await simpan(ali, 'pulihkanTask', { task: tid, asal: palsu, due: '2026-10-24' });
+  const e = await simpan(ali, 'pulihkanTask', { task: tid, asal: palsu, due: '2026-10-23' });
   const b = e.ubah.tasks.pasang.find(t => t.id === tid);
-  assert.deepEqual([b.title, b.pic, b.lane, b.project, b.due, b.subtasks.length], ['Membangun sistem Product Knowledge', 'ali', 'rutin', '', '2026-10-24', 1]);
+  assert.deepEqual([b.title, b.pic, b.lane, b.project, b.due, b.subtasks.length], ['Membangun sistem Product Knowledge', 'ali', 'rutin', '', '2026-10-23', 1]);
   assert.equal(e.oleh, 'ali');
   assert.equal((await aksi(ali, 'taskTerhapus', tid)).json.terhapus, null, 'sudah dipulihkan');
   const lagi = await aksi(ali, 'simpanReal', perintah('pulihkanTask', { task: tid }));

@@ -336,6 +336,55 @@
     return isoHari(d);
   }
 
+  /* ---------- Hari kerja (2.59.0, permintaan user) ----------
+     Sabtu dan Minggu tak dihitung untuk tenggat: tenggat yang dipilih atau diubah harus Senin–
+     Jumat (wajibHariKerja), dan jarak serta keterlambatan dihitung dalam hari kerja. Libur
+     nasional belum dihitung. Tenggat lama yang sudah jatuh di akhir pekan tetap sah selama tak
+     diubah. */
+  const urutHari = iso => (keTanggal(iso).getDay() + 6) % 7;   // Senin 0 … Minggu 6
+  const akhirPekan = iso => urutHari(iso) >= 5;
+  /* Jumlah hari kerja di (dari, ke]; 0 bila ke ≤ dari. Tanpa perulangan per hari (dulu dibatasi
+     90 hari supaya tak lambat). */
+  function hariKerja(dari, ke) {
+    if (!dari || !ke || ke <= dari) return 0;
+    const n = selisihHari(dari, ke);
+    let kerja = Math.floor(n / 7) * 5;
+    for (let i = 0, w = urutHari(dari); i < n % 7; i++) {
+      w = (w + 1) % 7;
+      if (w < 5) kerja++;
+    }
+    return kerja;
+  }
+  /* Seperti hariKerja, bertanda: negatif bila ke sebelum dari. */
+  const jarakHariKerja = (dari, ke) => (ke >= dari ? hariKerja(dari, ke) : -hariKerja(ke, dari));
+  /* Tanggal itu bila hari kerja; Sabtu atau Minggu menjadi Senin sesudahnya. */
+  const hariKerjaBerikut = iso => (iso && akhirPekan(iso) ? tambahHari(iso, 7 - urutHari(iso)) : iso);
+  /* n hari kerja sesudah iso (n < 0: sebelumnya), dihitung dari hariKerjaBerikut(iso). Hasilnya
+     selalu hari kerja. */
+  function tambahHariKerja(iso, n) {
+    let d = hariKerjaBerikut(iso);
+    const arah = n < 0 ? -1 : 1;
+    let sisa = Math.abs(Math.trunc(Number(n) || 0));
+    d = tambahHari(d, arah * Math.floor(sisa / 5) * 7);
+    sisa %= 5;
+    while (sisa > 0) {
+      d = tambahHari(d, arah);
+      if (!akhirPekan(d)) sisa--;
+    }
+    return d;
+  }
+  /* Berapa hari kerja sebuah tenggat terlewati pada hariIni: hari kerja sesudah tenggat sampai
+     hariIni, paling sedikit 1 selama sudah lewat. Tenggat Jumat: Sabtu, Minggu, dan Senin sama-sama
+     telat 1 hari; Selasa 2 hari. */
+  const hariTelat = (due, hariIni) => (due && hariIni && due < hariIni ? Math.max(1, hariKerja(due, hariIni)) : 0);
+  const TENGGAT_AKHIR_PEKAN = 'Tenggat tidak boleh hari Sabtu atau Minggu. Pilih hari kerja (Senin–Jumat).';
+  /* Tenggat yang dipilih atau diubah (berbeda dari `lama`) harus hari kerja. Dipanggil sebelum
+     data diubah. Format tanggalnya diperiksa di tempat masing-masing. */
+  function wajibHariKerja(due, lama = '') {
+    const d = String(due == null ? '' : due).trim();
+    if (d && d !== String(lama == null ? '' : lama).trim() && /^\d{4}-\d{2}-\d{2}$/.test(d) && akhirPekan(d)) throw new Error(TENGGAT_AKHIR_PEKAN);
+  }
+
   /* ---------- Keadaan task ---------- */
 
   const selesai = t => t.status === 'Selesai';
@@ -944,6 +993,7 @@
     const p = f.project ? data.projects.find(x => x.id === f.project) : null;
     if (f.project && !p) throw new Error('Proyek tidak ditemukan.');
     if (!String(f.title || '').trim()) throw new Error('Judul task wajib diisi.');
+    wajibHariKerja(f.due);   // juga task turunan, task Proyek umum, dan task dari permintaan
     const s = subTahap(f.sub);
     if (s && s.dihapus && !teks(f.induk)) throw new Error(`Sub-stage ${s.kode} sudah dihapus dari Master. Pilih sub-stage lain.`);
     if (p && !proyekUmum(p) && (!s || s.tahap === 'R')) throw new Error('Pilih sub-stage ADDIE untuk task proyek.');
@@ -1186,6 +1236,7 @@
     const ambil = (k, lama) => (f[k] === undefined ? lama : f[k]);
     const judul = teks(ambil('title', t.title));
     if (!judul) throw new Error('Judul task wajib diisi.');
+    wajibHariKerja(ambil('due', t.due), t.due);
     const kode = teks(ambil('sub', t.sub));
     const s = subTahap(kode);
     if (kode && !s) throw new Error('Sub-stage tidak dikenal.');
@@ -1325,6 +1376,7 @@
     const { tim, lead } = timUmumSah(f, me, null);
     const tenggat = teks(f.tenggat);
     if (tenggat && !isoSah(tenggat)) throw new Error('Tenggat proyek tidak sah.');
+    wajibHariKerja(tenggat);
     const p = {
       id: 'PRJ-' + nomorBerikut(data.projects, 'PRJ', data), name: nama, platform: teks(f.platform) || 'All Platform',
       stage: '', cycle: 1, decision: 'Build', goal: String(f.goal || '').trim().slice(0, 2000), lead, arsip: false, paket: '', history: [],
@@ -1344,7 +1396,8 @@
     const { tim, lead } = f.tim === undefined && f.lead === undefined ? { tim: p.timProyek, lead: p.lead } : timUmumSah({ tim: f.tim === undefined ? p.timProyek : f.tim, lead: f.lead }, me, p);
     const tenggat = f.tenggat === undefined ? p.tenggat || '' : teks(f.tenggat);
     if (tenggat && !isoSah(tenggat)) throw new Error('Tenggat proyek tidak sah.');
-    const tahap = f.tahap === undefined ? p.tahapUmum || [] : rapikanTahapUmum(f.tahap, p.tahapUmum || []);
+    wajibHariKerja(tenggat, p.tenggat);
+    const tahap =f.tahap === undefined ? p.tahapUmum || [] : rapikanTahapUmum(f.tahap, p.tahapUmum || []);
     const ubah = [];
     if (nama !== p.name) ubah.push(`nama dari "${p.name}"`);
     if (JSON.stringify(tim) !== JSON.stringify(p.timProyek || [])) ubah.push('tim ' + tim.map(singkatTim).join(', '));
@@ -2927,6 +2980,7 @@
     }
     const bersih = periksaAgenda({ ...a, notulen: x.notulen, tindak: x.tindak });
     const lama = new Map((a.tindak || []).map(b => [b.id, b]));
+    for (const b of bersih.tindak) wajibHariKerja(b.due, (lama.get(b.id) || {}).due);
     const tindak = bersih.tindak.map(b => ({ ...b, task: b.task || (lama.get(b.id) || {}).task || '' }));
     return { ...a, notulen: bersih.notulen, tindak, notulenAt: waktu, notulenOleh: me };
   }
@@ -3464,6 +3518,7 @@
     const due = teks(f.due);
     if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw new Error('Tanggal tenggat tidak valid.');
     if (due && hariIni && due < hariIni) throw new Error('Tenggat harapan sudah lewat.');
+    wajibHariKerja(due);
     const daftar = daftarMinta(data);
     const m = {
       id: 'MNT-' + String(nomorBerikut(daftar, 'MNT', data)).padStart(3, '0'), sumber: t.id, dari: me, ke, judul, rincian,
@@ -3531,18 +3586,7 @@
   const permintaanMasuk = (data, me) => (data.permintaan || [])
     .filter(m => m.status === 'menunggu' && m.dari !== me && (m.ke === me || leadDari(m.ke) === me))
     .map(m => ({ m, tim: m.ke !== me }));
-  /* Hari kerja (Senin–Jumat) sesudah `dari` sampai `ke`; libur nasional tak dihitung. */
-  function hariKerja(dari, ke) {
-    if (!dari || !ke || ke <= dari) return 0;
-    if (selisihHari(dari, ke) > 90) return 90;
-    let n = 0;
-    for (let d = tambahHari(dari, 1); d <= ke; d = tambahHari(d, 1)) {
-      const w = keTanggal(d).getDay();
-      if (w !== 0 && w !== 6) n++;
-    }
-    return n;
-  }
-  /* Belum dijawab 2 hari kerja: masuk Perlu perhatian Lead tim penerima. */
+  /* Umur permintaan dihitung dengan hariKerja (lihat Hari kerja di atas). Belum dijawab 2 hari kerja: masuk Perlu perhatian Lead tim penerima. */
   const BATAS_MINTA = 2;
   const umurMinta = (m, hariIni) => hariKerja(isoHari(m.dialihkanAt || m.createdAt), hariIni);
   const mintaLama = (m, hariIni) => m.status === 'menunggu' && umurMinta(m, hariIni) >= BATAS_MINTA;
@@ -3610,6 +3654,7 @@
     const due = teks(ambil('due', lama.due));
     if (due && !isoSah(due)) throw new Error('Tanggal tenggat tidak valid.');
     if (due && hariIni && due < hariIni && due !== lama.due) throw new Error('Tenggat yang diharapkan sudah lewat.');
+    wajibHariKerja(due, lama.due);
     return { judul, jenis, kebutuhan, due, bahan: f.bahan === undefined ? lama.bahan : tautanInisiatif(f.bahan, waktu) };
   }
   const nomoriBahan = (id, daftar) => daftar.map((l, i) => ({ ...l, id: `${id}-b${i + 1}`, urutan: i + 1 }));
@@ -3669,6 +3714,7 @@
     if (!anggotaDae().includes(pic)) throw new Error(`PIC adalah anggota tim ${singkatTim(TIM_DAE)}.`);
     const due = f.due === undefined ? m.due : teks(f.due);
     if (due && !isoSah(due)) throw new Error('Tanggal tenggat tidak valid.');
+    wajibHariKerja(due);   // tenggat awal task-nya, walau harapan peminta jatuh di akhir pekan
     // Peninjau dihitung ulang tiap kali dibaca; di sini hanya mencegah task yang sejak lahir tak punya peninjau.
     if (!peninjauDae({ permintaanDae: m.id, peminta: m.dari, pic }, indeks(data))) {
       throw new Error('Tak ada orang di tim peminta yang bisa meninjau hasilnya selain PIC ini. Pilih PIC lain.');
@@ -3883,6 +3929,7 @@
     const due = teks(f.due);
     if (!isoSah(due)) throw new Error('Pilih tanggal tenggat baru.');
     if (due <= t.due) throw new Error('Tenggat baru harus sesudah tenggat sekarang.');
+    wajibHariKerja(due);
     if (hariIni && due < hariIni) throw new Error('Tenggat baru sudah lewat.');
     const alasan = teks(f.alasan);
     if (alasan.length < 3) throw new Error('Tulis alasannya, supaya pemberi task bisa memutuskan.');
@@ -3912,6 +3959,7 @@
     const due = teks(f.due) || x.dueBaru;
     if (!isoSah(due)) throw new Error('Pilih tanggal tenggat yang disetujui.');
     if (t.due && due <= t.due) throw new Error('Tenggat yang disetujui harus sesudah tenggat sekarang.');
+    wajibHariKerja(due);
     Object.assign(x, { status: 'disetujui', catatan, oleh: me, dueJadi: due, jawabAt: waktu, updatedAt: waktu });
     t.due = due;
     t.updatedAt = waktu;
@@ -3962,6 +4010,7 @@
     } else ini = inisiatifUntukTask(data, f.inisiatif, null, me);
     const due = teks(f.due) || teks(a.due);
     if (due && !isoSah(due)) throw new Error('Tanggal tenggat tidak valid.');
+    wajibHariKerja(due, a.due);
     const daftar = x => (Array.isArray(x) ? x : []);
     const ada = new Set(data.tasks.map(t => t.id));
     // Task hasil permintaan tetap Ditinjau bila tadi ditinjau; yang Selesai tak mungkin bila permintaannya masih terbuka.
@@ -4034,7 +4083,8 @@
           id: 'PRD-' + String(nomorBerikut(data.tasks, 'PRD', data)).padStart(3, '0'),
           project: baru.id, lane: 'proyek', kategori: '', title: t.title, platform: t.platform || baru.platform,
           stage: t.stage, sub: t.sub, detail: t.detail || '', pic, support: [], priority: t.priority || 'Normal',
-          start: hariIni, due: t.due && f.tenggat !== 'kosong' ? tambahHari(hariIni, selisihHari(dasar, t.due)) : '',
+          // Jaraknya dalam hari kerja, dan hasilnya selalu hari kerja (2.59.0).
+          start: hariIni, due: t.due && f.tenggat !== 'kosong' ? tambahHariKerja(hariIni, jarakHariKerja(dasar, t.due)) : '',
           status: 'Antre', tertahan: false, alasanTertahan: '', output: '', deps: [], tunggu: [], lepasFase: !!t.lepasFase,
           notes: '', assignedBy: me, cycle: 1, induk: '', createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
           subtasks: (t.subtasks || []).map((s, i) => ({ id: `s${waktu}-${tasks.length}-${i}`, title: s.title, pic, due: '', done: false, link: s.link || '' })),
@@ -4193,6 +4243,7 @@
                   terbuka untuk elaborasi berikutnya */
   function elaborasiPaket(data, p, f, me, waktu, hariIni) {
     wajibIzin(me, 'paket.elaborasi');
+    wajibHariKerja(f.due);   // sebelum proyeknya dibuat
     let proj = null;
     if (teks(f.proyek)) {
       proj = data.projects.find(x => x.id === f.proyek);
@@ -5538,7 +5589,7 @@
     MANAGER, KAPASITAS, STATUS, TAHAP, PERAN, ORANG,
     JENIS_MASTER, PLATFORM, PRIORITAS, KATEGORI_SEMUA, aturMaster, periksaMaster, susunMaster, salahMaster, daftarMaster, labelPrioritas,
     ORANG_BAWAAN, DEV, PERAN_ORANG, TIM_LEAD, susunOrang, salahOrganogram, periksaOrang, aturOrang, nonaktif,
-    orang, timDari, inisial, isoHari, selisihHari, tambahHari,
+    orang, timDari, inisial, isoHari, selisihHari, tambahHari, akhirPekan, jarakHariKerja, hariKerjaBerikut, tambahHariKerja, hariTelat, wajibHariKerja, TENGGAT_AKHIR_PEKAN,
     selesai, aktif, indeks, depsBelum, duplikatPaket, duplikatProyek, waktuKumpul,
     TIM_INISIATIF, STATUS_INISIATIF, bolehLihatInisiatif, bolehKelolaInisiatif, cariInisiatif, inisiatifBaru, ubahInisiatif, hapusInisiatif, tempelInisiatif, ringkasInisiatif, terhambat, ditandaiTertahan, telat, peninjau, bolehUbah, picBoleh, bolehBuatTask, subBolehBagi, bolehUbahTask, alasanTunggu,
     anakInisiatif, turunanInisiatif, jejakInisiatif, namaJalurInisiatif, urutInisiatif,

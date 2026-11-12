@@ -203,7 +203,7 @@
         'Di detail task, tekan **Tandai tertahan** dan tulis alasannya, mis. "menunggu akses SIADU".',
         'Task tertahan tampil merah bagi Lead dan Manager, dan ikut terhitung di Dashboard.',
         'Setelah hambatannya beres, tekan **Lepas tanda tertahan**, lalu lanjutkan.',
-        'Kalau tenggatnya tak terkejar, tekan **Minta perpanjangan tenggat** di samping tenggat (atau **Minta perpanjangan** di baris terlambat pada Hari Ini), pilih tanggal baru, dan tulis alasannya. Pengajuan langsung ke pemberi task; tenggat baru berlaku setelah disetujui.',
+        'Kalau tenggatnya tak terkejar, tekan **Minta perpanjangan tenggat** di samping tenggat (atau **Minta perpanjangan** di baris terlambat pada Hari Ini), pilih tanggal baru (hari kerja), dan tulis alasannya. Pengajuan langsung ke pemberi task; tenggat baru berlaku setelah disetujui.',
       ],
     },
     {
@@ -315,7 +315,7 @@
         'Pilih proyek dan **sub-stage**-nya (wajib; tidak ada pilihan bawaan). Sub-stage tim Anda di atas; tim lain dilipat di **Sub-stage tim lain**. Tiap baris menyebut fasenya, timnya bila bukan tim Anda, dan bila direview Manager.',
         'Pilih **PIC**: anggota tim Anda, atau Lead tim pemilik kalau sub-stage itu milik tim lain (mis. DV8 Input dipegang Lead LNA).',
         'Kalau PIC-nya staff Anda (atau Anda sendiri) dan Anda memegang task di fase yang sama, pilih **Task induk** supaya task ini menjadi task turunannya.',
-        'Isi tenggat dan keterangan (prioritas dan output ada di **Lainnya**), lalu tekan **Tambah task**.',
+        'Isi tenggat dan keterangan (prioritas dan output ada di **Lainnya**), lalu tekan **Tambah task**. Tenggat harus hari kerja (Senin–Jumat); keterlambatan dihitung dalam hari kerja, jadi Sabtu dan Minggu tak ikut dihitung.',
         'Proyek yang salah dibuat bisa dihapus lewat **Hapus proyek** di menu **⋯** halaman proyeknya (Lead dan Manager). Semua task dan setoran paketnya ikut hilang, jadi ID proyeknya harus diketik ulang; untuk proyek yang sudah selesai, pilih **arsipkan saja**.',
         'Task yang terlanjur ikut terhapus (data real) masih bisa dikembalikan: buka utasnya di **Komunikasi**, lalu tekan **Pulihkan sebagai task rutin**. ID-nya tetap, ceklis dan buktinya ikut, dan boleh langsung ditempel ke inisiatif.',
       ],

@@ -57,6 +57,9 @@ const Inti = require('../public/inti');
 const JAM = 3600e3;
 const HARI = 24 * JAM;
 const MANAGER = Inti.MANAGER;
+/* Tenggat contoh selalu hari kerja (2.59.0): tenggat di Sabtu/Minggu ditolak aturan, jadi yang jatuh
+   di akhir pekan digeser ke Senin sesudahnya. */
+const kerja = Inti.hariKerjaBerikut;
 
 /* Target contoh untuk paket v1 yang belum punya target. Kolom: kategori, grup, nama,
    target, satuan, sudah ada. Nama grup TPA/TBI meniru grup yang dipakai paket v1 lain. */
@@ -130,7 +133,7 @@ function bagi(data, t, staf, waktu) {
    menyetujui; Lead melengkapi langkahnya dan Manager menyetujui. Tanpa staff, PIC-nya
    mengerjakan sendiri. */
 function tuntaskan(data, t, staf, mulai, lolos) {
-  t.due = Inti.isoHari(lolos);
+  t.due = kerja(Inti.isoHari(lolos));
   bagi(data, t, staf, mulai).forEach((a, k) => {
     kerjakan(data, a, mulai + (1 + k) * JAM, lolos - 8 * JAM);
     setujui(data, a, lolos - 6 * JAM);
@@ -159,8 +162,8 @@ const jumlahBatch = (data, langkah) => {
    pertama memperlihatkan keadaan itu; anak kedua (batch besar) sedang dikerjakan. */
 function sampaiKeadaan(data, t, staf, keadaan, sekarang) {
   const hariIni = Inti.isoHari(sekarang);
-  if (keadaan === 'antrean') { t.due = Inti.tambahHari(hariIni, 6); return; }   // masih di Lead, belum dibagi
-  t.due = Inti.tambahHari(hariIni, 4);
+  if (keadaan === 'antrean') { t.due = Inti.tambahHariKerja(hariIni, 6); return; }   // masih di Lead, belum dibagi
+  t.due = Inti.tambahHariKerja(hariIni, 4);
   if (keadaan === 'tinjau-manager') {
     // Task turunannya sudah lolos; Lead mengajukan langkahnya ke Manager.
     bagi(data, t, staf, sekarang - 4 * HARI).forEach((a, k) => {
@@ -174,22 +177,22 @@ function sampaiKeadaan(data, t, staf, keadaan, sekarang) {
   const [a, ...lain] = bagi(data, t, staf, sekarang - mulai * HARI - 2 * JAM);
   lain.forEach(x => { x.due = t.due; kerjakan(data, x, sekarang - mulai * HARI); });
   if (keadaan === 'dikerjakan') {
-    a.due = Inti.tambahHari(hariIni, 3);
+    a.due = Inti.tambahHariKerja(hariIni, 3);
     kerjakan(data, a, sekarang - 2 * HARI);
   } else if (keadaan === 'telat') {
-    a.due = Inti.tambahHari(hariIni, -2);
+    a.due = Inti.tambahHariKerja(hariIni, -2);
     kerjakan(data, a, sekarang - 4 * HARI);
     komentar(data, a, t.pic, 'Ini sudah lewat tenggat. Ada yang bisa dibantu?', sekarang - 1 * HARI);
     komentar(data, a, a.pic, 'Tinggal satu paket lagi, besok saya ajukan.', sekarang - 20 * JAM);
   } else if (keadaan === 'tertahan') {
-    a.due = Inti.tambahHari(hariIni, 4);
+    a.due = Inti.tambahHariKerja(hariIni, 4);
     kerjakan(data, a, sekarang - 2 * HARI);
     Inti.terapkanAksi(data, a, 'tahan', a.pic, sekarang - 1 * HARI, 'Menunggu kisi-kisi TKA terbaru dari tim kurikulum.');
   } else if (keadaan === 'ditinjau') {
-    a.due = Inti.tambahHari(hariIni, 1);
+    a.due = Inti.tambahHariKerja(hariIni, 1);
     kerjakan(data, a, sekarang - 3 * HARI, sekarang - 5 * JAM);
   } else if (keadaan === 'revisi') {
-    a.due = Inti.tambahHari(hariIni, 2);
+    a.due = Inti.tambahHariKerja(hariIni, 2);
     a.priority = 'High';
     kerjakan(data, a, sekarang - 5 * HARI, sekarang - 3 * HARI);
     Inti.terapkanAksi(data, a, 'kembalikan', Inti.peninjau(a), sekarang - 2 * HARI, 'Bobot soal nomor 12–15 belum sesuai kisi-kisi TKA terbaru.');
@@ -222,10 +225,10 @@ function skenarioTka(data, sekarang) {
     dev.forEach((t, k) => {
       if (k < kini) { tuntaskan(data, t, stafUntuk(t.sub, i, jumlah), w, w + 3 * HARI); w += 3.3 * HARI; }
       else if (k === kini) sampaiKeadaan(data, t, stafUntuk(t.sub, i, jumlah), keadaan, sekarang);
-      else t.due = Inti.tambahHari(hariIni, 6 + k);
+      else t.due = Inti.tambahHariKerja(hariIni, 6 + k);
     });
     // Implementation dan Evaluation menunggu fase Development timnya selesai.
-    langkah.filter(t => ['I', 'E'].includes(t.stage)).forEach((t, k) => { t.due = Inti.tambahHari(hariIni, 10 + k); });
+    langkah.filter(t => ['I', 'E'].includes(t.stage)).forEach((t, k) => { t.due = Inti.tambahHariKerja(hariIni, 10 + k); });
   });
   return { project, tasks };
 }
@@ -241,8 +244,8 @@ function skenarioOjk(data, sekarang) {
   const proj = Inti.proyekBaru(data, { name: 'Produksi OJK', platform: 'OJK', goal: 'Paket TO & latsol OJK 2026 sesuai rancangan PKG-004.' }, MANAGER, awal);
   proj.paket = p.id;
   // Analysis oleh Manager: intake & target (sub-stage bertanda Manager), berjalan bersamaan.
-  const a1 = Inti.taskBaru(data, { title: 'A1 · Intake kebutuhan paket OJK dari tim bisnis', project: proj.id, sub: 'A1', pic: MANAGER, due: hari(awal + 2 * HARI) }, MANAGER, awal, hari(awal));
-  const a6 = Inti.taskBaru(data, { title: 'A6 · Target & indikator keberhasilan paket OJK', project: proj.id, sub: 'A6', pic: MANAGER, due: hari(awal + 4 * HARI) }, MANAGER, awal, hari(awal));
+  const a1 = Inti.taskBaru(data, { title: 'A1 · Intake kebutuhan paket OJK dari tim bisnis', project: proj.id, sub: 'A1', pic: MANAGER, due: kerja(hari(awal + 2 * HARI)) }, MANAGER, awal, hari(awal));
+  const a6 = Inti.taskBaru(data, { title: 'A6 · Target & indikator keberhasilan paket OJK', project: proj.id, sub: 'A6', pic: MANAGER, due: kerja(hari(awal + 4 * HARI)) }, MANAGER, awal, hari(awal));
   kerjakan(data, a1, awal + 6 * JAM, awal + 1.5 * HARI);
   kerjakan(data, a6, awal + HARI, awal + 3.5 * HARI);
   Inti.setKeputusan(data, proj, 'Build', MANAGER, awal + 3.5 * HARI + JAM);
@@ -269,7 +272,7 @@ function skenarioOjk(data, sekarang) {
     w = akhir + 6 * JAM;
   }
   // E12 menutup siklus setelah semua task lain tuntas: Alya menyiapkan, Manager menyetujui.
-  const e12 = Inti.taskBaru(data, { title: 'E12 · Final approval & penutupan siklus paket OJK', project: proj.id, sub: 'E12', pic: 'alya', due: hari(w + HARI) }, MANAGER, mulaiBatch, hari(mulaiBatch));
+  const e12 = Inti.taskBaru(data, { title: 'E12 · Final approval & penutupan siklus paket OJK', project: proj.id, sub: 'E12', pic: 'alya', due: kerja(hari(w + HARI)) }, MANAGER, mulaiBatch, hari(mulaiBatch));
   tuntaskan(data, e12, [], w, w + 0.8 * HARI);
   return { project: proj, tasks: [a1, a6, ...tasks, e12] };
 }
@@ -285,7 +288,7 @@ function skenarioPapi(data, sekarang) {
   const hari = w => Inti.isoHari(w);
   const proj = Inti.proyekBaru(data, { name: 'Tes Psikologi PAPI Kostick', platform: 'All Platform',
     goal: 'Tes kepribadian kerja PAPI Kostick (90 pasang pernyataan, 20 aspek) dengan skor dan laporan otomatis, mulai dari prototype untuk uji coba internal.' }, MANAGER, awal);
-  const baru = (sub, judul, pic, due) => Inti.taskBaru(data, { title: `${sub} · ${judul}`, project: proj.id, sub, pic, due: hari(due) }, MANAGER, awal, hari(awal));
+  const baru = (sub, judul, pic, due) => Inti.taskBaru(data, { title: `${sub} · ${judul}`, project: proj.id, sub, pic, due: kerja(hari(due)) }, MANAGER, awal, hari(awal));
   const a1 = baru('A1', 'Intake kebutuhan tes PAPI Kostick dari tim bisnis', MANAGER, awal + HARI);
   const a2 = baru('A2', 'Riset tes kepribadian kerja & pesaing PAPI Kostick', 'andika', awal + 4 * HARI);
   const a6 = baru('A6', 'Target & indikator keberhasilan tes PAPI Kostick', MANAGER, awal + 4 * HARI);
@@ -299,7 +302,7 @@ function skenarioPapi(data, sekarang) {
   const e12 = baru('E12', 'Final approval & penutupan siklus PAPI Kostick', MANAGER, sekarang + 14 * HARI);
   // Analysis: gerbang Manager, riset RAD (pembanding pesaing dibagi ke Uma).
   kerjakan(data, a1, awal + 2 * JAM, awal + 0.8 * HARI);
-  const riset = Inti.taskAnak(data, a2, { title: 'Bandingkan tes PAPI Kostick di platform pesaing', pic: 'uma', due: hari(awal + 3 * HARI) }, 'andika', awal + 0.5 * HARI, hari(awal));
+  const riset = Inti.taskAnak(data, a2, { title: 'Bandingkan tes PAPI Kostick di platform pesaing', pic: 'uma', due: kerja(hari(awal + 3 * HARI)) }, 'andika', awal + 0.5 * HARI, hari(awal));
   kerjakan(data, riset, awal + 0.6 * HARI, awal + 2.5 * HARI);
   setujui(data, riset, awal + 2.8 * HARI);
   kerjakan(data, a6, awal + HARI, awal + 3 * HARI);
@@ -341,11 +344,11 @@ function inisiatifContoh(data, sekarang) {
   }
   // ProductTrack v2: satu pembaruan selesai (riwayat) dan satu yang sedang berjalan.
   const v2 = daftar[0].id;
-  const beres = Inti.taskBaru(data, { title: 'Rilis 2.30.0: duplikat paket & proyek', pic: 'ali', due: hari(sekarang - 2 * HARI), inisiatif: v2 }, 'ali', sekarang - 4 * HARI, hari(sekarang - 4 * HARI));
+  const beres = Inti.taskBaru(data, { title: 'Rilis 2.30.0: duplikat paket & proyek', pic: 'ali', due: kerja(hari(sekarang - 2 * HARI)), inisiatif: v2 }, 'ali', sekarang - 4 * HARI, hari(sekarang - 4 * HARI));
   Inti.terapkanAksi(data, beres, 'mulai', 'ali', sekarang - 4 * HARI + JAM);
   Inti.isiOutput(data, beres, 'Duplikat rancangan paket dan proyek dirilis (tag v2.30.0)', 'ali', sekarang - 2 * HARI - 4 * JAM);
   Inti.terapkanAksi(data, beres, 'selesai', 'ali', sekarang - 2 * HARI - 3 * JAM);
-  const jalan = Inti.taskBaru(data, { title: 'Halaman Inisiatif untuk tim DAE', pic: 'ali', due: hari(sekarang + 3 * HARI), inisiatif: v2 }, 'ali', sekarang - HARI, hari(sekarang - HARI));
+  const jalan = Inti.taskBaru(data, { title: 'Halaman Inisiatif untuk tim DAE', pic: 'ali', due: kerja(hari(sekarang + 3 * HARI)), inisiatif: v2 }, 'ali', sekarang - HARI, hari(sekarang - HARI));
   Inti.terapkanAksi(data, jalan, 'mulai', 'ali', sekarang - 20 * JAM);
   // Susunan nama yang disepakati (2.47.0). Hanya data contoh; data real diatur lewat Ubah → induk.
   const cari = nama => daftar.find(x => x.nama === nama);
@@ -389,7 +392,7 @@ function permintaanDaeContoh(data, sekarang, inisiatif) {
 
   // 1. RAD: Generator OJK Tahap 1. Diterima Ali, dikerjakan di Generator Soal; Manager memberi satu komentar.
   const m1 = kirim(ojk, 'andika', {
-    judul: 'Generator OJK Tahap 1', jenis: 'generator', due: hari(sekarang + 16 * HARI),
+    judul: 'Generator OJK Tahap 1', jenis: 'generator', due: kerja(hari(sekarang + 16 * HARI)),
     kebutuhan: 'Riset OJK sudah selesai (A2, A4, D2). Butuh generator soal TPA dan TBI yang mengikuti blueprint D2: tipe soal numerik dan verbal, kunci jawaban tunggal, dan pembahasan singkat.\nTarget tahap 1: 200 soal untuk bank soal TO 1–3.',
     bahan: tautan([['Blueprint soal OJK', 'https://contoh.id/blueprint-ojk'], ['Rekap pola soal 2023–2025', 'https://contoh.id/rekap-pola-soal'], ['Kisi-kisi resmi OJK', 'https://contoh.id/kisi-kisi-ojk']]),
   }, sekarang - 3 * HARI);
@@ -399,21 +402,21 @@ function permintaanDaeContoh(data, sekarang, inisiatif) {
 
   // 2. LNA: scraper bank soal TKA. Masih menunggu Lead DAE.
   const m2 = kirim(tka, 'alya', {
-    judul: 'Scraper bank soal TKA SMA', jenis: 'scraper', due: hari(sekarang + 12 * HARI),
+    judul: 'Scraper bank soal TKA SMA', jenis: 'scraper', due: kerja(hari(sekarang + 12 * HARI)),
     kebutuhan: 'Butuh kumpulan soal latihan TKA dari sumber publik sebagai bahan input.\nFormat keluaran: tabel dengan kolom soal, opsi, kunci, dan sumber; duplikat sudah dibersihkan.',
     bahan: tautan([['Daftar sumber soal TKA', 'https://contoh.id/sumber-soal-tka']]),
   }, sekarang - 5 * JAM);
 
   // 3. CLO: ditolak dengan alasan.
   const m3 = kirim(tka, 'bagas', {
-    judul: 'Rapikan 200 PDF materi lama', jenis: 'lainnya', due: hari(sekarang + 5 * HARI),
+    judul: 'Rapikan 200 PDF materi lama', jenis: 'lainnya', due: kerja(hari(sekarang + 5 * HARI)),
     kebutuhan: 'Samakan margin, header, dan nama berkas pada 200 PDF materi lama.', bahan: tautan([['Folder materi 2025', 'https://contoh.id/folder-materi-2025']]),
   }, sekarang - 5 * HARI);
   Inti.tolakMintaDae(data, m3, 'Lebih cocok dikerjakan tim CLO dengan template baru; DAE bisa bantu skrip rename bila perlu. Ajukan lagi dengan cakupan itu.', 'ali', sekarang - 5 * HARI + 4 * JAM);
 
   // 4. CLO: dashboard rekap pendaftar. Dikerjakan Ali, satu putaran revisi, kini menunggu tinjauan Dhea.
   const m4 = kirim(ojk, 'dhea', {
-    judul: 'Dashboard rekap pendaftar tryout', jenis: 'dashboard', due: hari(sekarang + 4 * HARI),
+    judul: 'Dashboard rekap pendaftar tryout', jenis: 'dashboard', due: kerja(hari(sekarang + 4 * HARI)),
     kebutuhan: 'Rekap pendaftar dan kehadiran tryout per hari, supaya tim CLO tidak menyalin angka dari spreadsheet.',
     bahan: tautan([['Contoh rekap manual TO Perdana', 'https://contoh.id/rekap-manual-to-perdana']]),
   }, sekarang - 7 * HARI);
@@ -490,7 +493,7 @@ function acaraContoh(data, sekarang, papi, inisiatif) {
       tindak: [
         { id: 'tlkickoff1', teks: 'Blueprint instrumen: 90 pasang pernyataan, 20 aspek, dan norma skor', pic: 'andika', due: t('D2') ? t('D2').due : '', task: t('D2') ? t('D2').id : '' },
         { id: 'tlkickoff2', teks: 'Rancangan sistem penilaian & laporan otomatis', pic: 'ali', due: t('D4') ? t('D4').due : '', task: t('D4') ? t('D4').id : '' },
-        { id: 'tlkickoff3', teks: 'Daftar karyawan untuk uji coba internal', pic: MANAGER, due: hari(8) },
+        { id: 'tlkickoff3', teks: 'Daftar karyawan untuk uji coba internal', pic: MANAGER, due: kerja(hari(8)) },
       ],
     }));
     daftar.push(acara('review-papi', 'andika', {

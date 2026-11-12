@@ -74,7 +74,9 @@ function pengingat(k, jejak = null) {
   const sudah = { ...((jejak && jejak.sudah) || {}) };
   const mulai = jejak && jejak.mulai ? jejak.mulai : k.sekarang;
   const batasLama = Math.max(mulai - 864e5, k.sekarang - 3 * 864e5);
-  const besok = I.tambahHari(k.hari, 1);
+  // Hari kerja berikutnya (2.59.0): akhir pekan tak dihitung, jadi Jumat mengingatkan tenggat Senin.
+  const besok = I.hariKerjaBerikut(I.tambahHari(k.hari, 1));
+  const kataBesok = besok === I.tambahHari(k.hari, 1) ? 'besok' : 'hari kerja berikutnya';
   const item = [];
   const tambah = (id, teks) => { if (!sudah[id]) { item.push(teks); sudah[id] = k.sekarang; } };
 
@@ -83,9 +85,9 @@ function pengingat(k, jejak = null) {
   for (const t of k.data.tasks) {
     if (t.pic !== k.me || !I.aktif(t) || t.status === 'Ditinjau' || !t.due || I.terhambat(t, k.perId)) continue;
     const judul = `${t.id} ${K.potong(t.title, 60)}`;
-    if (t.due === besok) tambah(`besok-${t.id}-${t.due}`, `${judul}: tenggat besok (${K.tglPendek(t.due)})`);
+    if (t.due === besok) tambah(`besok-${t.id}-${t.due}`, `${judul}: tenggat ${kataBesok} (${K.tglPendek(t.due)})`);
     else if (t.due === k.hari) tambah(`hari-${t.id}-${t.due}`, `${judul}: tenggat hari ini`);
-    else if (t.due < k.hari) tambah(`telat-${t.id}-${t.due}`, `${judul}: lewat tenggat ${K.selisihHari(t.due, k.hari)} hari`);
+    else if (t.due < k.hari) tambah(`telat-${t.id}-${t.due}`, `${judul}: lewat tenggat ${I.hariTelat(t.due, k.hari)} hari kerja`);
   }
   for (const n of I.notifikasi(k.data, k.me, 200, k.susunan)) {
     const tulis = JENIS_KABAR[n.jenis];

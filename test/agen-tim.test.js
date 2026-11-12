@@ -32,8 +32,8 @@ function keadaanUji() {
   const api = buat({ title: 'Integrasi API', sub: 'DV6', pic: 'ali', due: '2026-10-14' });
   const diagram = I.taskAnak(d, api, { title: 'Dokumentasi API', pic: 'budi' }, 'ali', w, '2026-10-12');
   ubah(api, { status: 'Selesai', selesaiAt: jam('2026-10-14'), output: 'API tersambung' });
-  const parser = I.taskAnak(d, dv6, { title: 'Modul parser', pic: 'budi', due: '2026-10-25' }, 'ali', w, '2026-10-12');
-  const render = I.taskAnak(d, dv6, { title: 'Modul render', pic: 'citra', due: '2026-10-18' }, 'ali', w, '2026-10-12');
+  const parser = I.taskAnak(d, dv6, { title: 'Modul parser', pic: 'budi', due: '2026-10-26' }, 'ali', w, '2026-10-12');
+  const render = I.taskAnak(d, dv6, { title: 'Modul render', pic: 'citra', due: '2026-10-19' }, 'ali', w, '2026-10-12');
   ubah(parser, { status: 'Dikerjakan', tinjauan: [{ by: 'ali', action: 'Dikembalikan', note: 'Tambahkan tes', at: jam('2026-10-15') }] });
   ubah(render, { status: 'Ditinjau', output: 'Modul render jalan', tinjauan: [{ by: 'citra', action: 'Diajukan', at: jam('2026-10-15') }] });
   const dv7 = buat({ title: 'Prototype dashboard', sub: 'DV7', pic: 'ali', due: '2026-10-21' });
@@ -64,10 +64,10 @@ test('rekap tim: angka, yang perlu perhatian, per proyek & fase, beban, task tur
   assert.match(teks, /^Rekap tim DAE · Jumat, 16 Oktober 2026 · data real/);
   assert.match(teks, /Anggota: Ali, Budi, Citra · nonaktif: Dodi\n/);
   assert.match(teks, /Aktif 9 · telat 1 · tertahan 1 · revisi 1 · menunggu tinjauan 2 · selesai minggu ini 2/);
-  assert.match(teks, /Terlambat \(1\)\n {2}• PRD-\d+ · R1 · Rekap data mingguan — Antre, Siap · tenggat 25 Sep \(telat 21 hari\) · PIC Budi/);
+  assert.match(teks, /Terlambat \(1\)\n {2}• PRD-\d+ · R1 · Rekap data mingguan — Antre, Siap · tenggat 25 Sep \(telat 15 hari kerja\) · PIC Budi/);
   assert.match(teks, /Tertahan \(1\)\n {2}• PRD-\d+ · I5 · Deploy generator — Antre, Tertahan · tenggat 30 Okt · PIC Ali · tanpa alasan/);
   assert.match(teks, /Dikembalikan untuk direvisi \(1\)\n {2}• PRD-\d+ · DV6 · Modul parser — Dikerjakan, Revisi/);
-  assert.match(teks, /Menunggu tinjauan \(2\)[\s\S]*Modul render — Ditinjau · tenggat 18 Okt · PIC Citra · ditinjau Ali/);
+  assert.match(teks, /Menunggu tinjauan \(2\)[\s\S]*Modul render — Ditinjau · tenggat 19 Okt · PIC Citra · ditinjau Ali/);
   assert.match(teks, /PRJ-1 · Otomasi laporan · siklus 1\n {2}Analysis: 1\/1 selesai\n {2}Design: 1\/1 selesai\n {2}Development: 1\/6 selesai · [^\n]*\(Budi, revisi\)/);
   assert.match(teks, /Rutin & di luar proyek \(2\)[\s\S]*Arsip skrip lama — Antre, Siap · tenggat 30 Okt · PIC Dodi/, 'task staff nonaktif tetap terlihat');
   assert.match(teks, /Beban per orang \(task aktif dari kapasitas 6\)\n {2}• Ali: 3\/6\n {2}• Budi: 3\/6\n {2}• Citra: 2\/6/);
@@ -115,7 +115,7 @@ test('cek kerapian data: tiap pemeriksaan menemukan kasusnya, data rapi = tanpa 
   ada('Menunggu task yang tidak ada lagi', s.i5, 'PRD-999');
   ada('PIC profilnya sudah dinonaktifkan', s.lama);
   ada('Tertahan tanpa alasan', s.i5);
-  ada('Lewat tenggat lebih dari 14 hari dan belum dimulai', s.rutin);
+  ada('Lewat tenggat lebih dari 10 hari kerja dan belum dimulai', s.rutin);
   assert.ok(!teks.includes('Semua turunan selesai'), 'belum ada induk yang semua turunannya selesai');
   assert.equal(r.singkat, '8 temuan di data tim DAE', 'tanpa "terbanyak" kalau semua temuan berjumlah satu');
 
@@ -142,10 +142,10 @@ test('laporan mingguan: periode Senin–hari ini, selesai, diajukan, tinjauan Le
   assert.match(teks, /Per orang[\s\S]*• Dodi \(nonaktif\) · selesai 0 · tepat waktu 0 · baru 1 · aktif 1 · telat 0/);
   assert.match(teks, new RegExp(`Diajukan, menunggu tinjauan \\(1\\)\\n {2}• ${render.id} · DV6 · Modul render \\(Citra, ditinjau Ali\\)`));
   assert.match(teks, new RegExp(`Tinjauan oleh Ali \\(1\\)\\n {2}• ${parser.id} · DV6 · Modul parser: dikembalikan \\("Tambahkan tes"\\)`));
-  assert.match(teks, new RegExp(`Terlambat & tertahan \\(2\\)\\n {2}• ${rutin.id} · R1 · Rekap data mingguan \\(Budi, tenggat 25 Sep, telat 21 hari\\)`));
+  assert.match(teks, new RegExp(`Terlambat & tertahan \\(2\\)\\n {2}• ${rutin.id} · R1 · Rekap data mingguan \\(Budi, tenggat 25 Sep, telat 15 hari kerja\\)`));
   const rencana = teks.split('Rencana 7 hari ke depan (sampai 23 Okt)')[1];
   for (const t of [render, dv6, dv7]) assert.ok(rencana.includes(t.id), t.id);
-  assert.ok(!rencana.includes(parser.id), 'tenggat 25 Okt di luar 7 hari');
+  assert.ok(!rencana.includes(parser.id), 'tenggat 26 Okt di luar 7 hari');
   assert.match(r.singkat, /^minggu 12 Okt–16 Okt: 2 selesai, 2 diajukan, 1 telat, 3 tenggat 7 hari ke depan$/);
 
   assert.match(r.md, /^# Laporan mingguan tim DAE\n\n_Periode Senin, 12 Oktober 2026 – Jumat, 16 Oktober 2026 · disusun /);

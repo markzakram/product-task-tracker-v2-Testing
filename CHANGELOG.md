@@ -6,6 +6,30 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.59.0 — Tenggat hanya hari kerja: Sabtu dan Minggu tak dihitung (2026-11-12)
+
+Permintaan user: keterlambatan masih terhitung bersama akhir pekan; Sabtu dan Minggu tak boleh
+dihitung, dan tenggat awal tak boleh jatuh di akhir pekan.
+
+- **Tenggat harus Senin–Jumat** setiap kali dipilih atau diubah: task baru dan turunan, Ubah task,
+  Proyek umum, permintaan lanjutan dan ke tim DAE (diajukan dan diterima), elaborasi paket, pulihkan
+  task, perpanjangan (diajukan dan disetujui), dan tindak lanjut notulen. Ditolak dengan pesan yang
+  jelas, di browser, server, dan agen AI sekaligus (`Inti.wajibHariKerja`), sebelum data berubah.
+- **Langsung terlihat di formulir:** isian tenggat menandai Sabtu/Minggu begitu dipilih, dan tanggal
+  bawaan atau minimum yang jatuh di akhir pekan (mis. perpanjangan, harapan peminta) diisi Senin.
+- **Keterlambatan dalam hari kerja:** chip "Telat N hr", Hari Ini, notifikasi, Perlu perhatian, dan
+  detail task. Tenggat Jumat: Sabtu sampai Senin telat 1 hari kerja, Selasa 2. Tambahan perpanjangan
+  tertulis "+N hari kerja".
+- **Duplikat proyek** menggeser tenggat dengan jarak hari kerja yang sama, dan hasilnya selalu hari
+  kerja (sebelumnya bisa jatuh Minggu).
+- **Tenggat lama yang sudah di akhir pekan tetap sah** selama tak diubah; mengubah isian lain task
+  itu tetap bisa. Riwayat data real tak terpengaruh.
+- **Agen AI:** tenggat bawaan `buat_task` (tanggal rekap) yang jatuh di akhir pekan memakai Senin
+  dengan peringatan, tenggat akhir pekan yang ditulis di butir ditolak, telat ditulis dalam hari
+  kerja, pengingat Jumat menyebut tenggat Senin, dan cek kerapian memakai "lebih dari 10 hari kerja".
+- Libur nasional belum dihitung. Data contoh kini bertenggat hari kerja. Tanpa kolom atau migrasi
+  baru. Tes baru `test/hari-kerja.test.js`; tes yang memakai tenggat akhir pekan disesuaikan.
+
 ## 2.58.1 — Perubahan Master kini benar-benar berlaku sesudah dimuat ulang (2026-11-12)
 
 Keluhan user: menambah sub-stage memunculkan pesan "berhasil ditambahkan", tetapi sesudah halaman

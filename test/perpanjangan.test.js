@@ -35,11 +35,11 @@ test('ajukan → setujui dengan tanggal lain: tenggat berubah, PIC diberi tahu',
   assert.deepEqual(I.panjangMasuk(d, 'andika').map(y => y.id), ['PJG-001']);
   assert.equal(notif(d, 'andika', 'panjang').length, 1);
   assert.throws(() => I.jawabPerpanjangan(d, x, { setuju: true }, 'kiki', WAKTU + 1), /bukan untuk Anda/);
-  I.jawabPerpanjangan(d, x, { setuju: true, due: '2026-10-25', catatan: 'Maksimal tanggal 25' }, 'andika', WAKTU + 1);
-  assert.deepEqual([x.status, x.dueJadi, t.due], ['disetujui', '2026-10-25', '2026-10-25']);
+  I.jawabPerpanjangan(d, x, { setuju: true, due: '2026-10-26', catatan: 'Maksimal tanggal 26' }, 'andika', WAKTU + 1);
+  assert.deepEqual([x.status, x.dueJadi, t.due], ['disetujui', '2026-10-26', '2026-10-26']);
   const n1 = notif(d, 'kiki', 'panjangSetuju');
   assert.equal(n1.length, 1);
-  assert.equal(n1[0].dueBaru, '2026-10-25', 'notifikasi memakai tanggal yang disetujui');
+  assert.equal(n1[0].dueBaru, '2026-10-26', 'notifikasi memakai tanggal yang disetujui');
   assert.deepEqual(I.panjangMasuk(d, 'andika'), []);
 });
 
