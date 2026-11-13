@@ -6,6 +6,20 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.60.0 — Isian target rancangan paket dengan panah keyboard (2026-11-13)
+
+Permintaan user: jumlah target paket bisa diisi dengan mudah memakai panah di keyboard saja.
+
+- Di form **Ubah rancangan**, kolom Grup, Nama target, Ada, Target, dan Catatan kini bisa diisi
+  seperti spreadsheet: **↓/↑** dan **Enter** pindah ke kolom yang sama di baris target lain
+  (Shift+Enter naik), juga melewati batas kategori, dan isinya langsung terpilih sehingga ketikan
+  menggantikannya.
+- **Ctrl+D** (⌘D di Mac) menyalin isian baris di atasnya, untuk deretan target yang angkanya sama.
+- Enter di tabel target tak lagi menyimpan seluruh paket tanpa sengaja; menyimpan lewat tombol
+  **Simpan**. Dropdown Satuan tetap memakai panahnya sendiri.
+- Petunjuk singkatnya tampil di bawah judul form (disembunyikan di layar sentuh), dengan
+  terjemahan Inggris. Tes baru `test/paket-papan-ketik.test.js`.
+
 ## 2.59.1 — Hasil elaborasi ikut rancangan paket yang diubah (2026-11-13)
 
 Keluhan user: hasil elaborasi tidak sinkron dengan rancangan paketnya. Hasil pemeriksaan data real

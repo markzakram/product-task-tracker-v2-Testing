@@ -1767,6 +1767,7 @@
     'Tautan paket dilepas.': 'Package link removed.',
     'Keputusan proyek: {keputusan}.': 'Project decision: {keputusan}.',
     'Rancangan paket disimpan.': 'Package plan saved.',
+    'Tabel target: ↓/↑ atau Enter pindah baris (Shift+Enter naik), {pintasan} menyalin isian baris di atasnya.': 'Target table: ↓/↑ or Enter moves between rows (Shift+Enter goes up), {pintasan} copies the value from the row above.',
     'Rancangan paket disimpan. {n} batch hasil elaborasi ikut diperbarui.': 'Package plan saved. {n} elaborated batches were updated to match.',
     'Setoran disimpan.': 'Contribution saved.',
     'Output disimpan.': 'Output saved.',

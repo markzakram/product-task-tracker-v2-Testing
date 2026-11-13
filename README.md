@@ -355,7 +355,13 @@ Halaman pendukung, setara v1:
   user)**: di form Ubah rancangan, tiap baris target punya pegangan ⋮⋮ untuk diseret (tetikus
   atau jari; sela kosong di baris juga bisa) atau digeser dengan panah atas/bawah saat
   pegangannya terfokus, di dalam kategorinya. Urutan baris itulah yang tersimpan (`urutan` dari
-  `Inti.simpanPaket`) dan dipakai di tampilan, salinan sheet Marsel, dan elaborasi. Lead & Manager membuat paket; PIC Produk
+  `Inti.simpanPaket`) dan dipakai di tampilan, salinan sheet Marsel, dan elaborasi. **Isian target
+  seperti spreadsheet (2.60.0, permintaan user)**: di kolom Grup, Nama target, Ada, Target, dan
+  Catatan, **↓/↑** dan **Enter** pindah ke kolom yang sama di baris target lain (Shift+Enter naik,
+  juga melewati batas kategori) dengan isinya langsung terpilih, dan **Ctrl+D** (⌘D di Mac)
+  menyalin isian baris di atasnya. Enter di tabel target tak lagi menyimpan seluruh paket;
+  menyimpan lewat tombol Simpan. Dropdown Satuan tetap memakai panahnya sendiri, dan petunjuknya
+  disembunyikan di layar sentuh. Lead & Manager membuat paket; PIC Produk
   dari data v1 boleh menyunting paketnya; membagikan ke Lintas Divisi hanya Lead/Manager;
   menghapus hanya Manager. **Duplikat (2.30.0, permintaan user; izin `paket.buat`)** membuat
   rancangan baru dari paket ini: isi produk, target, catatan per kategori, dan tautan disalin

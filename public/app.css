@@ -2754,3 +2754,7 @@ a.ini-chip:hover { border-color: var(--biru-garis); }
 #cetak-catatan .ctt-tabel-kecil th { background: color-mix(in srgb, #000 6%, #fff); }
 #cetak-catatan .ctt-tabel-kecil tr { break-inside: avoid; }
 #cetak-catatan .ctt-garis { margin: 10pt 0; border-top-color: color-mix(in srgb, #000 30%, #fff); }
+
+/* Isian target seperti spreadsheet (2.60.0): petunjuk papan ketik hanya untuk perangkat bertetikus. */
+.petunjuk-papan-ketik { margin-top: 4px; }
+@media (hover: none) { .petunjuk-papan-ketik { display: none; } }

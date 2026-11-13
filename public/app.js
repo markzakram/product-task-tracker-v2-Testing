@@ -6147,7 +6147,8 @@
         <button type="button" class="tombol kecil" data-aksi="paket-tambah-item">${ikon('tambah', 16)} ${tr('Tambah target {kategori}', { kategori: esc(label) })}</button>
       </section>`).join('');
     return `<form class="form-paket" data-form="paket" data-id="${esc(p.id)}" novalidate>
-      <div class="judul-halaman"><div><h1>${tr('Ubah rancangan paket')}</h1><p>${esc(judulPaket(p))} · ${esc(p.id)}</p></div>
+      <div class="judul-halaman"><div><h1>${tr('Ubah rancangan paket')}</h1><p>${esc(judulPaket(p))} · ${esc(p.id)}</p>
+          <p class="hint petunjuk-papan-ketik">${tr('Tabel target: ↓/↑ atau Enter pindah baris (Shift+Enter naik), {pintasan} menyalin isian baris di atasnya.', { pintasan: /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘D' : 'Ctrl+D' })}</p></div>
         <button type="button" class="tombol" data-aksi="paket-batal">${tr('Batal')}</button><button class="tombol utama">${tr('Simpan')}</button></div>
       <section class="kartu-polos isian-grid">
         <label class="isian">${tr('Nama paket')} <input name="namaPaket" required maxlength="200" value="${esc(p.namaPaket || '')}"></label>
@@ -13556,6 +13557,40 @@
     S.pkt.kotor = true;
     pg.focus();
     baris.scrollIntoView({ block: 'nearest' });
+  });
+  /* Isian target seperti spreadsheet (2.60.0, permintaan user): di form Ubah rancangan paket, ↓/↑ dan
+     Enter pindah ke kolom yang sama di baris target berikutnya/sebelumnya (juga melewati batas
+     kategori), dan isinya langsung terpilih supaya ketikan menggantikannya; Shift+Enter naik. Enter
+     tak lagi menyimpan seluruh paket tanpa sengaja (menyimpan lewat tombol Simpan). Ctrl/⌘+D menyalin
+     isian baris di atasnya. Dropdown Satuan tetap memakai panahnya sendiri. */
+  const KOLOM_TARGET = ['i-grup', 'i-nama', 'i-awal', 'i-target', 'i-catatan'];
+  function isianTargetDi(el, arah) {
+    const semua = $$('[data-item]', el.closest('form[data-form="paket"]'));
+    const tuju = semua[semua.indexOf(el.closest('[data-item]')) + arah];
+    return tuju ? $(`[name="${el.name}"]`, tuju) : null;
+  }
+  document.addEventListener('keydown', e => {
+    const el = e.target;
+    if (!el.matches || !el.matches('form[data-form="paket"] [data-item] input') || !KOLOM_TARGET.includes(el.name) || e.isComposing) return;
+    const mod = e.ctrlKey || e.metaKey;
+    const panah = (e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey;
+    if (!mod && !e.altKey && (panah || e.key === 'Enter')) {
+      e.preventDefault();
+      const tuju = isianTargetDi(el, e.key === 'ArrowUp' || (e.key === 'Enter' && e.shiftKey) ? -1 : 1);
+      if (!tuju) return;
+      tuju.focus();
+      tuju.select();
+      tuju.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (mod && !e.altKey && !e.shiftKey && String(e.key).toLowerCase() === 'd') {
+      e.preventDefault();   // juga mencegah "tambah bookmark" di browser
+      const atas = isianTargetDi(el, -1);
+      if (!atas) return;
+      el.value = atas.value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));   // menandai form berubah
+      el.select();
+    }
   });
   // Blok yang sedang diketik menampilkan teks mentah; yang ditinggalkan kembali berformat.
   document.addEventListener('focusin', e => {
