@@ -2601,7 +2601,10 @@
     for (const s of data.setoran || []) {
       if (s.paket !== p.id || !per.has(s.item)) continue;
       const t = perId.get(s.task) || null;
-      per.get(s.item).push({ ...s, tahap: tahapSetoran(s.tahap), t, selesai: !!t && selesai(t), hilang: !t });
+      // Setoran manual tanpa batch pada langkah hasil elaborasi (sebelum 2.59.1) dihitung bersama
+      // batch aslinya, bukan sebagai batch tersendiri yang membuat jumlahnya terhitung dua kali.
+      const batch = s.batch || (t ? batchLangkah(t, perId) : '');
+      per.get(s.item).push({ ...s, ...(batch ? { batch } : {}), tahap: tahapSetoran(s.tahap), t, selesai: !!t && selesai(t), hilang: !t });
     }
     return per;
   }
@@ -3150,18 +3153,16 @@
     if (!namaPaket) throw new Error('Nama paket wajib diisi.');
     const mirror = f.mirror === undefined ? !!p.mirror : !!f.mirror;
     if (mirror !== !!p.mirror) wajibIzin(me, 'paket.bagikan');
-    const kategori = new Set(KATEGORI_SEMUA.map(([l]) => l));
-    const items = (f.items || []).map((it, i) => ({
-      id: teks(it.id) || `i${waktu}-${i}`, urutan: i + 1,
-      kategori: kategori.has(it.kategori) ? it.kategori : KATEGORI_PAKET[0][0], grup: teks(it.grup), nama: teks(it.nama),
-      target: angkaPositif(it.target), satuan: teks(it.satuan) || 'Paket', awal: angkaPositif(it.awal), catatan: teks(it.catatan),
-    })).filter(it => it.nama || it.target || it.awal);
+    const items = bersihItemPaket(f.items, waktu);
     const links = (f.links || []).filter(l => teks(l.url) || teks(l.label)).map((l, i) => {
       const url = tautanRapi(l.url);
       if (!url) throw new Error(`Tautan "${teks(l.label) || teks(l.url)}" bukan alamat web (http/https).`);
       return { id: teks(l.id) || `pl${waktu}-${i}`, urutan: i + 1, label: teks(l.label) || judulTautan(url), url };
     });
     const jadwal = aturJadwalDaftar(f, p);
+    // Hasil elaborasi ikut target yang diubah (2.59.1): direncanakan dari target lama, sebelum diganti.
+    const perId = indeks(data);
+    const sinkron = rencanaSinkronPaket(data, p, items, perId);
     Object.assign(p, {
       platform: f.platform === undefined ? p.platform : rapikanPlatform(f.platform), ...jadwal,
       namaPaket, items, links, mirror, updatedBy: me, updatedAt: waktu,
@@ -3170,10 +3171,23 @@
     });
     // Kategori yang tak tampil di form (nonaktif dan belum dipakai paket ini) tak ikut terhapus.
     for (const [kunci] of PAKET_PRODUK) if (f[kunci] !== undefined) p[kunci] = String(f[kunci] == null ? '' : f[kunci]).replace(/\s+$/, '');
+    for (const r of sinkron) {
+      for (const t of r.tasks) {
+        const judul = r.labelLama !== r.labelBaru && t.title.includes(r.labelLama) ? t.title.replace(r.labelLama, r.labelBaru) : t.title;
+        const ket = String(t.detail || '');
+        const detail = r.barisLama !== r.barisBaru && ket.includes(r.barisLama) ? ket.replace(r.barisLama, r.barisBaru) : ket;
+        if (judul !== t.title || detail !== ket) Object.assign(t, { title: judul, detail, updatedAt: waktu });
+      }
+      if (r.jumlahBaru !== r.jumlahLama) {
+        for (const s of data.setoran || []) {
+          if (s.paket === p.id && s.item === r.item && (s.batch || batchLangkah(perId.get(s.task), perId)) === r.batch) Object.assign(s, { jumlah: r.jumlahBaru, batch: r.batch });
+        }
+      }
+    }
     // Target yang dihapus membawa setorannya: setoran tanpa target tak bisa ditampilkan di mana pun.
     const adaItem = new Set(items.map(it => it.id));
     if (data.setoran) data.setoran = data.setoran.filter(s => s.paket !== p.id || adaItem.has(s.item));
-    catatLog(data, 'update', `${p.id} · ${p.namaPaket}`, 'Rancangan paket diubah', me, waktu);
+    catatLog(data, 'update', `${p.id} · ${p.namaPaket}`, sinkron.length ? `Rancangan paket diubah; ${sinkron.length} batch hasil elaborasi ikut diperbarui` : 'Rancangan paket diubah', me, waktu);
     return p;
   }
 
@@ -4217,6 +4231,89 @@
     return { kode, capaian };
   });
 
+  /* ---------- Hasil elaborasi mengikuti rancangan paket (2.59.1, keluhan user) ----------
+     Sampai 2.59.0, mengubah nama atau jumlah target sesudah dielaborasi tak menyentuh hasilnya:
+     judul task tetap nama lama ("Latsol Tingkat A — 5 Paket" padahal targetnya sudah "Tingkat B"),
+     dan jumlah batch tetap angka lama. Orang lalu menghapus dan menyetor ulang setorannya satu per
+     satu; setoran manual itu tanpa batch, sehingga satu batch terhitung dua kali (mis. 5 + 6 dari
+     target 5). Kini label batch dan baris targetnya satu rumus (labelBatch, barisTargetBatch), batch
+     sebuah langkah bisa ditelusuri dari urutan langkahnya (batchLangkah), dan simpanPaket ikut
+     memperbarui batch yang targetnya diubah (rencanaSinkronPaket). */
+  const labelBatch = (it, jumlah) => `${it.kategori} ${it.nama || 'Tanpa nama'} — ${fmtJumlah(jumlah)} ${it.satuan || 'Paket'}`;
+  const barisTargetBatch = (p, it, jumlah) => `Target paket ${p.id} · ${it.kategori}${it.grup ? ' / ' + it.grup : ''} · ${it.nama}: ${fmtJumlah(jumlah)} ${it.satuan || 'Paket'}.`;
+  /* Keterangan langkah hasil elaborasi diawali "Langkah i dari n: …". */
+  const POLA_LANGKAH = /^Langkah (\d+) dari (\d+): /;
+  /* Batch hasil elaborasi sebuah task: 'B-' + ID langkah pertamanya (sama dengan yang dipasang
+     elaborasiPaket). Ditelusuri mundur lewat langkah sebelumnya (deps[0], proyek yang sama) sampai
+     langkah pertama, yang keterangannya masih "Langkah 1 dari n". Keterangan langkah lain boleh
+     sudah disunting orang. '' bila bukan langkah elaborasi. */
+  function batchLangkah(t, perId) {
+    let x = t;
+    const lewat = new Set();
+    while (x && !lewat.has(x.id) && lewat.size < 40) {
+      lewat.add(x.id);
+      const dulu = perId.get((x.deps || [])[0]);
+      if (!dulu || dulu.project !== x.project) break;
+      x = dulu;
+    }
+    const m = x ? POLA_LANGKAH.exec(String(x.detail || '')) : null;
+    return m && m[1] === '1' ? 'B-' + x.id : '';
+  }
+  /* Task sebuah batch: langkah-langkahnya, beserta task turunannya (bertingkat). */
+  function taskBatch(data, batch, perId) {
+    const pertama = perId.get(String(batch).replace(/^B-/, ''));
+    if (!pertama) return [];
+    const langkah = data.tasks.filter(t => t.project === pertama.project && batchLangkah(t, perId) === batch);
+    const ada = new Set(langkah.map(t => t.id));
+    const hasil = langkah.slice();
+    for (let i = 0; i < hasil.length; i++) {
+      for (const t of data.tasks) if (t.induk === hasil[i].id && !ada.has(t.id)) { ada.add(t.id); hasil.push(t); }
+    }
+    return hasil;
+  }
+  /* Item paket yang sudah dibersihkan, seperti di simpanPaket (dipakai juga untuk pratinjau). */
+  function bersihItemPaket(daftar, waktu) {
+    const kategori = new Set(KATEGORI_SEMUA.map(([l]) => l));
+    return (daftar || []).map((it, i) => ({
+      id: teks(it.id) || `i${waktu}-${i}`, urutan: i + 1,
+      kategori: kategori.has(it.kategori) ? it.kategori : KATEGORI_PAKET[0][0], grup: teks(it.grup), nama: teks(it.nama),
+      target: angkaPositif(it.target), satuan: teks(it.satuan) || 'Paket', awal: angkaPositif(it.awal), catatan: teks(it.catatan),
+    })).filter(it => it.nama || it.target || it.awal);
+  }
+  /* Batch hasil elaborasi yang ikut berubah bila target paket p diganti itemsBaru (sebelum
+     diterapkan). Per target yang tetap ada (ID sama) dan punya batch elaborasi:
+     - label (kategori, nama, satuan) dan baris target (juga grup) mengikuti isian baru;
+     - jumlahnya mengikuti target baru hanya bila target itu satu batch saja, batch itu dulu
+       mencakup seluruh target, dan belum tayang. Selain itu jumlahnya tetap; kekurangan atau
+       kelebihannya terlihat di progres paket, seperti biasa.
+     Hasil: [{ item, batch, jumlahLama, jumlahBaru, labelLama, labelBaru, barisLama, barisBaru, tasks }]. */
+  function rencanaSinkronPaket(data, p, itemsBaru, perId = indeks(data)) {
+    const lama = new Map((p.items || []).map(it => [it.id, it]));
+    const kontrib = setoranPaket(data, p, perId);
+    const rencana = [];
+    for (const baru of itemsBaru || []) {
+      const it = lama.get(baru.id);
+      if (!it) continue;
+      const semua = batchSetoran(kontrib.get(it.id) || []);
+      const elab = semua.filter(b => String(b.kunci).startsWith('B-'));
+      if (!elab.length) continue;
+      const bukaLama = (Number(it.target) || 0) - (Number(it.awal) || 0);
+      const bukaBaru = (Number(baru.target) || 0) - (Number(baru.awal) || 0);
+      const ikutTarget = semua.length === 1 && elab[0].capai !== 'tayang' && elab[0].jumlah === bukaLama && bukaBaru > 0;
+      for (const b of elab) {
+        const jumlahBaru = ikutTarget ? bukaBaru : b.jumlah;
+        const x = {
+          item: it.id, batch: b.kunci, jumlahLama: b.jumlah, jumlahBaru,
+          labelLama: labelBatch(it, b.jumlah), labelBaru: labelBatch(baru, jumlahBaru),
+          barisLama: barisTargetBatch(p, it, b.jumlah), barisBaru: barisTargetBatch(p, baru, jumlahBaru),
+        };
+        if (x.labelLama === x.labelBaru && x.barisLama === x.barisBaru && x.jumlahLama === x.jumlahBaru) continue;
+        rencana.push({ ...x, tasks: taskBatch(data, b.kunci, perId) });
+      }
+    }
+    return rencana;
+  }
+
   /* Proyek yang mengerjakan sebuah paket: ditautkan langsung, atau punya task yang menyetor ke sana. */
   function proyekPengisi(data, paketId) {
     const lewatSetoran = new Set((data.setoran || []).filter(s => s.paket === paketId)
@@ -4297,8 +4394,7 @@
     data.setoran = data.setoran || [];
     const tasks = [];
     for (const { it, jumlah, langkah } of rencana) {
-      const satuan = it.satuan || 'Paket';
-      const batch = `${it.kategori} ${it.nama || 'Tanpa nama'} — ${fmtJumlah(jumlah)} ${satuan}`;
+      const batch = labelBatch(it, jumlah);
       let idBatch = '';   // = 'B-' + ID task langkah pertamanya, jadi pasti unik
       const batchIni = [];
       let sebelumnya = '';
@@ -4308,7 +4404,7 @@
           title: `${l.kode} · ${batch}`, project: proj.id, sub: l.kode, pic: leadSub(l.kode) || me, due: teks(f.due),
           priority: 'Normal', platform: platform || proj.platform, deps: sebelumnya ? [sebelumnya] : [],
           detail: [`Langkah ${i + 1} dari ${langkah.length}: ${sub.kode} · ${sub.nama}.`,
-            `Target paket ${p.id} · ${it.kategori}${it.grup ? ' / ' + it.grup : ''} · ${it.nama}: ${fmtJumlah(jumlah)} ${satuan}.`,
+            barisTargetBatch(p, it, jumlah),
             !l.capaian ? '' : langkah.filter(x => x.capaian === l.capaian).length > 1
               ? `Batch ini menjadi "${namaCapaian(l.capaian)}" di progres paket setelah semua langkah bertanda itu disetujui: ${langkah.filter(x => x.capaian === l.capaian).map(x => x.kode).join(', ')}.`
               : `Saat langkah ini disetujui, batch ini menjadi "${namaCapaian(l.capaian)}" di progres paket.`,
@@ -4438,7 +4534,9 @@
   const bolehSetor = (t, me) => izin(me, 'paket.setoran') && bolehUbah(t, me);
 
   /* Setoran manual dari detail task, untuk task yang dibuat di luar elaborasi.
-     Satu task + satu target = satu setoran; menyetor lagi mengganti jumlah dan capaiannya. */
+     Satu task + satu target = satu setoran; menyetor lagi mengganti jumlah dan capaiannya.
+     Sejak 2.59.1 langkah hasil elaborasi tetap di batch-nya, dan satu batch satu jumlah: menyetor
+     satu langkah dengan jumlah lain mengubah jumlah semua langkah batch itu untuk target yang sama. */
   function setorkan(data, t, f, me, waktu) {
     if (!bolehSetor(t, me)) throw new Error('Hanya Lead atau Manager task ini yang mengatur setoran.');
     const p = data.packages.find(x => x.id === f.paket);
@@ -4450,9 +4548,20 @@
     const tahap = tahapSetoran(f.tahap);
     data.setoran = data.setoran || [];
     const ada = data.setoran.find(s => s.task === t.id && s.paket === p.id && s.item === it.id);
-    if (ada) Object.assign(ada, { jumlah, tahap });
-    else data.setoran.push({ id: `st-${t.id}-${it.id}`, paket: p.id, item: it.id, task: t.id, jumlah, tahap, catatan: teks(f.catatan) });
-    catatLog(data, 'update', `${t.id} · ${t.title}`, `Setoran ke ${p.id}: ${it.kategori} · ${it.nama} ${fmtJumlah(jumlah)} ${it.satuan || 'Paket'} (${namaCapaian(tahap)})`, me, waktu);
+    const perId = indeks(data);
+    const batch = (ada && ada.batch) || batchLangkah(t, perId);
+    if (ada) Object.assign(ada, { jumlah, tahap, ...(batch ? { batch } : {}) });
+    else data.setoran.push({ id: `st-${t.id}-${it.id}`, paket: p.id, item: it.id, task: t.id, jumlah, tahap, ...(batch ? { batch } : {}), catatan: teks(f.catatan) });
+    let ikut = 0;
+    if (batch) {
+      for (const s of data.setoran) {
+        if (s.task === t.id || s.paket !== p.id || s.item !== it.id) continue;
+        if ((s.batch || batchLangkah(perId.get(s.task), perId)) !== batch || (s.jumlah === jumlah && s.batch === batch)) continue;
+        Object.assign(s, { jumlah, batch });
+        ikut++;
+      }
+    }
+    catatLog(data, 'update', `${t.id} · ${t.title}`, `Setoran ke ${p.id}: ${it.kategori} · ${it.nama} ${fmtJumlah(jumlah)} ${it.satuan || 'Paket'} (${namaCapaian(tahap)})${ikut ? `; ${ikut} langkah lain di batch ini ikut ${fmtJumlah(jumlah)}` : ''}`, me, waktu);
   }
 
   function hapusSetoran(data, id, me, waktu) {
@@ -5624,7 +5733,7 @@
     JENIS_PERISTIWA, REAKSI, BATAS_PESAN, ruangTask, ruangProyek, ruangTim, bacaRuang, anggotaTim, bolehRuang, ruangTimSaya,
     periksaPeristiwa, susunObrolan, sebutan, menyebut, tanyaTerbuka, aktivitasTask, daftarUtas,
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,
-    setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket,
+    setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket, rencanaSinkronPaket, bersihItemPaket, batchLangkah, labelBatch,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
     FOLDER_UMUM, tautanRapi, judulTautan, kartuTautan, pesanCepatUntuk, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
     WARNA_CATATAN, warnaiCatatan, pindahFolderCatatan, hapusCatatan, pulihkanCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask, namaBerkas,

@@ -6,6 +6,27 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.59.1 — Hasil elaborasi ikut rancangan paket yang diubah (2026-11-13)
+
+Keluhan user: hasil elaborasi tidak sinkron dengan rancangan paketnya. Hasil pemeriksaan data real
+(PKG-015, UKP Uji Kompetensi Perpajakan): tautan proyek, task, dan setoran utuh, tetapi nama dan
+jumlah target diubah sesudah dielaborasi (mis. "Latsol Tingkat A" menjadi B/C, Akuntansi
+Perpajakan 6 → 5), sedangkan judul task dan jumlah batch tetap angka lama. Setorannya lalu dihapus
+dan disetor ulang manual tanpa batch, sehingga satu batch terhitung dua kali (capaian "Ter-input"
+6 dari target 3).
+
+- **Menyunting rancangan paket ikut memperbarui hasil elaborasinya:** nama, satuan, kategori, dan
+  grup target masuk ke judul dan keterangan semua langkah batch-nya. Jumlah batch ikut target baru
+  bila target itu satu batch, batch itu mencakup seluruh target, dan belum tayang; selain itu
+  jumlahnya tetap dan kekurangannya terbuka lagi untuk dielaborasi. Pesan simpan menyebut berapa
+  batch yang ikut diperbarui.
+- **Setor manual pada langkah hasil elaborasi tetap di batch-nya**, dan satu batch satu jumlah.
+- **Setoran manual lama tanpa batch** pada langkah hasil elaborasi dihitung sekali, bersama batch
+  aslinya, tanpa mengubah data.
+- Tes agen `buat-task.js` yang memakai tanggal hari ini kini tetap lulus di akhir pekan (tenggat
+  hari kerja sejak 2.59.0).
+- Tanpa kolom atau migrasi baru. Tes baru `test/paket-sinkron.test.js`.
+
 ## 2.59.0 — Tenggat hanya hari kerja: Sabtu dan Minggu tak dihitung (2026-11-12)
 
 Permintaan user: keterlambatan masih terhitung bersama akhir pekan; Sabtu dan Minggu tak boleh

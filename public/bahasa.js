@@ -1767,6 +1767,7 @@
     'Tautan paket dilepas.': 'Package link removed.',
     'Keputusan proyek: {keputusan}.': 'Project decision: {keputusan}.',
     'Rancangan paket disimpan.': 'Package plan saved.',
+    'Rancangan paket disimpan. {n} batch hasil elaborasi ikut diperbarui.': 'Package plan saved. {n} elaborated batches were updated to match.',
     'Setoran disimpan.': 'Contribution saved.',
     'Output disimpan.': 'Output saved.',
     '{judul} ditambahkan ke {folder}. Judulnya bisa diubah lewat ikon pensil.': '{judul} added to {folder}. You can change its title with the pencil icon.',

@@ -25,7 +25,8 @@ const KUNCI = crypto.randomBytes(24).toString('hex');
 const ID = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcd';
 const AKAR = path.join(__dirname, '..');
 const HARI = I.isoHari(Date.now());
-const BESOK = I.tambahHari(HARI, 1);
+// Tenggat harus hari kerja (2.59.0): tes ini memakai tanggal hari ini, jadi "besok" = hari kerja berikutnya.
+const BESOK = I.hariKerjaBerikut(I.tambahHari(HARI, 1));
 
 function panggil({ body, cookie } = {}) {
   return new Promise((resolve, reject) => {
@@ -301,7 +302,7 @@ test('buat-task.js: task proyek, rutin, dan inisiatif dibuat atas nama Ali (AI);
     assert.equal(I.peninjau(proyek), 'nynda');
     // Jalur rutin: tanpa tinjauan, langsung selesai; kategori mengikuti sub-stage; tenggat bawaan = tanggal rekap.
     const rutin = t('PRD-003');
-    assert.deepEqual([rutin.lane, rutin.project, rutin.sub, rutin.stage, rutin.kategori, rutin.status, rutin.due, rutin.inisiatif], ['rutin', '', 'R1', '', 'Rekap & administrasi', 'Selesai', HARI, '']);
+    assert.deepEqual([rutin.lane, rutin.project, rutin.sub, rutin.stage, rutin.kategori, rutin.status, rutin.due, rutin.inisiatif], ['rutin', '', 'R1', '', 'Rekap & administrasi', 'Selesai', I.hariKerjaBerikut(HARI), '']);
     assert.ok(rutin.selesaiAt > 0 && rutin.tinjauan.length === 0);
     // Inisiatif: jalur rutin yang tertaut ke INI-001; kategori = nama inisiatif karena jenis rutin kosong.
     const ini = t('PRD-004');
@@ -345,7 +346,7 @@ test('buat-task.js: task proyek, rutin, dan inisiatif dibuat atas nama Ali (AI);
 
     // Tanggal lain = butir lain (kunci catatan = tanggal + id), tetapi ID butir yang sama di tanggal itu hanya sekali.
     const kemarin = I.tambahHari(HARI, -1);
-    const berkas2 = tulisBerkas(folder, 'usulan/usulan-kemarin.json', { tanggal: kemarin, butir: [{ id: 'rutin-1', judul: 'Rekap data mingguan', jalur: 'rutin', sub: 'R1', status: 'Selesai', tenggat: kemarin }] });
+    const berkas2 = tulisBerkas(folder, 'usulan/usulan-kemarin.json', { tanggal: kemarin, butir: [{ id: 'rutin-1', judul: 'Rekap data mingguan', jalur: 'rutin', sub: 'R1', status: 'Selesai', tenggat: I.hariKerjaBerikut(kemarin) }] });
     const hari2 = await jalankanSkrip('buat-task.js', ['--berkas', berkas2], env);
     assert.match(hari2.keluar, /HASIL: 1 task dibuat, 0 ditolak\n$/, hari2.keluar);
     const d2 = await dataServer(nynda);

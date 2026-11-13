@@ -13108,9 +13108,13 @@
     if (jenis === 'modal') return kirimModal(form);
     if (jenis === 'paket') {
       try {
-        ubahData('simpanPaket', { paket: form.dataset.id, f: bacaFormPaket(form) });
+        const f = bacaFormPaket(form);
+        // Hasil elaborasi ikut target yang diubah (2.59.1): disebut di pesannya, supaya tak mengejutkan.
+        const paket = paketDari(form.dataset.id);
+        const n = paket ? I.rencanaSinkronPaket(S.data, paket, I.bersihItemPaket(f.items, 0)).length : 0;
+        ubahData('simpanPaket', { paket: form.dataset.id, f });
         Object.assign(S.pkt, { sunting: false, kotor: false });
-        selesaiUbah(tr('Rancangan paket disimpan.'));
+        selesaiUbah(n ? tr('Rancangan paket disimpan. {n} batch hasil elaborasi ikut diperbarui.', { n }) : tr('Rancangan paket disimpan.'));
         window.scrollTo(0, 0);
       } catch (err) {
         const g = $('#galat-paket');

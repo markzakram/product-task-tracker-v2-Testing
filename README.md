@@ -325,6 +325,24 @@ lama ke paket dari halaman proyek. Satu paket boleh diisi beberapa proyek, dan s
 mengisi beberapa paket. Aturannya di `public/inti.js` (`elaborasiPaket`, `setoranPaket`,
 `batchSetoran`, `hitungTarget`), diuji di `test/setoran.test.js`.
 
+**Hasil elaborasi mengikuti rancangan paket (2.59.1, keluhan user).** Sebelumnya, mengubah target
+sesudah dielaborasi tak menyentuh hasilnya: judul task tetap nama lama dan jumlah batch tetap angka
+lama. Di PKG-015 setorannya lalu dihapus dan disetor ulang manual tanpa batch, sehingga satu batch
+terhitung dua kali. Kini:
+- **Menyunting paket** ikut memperbarui batch target yang ID-nya sama (`rencanaSinkronPaket`):
+  - nama, satuan, kategori, dan grup baru masuk ke judul dan baris "Target paket …" di keterangan
+    semua langkah batch-nya (juga task turunannya). Judul yang sudah disunting orang dibiarkan;
+  - **jumlah** batch ikut target baru hanya bila target itu satu batch saja, batch itu mencakup
+    seluruh target, dan belum tayang. Batch yang sudah tayang atau target yang dielaborasi
+    bertahap tetap: kekurangan terbuka lagi untuk dielaborasi, kelebihan tampil "lebih".
+  - Pesan simpan menyebut berapa batch yang ikut diperbarui. Target yang dihapus tetap membawa
+    setorannya, dan menghapus lalu menambah baris baru tetap dianggap target lain.
+- **Setor manual pada langkah hasil elaborasi** tetap masuk batch-nya, dan satu batch satu jumlah:
+  menyetor satu langkah dengan jumlah lain mengubah jumlah semua langkah batch itu.
+- **Setoran lama tanpa batch** pada langkah hasil elaborasi dihitung bersama batch aslinya
+  (`batchLangkah`: ditelusuri lewat `deps` sampai langkah pertama yang keterangannya masih
+  "Langkah 1 dari n"). Datanya tak diubah. Diuji di `test/paket-sinkron.test.js`.
+
 Halaman pendukung, setara v1:
 
 - **Rancangan Paket**: nama paket dan platform (sejak 0.14.0 Program dan PIC Produk tak lagi
