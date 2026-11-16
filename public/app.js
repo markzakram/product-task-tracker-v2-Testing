@@ -3531,11 +3531,15 @@
   }
   function formJawabPanjang(x, setuju) {
     const t = perIdKini().get(x.task);
+    // Paling awal sehari sesudah tenggat lama, dan tak boleh sudah lewat; hari ini boleh (2.60.1).
+    const minDue = tglKerja([I.tambahHari(x.dueLama, 1), hariIni()].sort().pop());
+    const nilaiDue = [tglKerja(x.dueBaru), minDue].sort().pop();
     return `<form data-form="modal" novalidate>
       <h2>${setuju ? tr('Setujui perpanjangan tenggat?') : tr('Tolak perpanjangan tenggat?')}</h2>
       <p class="label-tebal">${esc(t ? t.title : x.task)}</p>
       <p class="hint">${tr('{siapa} meminta {lama} → {baru}: “{alasan}”', { siapa: nama(x.dari), lama: esc(fmtTanggal(x.dueLama)), baru: esc(fmtTanggal(x.dueBaru)), alasan: esc(x.alasan) })}</p>
-      ${setuju ? `<label class="isian">${tr('Tenggat yang disetujui')} <input type="date" name="due" required min="${esc(tglKerja(I.tambahHari(x.dueLama, 1)))}" value="${esc(tglKerja(x.dueBaru))}"></label>
+      ${setuju && t && t.due && t.due !== x.dueLama ? `<p class="hint">${tr('Tenggat task ini sudah diubah ke {tanggal} sejak pengajuan dibuat.', { tanggal: esc(fmtTanggal(t.due)) })}</p>` : ''}
+      ${setuju ? `<label class="isian">${tr('Tenggat yang disetujui')} <input type="date" name="due" required min="${esc(minDue)}" value="${esc(nilaiDue)}"></label>
       <label class="isian">${tr('Catatan (opsional)')} <textarea name="catatan" maxlength="1000" rows="2"></textarea></label>`
         : `<label class="isian">${esc(tr('Alasan (wajib, dikirim ke {nama})', { nama: I.orang(x.dari).pendek }))} <textarea name="catatan" required maxlength="1000" rows="3"></textarea></label>`}
       ${kakiModal(setuju ? tr('Setujui') : tr('Tolak'))}

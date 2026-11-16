@@ -23,6 +23,35 @@ test('pemberi task: yang memberi; task buatan sendiri ke Lead-nya; Lead ke Manag
   assert.equal(I.pemberiTask({ pic: 'kiki', assignedBy: 'orang-lama-v1' }), 'alya', 'pemberi di luar organogram: Lead-nya');
 });
 
+test('menyetujui di hari tenggat yang diminta boleh, juga bila tenggat task sudah diubah; yang sudah lewat tidak (2.60.1)', () => {
+  // Laporan user: Alya meminta Jum 13 Nov → Sen 16 Nov; Manager menyetujui Senin 16 Nov dan ditolak
+  // "harus sesudah tenggat sekarang", karena tenggat task-nya sudah 16 Nov.
+  const siapkan = () => {
+    const t = task({ pic: 'alya', assignedBy: 'alya', due: '2026-11-13' });
+    const d = data([t]);
+    const x = I.ajukanPerpanjangan(d, t, { due: '2026-11-16', alasan: 'soal belum semua ready di SIADU' }, 'alya', WAKTU, '2026-11-12');
+    return { t, d, x };
+  };
+  let { t, d, x } = siapkan();
+  assert.equal(x.ke, 'nynda');
+  t.due = '2026-11-16';   // diubah lewat Ubah task selagi pengajuan menunggu
+  I.jawabPerpanjangan(d, x, { setuju: true, due: '2026-11-16', catatan: 'y' }, 'nynda', WAKTU + 1, '2026-11-16');
+  assert.deepEqual([x.status, x.dueJadi, t.due], ['disetujui', '2026-11-16', '2026-11-16']);
+
+  ({ t, d, x } = siapkan());
+  assert.throws(() => I.jawabPerpanjangan(d, x, { setuju: true, due: '2026-11-16' }, 'nynda', WAKTU + 1, '2026-11-17'), /sudah lewat/);
+  assert.throws(() => I.jawabPerpanjangan(d, x, { setuju: true, due: '2026-11-13' }, 'nynda', WAKTU + 1, '2026-11-12'), /tenggat lama/);
+  assert.equal(x.status, 'menunggu', 'yang ditolak aturan tak mengubah apa pun');
+  I.jawabPerpanjangan(d, x, { setuju: true, due: '2026-11-17' }, 'nynda', WAKTU + 1, '2026-11-17');
+  assert.equal(t.due, '2026-11-17', 'yang diminta sudah lewat: boleh tanggal lain mulai hari ini');
+
+  // Lewat perintah data real, hari ini ikut dari perintahnya.
+  ({ t, d, x } = siapkan());
+  const r = I.jalankanPerintah(d, { aksi: 'jawabPerpanjangan', isi: { perpanjangan: x.id, f: { setuju: true } }, oleh: 'nynda', at: WAKTU + 1, hari: '2026-11-18' });
+  assert.match(r.galat, /sudah lewat/);
+  assert.equal(I.jalankanPerintah(d, { aksi: 'jawabPerpanjangan', isi: { perpanjangan: x.id, f: { setuju: true } }, oleh: 'nynda', at: WAKTU + 1, hari: '2026-11-16' }).ok, true);
+});
+
 test('ajukan → setujui dengan tanggal lain: tenggat berubah, PIC diberi tahu', () => {
   const t = task();
   const d = data([t]);

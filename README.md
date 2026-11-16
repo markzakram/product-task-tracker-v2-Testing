@@ -1212,7 +1212,10 @@ Permintaan user: fitur mengajukan banding supaya tenggat diperpanjang, langsung 
   mengajukan lagi.
 - **Menjawab**: yang dituju (atau Manager) melihat kartu **Pengajuan perpanjangan tenggat** di Hari
   Ini, notifikasi, dan spanduk di detail task. **Setujui** boleh dengan tanggal lain dan catatan;
-  tenggat task baru berubah saat disetujui. **Tolak** wajib beralasan. PIC diberi tahu. Pengajuan
+  tenggat task baru berubah saat disetujui. Tanggal yang disetujui harus sesudah tenggat lama di
+  pengajuan dan tak boleh sudah lewat; hari ini boleh (2.60.1, laporan user: menyetujui di hari
+  tenggat yang diminta ditolak karena tenggat task-nya sudah diubah ke tanggal itu). Kalau tenggat
+  task sudah diubah sejak pengajuan dibuat, jendela Setujui menyebutkannya. **Tolak** wajib beralasan. PIC diberi tahu. Pengajuan
   untuk task hasil permintaan ke DAE (`perpanjangan.permintaanDae`) **hanya dijawab yang dituju**:
   Manager hanya mengawasi, jadi tak ikut menjawab.
 - **Data**: koleksi `perpanjangan` (ID `PJG-001`; status menunggu → disetujui, ditolak, atau batal;

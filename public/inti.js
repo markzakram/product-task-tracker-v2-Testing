@@ -3957,8 +3957,11 @@
     catatLog(data, 'update', `${t.id} · ${t.title}`, `Mengajukan perpanjangan tenggat ${t.due} → ${due} ke ${orang(ke).pendek}: ${alasan}`, me, waktu);
     return x;
   }
-  /* f = { setuju, due (tanggal yang disetujui; bawaannya yang diminta), catatan (wajib bila ditolak) }. */
-  function jawabPerpanjangan(data, x, f, me, waktu) {
+  /* f = { setuju, due (tanggal yang disetujui; bawaannya yang diminta), catatan (wajib bila ditolak) }.
+     Sejak 2.60.1 (laporan user) tanggalnya dibandingkan dengan tenggat lama di pengajuan, bukan
+     tenggat task sekarang, yang bisa sudah diubah selama pengajuan menunggu. Tanggal hari ini boleh;
+     yang sudah lewat tidak. */
+  function jawabPerpanjangan(data, x, f, me, waktu, hariIni) {
     if (!bolehJawabPanjang(x, me)) throw new Error('Pengajuan ini sudah dijawab, atau bukan untuk Anda.');
     const t = data.tasks.find(y => y.id === x.task);
     if (!t) throw new Error(`Task ${x.task} tidak ditemukan.`);
@@ -3972,7 +3975,9 @@
     }
     const due = teks(f.due) || x.dueBaru;
     if (!isoSah(due)) throw new Error('Pilih tanggal tenggat yang disetujui.');
-    if (t.due && due <= t.due) throw new Error('Tenggat yang disetujui harus sesudah tenggat sekarang.');
+    const lama = x.dueLama || t.due;
+    if (lama && due <= lama) throw new Error('Tenggat yang disetujui harus sesudah tenggat lama.');
+    if (hariIni && due < hariIni) throw new Error('Tenggat yang disetujui sudah lewat. Pilih hari ini atau sesudahnya.');
     wajibHariKerja(due);
     Object.assign(x, { status: 'disetujui', catatan, oleh: me, dueJadi: due, jawabAt: waktu, updatedAt: waktu });
     t.due = due;
@@ -5599,7 +5604,7 @@
     pulihkanTask: (d, x, me, w) => pulihkanTask(d, x, me, w),
     // Perpanjangan tenggat (2.41.0).
     ajukanPerpanjangan: (d, x, me, w, h) => ajukanPerpanjangan(d, tugas(d, x), x.f || {}, me, w, h),
-    jawabPerpanjangan: (d, x, me, w) => jawabPerpanjangan(d, cariDi(d.perpanjangan, x.perpanjangan, 'Pengajuan perpanjangan'), x.f || {}, me, w),
+    jawabPerpanjangan: (d, x, me, w, h) => jawabPerpanjangan(d, cariDi(d.perpanjangan, x.perpanjangan, 'Pengajuan perpanjangan'), x.f || {}, me, w, h),
     batalkanPerpanjangan: (d, x, me, w) => batalkanPerpanjangan(d, cariDi(d.perpanjangan, x.perpanjangan, 'Pengajuan perpanjangan'), me, w),
   };
   /* Menjalankan satu perintah dengan aturan, lalu menyamakan tahap proyek (seperti sesudah klik

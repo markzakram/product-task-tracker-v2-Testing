@@ -3025,6 +3025,10 @@
     'Isi butir tidak sah.': 'Invalid item content.',
     'Alamat link harus alamat web (http/https).': 'The link must be a web address (http/https).',
     'Catatan ini terlalu panjang untuk disimpan di server.': 'This note is too long to save on the server.',
+    // Perpanjangan tenggat di hari yang diminta (2.60.1)
+    'Tenggat task ini sudah diubah ke {tanggal} sejak pengajuan dibuat.': 'This task\'s due date was changed to {tanggal} after the request was made.',
+    'Tenggat yang disetujui harus sesudah tenggat lama.': 'The approved due date must be after the old due date.',
+    'Tenggat yang disetujui sudah lewat. Pilih hari ini atau sesudahnya.': 'The approved due date has already passed. Choose today or later.',
   };
 
   let kini = 'id';

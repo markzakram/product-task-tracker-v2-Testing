@@ -110,5 +110,7 @@ test('app.js: telat dalam hari kerja; isian tenggat memberi tahu Sabtu/Minggu; b
   assert.match(APP, /const n = I\.hariKerja\(x\.dueLama, x\.dueBaru\); return n > 0 \? tr\('\+\{n\} hari kerja'/);
   assert.match(APP, /if \(el\.matches\(ISIAN_TENGGAT\)\) periksaIsianTenggat\(el, true\);/);
   assert.match(APP, /const salah = !!el\.value && el\.value !== el\.defaultValue && I\.akhirPekan\(el\.value\);/);
-  for (const pola of [/const min = tglKerja\(/, /value="\$\{esc\(tglKerja\(x\.dueBaru\)\)\}"/, /value="\$\{esc\(preset\.due \? tglKerja\(preset\.due\) : ''\)\}"/]) assert.match(APP, pola);
+  // Jendela Setujui perpanjangan (2.60.1): bawaannya tanggal yang diminta (digeser ke hari kerja), paling awal hari ini.
+  for (const pola of [/const min = tglKerja\(/, /const nilaiDue = \[tglKerja\(x\.dueBaru\), minDue\]\.sort\(\)\.pop\(\);/, /min="\$\{esc\(minDue\)\}" value="\$\{esc\(nilaiDue\)\}"/,
+    /value="\$\{esc\(preset\.due \? tglKerja\(preset\.due\) : ''\)\}"/]) assert.match(APP, pola);
 });

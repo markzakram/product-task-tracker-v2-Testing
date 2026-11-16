@@ -6,6 +6,20 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.60.1 — Perpanjangan tenggat bisa disetujui di hari tenggat yang diminta (2026-11-16)
+
+Laporan user: Alya meminta perpanjangan Jum, 13 Nov → Sen, 16 Nov, dan Manager yang menyetujuinya
+pada Senin 16 Nov mendapat "Tenggat yang disetujui harus sesudah tenggat sekarang". Penyebabnya,
+tanggal yang disetujui dibandingkan dengan tenggat task saat itu, yang ternyata sudah 16 Nov
+(tenggat task bisa diubah selama pengajuan menunggu). Keputusan user: hari itu juga boleh, yang sudah
+lewat tidak.
+
+- Tanggal yang disetujui kini dibandingkan dengan tenggat lama di pengajuan, dan tak boleh sebelum
+  hari ini. Hari ini boleh.
+- Jendela **Setujui** mulai dari hari ini kalau tanggal yang diminta sudah lewat, dan menyebutkan
+  tenggat task yang sudah diubah sejak pengajuan dibuat.
+- Tes baru di `test/perpanjangan.test.js`.
+
 ## 2.60.0 — Isian target rancangan paket dengan panah keyboard (2026-11-13)
 
 Permintaan user: jumlah target paket bisa diisi dengan mudah memakai panah di keyboard saja.
