@@ -6,6 +6,17 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.60.2 — Panduan: dari rancangan paket sampai task staff (2026-11-17)
+
+Kesepakatan user: Lead tim (SPV) mengisi detail task sesudah paket dirancang dan dielaborasi,
+bukan sebelumnya.
+
+- Panduan baru di tab Lead, **Dari rancangan paket sampai task staff**: perancang paket merancang dan
+  mengelaborasi; Lead tim menerima langkahnya, membaginya ke staff lewat task turunan, dan
+  melengkapi keterangan, ceklis, dan tenggat. Kebutuhan dari Lead tim ditulis di catatan per
+  kategori dan tautan paket. Membuat task sendiri sebelum elaborasi dihindari supaya tak ganda.
+- Tanpa perubahan aturan atau data.
+
 ## 2.60.1 — Perpanjangan tenggat bisa disetujui di hari tenggat yang diminta (2026-11-16)
 
 Laporan user: Alya meminta perpanjangan Jum, 13 Nov → Sen, 16 Nov, dan Manager yang menyetujuinya

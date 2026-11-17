@@ -289,6 +289,13 @@ Semua aturan ini ada di satu berkas, `public/inti.js`, dan diuji di `test/`. Tam
 
 ### Rancangan paket → proyek → progres yang bergerak sendiri
 
+**Pembagian peran (Panduan 2.60.2, kesepakatan user).** Perancang paket (Lead atau Manager)
+merancang dan mengelaborasi paket lebih dulu; Lead tim pemilik tiap langkah (disebut SPV oleh tim)
+lalu mengisi detailnya: task turunan untuk staff, keterangan, ceklis, dan tenggat. Kebutuhan dari
+Lead tim sebelum elaborasi ditulis di catatan per kategori dan tautan paket. Task yang dibuat
+sendiri sebelum elaborasi dihindari, karena hasil elaborasi akan menggandakannya atau task itu
+harus disetor ke paket satu per satu. Panduan **Dari rancangan paket sampai task staff** (tab Lead).
+
 1. Di **Rancangan Paket**, Lead/Manager menekan **Elaborasi jadi proyek**. Tak ada target yang
    tercentang dari awal: targetnya dipilih sendiri (ada tombol **Centang semua**), dan tombol
    Buat task baru aktif sesudahnya. Setiap target yang dipilih menjadi satu **batch**: rangkaian task sesuai alur jenisnya. Contoh Latsol: DV1

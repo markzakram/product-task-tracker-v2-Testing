@@ -344,6 +344,17 @@
       ],
     },
     {
+      id: 'lead-alur-paket', peran: 'lead', judul: 'Dari rancangan paket sampai task staff', tujuan: 'Urutan kerja perancang paket dan Lead tim, supaya tak ada task ganda.',
+      langkah: [
+        '**Perancang paket** (Lead atau Manager) membuat rancangan paket dan mengisi targetnya. Kebutuhan dari Lead tim, mis. spesifikasi soal atau bahannya, ditulis di catatan per kategori dan **Tautan** paket, jadi sudah terbaca sebelum pekerjaannya dibagi.',
+        'Perancang menekan **Elaborasi jadi proyek** (lihat **Elaborasi rancangan paket jadi proyek**). Tiap langkah alur menjadi task yang dipegang **Lead tim** pemilik sub-stage-nya, mis. produksi soal ke Lead RAD dan input ke Lead LNA. Langkah yang tak perlu dicoret di form elaborasi.',
+        'Lead tim mendapat notifikasi task baru. Langkah yang sudah bisa dimulai muncul di **Hari Ini** bertanda **Siap dibagi**, dengan tombol **Bagi ke staff**.',
+        'Lead tim mengisi detailnya di detail task: membagi pekerjaan ke staff lewat **task turunan** (lihat **Memecah langkah jadi task turunan**), lalu melengkapi keterangan dan tenggat lewat **Ubah task**, serta **Ceklis pengerjaan**. Hasil kerja staff ditinjau Lead itu.',
+        'Progres paket naik sendiri begitu langkah bercapaian disetujui; tak perlu menyetor manual.',
+        '**Hindari** membuat task sendiri untuk pekerjaan paket sebelum elaborasi: hasil elaborasi akan menggandakannya, atau task itu harus disambung ke paket satu per satu lewat **Setoran ke rancangan paket**.',
+      ],
+    },
+    {
       id: 'lead-pantau', peran: 'lead', judul: 'Memantau tim', tujuan: 'Melihat beban dan hambatan tim.', ilustrasi: 'bottleneck', coba: true,
       langkah: [
         'Di **Task**, pilih tampilan **Per orang** (ikon di atas daftar) untuk melihat beban tiap anggota tim.',
