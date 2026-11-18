@@ -663,6 +663,47 @@ button.ini-lipat:hover { background: var(--abu); }
 }
 /* Proyek yang melibatkan tim saya (2.30.0). */
 .baris-proyek.tim-saya { border-color: var(--biru-garis); box-shadow: inset 4px 0 0 var(--biru); }
+/* Halaman Proyek per rancangan paket (2.61.0): folder seperti Pengembangan; yang memuat pekerjaan tim saya disorot. */
+.folder-proyek { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 12px; border: 1px solid var(--garis); border-radius: 16px; background: var(--muka); }
+.folder-proyek.lain { background: transparent; border-style: dashed; }
+.folder-proyek.tim-saya { border-color: var(--biru-garis); border-style: solid; box-shadow: inset 4px 0 0 var(--biru); }
+.folder-proyek-kepala { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.folder-proyek-ikon { display: inline-flex; color: var(--ungu); }
+.folder-proyek-nama { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.folder-proyek-nama b { font-size: calc(15px * var(--skala-huruf)); }
+.folder-proyek-judul { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--tinta); font: inherit; font-size: calc(16px * var(--skala-huruf)); font-weight: 700; text-align: left; cursor: pointer; }
+.folder-proyek-judul:hover { text-decoration: underline; text-underline-offset: 3px; }
+.folder-proyek-nama small { font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+.folder-proyek-maju { flex: 0 1 220px; display: flex; flex-direction: column; gap: 4px; font-size: calc(12px * var(--skala-huruf)); color: var(--redup); }
+.folder-proyek-maju .batang { flex: none; width: 100%; }
+.folder-proyek-tanda { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.chip-folder { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: calc(12px * var(--skala-huruf)); font-weight: 600; white-space: nowrap; }
+.chip-folder.merah { background: var(--merah-muda); color: var(--merah); }
+.chip-folder.jingga { background: var(--kuning-muda); color: var(--kuning); }
+.folder-proyek-isi { margin-left: 15px; padding-left: 12px; border-left: 2px solid var(--garis-halus); }
+.baris-proyek.ikut-mengisi { background: var(--dasar); color: var(--redup); }
+.baris-proyek.ikut-mengisi svg { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .folder-proyek { padding: 8px 10px 10px; }
+  .folder-proyek-isi { margin-left: 4px; padding-left: 8px; }
+  .folder-proyek-maju { flex-basis: 100%; }
+}
+/* Penanda setoran dan paket yang ikut diisi (2.61.0). */
+.chip-belum-setor { display: inline-flex; align-items: center; padding: 0 7px; border: 1px dashed var(--isi-amber); border-radius: 5px; color: var(--kuning); font-size: calc(11px * var(--skala-huruf)); font-weight: 600; white-space: nowrap; }
+.pilih-setor { display: flex; flex-direction: column; gap: 6px; }
+.pilih-setor .dev-cek { align-items: flex-start; }
+.pilih-setor .dev-cek input { margin-top: 2px; }
+.pilih-setor .dev-cek span { display: flex; flex-direction: column; gap: 2px; }
+.pilih-setor small { color: var(--redup); font-weight: 400; }
+.ikut-paket { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.ikut-paket .hint { flex-basis: 100%; margin: 0; }
+.ikut-paket-chip { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 9px; border-radius: 999px; background: var(--ungu-muda); color: var(--ungu); font-size: calc(12px * var(--skala-huruf)); font-weight: 600; }
+.ikut-paket-chip button { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: none; color: inherit; cursor: pointer; }
+.ikut-paket-chip button:hover { background: color-mix(in srgb, var(--ungu) 12%, transparent); }
+.pill-utama { display: inline-flex; padding: 0 6px; border-radius: 5px; background: var(--ungu-muda); color: var(--ungu); font-size: calc(11px * var(--skala-huruf)); font-weight: 700; vertical-align: middle; }
+.setor-setujui { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.setor-setujui p { margin: 0; }
+.setor-setujui .baris-form .input { flex: 1 1 140px; min-width: 0; }
 .chip-tim.tim-saya { outline: 2px solid var(--biru); outline-offset: 1px; }
 .baris-proyek-nama { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .baris-proyek-nama strong { font-size: calc(15px * var(--skala-huruf)); }

@@ -6,6 +6,27 @@
 - Nama anak yang sama dapat dibedakan dengan jalur lengkap; nama pendek ambigu tetap ditolak. Status setiap wadah tetap mandiri. Pemindahan wadah memperbarui jalur pilihan tanpa mengganti ID atau menggandakan task rekap.
 - Petunjuk agen, metadata pekerjaan Agent Office, dokumentasi kontrak, serta tes CLI/MCP dan pembuatan task ikut diperbarui.
 
+## 2.61.0 — Proyek mengisi beberapa paket, halaman Proyek per paket, dan penanda setoran (2026-11-18)
+
+Permintaan user: setoran ke paket bisa lebih dari satu, proyek dikelompokkan per paket seperti
+folder, dan task ditandai sejak awal perlu atau tidak perlu setoran.
+
+- **Proyek mengisi beberapa paket.** Selain paket utama, Manager bisa menambah paket di **Ikut
+  mengisi paket lain** di halaman proyek. Elaborasi paket lain ke proyek yang sudah ada otomatis
+  menambahkannya. Setoran ke beberapa paket dihitung penuh di setiap paket. Melepas paket tak
+  menghapus setoran yang sudah ada.
+- **Halaman Proyek per paket.** Bawaannya folder per paket: progres paket, jumlah terlambat, jumlah
+  belum disetor, dan tim yang terlibat. Folder berisi task tim Anda disorot. Proyek yang ikut
+  mengisi tampil sebagai baris tambahan di folder paket lain. Folder bisa dilipat; sakelar
+  **Semua proyek** kembali ke daftar biasa.
+- **Penanda setoran.** Form Tambah task di proyek punya pilihan **Perlu setoran / Tidak perlu**
+  dengan saran dari sub-stage (mis. E1 dan DV8 disarankan perlu). Lead/Manager bisa mengubahnya di
+  Ubah task.
+- **Belum disetor terlihat.** Task yang perlu setoran tapi belum disetor bertanda **Belum disetor**
+  dan masuk Perlu perhatian proyek. Saat menyetujui, peninjau melihat isian setoran dengan tombol
+  **Setor lalu setujui**. Staff tak dihalangi mengajukan tinjau.
+- Panduan **Membaca halaman Proyek** dan **Dari rancangan paket sampai task staff** diperbarui.
+
 ## 2.60.2 — Panduan: dari rancangan paket sampai task staff (2026-11-17)
 
 Kesepakatan user: Lead tim (SPV) mengisi detail task sesudah paket dirancang dan dielaborasi,

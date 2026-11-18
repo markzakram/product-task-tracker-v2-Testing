@@ -330,6 +330,9 @@
     /* Proyek umum (2.51.0): tampilan halaman proyeknya (daftar | papan | linimasa, diingat per
        browser), awal jendela linimasa, dan saringan jenis di daftar Proyek (semua | addie | umum). */
     umum: { tampil: ambil('umum_tampil', 'daftar'), mulai: '', jenis: 'semua' },
+    // Halaman Proyek per rancangan paket (2.61.0): susunan dan folder yang dilipat, per browser.
+    proyekSusun: ambil('proyek_susun', 'paket') === 'semua' ? 'semua' : 'paket',
+    proyekLipat: new Set(ambil('proyek_lipat', [])),
     /* Tab detail task yang dibuka (2.32.0): { id task, tab }. */
     detailTab: null,
     /* penuh = kartu folder yang sedang menampilkan semua link-nya (selama sesi ini). */
@@ -1082,6 +1085,8 @@
   }
   const menyetor = t => (S.data.setoran || []).some(x => x.task === t.id);
   const chipSetor = t => (menyetor(t) ? `<span class="chip-paket" title="${tr('Menaikkan progres rancangan paket saat disetujui')}">${tr('Paket')}</span>` : '');
+  // Penanda setoran (2.61.0): perlu menyetor ke rancangan paket, tetapi belum.
+  const chipBelumSetor = t => (I.belumDisetor(S.data, t, perIdKini()) ? `<span class="chip-belum-setor" title="${tr('Task ini perlu setoran ke rancangan paket, tetapi belum disetor')}">${tr('Belum disetor')}</span>` : '');
   /* Labelnya dari Master (bawaan: Penting, Mendesak). */
   const chipPenting = t => (['Urgent', 'High'].includes(t.priority) ? `<span class="chip-penting">${esc(I.labelPrioritas(t.priority))}</span>` : '');
   const proyekDari = id => S.data.projects.find(p => p.id === id);
@@ -1308,6 +1313,10 @@
     for (const t of aktif.filter(x => dalam(x) && I.telat(x, h) && !x.tertahan)) {
       tambah(t, tr('{judul} terlambat {n} hari kerja · {nama}', { judul: judul(t), n: I.hariTelat(t.due, h), nama: nama(t.pic) }), tombol('buka-task', t, tr('Lihat')), t.pic);
     }
+    // Penanda setoran (2.61.0): bagi yang boleh mengatur setorannya.
+    for (const t of kini.filter(x => I.bolehSetor(x, me) && I.belumDisetor(S.data, x, perId))) {
+      tambah(t, tr('{judul} perlu setoran ke rancangan paket, tetapi belum disetor.', { judul: judul(t) }), tombol('buka-task', t, tr('Buka')));
+    }
     for (const t of aktif.filter(x => dalam(x) && x.tertahan)) {
       tambah(t, tr('{nama} tertahan di {judul}: {alasan}', { nama: nama(t.pic), judul: judul(t), alasan: esc(t.alasanTertahan || tr('tanpa alasan')) }), tombol('buka-task', t, tr('Lihat')), t.pic);
     }
@@ -1384,7 +1393,7 @@
       ${pillStatus(t.status)}
       <span class="baris-isi">
         ${s ? `<span class="baris-judul">${chipJalur(t)} ${esc(s.nama)}</span><span class="baris-task-sub">${esc(t.title)}</span>` : `<span class="baris-judul">${esc(t.title)}</span>`}
-        <span class="baris-meta">${t.induk && !posisi ? chipInduk(t) + ' ' : ''}${s ? '' : chipJalur(t)} ${[S.view === 'proyek' && t.project && t.project === S.proyek ? '' : esc(asal(t)), sub, keluarga].filter(Boolean).join(' · ')} ${label} ${chipBantuan(t)} ${chipSetor(t)} ${chipPenting(t)}</span>
+        <span class="baris-meta">${t.induk && !posisi ? chipInduk(t) + ' ' : ''}${s ? '' : chipJalur(t)} ${[S.view === 'proyek' && t.project && t.project === S.proyek ? '' : esc(asal(t)), sub, keluarga].filter(Boolean).join(' · ')} ${label} ${chipBantuan(t)} ${chipSetor(t)} ${chipBelumSetor(t)} ${chipPenting(t)}</span>
         ${alasan ? `<span class="baris-alasan ${/^Tertahan/.test(alasan) ? 'merah' : /^Selesai/.test(alasan) && !/lewat tenggat/.test(alasan) ? 'redup' : ''}">${esc(trPola(String(alasan)))}</span>` : ''}
       </span>
       ${chipTenggat(t)}
@@ -1401,7 +1410,7 @@
     const tunggu = I.selesai(t) ? '' : I.tungguSingkat(t, perId);
     const s = I.subTahap(t.sub);
     return `<div class="kartu ${telat ? 'telat' : ''}" draggable="true" data-id="${esc(t.id)}">
-      <span class="kartu-atas">${t.induk ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${chipLabel(t, ['Siap', 'Menunggu', 'Tertahan'])} ${chipBantuan(t)} ${chipSetor(t)} <span>${esc(asal(t))}</span></span>
+      <span class="kartu-atas">${t.induk ? chipInduk(t) + ' ' : ''}${chipJalur(t)} ${chipLabel(t, ['Siap', 'Menunggu', 'Tertahan'])} ${chipBantuan(t)} ${chipSetor(t)} ${chipBelumSetor(t)} <span>${esc(asal(t))}</span></span>
       <button type="button" class="kartu-judul" data-aksi="buka-task" data-id="${esc(t.id)}">${esc(s ? s.nama : t.title)}</button>
       ${s ? `<span class="kartu-subjudul">${esc(t.title)}</span>` : ''}
       ${sub ? `<span class="kartu-sub"><span class="batang"><span style="width:${Math.round(beres / sub * 100)}%"></span></span>${beres}/${sub}</span>` : ''}
@@ -1533,7 +1542,7 @@
     const daftar = x => (Array.isArray(x) ? x : []);
     const angka = v => Number(v) || 0;
     return {
-      projects: daftar(d.projects).map(p => ({ ...p, lead: p.lead || '', paket: p.paket || '', history: daftar(p.history),
+      projects: daftar(d.projects).map(p => ({ ...p, lead: p.lead || '', paket: p.paket || '', paketLain: daftar(p.paketLain), history: daftar(p.history),
         jenis: p.jenis || '', timProyek: daftar(p.timProyek), tahapUmum: daftar(p.tahapUmum), tenggat: p.tenggat || '',
         penutupan: p.penutupan && typeof p.penutupan === 'object' && !Array.isArray(p.penutupan) ? p.penutupan : null })),
       tasks: daftar(d.tasks).map(t => ({
@@ -3284,12 +3293,20 @@
   /* Setoran task ini ke rancangan paket. Lead/Manager task ini bisa menambah atau menghapus.
      Sejak 2.32.0 hanya tampil bila relevan: task yang sudah menyetor, task proyek yang tertaut
      paket (targetnya dari paket itu saja), atau task di luar proyek. */
+  /* Paket tujuan setoran sebuah task: semua paket yang diisi proyeknya (2.61.0); task rutin boleh ke
+     paket mana pun. Pembaruan inisiatif (2.31.0) dan pembaruan proyek (2.45.0) tak menyetor ke paket. */
+  function sumberSetoran(t) {
+    const proj = t.project ? proyekDari(t.project) : null;
+    const tertaut = proj ? I.paketTertaut(proj).map(paketDari).filter(Boolean) : [];
+    return tertaut.length ? tertaut : t.project || t.inisiatif || t.pembaruanProyek ? [] : S.data.packages.filter(x => x.items.length);
+  }
+  const opsiSasaran = sumber => sumber.map(paket => `<optgroup label="${esc(judulPaket(paket))}">${paket.items.map(it =>
+    `<option value="${esc(paket.id)}|${esc(it.id)}">${esc(it.kategori)} · ${esc(it.nama || '—')}</option>`).join('')}</optgroup>`).join('');
+  const opsiCapaian = pilih => opsiHtml(I.CAPAIAN.map(c => [c.kode, `${tr(c.nama)} ${Math.round(c.bobot * 100)}%`]), pilih || 'tayang');
   function isiSetoran(t, proj) {
     const milik = (S.data.setoran || []).filter(x => x.task === t.id);
     const bisa = I.bolehSetor(t, S.me);
-    const pk = proj && proj.paket ? paketDari(proj.paket) : null;
-    // Pembaruan inisiatif (2.31.0) dan pembaruan proyek (2.45.0) tak menyetor ke paket.
-    const sumber = pk ? [pk] : t.project || t.inisiatif || t.pembaruanProyek ? [] : S.data.packages.filter(x => x.items.length);
+    const sumber = sumberSetoran(t);
     const batch = milik.length || !t.project ? [] : setoranBatch(t);
     if (batch.length) {
       const perId = perIdKini();
@@ -3311,18 +3328,19 @@
         ${bisa ? `<button type="button" class="ikon-tombol" data-aksi="setoran-hapus" data-id="${esc(x.id)}" aria-label="${tr('Hapus setoran')}">${ikon('hapus', 16)}</button>` : ''}
       </div>`;
     }).join('');
-    const opsi = sumber.map(paket => `<optgroup label="${esc(judulPaket(paket))}">${paket.items.map(it =>
-      `<option value="${esc(paket.id)}|${esc(it.id)}">${esc(it.kategori)} · ${esc(it.nama || '—')}</option>`).join('')}</optgroup>`).join('');
+    const opsi = opsiSasaran(sumber);
+    const nPaket = new Set(milik.map(x => x.paket)).size;
     return {
       ket: milik.length ? tr('{n} setoran', { n: milik.length }) : tr('belum ada'),
       html: `${daftar || `<p class="hint">${tr('Task ini belum menyetor ke target paket mana pun.')}</p>`}
+      ${nPaket > 1 ? `<p class="banner biru">${tr('Hasil kerja ini disetor ke {n} paket, dan dihitung penuh di setiap paket saat task disetujui.', { n: nPaket })}</p>` : ''}
       ${bisa && sumber.length ? `<form class="baris-form" data-form="setoran" data-id="${esc(t.id)}">
         <label class="sr" for="setor-${esc(t.id)}">${tr('Target paket')}</label>
         <select class="input" id="setor-${esc(t.id)}" name="sasaran" required>${opsi}</select>
         <label class="sr" for="setorn-${esc(t.id)}">${tr('Jumlah')}</label>
         <input class="input angka" id="setorn-${esc(t.id)}" name="jumlah" inputmode="decimal" placeholder="${tr('Jumlah')}" required maxlength="8">
         <label class="sr" for="setorc-${esc(t.id)}">${tr('Capaian saat disetujui')}</label>
-        <select class="input" id="setorc-${esc(t.id)}" name="tahap">${opsiHtml(I.CAPAIAN.map(c => [c.kode, `${tr(c.nama)} ${Math.round(c.bobot * 100)}%`]), 'tayang')}</select>
+        <select class="input" id="setorc-${esc(t.id)}" name="tahap">${opsiCapaian(I.capaianSub(S.data, t))}</select>
         <button class="tombol">${tr('Setor')}</button>
       </form>` : ''}`,
     };
@@ -3713,7 +3731,7 @@
     const peringatan = peringatanTinjau(t, perId);
     const akhir = (t.tinjauan || []).reduce((a, r) => (!a || r.at >= a.at ? r : a), null);
     const nonaktif = aksi.find(a => a.utama && a.nonaktif && a.alasan);
-    let kelas = 'biru', judul, isi = '', tombol = '';
+    let kelas = 'biru', judul, isi = '', tombol = '', ekstra = '';
     if (I.selesai(t)) {
       kelas = 'hijau'; judul = tr('Selesai');
       isi = t.selesaiAt ? tr('Selesai {waktu}.', { waktu: esc(relatif(t.selesaiAt)) }) : '';
@@ -3725,6 +3743,11 @@
       if (peringatan) kelas = 'kuning';
       isi = tinjau === S.me ? tr('Periksa hasil kerjanya di tab Kerjakan, lalu setujui atau kembalikan.')
         : peringatan || tr('Diajukan, menunggu tinjauan {nama}.', { nama: nama(tinjau || I.MANAGER) });
+      // Pengingat setoran di langkah Setujui (2.61.0, keputusan user): staff tak dihalangi mengajukan.
+      if ((tinjau === S.me || I.orang(S.me).peran === 'manager') && I.bolehSetor(t, S.me) && I.belumDisetor(S.data, t, perId)) {
+        kelas = 'kuning';
+        ekstra = formSetorSetujui(t);
+      }
     } else if (I.menungguAmbil(t)) {
       kelas = 'kuning'; judul = tr('Menunggu konfirmasi');
       isi = I.bolehJawabBantuan(t, S.me) ? tr('Baca catatannya di atas, lalu ambil atau tolak.') : tr('{nama} belum mengambil atau menolak bantuan ini.', { nama: nama(t.pic) });
@@ -3765,7 +3788,23 @@
       <p class="kartu-langkah-judul">${tr('Langkah berikutnya')}<span class="sr"> · ${judul}</span></p>
       ${isi ? `<p>${isi}</p>` : ''}
       ${tombol ? `<div class="kartu-langkah-tombol">${tombol}</div>` : ''}
+      ${ekstra}
     </div>`;
+  }
+  function formSetorSetujui(t) {
+    const sumber = sumberSetoran(t);
+    if (!sumber.length) return '';
+    const id = esc(t.id);
+    return `<form class="setor-setujui" data-form="setor-setujui" data-id="${id}">
+      <p>${tr('Task ini perlu setoran ke rancangan paket, tetapi belum disetor. Isi sekarang supaya progres paket ikut naik saat disetujui.')}</p>
+      <div class="baris-form">
+        <label class="sr" for="ss-${id}">${tr('Target paket')}</label><select class="input" id="ss-${id}" name="sasaran" required>${opsiSasaran(sumber)}</select>
+        <label class="sr" for="ssn-${id}">${tr('Jumlah')}</label><input class="input angka" id="ssn-${id}" name="jumlah" inputmode="decimal" placeholder="${tr('Jumlah')}" required maxlength="8">
+        <label class="sr" for="ssc-${id}">${tr('Capaian saat disetujui')}</label><select class="input" id="ssc-${id}" name="tahap">${opsiCapaian(I.capaianSub(S.data, t))}</select>
+        <button class="tombol utama">${tr('Setor lalu setujui')}</button>
+      </div>
+      <p class="hint">${tr('Atau tekan Setujui di bawah tanpa setoran.')}</p>
+    </form>`;
   }
   function detailHtml(t, diLaci) {
     const me = S.me;
@@ -3838,7 +3877,7 @@
         ${induk ? `<p class="detail-induk">↳ ${tr('Task turunan dari')} <button type="button" data-aksi="buka-task" data-id="${esc(induk.id)}">${esc(induk.id)} · ${esc(potong(induk.title, 80))}</button></p>` : ''}
         ${dariMinta ? `<p class="detail-induk">↳ ${tr('Diminta {nama} dari', { nama: nama(dariMinta.dari) })} <button type="button" data-aksi="buka-task" data-id="${esc(dariMinta.sumber)}">${esc(dariMinta.sumber)}${asalMinta ? ' · ' + esc(potong(asalMinta.title, 80)) : ''}</button></p>` : ''}
         <p class="detail-sub">${[s || I.proyekUmum(p) ? '' : `<span class="pill lb-menunggu">${tr('Belum ber-sub-stage')}</span>`, I.proyekUmum(p) ? pilihTahapTask(t, p) : '', tim ? tr('Tim {tim}', { tim: esc(I.labelTim(tim.kode)) }) : '', s && s.reviewManager ? tr('direview Manager') : ''].filter(Boolean).join(' · ')}${I.proyekUmum(p) ? '' : tanya('konsep-kode', tr('sub-stage dan tim'))}</p>
-        <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)} ${chipPenugasan(t)} ${chipBantuan(t)}
+        <div class="detail-chip">${pillStatus(t.status)} ${chipLabel(t)} ${chipTenggat(t)} ${chipPenting(t)} ${chipPenugasan(t)} ${chipBantuan(t)} ${chipBelumSetor(t)}
           ${I.bolehAjukanPanjang(S.data, t, me) ? `<button type="button" class="tautan-kecil" data-aksi="panjang-ajukan" data-id="${esc(t.id)}">${ikon('kalender', 14)} ${tr('Minta perpanjangan tenggat')}</button>` : ''}</div>
         <div class="detail-orang">${avatar(t.pic)} ${tr('PIC')} ${nama(t.pic)}${statusHtml(t.pic)}
           ${t.support.length ? ` · ${tr('bantuan')} ${t.support.map(nama).join(', ')}` : ''}
@@ -4427,7 +4466,7 @@
     const antreTutup = I.antreTutupUmum(S.data);   // penutupan Proyek umum menunggu Manager (2.52.0)
     const nArsip = semua.filter(p => p.arsip).length;
 
-    const baris = daftar.map(p => {
+    const barisSatu = p => {
       const r = ringkas.get(p.id);
       if (I.proyekUmum(p)) return barisProyekUmum(p, r, timKu && (p.timProyek || []).includes(timKu));
       const paket = I.paketProyek(S.data, p);
@@ -4440,7 +4479,58 @@
           <span class="batang"><span style="width:${r.totalSiklus ? Math.round(r.selesaiSiklus / r.totalSiklus * 100) : 0}%"></span></span></span>
         ${chipKeadaan(r.keadaan)}
       </button>`;
-    }).join('');
+    };
+    /* Per paket (2.61.0, permintaan user): proyek ADDIE dikelompokkan per rancangan paket utamanya,
+       seperti folder Pengembangan. Proyek yang juga mengisi paket lain tampil di folder paket itu
+       sebagai "ikut mengisi". Folder yang memuat pekerjaan tim saya ikut disorot. */
+    const folderProyek = () => {
+      const addie = daftar.filter(p => !I.proyekUmum(p));
+      const umum = daftar.filter(p => I.proyekUmum(p));
+      const utama = new Map(addie.map(p => [p.id, I.paketUtamaProyek(S.data, p)]));
+      const isiPaket = new Map(addie.map(p => [p.id, new Set(I.paketProyek(S.data, p).map(x => x.id))]));
+      const belum = new Map();
+      for (const t of S.data.tasks) if (t.project && I.belumDisetor(S.data, t, perId)) belum.set(t.project, (belum.get(t.project) || 0) + 1);
+      const jumlah = (ps, f) => ps.reduce((n, p) => n + f(p), 0);
+      const kita = ps => !!timKu && ps.some(p => proyekTimKu.has(p.id));
+      const timKita = ps => (kita(ps) ? ' · ' + tr('tim {tim} terlibat', { tim: esc(I.singkatTim(timKu)) }) : '');
+      const tanda = ps => {
+        const telat = jumlah(ps, p => ringkas.get(p.id).telat);
+        const nBelum = jumlah(ps, p => belum.get(p.id) || 0);
+        return `${telat ? `<span class="chip-folder merah">${tr('{n} terlambat', { n: telat })}</span>` : ''}${nBelum ? `<span class="chip-folder jingga">${tr('{n} belum disetor', { n: nBelum })}</span>` : ''}`;
+      };
+      const folder = (kunci, kepala, isi, kelas) => {
+        const lipat = S.proyekLipat.has(kunci);
+        return `<section class="folder-proyek ${kelas}">
+          <div class="folder-proyek-kepala"><button type="button" class="ini-lipat" data-aksi="proyek-lipat" data-id="${esc(kunci)}" aria-expanded="${!lipat}" aria-label="${esc(tr('Buka atau tutup folder'))}">${ikon(lipat ? 'kanan' : 'bawah', 16)}</button>${kepala}</div>
+          ${lipat ? '' : `<div class="folder-proyek-isi daftar-proyek">${isi}</div>`}
+        </section>`;
+      };
+      const perPaket = S.data.packages.map(pk => {
+        const isi = addie.filter(p => utama.get(p.id) === pk.id);
+        const ikut = addie.filter(p => utama.get(p.id) !== pk.id && isiPaket.get(p.id).has(pk.id));
+        if (!isi.length && !ikut.length) return '';
+        const r = ringkasP(pk);
+        const semuaP = [...isi, ...ikut];
+        const kepala = `<span class="folder-proyek-ikon">${ikon('folder', 20)}</span>
+          <span class="folder-proyek-nama"><button type="button" class="folder-proyek-judul" data-aksi="paket-buka" data-id="${esc(pk.id)}">${esc(judulPaket(pk))}</button>
+            <small>${esc(pk.id)} · ${tr('{n} proyek', { n: isi.length })}${ikut.length ? ' · ' + tr('{n} ikut mengisi', { n: ikut.length }) : ''}${timKita(semuaP)}</small></span>
+          ${r.jumlah ? `<span class="folder-proyek-maju">${batangPaket(r)}<small>${tr('Progres paket {p}%', { p: r.persen })}</small></span>` : ''}
+          <span class="folder-proyek-tanda">${tanda(isi)}</span>`;
+        const barisIkut = ikut.map(p => {
+          const asalPk = paketDari(utama.get(p.id));
+          return `<button type="button" class="baris-proyek ringkas ikut-mengisi ${proyekTimKu.has(p.id) ? 'tim-saya' : ''}" data-aksi="buka-proyek" data-id="${esc(p.id)}">${ikon('serah', 16)}
+            <span class="baris-proyek-nama"><strong>${esc(p.name)}</strong><small>${tr('Ikut mengisi paket ini · folder utamanya {paket}', { paket: esc(asalPk ? judulPaket(asalPk) : utama.get(p.id)) })}</small></span></button>`;
+        }).join('');
+        return folder(pk.id, kepala, isi.map(barisSatu).join('') + barisIkut, kita(semuaP) ? 'tim-saya' : '');
+      }).join('');
+      const grupLain = (kunci, judulG, ket, ps) => (ps.length ? folder(kunci,
+        `<span class="folder-proyek-nama"><b>${judulG}</b><small>${ket} · ${tr('{n} proyek', { n: ps.length })}${timKita(ps)}</small></span><span class="folder-proyek-tanda">${tanda(ps)}</span>`,
+        ps.map(barisSatu).join(''), `lain ${kita(ps) ? 'tim-saya' : ''}`) : '');
+      return perPaket
+        + grupLain('__tanpa', tr('Tanpa rancangan paket'), tr('Proyek ADDIE yang belum mengisi paket mana pun'), addie.filter(p => !utama.get(p.id)))
+        + grupLain('__umum', tr('Proyek umum'), tr('Di luar rancangan paket'), umum);
+    };
+    const baris = S.proyekSusun === 'paket' && jenisKu !== 'umum' ? folderProyek() : daftar.map(barisSatu).join('');
 
     /* Sesudah E12 tak ada tahap ke-6. Pilihannya: tuntas (arsip), atau ulangi ADDIE dari
        Analysis untuk perbaikan atau versi berikutnya. Kalau semua task beres, arsip yang utama. */
@@ -4461,6 +4551,7 @@
 
     return `<div class="judul-halaman"><div><h1>${tr('Proyek')}</h1>
         <p>${tr('{a} aktif · {b} arsip', { a: semua.length - nArsip, b: nArsip })}${timKu && proyekTimKu.size ? ' · ' + tr('{n} melibatkan tim {tim}', { n: semua.filter(p => !p.arsip && proyekTimKu.has(p.id)).length, tim: esc(I.singkatTim(timKu)) }) : ''}${keputusan.length ? ' · ' + tr('{n} siklus menunggu keputusan', { n: keputusan.length }) : ''}</p></div>
+        <div class="segmen" role="group" aria-label="${tr('Susunan proyek')}">${[['paket', tr('Per paket')], ['semua', tr('Semua proyek')]].map(([k, l]) => `<button type="button" data-aksi="proyek-susun" data-nilai="${k}" aria-pressed="${S.proyekSusun === k}">${l}</button>`).join('')}</div>
         <div class="segmen" role="group" aria-label="${tr('Jenis proyek')}">${[['semua', tr('Semua')], ['addie', tr('ADDIE')], ['umum', tr('Umum')]].map(([k, l]) => `<button type="button" data-aksi="atur" data-ruang="umum" data-kunci="jenis" data-nilai="${k}" aria-pressed="${jenisKu === k}">${esc(l)} (${nJenis(k)})</button>`).join('')}</div>
         <div class="segmen" role="group" aria-label="${tr('Tampilkan')}"><button type="button" data-aksi="proyek-arsip" data-nilai="0" aria-pressed="${!S.proyekArsip}">${tr('Aktif')}</button><button type="button" data-aksi="proyek-arsip" data-nilai="1" aria-pressed="${S.proyekArsip}">${tr('Arsip ({n})', { n: nArsip })}</button></div>
         ${iz('proyek.buat') || iz('proyek.buatUmum') ? `<button type="button" class="tombol utama" data-aksi="proyek-baru">${ikon('tambah', 16)} ${tr('Proyek baru')}</button>` : ''}
@@ -4792,6 +4883,16 @@
     </form>`;
   }
 
+  /* Paket lain yang ikut diisi proyek ini (2.61.0): dilepas lewat ×, ditambah lewat pilihan. */
+  function ikutPaketHtml(p) {
+    if (!p.paket) return '';
+    const lain = (p.paketLain || []).map(paketDari).filter(Boolean);
+    const sisa = S.data.packages.filter(x => x.id !== p.paket && !(p.paketLain || []).includes(x.id));
+    return `<div class="ikut-paket"><span class="label-kecil">${tr('Ikut mengisi paket lain')}</span>
+      ${lain.map(pk => `<span class="ikut-paket-chip">${esc(judulPaket(pk))}<button type="button" data-aksi="lepas-ikut-paket" data-id="${esc(p.id)}" data-paket="${esc(pk.id)}" aria-label="${esc(tr('Lepas {paket}', { paket: judulPaket(pk) }))}">${ikon('tutup', 14)}</button></span>`).join('')}
+      ${sisa.length ? `<select data-aksi="ikut-paket" data-id="${esc(p.id)}" aria-label="${tr('Tambah paket yang ikut diisi')}">${opsiHtml([['', tr('+ Tambah paket')], ...sisa.map(x => [x.id, `${judulPaket(x)} (${x.id})`])], '')}</select>` : ''}
+      <p class="hint">${tr('Hasil kerja yang disetor ke beberapa paket dihitung penuh di setiap paket. Paket utama menentukan folder proyek ini di halaman Proyek.')}</p></div>`;
+  }
   /* Rancangan paket yang dikerjakan proyek ini (tertaut langsung, atau lewat setoran
      task-nya). Progresnya naik bertahap setiap langkah bercapaian disetujui. Manager bisa
      menautkan proyek lama (mis. kolaborasi v1) ke paket. */
@@ -4805,13 +4906,14 @@
     const isi = daftar.map(pk => {
       const r = ringkasP(pk);
       const nTask = new Set((S.data.setoran || []).filter(x => x.paket === pk.id && milik.has(x.task)).map(x => x.task)).size;
-      return `<div class="paket-proyek"><strong>${esc(judulPaket(pk))}</strong><p class="hint">${esc(pk.id)} · ${esc(pk.platform || tr('Tanpa platform'))}${nTask ? ' · ' + tr('{n} task proyek ini menyetor', { n: nTask }) : ''}</p>
+      return `<div class="paket-proyek"><strong>${esc(judulPaket(pk))}</strong>${pk.id === p.paket && daftar.length > 1 ? ` <span class="pill-utama">${tr('utama')}</span>` : ''}<p class="hint">${esc(pk.id)} · ${esc(pk.platform || tr('Tanpa platform'))}${nTask ? ' · ' + tr('{n} task proyek ini menyetor', { n: nTask }) : ''}</p>
         ${r.jumlah ? `<div class="kartu-paket-maju">${batangPaket(r)}<small>${tr('Progres {p}% · {a}/{b} tayang', { p: r.persen, a: fmtAngka(r.terpenuhi), b: fmtAngka(r.target) })}${r.digarap ? ' · ' + tr('{n} digarap', { n: fmtAngka(r.digarap) }) : ''}</small></div>` : `<p class="hint">${tr('Paket ini belum punya target.')}</p>`}
         <button type="button" class="tombol kecil" data-aksi="paket-buka" data-id="${esc(pk.id)}">${ikon('kotak', 16)} ${tr('Buka rancangan paket')}</button></div>`;
     }).join('');
     return `<section class="kartu-polos samping-tumpuk"><p class="subjudul">${tr('Rancangan paket')}${daftar.length ? tanya('konsep-progres', tr('progres paket')) : ''}</p>
       ${isi || `<p class="hint">${tr('Proyek ini belum mengerjakan rancangan paket mana pun.')}</p>`}
       ${tautkan}
+      ${bolehTaut ? ikutPaketHtml(p) : ''}
     </section>`;
   }
 
@@ -10811,10 +10913,37 @@
   }
   /* Sesudah jalur, proyek, atau sub-stage berganti: perbarui keterangan dan pilihan PIC.
      PIC yang belum disentuh orang mengikuti bawaan sub-stage barunya. */
+  /* Penanda setoran di form task (2.61.0): hanya untuk proyek yang mengisi rancangan paket. Pilihan
+     bawaannya mengikuti saran sub-stage sampai orangnya memilih sendiri. */
+  function pilihSetorHtml(nilai, otomatis) {
+    return `<div class="isian pilih-setor" data-setor-blok data-otomatis="${otomatis ? '1' : ''}" hidden><span>${tr('Setoran ke rancangan paket')}</span>
+      <label class="dev-cek"><input type="radio" name="setor" value="perlu" ${nilai === 'perlu' ? 'checked' : ''}><span><b>${tr('Perlu setoran')}</b><small data-saran-setor></small></span></label>
+      <label class="dev-cek"><input type="radio" name="setor" value="tidak" ${nilai === 'tidak' ? 'checked' : ''}><span><b>${tr('Tidak perlu')}</b><small>${tr('Mis. revisi, riset, atau rapat: tak menaikkan progres paket.')}</small></span></label></div>`;
+  }
+  /* Di Ubah task: untuk Lead dan Manager, kecuali langkah hasil elaborasi (menyetor lewat batch-nya). */
+  function setorUbahHtml(t) {
+    const proj = t.project ? proyekDari(t.project) : null;
+    if (!proj || !I.paketTertaut(proj).length || I.orang(S.me).peran === 'staff' || I.batchLangkah(t, perIdKini())) return '';
+    return `<input type="hidden" name="setorAda" value="">${pilihSetorHtml(t.setor || I.saranSetor(S.data, t), !t.setor).replace(' hidden>', '>')}`;
+  }
+  function segarkanSetor(form) {
+    const blok = $('[data-setor-blok]', form);
+    if (!blok) return;
+    const lama = form.dataset.task === 'ubah' ? S.data.tasks.find(x => x.id === form.dataset.id) : null;
+    const proyek = lama ? lama.project : isianForm(form, 'jalur').value === 'proyek' ? (isianForm(form, 'project') || {}).value : '';
+    const proj = proyek ? proyekDari(proyek) : null;
+    blok.hidden = !proj || !I.paketTertaut(proj).length;
+    if (blok.hidden) return;
+    const saran = I.saranSetor(S.data, { project: proj.id, sub: kodeFormTask(form) });
+    const ket = $('[data-saran-setor]', blok);
+    if (ket) ket.textContent = saran === 'perlu' ? tr('Disarankan: sub-stage ini membawa capaian paket.') : tr('Pilih ini bila task ini memang menaikkan progres paket.');
+    if (blok.dataset.otomatis === '1') for (const r of $$('input[name="setor"]', blok)) r.checked = r.value === saran;
+  }
   function segarkanFormTask(form) {
     const kode = kodeFormTask(form);
     const hint = $('[data-hint-sub]', form);
     if (hint) hint.textContent = hintSub(kode);
+    segarkanSetor(form);
     const pic = isianForm(form, 'pic');
     if (!pic) return;
     const pilih = pic.dataset.otomatis === '1' ? picBawaan(kode) : pic.value;
@@ -10920,6 +11049,7 @@
         <small data-bagian="inisiatif" ${tampil('inisiatif')}>${tr('Boleh dikosongkan untuk pembaruan inisiatif.')}</small></label>
       ${opsiInisiatifForm(preset.inisiatif, jalur)}
       <p class="hint" data-hint-sub>${esc(hintSub(kode))}</p>
+      <div data-bagian="proyek" ${tampil('proyek')}>${pilihSetorHtml('', true)}</div>
       <div class="dua-isian">
         <label class="isian">${tr('PIC')} <select name="pic" data-otomatis="${picPreset ? '0' : '1'}">${opsiPic(pilihanPic(kode), picPreset || picBawaan(kode), kode)}</select></label>
         <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(preset.due ? tglKerja(preset.due) : '')}"></label>
@@ -11073,6 +11203,7 @@
       ${t.inisiatif && t.lane !== 'proyek' && I.orang(S.me).peran === 'manager' && t.pic !== S.me ? `<input type="hidden" name="penugasanAda" value="1">
         <label class="dev-cek penugasan-cek"><input type="checkbox" name="penugasan" value="ya" ${t.penugasan ? 'checked' : ''} ${t.status === 'Ditinjau' ? 'disabled' : ''}>
         <span><b>${tr('Penugasan: ditinjau saya sebelum selesai')}</b><small>${t.status === 'Ditinjau' ? tr('Sedang ditinjau: setujui atau kembalikan dulu sebelum mengubahnya.') : tr('PIC mengajukannya dengan hasil kerja, lalu Anda menyetujui atau mengembalikannya.')}</small></span></label>` : ''}
+      ${setorUbahHtml(t)}
       <div class="dua-isian">
         <label class="isian">${tr('PIC')} <select name="pic">${induk ? opsiPicTurunan(pilihanPicUbah(t, t.sub), t.pic, I.picTurunan(induk)) : opsiPic(pilihanPicUbah(t, t.sub), t.pic, t.sub)}</select></label>
         <label class="isian">${tr('Tenggat')} <input type="date" name="due" value="${esc(t.due || '')}"></label>
@@ -11395,6 +11526,7 @@
             pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, induk: proyek ? f.induk || '' : '',
             inisiatif: ini && !keProyek ? f.inisiatif : '', pembaruanProyek: keProyek ? f.inisiatif : '',
             penugasan: ini && !keProyek && f.penugasan === 'ya',
+            ...(proyek && f.setor && !$('[data-setor-blok]', form).hidden ? { setor: f.setor } : {}),
             ...(ini ? { tautan: { url: f.tautanUrl, label: f.tautanLabel } } : {}),
           } });
           // Dibuat dari baris catatan: nomor task-nya ditempel di ujung baris itu.
@@ -11412,7 +11544,7 @@
         case 'ubah': {
           const lama = (S.data.tasks.find(x => x.id === m.id) || {}).pic;
           ubahData('ubahTask', { task: m.id, f: { title: f.title, sub: f.sub, pic: f.pic, due: f.due, priority: f.priority, output: f.output, detail: f.detail, ...(f.tahapProyek === undefined ? {} : { tahapProyek: f.tahapProyek }),
-            ...(f.penugasanAda ? { penugasan: f.penugasan === 'ya' } : {}) } });
+            ...(f.penugasanAda ? { penugasan: f.penugasan === 'ya' } : {}), ...(f.setorAda === '1' ? { setor: f.setor || '' } : {}) } });
           const t = S.data.tasks.find(x => x.id === m.id);
           tutupModal();
           return selesaiUbah(t.pic !== lama ? tr('Task disimpan; PIC-nya kini {nama}.', { nama: I.orang(t.pic).pendek }) : tr('Task disimpan.'));
@@ -12549,6 +12681,17 @@
       case 'hapus-task-pilihan': if (S.pilihTask && S.pilihTask.ids.length) bukaModal({ jenis: 'hapus-task', ids: S.pilihTask.ids.slice() }, formHapusTask(S.pilihTask.ids)); break;
       case 'hapus-task': if (t) bukaModal({ jenis: 'hapus-task', ids: [t.id] }, formHapusTask([t.id])); break;
       case 'proyek-arsip': S.proyekArsip = d.nilai === '1'; render(); break;
+      case 'proyek-susun': S.proyekSusun = d.nilai === 'semua' ? 'semua' : 'paket'; simpan('proyek_susun', S.proyekSusun); render(); break;
+      case 'proyek-lipat': {
+        if (S.proyekLipat.has(d.id)) S.proyekLipat.delete(d.id); else S.proyekLipat.add(d.id);
+        simpan('proyek_lipat', [...S.proyekLipat]);
+        render();
+        break;
+      }
+      case 'lepas-ikut-paket': {
+        try { ubahData('ikutPaket', { proyek: d.id, paket: d.paket, ikut: false }); selesaiUbah(tr('Proyek ini tak lagi mengisi paket itu. Setorannya yang sudah ada tetap terhitung.')); } catch (err) { toast(err.message, true); }
+        break;
+      }
       case 'proyek-baru': bukaModal({ jenis: 'proyek' }, formProyek()); break;
       case 'mulai-siklus': {
         const p = proyekDari(d.id);
@@ -13045,6 +13188,9 @@
       render();
     } else if (el.dataset.aksi === 'saring') {
       aturNilai(el.dataset.ruang, el.dataset.kunci, el.value);
+    } else if (el.dataset.aksi === 'ikut-paket') {
+      if (!el.value) return;
+      try { ubahData('ikutPaket', { proyek: el.dataset.id, paket: el.value, ikut: true }); selesaiUbah(tr('Proyek ini kini juga mengisi paket itu.')); } catch (err) { toast(err.message, true); }
     } else if (el.dataset.aksi === 'tautkan-paket') {
       const proj = proyekDari(el.dataset.id);
       try { ubahData('tautkanPaket', { proyek: proj.id, paket: el.value }); selesaiUbah(el.value ? tr('Proyek ditautkan ke rancangan paket.') : tr('Tautan paket dilepas.')); } catch (err) { toast(err.message, true); render(); }
@@ -13080,6 +13226,12 @@
       segarkanFormElaborasi(el.closest('form'));
     } else if (el.closest('form[data-task]')) {
       const form = el.closest('form');
+      if (el.name === 'setor') {
+        el.closest('[data-setor-blok]').dataset.otomatis = '';
+        const ada = isianForm(form, 'setorAda');
+        if (ada) ada.value = '1';
+        return;
+      }
       if (el.name === 'pic') { el.dataset.otomatis = ''; segarkanInduk(form); return; }
       if (el.name === 'induk') { el.dataset.disentuh = '1'; return; }
       segarkanFormTask(form);
@@ -13127,6 +13279,15 @@
         g.hidden = false;
         toast(err.message, true);
       }
+      return;
+    }
+    // Setor lalu setujui (2.61.0): setorannya dulu, lalu task disetujui tanpa jendela konfirmasi.
+    if (jenis === 'setor-setujui') {
+      const t = S.data.tasks.find(x => x.id === form.dataset.id);
+      if (!t) return;
+      const [paket, item] = String(isianForm(form, 'sasaran').value).split('|');
+      try { ubahData('setorkan', { task: t.id, f: { paket, item, jumlah: isianForm(form, 'jumlah').value, tahap: isianForm(form, 'tahap').value } }); } catch (err) { toast(err.message, true); return; }
+      jalankanAksi(S.data.tasks.find(x => x.id === t.id) || t, 'setujui', true);
       return;
     }
     if (jenis === 'setoran') {

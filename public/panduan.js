@@ -367,6 +367,8 @@
     {
       id: 'manager-proyek', peran: 'manager', judul: 'Membaca halaman Proyek', tujuan: 'Melihat keadaan semua proyek sekilas.', coba: true,
       langkah: [
+        'Bawaannya **Per paket**: tiap rancangan paket menjadi folder berisi proyeknya, dengan progres paket, jumlah task terlambat dan **belum disetor**, serta tim yang terlibat. Folder yang memuat task tim Anda disorot. Ketuk panah di kepala folder untuk melipatnya; **Semua proyek** menampilkan daftar biasa.',
+        'Proyek yang juga mengisi paket lain tampil sebagai baris **ikut mengisi** di folder paket itu. Paket utama dan paket yang ikut diisi diatur di halaman proyek, bagian **Rancangan paket**.',
         'Setiap baris menunjukkan tim beserta fasenya (mis. **RAD Dev**, **CLO ✓**; ketuk chip-nya untuk artinya), progres siklus, dan keadaannya: Sesuai rencana, Berisiko, Siklus selesai, dan lainnya.',
         'Kotak **Keputusan siklus** berisi proyek yang task E12-nya sudah disetujui.',
         'Klik proyek untuk melihat **Ringkasan** semua tim dan gerbang Manager, lalu tab tiap tim dengan task per fase ADDIE-nya. Peringatan merah muncul kalau ada task yang saling menunggu.',

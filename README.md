@@ -332,6 +332,40 @@ lama ke paket dari halaman proyek. Satu paket boleh diisi beberapa proyek, dan s
 mengisi beberapa paket. Aturannya di `public/inti.js` (`elaborasiPaket`, `setoranPaket`,
 `batchSetoran`, `hitungTarget`), diuji di `test/setoran.test.js`.
 
+**Proyek mengisi beberapa paket, halaman Proyek per paket, dan penanda setoran (2.61.0, permintaan
+user).** Proyek ADDIE bisa mengisi lebih dari satu rancangan paket, dan beberapa proyek bisa mengisi
+satu paket. Kini:
+- **Paket utama + paket yang ikut diisi.** Proyek punya `paket` (utama) dan `paketLain`
+  (`paketTertaut`). Di halaman proyek, Manager (izin `proyek.paket`, bisa diubah di Panel Dev →
+  Izin) memilih **Paket utama** dan menambah atau melepas paket di **Ikut mengisi paket lain**.
+  Elaborasi paket lain ke proyek yang sudah ada otomatis menambahkannya ke paket yang ikut diisi.
+  Menjadikan paket lain sebagai utama menukar keduanya. Paket utama yang dihapus digantikan paket
+  berikutnya. Berhenti ikut tak menghapus setoran yang sudah ada.
+- **Setoran ke beberapa paket dihitung penuh di setiap paket** (keputusan user): hasil kerja yang
+  sama boleh disetor ke target di paket A dan paket B, dan keduanya naik penuh. Pilihan target di
+  bagian Setoran ke paket dikelompokkan per paket, dengan catatan bila task menyetor ke lebih dari
+  satu paket.
+- **Halaman Proyek per paket.** Bawaannya **Per paket** (sakelar **Semua proyek** untuk daftar
+  biasa, tersimpan di browser). Tiap paket menjadi folder berisi proyek yang paket utamanya paket
+  itu, ditambah baris **ikut mengisi** untuk proyek yang folder utamanya di paket lain. Kepala
+  folder menampilkan progres paket, jumlah task terlambat, jumlah yang **belum disetor**, dan tim
+  yang terlibat. Folder yang memuat task tim Anda **disorot**. Folder bisa dilipat (tersimpan).
+  Proyek ADDIE tanpa paket masuk folder **Tanpa rancangan paket**, proyek lain ke **Di luar
+  rancangan paket** (`paketUtamaProyek`, `viewProyek`).
+- **Penanda setoran sejak task dibuat.** Form Tambah task di proyek menampilkan **Perlu setoran /
+  Tidak perlu**; sarannya dari sub-stage (`saranSetor`): perlu bila sub-stage itu membawa capaian
+  di semua kategori yang alurnya memuat kode itu (`capaianSub`, mis. E1 konten, DV8 input).
+  Pilihan sendiri disimpan di `task.setor` dan bisa diubah Lead/Manager di Ubah task. Task tanpa
+  penanda mengikuti saran selama masih terbuka. Langkah hasil elaborasi menyetor lewat batch-nya
+  dan tak pernah ditandai. Task turunan hanya ditandai bila dipilih sendiri.
+- **Belum disetor terlihat.** Task yang perlu setoran tapi belum punya setoran (`belumDisetor`)
+  bertanda **Belum disetor** di daftar, kartu, dan detail, serta masuk **Perlu perhatian** di
+  halaman proyek bagi yang boleh menyetor. Staff tetap bisa mengajukan tinjau. Saat peninjau
+  (atau Manager) membuka langkah **Setujui**, ada isian setoran dengan tombol **Setor lalu
+  setujui**; menekan **Setujui** biasa tetap boleh tanpa setoran.
+
+Diuji di `test/paket-ganda.test.js`.
+
 **Hasil elaborasi mengikuti rancangan paket (2.59.1, keluhan user).** Sebelumnya, mengubah target
 sesudah dielaborasi tak menyentuh hasilnya: judul task tetap nama lama dan jumlah batch tetap angka
 lama. Di PKG-015 setorannya lalu dihapus dan disetor ulang manual tanpa batch, sehingga satu batch

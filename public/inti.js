@@ -1029,6 +1029,7 @@
       // Penugasan Manager (2.54.0): hanya pembaruan inisiatif dari Manager untuk orang lain.
       ...(f.penugasan && ini && orang(me).peran === 'manager' && f.pic !== me ? { penugasan: me } : {}),
       ...isiBantuan(pInduk, f.pic, me),
+      ...(p && ['perlu', 'tidak'].includes(f.setor) ? { setor: f.setor } : {}),
       createdAt: waktu, updatedAt: waktu, selesaiAt: 0,
       subtasks: [], comments: [], tinjauan: [], evidence: buktiAwal ? [buktiAwal] : [],
     };
@@ -1286,6 +1287,14 @@
         if (t.status === 'Ditinjau') throw new Error('Task ini sedang ditinjau: setujui atau kembalikan dulu sebelum mengubah penugasannya.');
         if (jadi) t.penugasan = me; else delete t.penugasan;
         ubah.push(jadi ? 'jadi penugasan Manager' : 'bukan penugasan lagi');
+      }
+    }
+    // Penanda setoran (2.61.0): 'perlu', 'tidak', atau '' = mengikuti saran sub-stage.
+    if (f.setor !== undefined && t.project) {
+      const setor = ['perlu', 'tidak'].includes(f.setor) ? f.setor : '';
+      if (setor !== (t.setor || '')) {
+        if (setor) t.setor = setor; else delete t.setor;
+        ubah.push(setor === 'perlu' ? 'perlu setoran ke paket' : setor === 'tidak' ? 'tanpa setoran ke paket' : 'penanda setoran mengikuti sub-stage');
       }
     }
     if (umumKah && tahapU !== (t.tahapProyek || '')) {
@@ -3198,7 +3207,11 @@
     catatNomor(data, data.packages, 'PKG');
     data.packages.splice(i, 1);
     if (data.setoran) data.setoran = data.setoran.filter(s => s.paket !== p.id);
-    for (const proj of data.projects) if (proj.paket === p.id) proj.paket = '';
+    for (const proj of data.projects) {
+      const lain = (proj.paketLain || []).filter(x => x !== p.id);
+      if (proj.paket === p.id) proj.paket = lain.shift() || '';
+      if (Array.isArray(proj.paketLain)) proj.paketLain = lain;
+    }
     catatLog(data, 'delete', `${p.id} · ${p.namaPaket}`, 'Rancangan paket dihapus', me, waktu);
   }
 
@@ -4323,15 +4336,21 @@
   function proyekPengisi(data, paketId) {
     const lewatSetoran = new Set((data.setoran || []).filter(s => s.paket === paketId)
       .map(s => (data.tasks.find(t => t.id === s.task) || {}).project).filter(Boolean));
-    return data.projects.filter(p => p.paket === paketId || lewatSetoran.has(p.id));
+    return data.projects.filter(p => paketTertaut(p).includes(paketId) || lewatSetoran.has(p.id));
   }
-  /* Paket yang dikerjakan sebuah proyek (satu proyek boleh mengerjakan beberapa paket). */
+  /* Proyek boleh mengisi beberapa paket (2.61.0, permintaan user). paket = paket utamanya (folder
+     proyek itu di halaman Proyek), paketLain = paket lain yang ikut diisinya. Hasil kerja yang disetor
+     ke beberapa paket dihitung penuh di setiap paket (keputusan user). */
+  const paketTertaut = proj => (proj ? [...new Set([proj.paket, ...(Array.isArray(proj.paketLain) ? proj.paketLain : [])].filter(Boolean))] : []);
+  /* Paket yang dikerjakan sebuah proyek: yang tertaut, lalu yang hanya lewat setoran task-nya;
+     paket utamanya lebih dulu. */
   function paketProyek(data, proj) {
     const milik = new Set(data.tasks.filter(t => t.project === proj.id).map(t => t.id));
-    const id = new Set((data.setoran || []).filter(s => milik.has(s.task)).map(s => s.paket));
-    if (proj.paket) id.add(proj.paket);
-    return data.packages.filter(p => id.has(p.id));
+    const id = new Set([...paketTertaut(proj), ...(data.setoran || []).filter(s => milik.has(s.task)).map(s => s.paket)]);
+    return data.packages.filter(p => id.has(p.id)).sort((a, b) => (b.id === proj.paket) - (a.id === proj.paket));
   }
+  /* Folder proyek di halaman Proyek: paket utamanya, atau paket pertama yang diisinya ('' = tanpa paket). */
+  const paketUtamaProyek = (data, proj) => proj.paket || (paketProyek(data, proj)[0] || {}).id || '';
 
   /* Rancangan paket → proyek (PRD "Buat / hubungkan Project"). Setiap target terpilih yang
      masih terbuka menjadi satu BATCH: rangkaian task sesuai alur jenisnya, masing-masing
@@ -4394,7 +4413,9 @@
       data.projects.unshift(proj);
       catatLog(data, 'create', `${proj.id} · ${proj.name}`, `Proyek dari rancangan paket ${p.id}`, me, waktu);
     }
+    // Elaborasi paket lain ke proyek yang sudah ada: proyek itu kini juga mengisi paket ini (2.61.0).
     if (!proj.paket) proj.paket = p.id;
+    else if (proj.paket !== p.id && !(proj.paketLain || []).includes(p.id)) proj.paketLain = [...(proj.paketLain || []), p.id];
 
     data.setoran = data.setoran || [];
     const tasks = [];
@@ -4538,6 +4559,37 @@
 
   const bolehSetor = (t, me) => izin(me, 'paket.setoran') && bolehUbah(t, me);
 
+  /* Penanda setoran (2.61.0, permintaan user): task proyek yang mengisi rancangan paket ditandai perlu
+     atau tidak perlu menyetor saat dibuat (t.setor = 'perlu' | 'tidak'). Sarannya dari sub-stage:
+     langkah alur yang membawa capaian (mis. E1 konten, DV8 input, QC terakhir, I4 tayang). Langkah
+     hasil elaborasi menyetor lewat batch-nya, jadi tak perlu ditandai. Task lama tanpa penanda dinilai
+     dari sarannya selama belum selesai, dan task turunan hanya bila ditandai sendiri. */
+  /* Capaian sub-stage itu di paket-paket proyeknya, hanya bila ia membawa capaian di SEMUA kategori
+     yang alurnya memuatnya: E5 adalah QC di Materi tetapi langkah biasa di Latsol, jadi tak disarankan. */
+  function capaianSub(data, t) {
+    const proj = t && t.project ? data.projects.find(p => p.id === t.project) : null;
+    const ids = paketTertaut(proj);
+    if (!ids.length || !t.sub) return '';
+    const kategori = new Set();
+    for (const pk of data.packages) if (ids.includes(pk.id)) for (const it of pk.items || []) kategori.add(it.kategori);
+    let hasil = '';
+    for (const k of kategori) {
+      const l = langkahAlur(k).find(x => x.kode === t.sub);
+      if (!l) continue;
+      if (!l.capaian) return '';
+      hasil = hasil || l.capaian;
+    }
+    return hasil;
+  }
+  const saranSetor = (data, t) => (capaianSub(data, t) ? 'perlu' : 'tidak');
+  function perluSetoran(data, t, perId = indeks(data)) {
+    if (!t || !t.project || t.setor === 'tidak') return false;
+    if (batchLangkah(t, perId)) return false;
+    if (t.setor === 'perlu') return true;
+    return !t.induk && aktif(t) && saranSetor(data, t) === 'perlu';
+  }
+  const belumDisetor = (data, t, perId) => perluSetoran(data, t, perId) && !(data.setoran || []).some(s => s.task === t.id);
+
   /* Setoran manual dari detail task, untuk task yang dibuat di luar elaborasi.
      Satu task + satu target = satu setoran; menyetor lagi mengganti jumlah dan capaiannya.
      Sejak 2.59.1 langkah hasil elaborasi tetap di batch-nya, dan satu batch satu jumlah: menyetor
@@ -4580,12 +4632,31 @@
     catatLog(data, 'update', t ? `${t.id} · ${t.title}` : s.task, `Setoran ke ${s.paket} dihapus`, me, waktu);
   }
 
-  /* Menautkan proyek yang sudah ada (mis. kolaborasi v1) ke rancangan paket. */
+  /* Menautkan proyek yang sudah ada (mis. kolaborasi v1) ke rancangan paket sebagai paket utamanya.
+     Paket yang sudah ikut diisi lalu dijadikan utama bertukar tempat dengan paket utama lama; paket
+     lain yang baru menggantikan paket utama; melepas paket utama menaikkan paket lain yang pertama. */
   function tautkanPaket(data, proj, paketId, me, waktu) {
     wajibIzin(me, 'proyek.paket');
     if (paketId && !data.packages.some(p => p.id === paketId)) throw new Error('Paket tidak ditemukan.');
-    proj.paket = paketId || '';
+    const tukar = !!paketId && !!proj.paket && proj.paket !== paketId && (proj.paketLain || []).includes(paketId);
+    const lain = (proj.paketLain || []).filter(x => x !== paketId);
+    if (tukar) lain.unshift(proj.paket);
+    proj.paket = paketId || lain.shift() || '';
+    if (Array.isArray(proj.paketLain)) proj.paketLain = lain;
     catatLog(data, 'update', `${proj.id} · ${proj.name}`, paketId ? `Ditautkan ke rancangan paket ${paketId}` : 'Tautan rancangan paket dilepas', me, waktu);
+  }
+  /* Ikut mengisi paket lain (2.61.0), atau berhenti. Paket pertama sebuah proyek jadi paket utamanya.
+     Setoran yang sudah ada tetap terhitung di paketnya walau proyeknya berhenti ikut mengisi. */
+  function ikutPaket(data, proj, paketId, ikut, me, waktu) {
+    wajibIzin(me, 'proyek.paket');
+    if (!data.packages.some(p => p.id === paketId)) throw new Error('Paket tidak ditemukan.');
+    const lain = (proj.paketLain || []).filter(x => x !== paketId);
+    if (ikut && !proj.paket) proj.paket = paketId;
+    else if (ikut && proj.paket !== paketId) lain.push(paketId);
+    else if (!ikut && proj.paket === paketId) proj.paket = lain.shift() || '';
+    proj.paketLain = lain;
+    catatLog(data, 'update', `${proj.id} · ${proj.name}`, ikut ? `Ikut mengisi rancangan paket ${paketId}` : `Tak lagi mengisi rancangan paket ${paketId}`, me, waktu);
+    return proj;
   }
 
   /* ---------- Link Saya, Catatan Saya, Tautan tim ---------- */
@@ -5559,6 +5630,7 @@
     mulaiSiklus: (d, x, me, w) => mulaiSiklus(d, proyekX(d, x), me, w),
     setArsip: (d, x, me, w) => setArsip(d, proyekX(d, x), !!x.arsip, me, w),
     tautkanPaket: (d, x, me, w) => tautkanPaket(d, proyekX(d, x), x.paket || '', me, w),
+    ikutPaket: (d, x, me, w) => ikutPaket(d, proyekX(d, x), x.paket || '', !!x.ikut, me, w),
     paketBaru: (d, x, me, w) => paketBaru(d, x.f || {}, me, w),
     duplikatPaket: (d, x, me, w) => duplikatPaket(d, paketX(d, x), x.f || {}, me, w),
     inisiatifBaru: (d, x, me, w) => inisiatifBaru(d, x.f || {}, me, w),
@@ -5740,6 +5812,7 @@
     PAKET_IDENTITAS, PAKET_PRODUK, KATEGORI_PAKET, SATUAN_PAKET, hitungTarget, ringkasPaket, bolehUbahPaket, paketBaru, simpanPaket, hapusPaket,
     setoranPaket, sisaTerbuka, elaborasiPaket, bolehSetor, setorkan, hapusSetoran, tautkanPaket, rencanaSinkronPaket, bersihItemPaket, batchLangkah, labelBatch,
     CAPAIAN, namaCapaian, batchSetoran, ALUR_PAKET, langkahAlur, proyekPengisi, paketProyek,
+    paketTertaut, paketUtamaProyek, ikutPaket, capaianSub, saranSetor, perluSetoran, belumDisetor,
     FOLDER_UMUM, tautanRapi, judulTautan, kartuTautan, pesanCepatUntuk, kelompokFolder, simpanLink, simpanCatatan, tandaiLink, sematkanCatatan, hapusMilik, gantiNamaFolder, hapusFolder,
     WARNA_CATATAN, warnaiCatatan, pindahFolderCatatan, hapusCatatan, pulihkanCatatan, hitungChecklist, centangBaris, teksBarisCatatan, tandaiBarisTask, namaBerkas,
     JENIS_BLOK, blokCatatan, teksBlok, teksBlokDanBaris, nomorDaftar, pindahBlokKe, geserBlok, duplikatBlok,
